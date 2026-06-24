@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 79 — Design a Machine Learning Platform</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 79 · Phase 4 — Case Study · Hard</p>
+  <h1>Design a Machine Learning Platform</h1>
+  <p class="sub">The internal product that turns "a team has a model" into "the model is trained, deployed, served, and watched." You're not designing a model — you're designing the factory that produces and runs hundreds of them.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> This is the case study that separates the candidate who builds <em>one</em> ML system from the one who builds the <em>platform</em> a hundred teams build on. At L6/L7 the signal is abstraction and leverage: you provide paved-road components — a <b>feature store</b>, a <b>training orchestrator</b> over a shared GPU cluster, a <b>model registry</b>, a <b>serving tier</b>, and <b>drift monitoring</b> — so individual teams don't each reinvent them. The load-bearing insight is the <b>two-clock split</b>: an offline/batch world (ingest → features → train) and an online world (low-latency serving), connected by exactly two artifacts — <b>versioned features</b> and <b>versioned models</b>. Get those two contracts right and train/serve skew, reproducibility, and safe rollout all fall into place.
+  </div>
+
+  <h2>1. Functional Requirements</h2>
+  <p>The "users" here are <em>internal ML teams</em>, not end customers. The product is a self-service platform that covers the full lifecycle. Keep the scope to the platform plumbing; the actual modeling math is the tenant's job, not ours.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Teams should be able to…</th><th>Note</th></tr>
+    <tr><td>1</td><td>Ingest data into the platform</td><td>Batch + streaming sources land in a lake/warehouse as raw material</td></tr>
+    <tr><td>2</td><td>Define &amp; compute features</td><td>Author transforms once; reuse across models; served online + offline</td></tr>
+    <tr><td>3</td><td>Train &amp; track experiments</td><td>Submit training jobs to a shared cluster; log params/metrics/artifacts</td></tr>
+    <tr><td>4</td><td>Deploy a model</td><td>Promote a registered model version to a serving endpoint</td></tr>
+    <tr><td>5</td><td>Serve predictions</td><td>Online (low-latency request/response) and batch (bulk scoring)</td></tr>
+    <tr><td>6</td><td>Monitor models in production</td><td>Latency, errors, and data/model <em>drift</em> with alerts</td></tr>
+  </table>
+  <p>The through-line: a model is born from data and features, trained on a cluster, registered as a versioned artifact, deployed to an endpoint, and watched. The platform owns every arrow between those nouns.</p>
+
+  <h2>2. Non-Functional Requirements</h2>
+  <p>State the target, not just the "-ility." Four NFRs shape this platform, and they pull in different directions for the offline and online halves.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>NFR</th><th>Target</th><th>Drives</th></tr>
+    <tr><td>Scalability</td><td>100s of teams, 1000s of models, elastic GPU/CPU</td><td>Multi-tenant cluster + shared services; quota &amp; isolation</td></tr>
+    <tr><td>Reproducibility</td><td>Any model re-trainable byte-for-byte from logged inputs</td><td>Version data, features, code, params, and artifacts together</td></tr>
+    <tr><td>Low-latency serving</td><td>Online p99 &lt;~50–100ms; batch throughput over latency</td><td>Online feature store; autoscaling; model-as-a-service tier</td></tr>
+    <tr><td>Reliability</td><td>Serving 99.9%+; failed train jobs retried, never silent</td><td>Safe rollout (canary/A-B), rollback via registry, health checks</td></tr>
+  </table>
+  <p>The headline tension is <b>reproducibility (offline) vs low-latency (online)</b>: the offline world optimizes for correctness, lineage, and "compute it exactly the same next year"; the online world optimizes for milliseconds. The feature store is the seam where these two value systems must agree — which is exactly why train/serve skew is the platform's central hazard.</p>
+
+  <h2>3. Capacity Estimation</h2>
+  <p>Only the numbers that change the design. ML platform scale is about <em>concurrency on shared resources</em> and <em>feature read latency</em>, not raw QPS, so estimate those.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Concurrent training jobs</td><td>~1000s queued, 100s running, each needing 1–8 GPUs</td><td>Can't give every team a static cluster → <b>shared pool + scheduler with quotas</b> (see <a href="0034-job-scheduler.html">Lesson 34</a>).</td></tr>
+    <tr><td>Online prediction QPS</td><td>Top models at 10k–100k req/s each, bursty</td><td>Per-model <b>autoscaling</b>; one giant shared server would couple noisy neighbors.</td></tr>
+    <tr><td>Feature reads per request</td><td>1 prediction → 10s–100s of feature lookups</td><td>Online store needs single-digit-ms <b>batched</b> reads, not per-feature round-trips.</td></tr>
+    <tr><td>Feature/data volume</td><td>PBs in the offline lake; GBs–TBs hot in the online store</td><td>Two stores: cheap columnar offline, fast KV online — same values, kept in sync.</td></tr>
+  </table>
+  <div class="box">
+    <b>The number that forces the architecture.</b> Hundreds of teams times thousands of models means you cannot let each team self-host its own GPUs, feature pipeline, and serving stack — utilization would be terrible and skew bugs would be everywhere. The economics of a <em>shared</em> GPU pool (high utilization via a scheduler) plus <em>shared</em> feature and registry services (consistency by construction) are what justify a platform at all. <b>Multi-tenancy on shared, scarce resources is the constraint that creates the platform.</b><a href="#c2" class="cite">[2]</a>
+  </div>
+
+  <h2>4. Core Entities &amp; API</h2>
+  <p>Four entities. <code>Feature</code> and <code>Model</code> are the two versioned contracts the whole platform turns on; <code>Dataset</code> and <code>Endpoint</code> bracket them.<a href="#c3" class="cite">[3]</a></p>
+  <table>
+    <tr><th>Entity</th><th>Key fields</th></tr>
+    <tr><td>Dataset</td><td>id, source, schema, version, location (lake path), lineage</td></tr>
+    <tr><td>Feature (set)</td><td>name, entity (user/item), transform def, version, offline+online refs</td></tr>
+    <tr><td>Model (version)</td><td>id, version, training run id, metrics, artifact uri, stage (staging/prod)</td></tr>
+    <tr><td>Endpoint / Deployment</td><td>id, modelVersion, traffic split, replicas, autoscale policy, status</td></tr>
+  </table>
+  <p>The API is the self-service surface. The team/owner is always derived from the auth token; artifacts are immutable and addressed by version.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/features</code></td><td>Register/version a feature definition (transform + entity + freshness)</td></tr>
+    <tr><td><code>POST /v1/training-jobs</code></td><td>Submit a training run (code ref, dataset, resources) to the cluster</td></tr>
+    <tr><td><code>POST /v1/models/{id}/versions</code></td><td>Register a trained artifact + metrics into the model registry</td></tr>
+    <tr><td><code>POST /v1/deployments</code></td><td>Deploy a model version to an endpoint with a traffic split</td></tr>
+    <tr><td><code>POST /v1/predict/{endpoint}</code></td><td>Online inference: features fetched + scored, returns prediction</td></tr>
+    <tr><td><code>POST /v1/batch-predictions</code></td><td>Bulk score a dataset offline; write results back to the lake</td></tr>
+  </table>
+  <p>Critical move: <code>POST /v1/training-jobs</code> is async — it enqueues onto the cluster scheduler and returns a job id, never blocking on a multi-hour GPU run. Promotion to production is a registry state change (<code>stage: prod</code>), not a redeploy, so rollback is instant.</p>
+
+  <h2>5. Data Flow — raw data to watched prediction</h2>
+  <p>This is a pipeline platform, so trace the lifecycle once before drawing boxes. Two clocks again: a slow <b>offline</b> clock (hours) that builds features and models, and a fast <b>online</b> clock (milliseconds) that serves them.<a href="#c3" class="cite">[3]</a></p>
+  <div class="box">
+    <ol style="margin:.2rem 0 .2rem 1.1rem; padding:0;">
+      <li><b>Ingest:</b> batch + streaming sources land in the data lake/warehouse as raw, versioned datasets.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Features (offline):</b> transforms turn raw data into features, written to the <b>offline store</b> (for training) and materialized to the <b>online store</b> (for serving) — same definition, two destinations.<a href="#c3" class="cite">[3]</a></li>
+      <li><b>Train (offline, on cluster):</b> the scheduler places jobs on GPUs; runs log params/metrics/artifacts to <b>experiment tracking</b>.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Register:</b> the winning artifact + its metrics + lineage go into the <b>model registry</b> as an immutable version.<a href="#c4" class="cite">[4]</a></li>
+      <li><b>Deploy &amp; serve:</b> a registry version is promoted to an <b>endpoint</b>; online requests fetch features from the online store and return predictions; batch jobs score in bulk.</li>
+      <li><b>Monitor &amp; loop:</b> serving logs feature values and predictions; <b>drift detectors</b> compare live distributions to training and trigger retraining. <b>The monitoring loop is what keeps the platform honest.</b><a href="#c5" class="cite">[5]</a></li>
+    </ol>
+  </div>
+
+  <h2>6. High-Level Design</h2>
+  <p>Map each requirement to a component, then follow one request through. The offline/online split is the spine; the registry and feature store are the bridges across it.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>Ingestion + Data Lake</td><td>Batch/stream connectors; PB-scale columnar storage of versioned datasets.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Feature Store (offline + online)</td><td>One transform → offline store (training) + low-latency online store (serving). Single source of truth.<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>Training Orchestrator + Cluster</td><td>Queues jobs, schedules onto shared GPUs with quotas/priorities (see <a href="0034-job-scheduler.html">Lesson 34</a>).<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Experiment Tracking</td><td>Logs params, metrics, datasets, and artifacts per run for comparison + reproducibility.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Model Registry</td><td>Immutable, versioned artifacts with stages (staging/prod) and lineage; the deploy/rollback control plane.<a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td>Serving Tier</td><td>Per-model autoscaled endpoints (online) + batch scoring jobs; handles traffic splits.<a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td>Monitoring + Drift</td><td>Tracks ops metrics + data/model drift; alerts and triggers retraining.<a href="#c5" class="cite">[5]</a></td></tr>
+  </table>
+  <p><b>Online predict path:</b> <code>POST /v1/predict/{endpoint}</code> → serving tier resolves the prod model version from the registry → fetches that model's features for the entity from the <b>online store</b> in one batched read → runs inference on an autoscaled replica → returns the prediction <em>and</em> logs features+output for monitoring. The expensive work — computing features, training the model, materializing the online store — all happened offline, hours earlier. The online path is a lookup plus a forward pass inside a tight latency budget.</p>
+
+  <h2>7. Deep Dives</h2>
+  <p>This is 60% of the interview. Four hard parts, each with the alternative and a justified pick. Keep ML at "interview depth" — name the technique and explain why the <em>platform</em> is shaped that way; don't derive losses or gradients.</p>
+
+  <h3>Deep Dive 1 — The feature store: offline training vs online serving, and train/serve skew</h3>
+  <p>A model is trained on features computed in a batch pipeline, but it must serve on features computed in a live request path. If those two computations differ — even slightly — predictions silently degrade. This is <b>training/serving skew</b>, the single most common production-ML bug, and the platform's job is to make it impossible by construction.<a href="#c3" class="cite">[3]</a></p>
+  <table>
+    <tr><th>Aspect</th><th>Offline store</th><th>Online store</th></tr>
+    <tr><td>Consumer</td><td>Training + batch scoring</td><td>Online inference</td></tr>
+    <tr><td>Access pattern</td><td>Large scans, point-in-time joins</td><td>Single-entity key lookup, &lt;~10ms</td></tr>
+    <tr><td>Tech</td><td>Columnar lake / warehouse</td><td>In-memory KV / cache</td></tr>
+    <tr><td>Read shape</td><td>Whole history, many rows</td><td>Latest values, batched per request</td></tr>
+  </table>
+  <p>The fix is a <b>single feature definition</b> that writes to both stores. The offline store answers "what was this feature's value at the timestamp of each training label?" — a <b>point-in-time correct join</b> that prevents <em>label leakage</em> (using future data to predict the past). The online store answers "what is this feature's value right now?" for the same entity. Because both come from one transform, training and serving see the same logic.<a href="#c3" class="cite">[3]</a></p>
+  <div class="box">
+    <b>Why not just recompute features in the serving code?</b> Because two implementations of the same feature drift apart the moment either changes — that's the skew. A feature store makes the definition the contract: author once, materialize to both stores, and the online path becomes a fast read instead of a re-derivation. This is the same consistency play the <a href="0050-recommendation-system.html">recommendation system (Lesson 50)</a> relies on for its ranking features.
+  </div>
+
+  <h3>Deep Dive 2 — Training on a shared cluster: scheduling + experiment tracking + registry</h3>
+  <p>Hundreds of teams want GPUs; GPUs are scarce and expensive. You cannot statically partition them — utilization would crater. So training is a <b>scheduling problem</b> over a shared pool, which is why this leans directly on <a href="0034-job-scheduler.html">Lesson 34, the Job Scheduler</a>.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Concern</th><th>Move</th></tr>
+    <tr><td>Fair sharing</td><td>Per-team <b>quotas</b> + priority queues; preempt low-priority jobs for high.</td></tr>
+    <tr><td>Resource fit</td><td>Bin-pack jobs by GPU/CPU/memory request; gang-schedule multi-GPU jobs together.</td></tr>
+    <tr><td>Resilience</td><td>Checkpoint long runs; retry on node failure; idempotent job ids.</td></tr>
+    <tr><td>Reproducibility</td><td>Pin code ref, dataset version, container image, and params per run.</td></tr>
+  </table>
+  <p>Around the scheduler sit two services that turn "ran a script" into "an engineering asset." <b>Experiment tracking</b> logs every run's params, metrics, dataset version, and output artifact, so teams compare runs and the platform can reproduce any result.<a href="#c2" class="cite">[2]</a> The chosen artifact is then pushed to the <b>model registry</b>: an immutable, versioned record with metrics and lineage, plus a <b>stage</b> (<code>staging</code> → <code>prod</code>). Promotion and rollback are registry state changes, decoupling "which model exists" from "which model serves."<a href="#c4" class="cite">[4]</a></p>
+  <div class="box">
+    <b>Why a registry as the deploy control plane?</b> Because it makes rollout safe and auditable. The serving tier always asks the registry "what's the prod version of model X?" To roll back a bad model you flip a stage pointer — instant, no rebuild. To audit an incident you trace the prod version → training run → dataset version. That lineage chain is what makes the platform <em>reproducible</em>, the NFR juniors forget.
+  </div>
+
+  <h3>Deep Dive 3 — Model serving: online low-latency vs batch, autoscaling, A/B + canary</h3>
+  <p>Serving has two modes with opposite goals, and conflating them is a classic mistake. Decide per use case.<a href="#c4" class="cite">[4]</a></p>
+  <table>
+    <tr><th>Mode</th><th>Goal</th><th>Shape</th></tr>
+    <tr><td><b>Online</b></td><td>Low latency, per-request</td><td>Autoscaled model-as-a-service endpoints; p99 budget in ms</td></tr>
+    <tr><td><b>Batch</b></td><td>High throughput, bulk</td><td>Scheduled jobs scoring whole datasets; latency irrelevant</td></tr>
+  </table>
+  <p>For <b>online</b>, each model gets its own autoscaled deployment so a popular model's traffic spike doesn't starve a quiet one (no noisy neighbors). Autoscaling tracks QPS/GPU utilization; bursty traffic from capacity estimation is why per-model elasticity beats one shared server. To keep the latency budget, features arrive via a single batched online-store read, and replicas are warm (model already loaded in memory).<a href="#c4" class="cite">[4]</a></p>
+  <p>Shipping a new model version safely is its own subsystem. Because the registry decouples versions from endpoints, the platform can do <b>traffic-split rollout</b>:</p>
+  <table>
+    <tr><th>Strategy</th><th>What it does</th></tr>
+    <tr><td><b>Canary</b></td><td>Send ~1–5% of traffic to the new version; watch errors/latency; auto-rollback on regression.</td></tr>
+    <tr><td><b>A/B test</b></td><td>Split traffic across versions; compare <em>business</em> metrics (not just accuracy) to pick a winner.</td></tr>
+    <tr><td><b>Shadow</b></td><td>Mirror live traffic to the new model without serving its output; compare predictions offline.</td></tr>
+  </table>
+  <p>This mirrors the recommendation lesson's point: offline accuracy isn't ground truth — a live A/B test on real metrics is. The platform's contribution is making canary/A-B/shadow a <em>config</em> on the endpoint, not custom code each team writes.<a href="#c4" class="cite">[4]</a></p>
+
+  <h3>Deep Dive 4 — Monitoring for data &amp; model drift</h3>
+  <p>Unlike a normal service, an ML model can be perfectly healthy on ops metrics (200s, low latency) while quietly getting <em>wrong</em>, because the world it was trained on has moved. The platform must watch the data, not just the servers.<a href="#c5" class="cite">[5]</a></p>
+  <table>
+    <tr><th>Drift type</th><th>What changed</th><th>Signal</th></tr>
+    <tr><td><b>Data / feature drift</b></td><td>Input distribution shifts (new users, seasonality)</td><td>Live feature distribution diverges from training (e.g. PSI / KL divergence)</td></tr>
+    <tr><td><b>Concept drift</b></td><td>The input→output relationship changes</td><td>Accuracy drops once labels arrive, even if inputs look stable</td></tr>
+    <tr><td><b>Prediction drift</b></td><td>Output distribution shifts</td><td>Score histogram moves vs baseline — early proxy before labels exist</td></tr>
+  </table>
+  <p>The mechanism: every prediction logs its input features and output, so the monitor can compare <em>live</em> distributions against the <em>training</em> baseline continuously. The hard part is labels — ground truth often arrives late (a <a href="0072-fraud-detection.html">fraud chargeback (Lesson 72)</a> can take weeks; a recommendation's "did they click?" is fast). So you watch feature/prediction drift as leading indicators <em>before</em> true accuracy can be measured.<a href="#c5" class="cite">[5]</a></p>
+  <div class="box">
+    <b>What drift triggers.</b> Alerts to the owning team, plus optionally an automated <b>retraining</b> job through the same training pipeline — closing the loop from monitoring back to ingestion. This is the same drift problem the <a href="0050-recommendation-system.html">recommender (Lesson 50)</a> and the <a href="0072-fraud-detection.html">fraud system (Lesson 72)</a> each solve individually; the platform's win is providing it <em>once</em> so every tenant model gets drift detection for free.
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior-vs-staff tell is recognizing this is a <b>platform</b>, not a model. Say it up front: <b>"I'll treat each team's model as a black box and design the shared lifecycle services around it."</b> Then anchor the whole answer on the <b>two versioned contracts</b> — the <b>feature store</b> (one definition → offline + online, killing train/serve skew) and the <b>model registry</b> (immutable versions + stages, making deploy/rollback/lineage trivial). Show judgement on the multi-tenancy economics: a <b>shared GPU pool with a scheduler</b> beats per-team clusters, and <b>per-model autoscaling</b> beats one shared server. Proactively raise the three things juniors miss: <b>reproducibility</b> (pin data+code+params+artifact), <b>point-in-time-correct features</b> (no label leakage), and that <b>ops health ≠ model health</b> — you need <b>drift monitoring</b> because a model can rot while returning 200s. Naming what you're <em>not</em> building (the ML math) is itself the staff move.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why does a feature store write one definition to both an offline and an online store?</p>
+      <button class="opt">So the offline lake can hold strictly more historical rows than the cache</button>
+      <button class="opt">So the cluster scheduler can place training jobs onto idle GPU machines</button>
+      <button class="opt">So training and serving compute each feature identically, avoiding skew</button>
+      <button class="opt">So the registry can roll a deployed model version back to an earlier one</button>
+      <p class="fb">One transform materialized to both stores means training and serving see the same feature logic, which is what prevents training/serving skew.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Why train on a shared cluster with a scheduler instead of per-team GPUs?</p>
+      <button class="opt">Shared clusters remove the need to ever version a trained model artifact</button>
+      <button class="opt">Static per-team GPUs sit idle, so a shared pool raises utilization a lot</button>
+      <button class="opt">Per-team GPUs cannot run any job that requires more than a single device</button>
+      <button class="opt">Schedulers make every training run finish in a fixed, identical duration</button>
+      <p class="fb">GPUs are scarce and bursty; statically partitioning them wastes capacity, so a shared pool plus quota-aware scheduling drives high utilization.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What makes the model registry the right control plane for safe rollback?</p>
+      <button class="opt">Versions are immutable with stages, so rollback just flips a pointer fast</button>
+      <button class="opt">Versions are recomputed live, so the newest model always wins by default</button>
+      <button class="opt">Versions are stored only inside the online feature cache for quick reads</button>
+      <button class="opt">Versions are merged together, so the endpoint blends them automatically</button>
+      <p class="fb">Immutable versioned artifacts with stage pointers let the serving tier swap or revert by changing which version is prod — no rebuild, instant rollback.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why monitor data and prediction drift, not just latency and error rates?</p>
+      <button class="opt">Because drift metrics are the only signals a serving endpoint can emit fast</button>
+      <button class="opt">Because a model can return healthy responses while quietly becoming wrong</button>
+      <button class="opt">Because latency monitoring requires labels that always arrive far too late</button>
+      <button class="opt">Because drift detection replaces the need to run any A/B test on traffic</button>
+      <p class="fb">A model can be ops-healthy (200s, low latency) yet degrade as the input world shifts; drift on features/predictions is the leading indicator before labels arrive.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it. Try: <em>"Walk me through the latency budget for one online prediction across feature fetch and inference."</em> · <em>"How does a point-in-time-correct join prevent label leakage in the offline store?"</em> · <em>"How would you wire drift detection to automatically trigger a retraining job?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning">Google Cloud — "MLOps: Continuous delivery and automation pipelines in machine learning"</a>. The canonical reference for the platform lifecycle — feature stores, training pipelines, model registry, serving, and monitoring — read it for why the offline/online split and versioned artifacts are the backbone.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction">Hello Interview — System Design delivery framework</a> (FR/NFR/capacity/HLD/deep-dive structure; platform-as-product framing; online metrics over offline).</p>
+    <p id="c2">[2] <a href="https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning">Google Cloud — MLOps pipelines</a> (training automation/orchestration, experiment tracking, reproducibility, retraining loop).</p>
+    <p id="c3">[3] <a href="https://www.tecton.ai/blog/what-is-a-feature-store/">Tecton / Feast — What is a feature store</a> (offline vs online store, point-in-time correctness, training/serving skew).</p>
+    <p id="c4">[4] <a href="https://mlflow.org/docs/latest/model-registry.html">MLflow — Model Registry &amp; serving</a> (immutable versioned artifacts, stages, deployment, canary/A-B rollout).</p>
+    <p id="c5">[5] <a href="https://developers.google.com/machine-learning/guides/rules-of-ml">Google — Rules of Machine Learning / data validation &amp; drift</a> (data &amp; concept drift, monitoring live vs training distributions, retraining triggers).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0078-music-recognition-shazam.html">← Lesson 78</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 80 · AI Agent / RAG</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

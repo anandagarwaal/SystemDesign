@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 07 — Messaging &amp; Async Processing</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 07 · Phase 1 — Core Concepts</p>
+  <h1>Messaging &amp; Async Processing</h1>
+  <p class="sub">Stop making the user wait. Decouple the work, absorb the spike, and pick the right pipe — queue or log.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Almost every L6/L7 design eventually needs work done <em>off the request path</em> — sending notifications, aggregating clicks, processing payments, building a feed. The senior move is "add a queue." The staff move is knowing <em>which</em> async primitive (queue vs. event log), <em>why</em>, and how you keep it correct when messages get delivered twice. This lesson gives you that judgement.
+  </div>
+
+  <h2>Why go async at all?</h2>
+  <p>A synchronous request does everything before it replies: validate, write, charge the card, send the email, update three caches — <em>then</em> return 200. The user waits for the slowest step, and a spike in traffic hits every downstream system at once. Async processing breaks that chain. The web server does the minimum to accept the request, drops a message onto a queue, and returns immediately. A separate pool of workers picks up the message and does the slow work later.</p>
+
+  <p>You reach for async for four recurring reasons:</p>
+  <div class="box">
+    <ul>
+      <li><b>Decoupling</b> — the producer (web server) and consumer (worker) don't need to be up, fast, or scaled together. The queue sits between them as a buffer and a contract.</li>
+      <li><b>Load leveling / absorbing spikes</b> — a queue smooths a bursty write rate into a steady consumption rate. A flash sale that triples writes for 30 seconds fills the queue; workers drain it at their own pace instead of falling over.</li>
+      <li><b>Slow work off the request path</b> — video transcoding, generating a PDF, calling a flaky third-party API. Return fast, finish in the background.</li>
+      <li><b>Retries &amp; durability</b> — if a worker crashes mid-task, the message isn't lost; it goes back on the queue and gets retried. The request itself already succeeded.</li>
+    </ul>
+  </div>
+
+  <p>The tradeoff is honesty about <b>eventual consistency and complexity</b>. The user gets a "we're on it" instead of a "done." You now operate one more moving part, you have to reason about duplicate and out-of-order messages, and debugging spans two systems. Async is not free — use it where the work is genuinely deferrable.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    A queue smooths a spike; it does not create capacity. If your consumers are permanently slower than your producers, the queue just grows without bound — "a queue is just obscuring the problem."<a href="#c1" class="cite">[1]</a> Say out loud whether you're buffering a <em>temporary</em> burst (good) or papering over a <em>sustained</em> under-provisioning (bad). Naming that distinction unprompted is the senior-to-staff jump.
+  </div>
+
+  <h2>Queues vs. event logs — the core choice</h2>
+  <p>Both are "messaging," and interviewers use the words loosely, but they solve different problems. A <b>message queue</b> (SQS, RabbitMQ) is for <em>distributing work</em>: a message is consumed once, by one worker, then removed. A <b>distributed log / event stream</b> (Kafka, Kinesis) is for <em>durably recording events</em>: messages are appended to an ordered log, kept for a retention window, and any number of independent consumer groups can read — and re-read — them.<a href="#c2" class="cite">[2]</a></p>
+
+  <table>
+    <tr><th>Dimension</th><th>Message Queue (SQS, RabbitMQ)</th><th>Event Log / Stream (Kafka, Kinesis)</th></tr>
+    <tr><td>Mental model</td><td>To-do list of tasks</td><td>Append-only ledger of events</td></tr>
+    <tr><td>After consumption</td><td>Message is deleted</td><td>Message stays until retention expires</td></tr>
+    <tr><td>Consumers</td><td>Competing workers share the load; each message goes to one</td><td>Multiple consumer groups each read the whole stream independently<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Replay</td><td>No — once gone, it's gone</td><td>Yes — rewind to any offset or timestamp<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Ordering</td><td>Best-effort / per-group</td><td>Strict within a partition</td></tr>
+    <tr><td>Best for</td><td>Task distribution: send email, resize image, process job</td><td>Event sourcing, analytics, fan-out to many systems<a href="#c2" class="cite">[2]</a></td></tr>
+  </table>
+
+  <div class="box">
+    <b>The decision rule (say this in the interview):</b>
+    <ul>
+      <li>Need <b>one team of workers to chew through tasks</b>, and you don't care about history once done? → <b>Queue.</b></li>
+      <li>Need <b>multiple independent consumers</b> (notifications + analytics + search indexer all reading the same events), or the ability to <b>replay</b> after a bug, or <b>ordered</b> events? → <b>Log (Kafka).</b></li>
+    </ul>
+    Justify by <em>replay and consumer count</em>, not by brand name.
+  </div>
+
+  <h2>Kafka specifics you must be able to draw</h2>
+  <p>Kafka is the default streaming platform you'll name in interviews, so know its vocabulary cold.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Term</th><th>What it is</th></tr>
+    <tr><td><b>Topic</b></td><td>A named stream of events, e.g. <code>clicks</code> or <code>payments</code>.</td></tr>
+    <tr><td><b>Partition</b></td><td>A topic is split into partitions across brokers. Ordering is guaranteed <em>within</em> a partition; partitions are how you scale and parallelize.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td><b>Partition key</b></td><td>A field (e.g. <code>userId</code>) hashed to pick the partition. Same key → same partition → ordered together.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td><b>Consumer group</b></td><td>A set of consumers sharing a topic's partitions. Different groups read the same topic independently.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td><b>Offset</b></td><td>A consumer's bookmark — the position it has read up to. Committing offsets lets it resume; rewinding them replays.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td><b>Retention</b></td><td>How long events stay (e.g. 7 days, or by size). Within the window, anyone can re-read from any offset.<a href="#c2" class="cite">[2]</a></td></tr>
+  </table>
+
+  <h3>Why your partition-key choice is the whole game</h3>
+  <p>The partition key trades off two things you can't both maximize:</p>
+  <ul>
+    <li><b>Ordering.</b> If you need all of a user's events processed in order, key by <code>userId</code> so they land in one partition. Keyless events spread round-robin and lose cross-partition order.</li>
+    <li><b>Hot partitions.</b> If one key is far busier than the rest (a celebrity's posts, one giant tenant), its partition becomes a bottleneck while others sit idle. You either pick a higher-cardinality key or accept that ordering and add a salt/sub-key.</li>
+  </ul>
+  <p>Calling out "I'll partition by <code>userId</code> for per-user ordering, but watch for hot partitions on power users" is exactly the level of specificity interviewers want.</p>
+
+  <h2>Delivery semantics &amp; idempotency</h2>
+  <p>Networks fail between "worker did the work" and "worker acked the message." That gap forces a choice about what guarantee you can offer:</p>
+  <table>
+    <tr><th>Semantic</th><th>Meaning</th><th>Cost</th></tr>
+    <tr><td><b>At-most-once</b></td><td>Ack first, then process. A crash can drop the message.</td><td>Fast, lossy. OK for metrics you can lose.</td></tr>
+    <tr><td><b>At-least-once</b></td><td>Process, then ack. A crash before ack means redelivery — possible duplicates. <em>The common default.</em></td><td>No loss, but you must handle duplicates.</td></tr>
+    <tr><td><b>Exactly-once</b></td><td>Every message effected exactly once. Hard and expensive — needs transactional coordination across systems.</td><td>Often impractical end-to-end.</td></tr>
+  </table>
+
+  <div class="box">
+    <b>The staff answer to "how do you get exactly-once?"</b> You usually don't. You take <b>at-least-once delivery and make the consumer idempotent</b> — processing the same message twice has the same effect as processing it once. Practically: attach a unique <code>messageId</code> / <code>requestId</code>, and before acting, check whether you've already processed it (a dedup table, a unique DB constraint, or a conditional write). A retried "charge $10" then becomes a no-op the second time.
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    When asked about duplicates, do <em>not</em> hand-wave "we'll use exactly-once delivery." Say: "At-least-once is the realistic delivery guarantee; I'll make the consumer idempotent with an idempotency key so duplicates are harmless." That single sentence signals you've actually run a queue in production. Reserve real exactly-once for cases where the broker and sink support a transaction (e.g. Kafka transactions into the same Kafka), and name that scope.
+  </div>
+
+  <h2>The operational toolkit: DLQs, backpressure, outbox</h2>
+  <p>Three names that make your design look battle-tested:</p>
+  <div class="box">
+    <ul>
+      <li><b>Dead-letter queue (DLQ)</b> — a message that fails repeatedly (poison message) shouldn't block the queue or retry forever. After N attempts, route it to a DLQ for inspection/alerting, and keep draining the rest.</li>
+      <li><b>Backpressure</b> — when consumers can't keep up, the system needs to push back: cap queue depth, slow or reject producers, or auto-scale workers. Without it, the queue grows unbounded and latency explodes. Backpressure is how a buffer stays a buffer.</li>
+      <li><b>Outbox pattern / CDC</b> — to publish an event <em>and</em> commit a DB write atomically, write the event to an <code>outbox</code> table in the <em>same transaction</em>, then a relay (or Change Data Capture tailing the DB log) publishes it to Kafka. This avoids the "wrote to DB but crashed before publishing" inconsistency.</li>
+    </ul>
+  </div>
+
+  <h2>How this shows up in interviews</h2>
+  <p>You introduce messaging the moment work doesn't need to happen inline. The pattern is always: producer writes to a queue/log, returns fast; workers consume and do the heavy lifting; the system stays responsive under load.</p>
+  <table>
+    <tr><th>Design</th><th>Where messaging lands</th></tr>
+    <tr><td>Ad Click Aggregator</td><td>Stream raw clicks into Kafka (keyed by ad), workers aggregate in windows; replay enables reprocessing.</td></tr>
+    <tr><td>Job Scheduler</td><td>Queue of due jobs; competing workers pull and execute; DLQ for failures; idempotency for retries.</td></tr>
+    <tr><td>News Feed</td><td>On post, emit an event; fan-out workers write to followers' feeds off the request path.</td></tr>
+    <tr><td>Payments</td><td>At-least-once processing with idempotency keys; outbox to publish "payment succeeded" reliably.</td></tr>
+  </table>
+  <p>Pick the primitive deliberately: a <b>queue</b> for "smooth a spike / distribute long-running tasks," a <b>log</b> when you need <b>replay or multiple consumers</b> (notifications + analytics + indexing off one event stream).</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. You need three independent teams — notifications, analytics, and a search indexer — to each react to the same stream of "post created" events, with the option to replay after a bug. Which fits best?</p>
+      <button class="opt">A single message queue where the workers all compete</button>
+      <button class="opt">A message queue with one extra retry attempt added</button>
+      <button class="opt">A Kafka log read by three separate consumer groups</button>
+      <button class="opt">A direct synchronous call from the writer service</button>
+      <p class="fb">A log keeps events for a retention window and lets multiple consumer groups read independently and replay from any offset; a queue deletes a message after one consumer takes it.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. An interviewer asks how you'll prevent a double charge when a payment message might be delivered twice. Strongest answer?</p>
+      <button class="opt">Switch the broker into a strict exactly-once delivery mode</button>
+      <button class="opt">Use at-least-once and make the consumer idempotent by key</button>
+      <button class="opt">Acknowledge each message before any processing begins</button>
+      <button class="opt">Add additional replicas so messages are never lost ever</button>
+      <p class="fb">At-least-once is the realistic guarantee; idempotency (a dedup/idempotency key) makes a redelivered message a harmless no-op. End-to-end exactly-once is hard and usually impractical.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. In Kafka, what does choosing <code>userId</code> as the partition key buy you, and what's the risk?</p>
+      <button class="opt">Per-user ordering in one partition, but possible hot partitions</button>
+      <button class="opt">Global ordering across all partitions, but slower total writes</button>
+      <button class="opt">Exactly-once delivery built in, but no ability to replay events</button>
+      <button class="opt">Automatic deduplication of events, but loss of any retention</button>
+      <p class="fb">Same key hashes to the same partition, giving ordering within it — but a heavily used key (a power user) overloads that one partition while others idle.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. A queue is filling faster than workers can drain it, indefinitely. What is the queue actually telling you?</p>
+      <button class="opt">Delivery semantics must be upgraded from at-least-once to once</button>
+      <button class="opt">Consumers are under-provisioned; buffering only hides the gap</button>
+      <button class="opt">The partition key was chosen incorrectly for this workload</button>
+      <button class="opt">Producers should retry less and the retention should grow</button>
+      <p class="fb">A queue smooths temporary bursts; it does not create capacity. Sustained growth means consumers are too slow — add capacity or apply backpressure rather than just buffering.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your tutor for this topic — push on it. Try: <em>"Walk me through making a payment consumer idempotent, step by step."</em> · <em>"When would you pick SQS over Kafka, and when is that a mistake?"</em> · <em>"Draw the outbox pattern for me and explain what CDC replaces."</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/key-technologies">Hello Interview — Key Technologies (Kafka &amp; message queues section)</a>. The cleanest interview-calibrated treatment of queues vs. streams, partitions/consumer groups, and when to reach for each. Pair it with their Core Concepts page for the async/decoupling framing.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/core-concepts">Hello Interview — System Design Core Concepts</a> (async/decoupling framing; "a queue is just obscuring the problem" when capacity is the real issue; message-queue throughput/latency reference figures).</p>
+    <p id="c2">[2] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/key-technologies">Hello Interview — Key Technologies (Kafka section)</a> (queues vs. streams; partitions &amp; partition keys for ordering and scaling; multiple consumer groups; configurable retention and replay/re-read from past offsets; Kafka for real-time analytics, event sourcing, multi-consumer fan-out).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0006-replication-and-cap.html">← Lesson 06</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 08 · Capacity Estimation</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

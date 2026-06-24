@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 44 — Design a Distributed Message Queue</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 44 · Phase 4 — Case Study · Hard</p>
+  <h1>Design a Distributed Message Queue</h1>
+  <p class="sub">Buffer work between producers and consumers so a burst, a slow worker, or a crashed worker never loses a message.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A message queue is the system whose <em>entire</em> value is
+    delivery semantics under failure. Seniors describe "producers push, consumers pull." Staff candidates name the
+    delivery guarantee out loud (at-least-once), explain why <em>exactly-once delivery is impossible</em> and that
+    <b>visibility timeout + idempotency</b> is the real answer, and know exactly where this differs from a log like
+    Kafka. Get those three moves right and you've passed the bar.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Mirror the Amazon SQS surface area — five operations, nothing more.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>The user should be able to…</th><th>Detail</th></tr>
+    <tr><td>Create a queue</td><td>Provision a named queue with config (visibility timeout, retention, FIFO vs standard).<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Send a message</td><td>A producer enqueues a message (payload up to a size cap) onto a named queue.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Receive messages</td><td>A consumer pulls one or more available messages to process them.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Delete / ack a message</td><td>After successful processing the consumer deletes the message so it is never redelivered.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Delete a queue</td><td>Tear the queue down, discarding any messages still in it.<a href="#c1" class="cite">[1]</a></td></tr>
+  </table>
+  <p><b>Out of scope</b> (say it aloud): the business logic <em>inside</em> the consumer, fan-out pub/sub to many
+  subscribers (that's a topic/log — see <a href="0007-messaging-and-async.html">Lesson 07</a>), and message
+  transformation. We move bytes from producer to consumer durably; the handler does the work.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th></tr>
+    <tr><td>Durability</td><td>An acknowledged send is <b>never lost</b> — persist + replicate before acking the producer. This is the whole point of a queue.</td></tr>
+    <tr><td>Delivery guarantee</td><td><b>At-least-once</b> by default: every message is delivered until a consumer deletes it; duplicates are possible and handled via idempotency.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Availability</td><td>Highly available for both send and receive; favor availability over strict ordering for the standard queue (AP-leaning).</td></tr>
+    <tr><td>Scalability</td><td>Effectively unbounded throughput for standard queues; horizontal scaling of producers and consumers.<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>Latency</td><td>Low-latency send; receive uses <b>long polling</b> so consumers don't burn CPU spinning on an empty queue.<a href="#c4" class="cite">[4]</a></td></tr>
+  </table>
+  <p>The central tension is <b>ordering vs. throughput</b>. Strict global FIFO forces serialization and caps
+  throughput; "best-effort order, unlimited scale" is the standard queue. We design the standard queue first, then
+  show what FIFO costs.</p>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only the numbers that bend the design.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Throughput</td><td>~100k–1M messages/sec across many queues, payload ~1&nbsp;KB</td><td>No single broker holds it all — <b>partition</b> each queue across many brokers/shards. Throughput, not storage, is the driver.</td></tr>
+    <tr><td>In-flight retention</td><td>Messages held only until acked; unacked messages retained up to ~days<a href="#c1" class="cite">[1]</a></td><td>A queue is a <em>buffer</em>, not an archive. Steady-state storage is small; backlog from a dead consumer is the spike to plan for.</td></tr>
+    <tr><td>Backlog burst</td><td>Consumer outage → minutes of arrivals pile up: 100k/sec × 600s ≈ 60M messages</td><td>Must spill to durable disk, not RAM. Buffering for a slow/down consumer is the explicit job — size storage for the outage, not the average.</td></tr>
+  </table>
+  <p><b>The math that matters:</b> volume is trivial to <em>store</em> but the working set must absorb a consumer
+  outage without dropping anything. That pushes us to a durable, replicated, append-friendly store per partition.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Queue</b> — a named, configured channel. <b>Message</b> — payload + metadata (id, receive-count, enqueue
+  time). <b>Receipt handle</b> — a per-receive token a consumer must present to delete/extend a specific
+  delivery, so a stale handle can't delete a message that has since been redelivered.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/queues</code></td><td>Create a queue: <code>{ name, fifo, visibilityTimeout, retention }</code>. Returns <code>queueUrl</code>.</td></tr>
+    <tr><td><code>DELETE /v1/queues/{q}</code></td><td>Delete the queue and discard its messages.</td></tr>
+    <tr><td><code>POST /v1/queues/{q}/messages</code></td><td>Send: <code>{ body, groupId? }</code>. Returns <code>messageId</code>.</td></tr>
+    <tr><td><code>GET /v1/queues/{q}/messages?max=N&amp;wait=20</code></td><td>Receive up to N messages with long-poll <code>wait</code> seconds; returns bodies + receipt handles.</td></tr>
+    <tr><td><code>DELETE /v1/queues/{q}/messages</code></td><td>Ack: delete by <code>{ receiptHandle }</code> after successful processing.</td></tr>
+  </table>
+  <p>The owning account is derived from the auth token, never sent in the body. Note there is no "consume" that
+  both reads and deletes in one step — separating <em>receive</em> from <em>delete</em> is what enables redelivery.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Trace each operation through the boxes. The hard part lives between "receive" and "delete."</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>Producer/consumer SDK</td><td>Talks HTTP to the front end; hides retries, batching, long-poll.</td></tr>
+    <tr><td>Front end / API gateway</td><td>Auth, rate-limit, route a queue to its partition(s) by consistent hash.</td></tr>
+    <tr><td>Metadata store</td><td>Queue configs, partition map, ownership. Small, strongly consistent (e.g. a coordination store).</td></tr>
+    <tr><td>Broker (per partition)</td><td>Owns an ordered, durable <b>commit log</b> of messages; tracks in-flight + visibility per message; replicated.</td></tr>
+    <tr><td>Replicas</td><td>Each partition is replicated to N nodes; an ack to the producer waits for a write quorum.</td></tr>
+  </table>
+  <p><b>Send flow:</b> producer → front end routes to a partition → broker appends to the log, replicates to a
+  quorum, then acks the producer (durable before ack). <b>Receive flow:</b> consumer long-polls → broker returns
+  the next visible messages and marks each <b>in-flight</b> (invisible) for the visibility timeout, handing back a
+  receipt handle. <b>Delete flow:</b> consumer finishes work → calls delete with the handle → broker removes the
+  message. If delete never comes, the timeout expires and the message becomes visible again for redelivery.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The interview turns on one sentence: <b>receive does not delete — it hides</b>. A message has a lifecycle
+    (visible → in-flight → deleted, or back to visible on timeout), not a boolean. That single decision is what
+    makes the queue tolerate a crashed consumer (at-least-once), and it forces the consumer to be idempotent.
+    Everything below — ordering, replication, DLQ, scaling — is a refinement of that lifecycle.
+  </div>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1 · Delivery semantics — why at-least-once + idempotency is the real answer</h3>
+  <p>Three guarantees exist, and you must name which one you're building:</p>
+  <table>
+    <tr><th>Guarantee</th><th>Mechanism</th><th>Failure mode</th></tr>
+    <tr><td>At-most-once</td><td>Delete on receive (fire-and-forget).</td><td>Consumer crashes after receive, before processing → message lost.</td></tr>
+    <tr><td>At-least-once</td><td>Visibility timeout; delete only after success.<a href="#c2" class="cite">[2]</a></td><td>Consumer finishes, crashes before delete → message redelivered → duplicate.</td></tr>
+    <tr><td>Exactly-once</td><td>Dedup + transactional commit of read+side-effect.</td><td>Impossible across a network for <em>delivery</em>; achievable only for <em>effect</em>.</td></tr>
+  </table>
+  <p>You cannot get exactly-once <em>delivery</em>: any ack can be lost in flight, so the sender must choose to
+  retry (risking a duplicate) or not (risking a loss). The practical answer the interviewer wants:
+  <b>at-least-once delivery + idempotent consumers</b>. The queue guarantees the message arrives; the consumer
+  uses an idempotency key (e.g. <code>messageId</code> or a business key) so a duplicate is a no-op — giving
+  exactly-once <em>effect</em>. SQS standard queues are explicitly at-least-once; FIFO queues add exactly-once
+  <em>processing</em> via a dedup window, not magic.<a href="#c2" class="cite">[2]</a><a href="#c5" class="cite">[5]</a>
+  This is the same reasoning as <a href="0007-messaging-and-async.html">Lesson 07</a>; revisit idempotency in the
+  <a href="../reference/glossary.html">glossary</a> if it's fuzzy.</p>
+  <div class="box">
+    <b>Pick &amp; justify:</b> Default to <b>at-least-once</b> and push idempotency to the consumer. It's cheaper,
+    more available, and composes — versus exactly-once "delivery," which doesn't exist and whose closest
+    approximation (FIFO dedup) sacrifices throughput. Say the magic line: <em>"at-least-once + idempotency ≈
+    exactly-once effect."</em>
+  </div>
+
+  <h3>2 · The in-flight / visibility-timeout / ack lifecycle &amp; the dead-letter queue</h3>
+  <p>This is the engine room. When a consumer receives a message the broker doesn't delete it — it marks it
+  in-flight and starts a <b>visibility timeout</b>, during which the message is hidden from other
+  consumers.<a href="#c2" class="cite">[2]</a> Three outcomes:</p>
+  <div class="box">
+    <b>Lifecycle outcomes:</b>
+    <ul>
+      <li><b>Success</b> → consumer calls delete with its receipt handle → message gone. The happy path.</li>
+      <li><b>Crash / slow</b> → no delete before the timeout → message becomes visible again → redelivered. At-least-once in action.</li>
+      <li><b>Still working</b> → a long job extends the timeout (heartbeat / change-visibility) so a healthy job isn't re-run beneath it.<a href="#c2" class="cite">[2]</a></li>
+    </ul>
+  </div>
+  <p>Set the timeout above the expected processing time. Too short → healthy work is redelivered and duplicated;
+  too long → a real crash sits undetected and throughput stalls. A <b>poison message</b> (one that always fails,
+  e.g. malformed) would otherwise loop forever, eating capacity. The fix is a <b>dead-letter queue</b>: track a
+  per-message <code>receiveCount</code>, and after <code>maxReceiveCount</code> redrive the message to a separate
+  DLQ for inspection instead of redelivering it endlessly.<a href="#c6" class="cite">[6]</a></p>
+  <div class="box">
+    <b>Pick &amp; justify:</b> Visibility timeout (not delete-on-read) + receipt handles + a DLQ after N attempts.
+    This gives crash tolerance, prevents one bad message from starving the queue, and turns "stuck" into an
+    observable, drainable thing. Add backoff between redeliveries so a flaky downstream isn't hammered.
+  </div>
+
+  <h3>3 · Ordering — FIFO vs standard, partitions &amp; message groups</h3>
+  <p>Global strict ordering and unlimited throughput are in tension: total order means a single serialization
+  point. So queues offer two modes.</p>
+  <table>
+    <tr><th>Mode</th><th>Order &amp; dedup</th><th>Throughput</th></tr>
+    <tr><td>Standard</td><td>Best-effort ordering; at-least-once; duplicates possible.<a href="#c3" class="cite">[3]</a></td><td>Nearly unlimited — partition freely across brokers.</td></tr>
+    <tr><td>FIFO</td><td>Strict order <em>within a message group</em>; exactly-once processing via a dedup window.<a href="#c5" class="cite">[5]</a></td><td>Bounded; order forces per-group serialization.</td></tr>
+  </table>
+  <p>The unlock for FIFO scale is the <b>message group ID</b>: ordering is guaranteed only <em>within</em> a group,
+  and different groups are processed in parallel.<a href="#c5" class="cite">[5]</a> Pick a group key that needs
+  internal order but is independent of others — e.g. <code>userId</code> so one user's events stay ordered while
+  millions of users run concurrently. This is the same partitioning idea as a Kafka partition key: order per
+  key, parallelism across keys.</p>
+  <div class="box">
+    <b>Pick &amp; justify:</b> Default to <b>standard</b> — most workloads only need at-least-once, not global
+    order, and standard scales effortlessly. Reach for <b>FIFO with a well-chosen group key</b> only when a
+    specific entity's events must not reorder. Don't buy global ordering you don't need; it's the most expensive
+    guarantee on the menu.
+  </div>
+
+  <h3>4 · Durability &amp; replication of the log; scaling consumers; push vs pull</h3>
+  <p>Each partition is a <b>durable, append-only commit log</b> on disk, replicated to N nodes. A producer's send
+  is acked only after a <b>write quorum</b> persists it, so a single node failure loses nothing; a leader serves
+  reads/writes and a follower is promoted on failover. Appending to a log is sequential I/O — cheap and fast —
+  which is why both queues and logs are built this way.</p>
+  <div class="box">
+    <b>Scaling consumers:</b>
+    <ul>
+      <li><b>Competing consumers</b> — many consumers pull from one queue; each message goes to exactly one of them. Add consumers to drain a backlog; autoscale on queue depth / age of oldest message.</li>
+      <li><b>Long polling &gt; short polling</b> — a receive call waits up to ~20s for a message instead of returning empty immediately, cutting empty-receive cost and latency.<a href="#c4" class="cite">[4]</a></li>
+      <li><b>Pull, not push</b> — consumers pull at their own pace, so a slow consumer can't be overwhelmed (no backpressure problem); the queue is the buffer. Push (broker→consumer) gives lower latency but needs flow control.</li>
+    </ul>
+  </div>
+  <p><b>Queue vs. log — the contrast to draw.</b> A <em>queue</em> (SQS) has competing consumers and
+  <b>deletes on ack</b>: once one consumer processes a message it's gone, so it's ideal for distributing work
+  items. A <em>log</em> (Kafka) <b>retains</b> messages and tracks a per-consumer-group <b>offset</b>: many
+  independent groups can each read the whole stream, and you can replay by rewinding the offset.<a href="#c5" class="cite">[5]</a>
+  Choose a queue for task distribution and at-least-once work; choose a log for fan-out, replay, and event
+  sourcing. The fuller treatment is in <a href="0007-messaging-and-async.html">Lesson 07</a> and the
+  technology survey in <a href="0009-key-technologies-tour.html">Lesson 09</a>.</p>
+  <p>State the breadth/depth ratio aloud: you went deep on semantics, lifecycle, ordering, and durability — the
+  parts that fail in production — and kept the API and routing shallow because that's not where this design breaks.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What does the visibility timeout actually do when a message is received?</p>
+      <button class="opt">It permanently deletes the message after one read</button>
+      <button class="opt">It reorders the queue so newest messages go first</button>
+      <button class="opt">It hides the message until deleted or the timer ends</button>
+      <p class="fb">Receive hides (in-flight) but never deletes; no delete before the timeout means the message is redelivered.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. At-least-once delivery can produce duplicates. What makes that safe?</p>
+      <button class="opt">Idempotent consumers keyed on a stable token</button>
+      <button class="opt">A second replica that double checks each ack</button>
+      <button class="opt">A shorter visibility window on the busy queue</button>
+      <p class="fb">A duplicate becomes a no-op via an idempotency key — at-least-once + idempotency ≈ exactly-once effect.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">3. How does a FIFO queue keep order yet still scale out?</p>
+      <button class="opt">It runs every single consumer on one broker</button>
+      <button class="opt">It orders within a group, parallel across groups</button>
+      <button class="opt">It drops any message that arrives out of order</button>
+      <p class="fb">Order is guaranteed only within a message group; distinct groups process in parallel for throughput.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. What is the core difference between a queue and a log?</p>
+      <button class="opt">A queue cannot ever replicate its data safely</button>
+      <button class="opt">A log can only ever store one single message</button>
+      <button class="opt">A queue deletes on ack; a log retains by offset</button>
+      <p class="fb">Queues delete acked work (competing consumers); logs retain and track per-group offsets for replay/fan-out.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic. Try:
+    "Walk me through what happens when a consumer dies 10s into processing a message."
+    "Why is exactly-once delivery impossible, and how does idempotency stand in for it?"
+    "When would you pick Kafka over SQS for this design, and what changes?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html">Amazon SQS Developer Guide</a>. The authoritative reference for the exact model in this lesson — queues, visibility timeout, receipt handles, dead-letter queues, and standard vs. FIFO semantics.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-basic-architecture.html">Amazon SQS — Basic architecture</a> (queue creation/config, message size and retention, delete-a-queue model).</p>
+    <p id="c2">[2] <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html">Amazon SQS — Visibility timeout</a> (receive hides rather than deletes; receipt handle; at-least-once; extend/change visibility; delete on success).</p>
+    <p id="c3">[3] <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/standard-queues.html">Amazon SQS — Standard queues</a> (nearly unlimited throughput, best-effort ordering, at-least-once with possible duplicates).</p>
+    <p id="c4">[4] <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-short-and-long-polling.html">Amazon SQS — Short and long polling</a> (long polling waits for messages, reducing empty receives and cost/latency).</p>
+    <p id="c5">[5] <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues.html">Amazon SQS — FIFO queues</a> (strict ordering and exactly-once processing within a message group; parallelism across groups; contrast with retained-offset logs).</p>
+    <p id="c6">[6] <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html">Amazon SQS — Dead-letter queues</a> (maxReceiveCount redrive of poison messages to a DLQ for inspection).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0043-typeahead.html">← Lesson 43</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 45 · Blob / Object Store (S3)</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

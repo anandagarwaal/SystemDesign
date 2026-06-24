@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 46 — Design a Notification Service</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 46 · Phase 4 — Case Study · Medium</p>
+  <h1>Design a Notification Service</h1>
+  <p class="sub">Deliver billions of notifications a day across push, SMS, email, and in-app — fast for the urgent, never twice, and only to people who still want them.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A notification service is a <em>pipeline</em> problem
+    dressed up as a CRUD problem. Seniors describe "API writes a row, worker sends it." Staff candidates name
+    the three forces that actually shape it — <em>fan-out</em> (one event, many recipients and channels),
+    <em>flaky third parties</em> you don't control (APNs/FCM/Twilio/SES), and <em>at-least-once</em> delivery
+    that demands idempotency so retries don't double-send. Get those three right and the rest is plumbing.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope to what a notification platform must do; push everything else out loud.</p>
+  <table>
+    <tr><th>The user should be able to…</th><th>Detail</th></tr>
+    <tr><td>Send a notification</td><td>A client service calls the API with a recipient, content, and type; the system delivers it.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Reach multiple channels</td><td>Push (APNs/FCM), SMS, email, and in-app — chosen per notification and per user.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Respect user preferences</td><td>Per-channel and per-category opt-out, plus quiet hours; never deliver what a user muted.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Use templates</td><td>Senders pass a <code>templateId</code> + variables, not raw rendered text, so content is consistent and localizable.</td></tr>
+  </table>
+  <p><b>Out of scope</b> (say this aloud): the <em>business logic</em> that decides <em>when</em> to notify lives
+  in the calling service; we are the delivery substrate. Also out: rich campaign authoring UIs and analytics
+  dashboards — we emit delivery events, a separate system aggregates them.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th></tr>
+    <tr><td>Throughput / scalability</td><td>Absorb spiky fan-out — a single marketing blast or a viral event enqueues millions of messages in seconds; scale workers on queue depth, not request rate.</td></tr>
+    <tr><td>Reliability</td><td><b>At-least-once</b> handoff to the provider: a crash mid-send must retry, never silently drop. Exactly-once <em>effect</em> is approximated with idempotency.</td></tr>
+    <tr><td>Latency</td><td><b>Tiered.</b> Transactional (OTP, "your code is 1234") targets seconds end-to-end; marketing is throughput-bound and may lag minutes.</td></tr>
+    <tr><td>Availability</td><td>The ingestion API stays up even when a downstream provider is degraded — buffer in a queue, degrade per-channel, don't fail the whole send.</td></tr>
+  </table>
+  <p>The central tension is <em>latency vs. throughput</em>. A login OTP and a "50% off" blast cannot share one
+  FIFO queue, or the blast starves the OTP. The resolution — priority lanes — is developed in the deep dives.</p>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only the numbers that change the design. These are back-of-envelope figures, derived here, not quoted from a source.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Send rate</td><td>500M users × ~10 notifs/day ≈ 5B/day ≈ <b>~58k/sec</b> average, ~<b>300k/sec</b> at peak</td><td>Trivial for a queue, but synchronous per-message calls to providers won't keep up — you need pooled, async workers and connection reuse.</td></tr>
+    <tr><td>Fan-out amplification</td><td>1 logical event → up to millions of recipients × up to 4 channels</td><td>Ingestion must be cheap and bursty; the expansion belongs <em>behind</em> the queue, not in the request path.</td></tr>
+    <tr><td>Status records</td><td>~5B sends/day × ~200&nbsp;B ≈ <b>~1&nbsp;TB/day</b> of delivery events</td><td>Write-heavy, short-lived: a wide-column store (Cassandra) with TTL beats a relational table you'd never query individually.</td></tr>
+  </table>
+  <p><b>The math that matters:</b> 300k/sec is nothing for Kafka but lethal if each message opens a fresh TLS
+  connection to APNs. The bottleneck is the <em>provider edge</em>, not the queue — so the design optimizes
+  pooling, batching, and backpressure there, and keeps storage cheap and disposable.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Notification</b> — one logical message: recipient, type/category, template + variables, requested channels.
+  <b>Device / Contact</b> — a user's registered push tokens, phone numbers, and email addresses.
+  <b>Preference</b> — per-user, per-category, per-channel opt-in state plus quiet-hours window.
+  <b>DeliveryAttempt</b> — one try on one channel (status, provider, timestamps) for tracking.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/notifications</code></td><td>Send one: <code>{ userId, category, templateId, vars, channels, priority, dedupeKey }</code>. Returns a <code>notificationId</code>. Async — 202 Accepted.</td></tr>
+    <tr><td><code>POST /v1/notifications:batch</code></td><td>Bulk enqueue for campaigns; the body is a recipient list or a segment reference, expanded server-side.</td></tr>
+    <tr><td><code>GET /v1/notifications/{id}</code></td><td>Fetch delivery status per channel (queued / sent / delivered / failed).</td></tr>
+    <tr><td><code>PUT /v1/preferences</code></td><td>Update a user's opt-outs and quiet hours.</td></tr>
+    <tr><td><code>POST /v1/devices</code></td><td>Register/refresh a device push token (APNs/FCM) for the caller.</td></tr>
+  </table>
+  <p>The sending service is identified by its API credential; the recipient <code>userId</code> is in the body,
+  but the caller's identity (for auth and rate-limit accounting) comes from the token, never the payload.</p>
+
+  <h2>Data Flow</h2>
+  <p>This is a data-processing pipeline, so trace one notification end to end:</p>
+  <table>
+    <tr><th>#</th><th>Stage</th><th>What happens</th></tr>
+    <tr><td>1</td><td>Ingest</td><td>API validates the request, checks the <code>dedupeKey</code>, writes a Notification row, and returns 202 immediately.</td></tr>
+    <tr><td>2</td><td>Enrich &amp; filter</td><td>A processor resolves the user's devices/contacts, applies preferences and quiet hours, and renders the template — dropping muted channels here.</td></tr>
+    <tr><td>3</td><td>Route</td><td>The surviving per-channel messages are fanned out onto a <b>queue per channel</b> (push / SMS / email / in-app), tagged with priority.</td></tr>
+    <tr><td>4</td><td>Deliver</td><td>Channel worker pools pull, batch, and hand off to the provider (APNs/FCM/Twilio/SES), applying retries + backoff on transient errors.</td></tr>
+    <tr><td>5</td><td>Track</td><td>Workers and provider webhooks/feedback write DeliveryAttempt status; failures past max-attempts go to a DLQ.</td></tr>
+  </table>
+  <p>The decisive move is putting <em>enrichment and filtering before the queues</em>: by the time a message hits
+  a channel queue, it is already addressed, rendered, allowed, and prioritized — workers just deliver.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Six components, split cleanly between <em>accept &amp; decide</em> and <em>deliver</em>:</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>Ingestion API</td><td>Auth, validation, idempotency check, writes the Notification, returns 202. Stays fast and always-on.</td></tr>
+    <tr><td>Processing service</td><td>Resolves recipients, applies preferences/quiet hours, renders templates, routes to per-channel queues.</td></tr>
+    <tr><td>Channel queues</td><td>One durable queue per channel (Kafka/SQS), each with priority lanes. Buffers bursts; decouples send rate from provider rate.</td></tr>
+    <tr><td>Channel workers</td><td>Per-channel pools that batch and call APNs/FCM/Twilio/SES; handle retries, backoff, and rate limits.</td></tr>
+    <tr><td>Stores</td><td>Notification + preference DB (relational), device/token store, and a status store (Cassandra, TTL'd) for DeliveryAttempts.</td></tr>
+    <tr><td>DLQ</td><td>Holds messages that exhausted retries for inspection and replay, so one bad provider doesn't loop forever.</td></tr>
+  </table>
+  <p><b>Flow:</b> <code>POST</code> → API enqueues to an intake topic → processing expands and filters → per-channel
+  queues → workers deliver to providers → status written, failures to DLQ. Each channel scales independently;
+  a Twilio outage backs up only the SMS queue while push keeps flowing. This mirrors the queue-decoupling pattern
+  from <a href="0007-messaging-and-async.html">Lesson 07 (Messaging &amp; Async)</a>.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The interview turns on three sentences: <b>filter before you fan out</b> (preferences/quiet-hours applied
+    pre-queue, so workers never deliver muted messages), <b>a queue per channel with priority lanes</b> (so a
+    marketing blast can't starve an OTP and a dead provider isolates to one channel), and <b>at-least-once +
+    idempotency</b> (retries are safe because a dedupe key makes a re-send a no-op). Everything else is detail.
+  </div>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1 · The fan-out pipeline — a queue per channel + worker pools</h3>
+  <p>The naive design sends synchronously inside the request: resolve devices, call APNs, then SMS, then email,
+  then return. It collapses the instant one provider is slow and can't absorb a million-recipient blast. The fix
+  is to make ingestion a cheap write and do all expansion asynchronously behind durable queues.</p>
+  <table>
+    <tr><th>Choice</th><th>Option</th><th>Tradeoff</th></tr>
+    <tr><td>Queue topology</td><td>One shared queue for all channels</td><td>Simple, but a slow channel (SMS) head-of-lines fast ones (push), and you can't scale or fail channels independently.</td></tr>
+    <tr><td>Queue topology</td><td><b>Queue per channel</b></td><td>Each channel scales and fails on its own; matches each provider's distinct rate limits and retry profile. Slightly more infra.</td></tr>
+    <tr><td>Fan-out placement</td><td>Expand recipients in the API</td><td>Blocks the caller and risks a giant synchronous transaction for big segments.</td></tr>
+    <tr><td>Fan-out placement</td><td><b>Expand behind the queue</b></td><td>API stays O(1); a processing tier streams the segment into per-channel messages, checkpointing progress.</td></tr>
+  </table>
+  <div class="box">
+    <b>Pick &amp; justify:</b> A <b>queue per channel</b>, fed by a processing tier that does fan-out after the
+    202. Channels have genuinely different physics — APNs/FCM take batched HTTP/2 calls, SMS is rate-limited and
+    pricey, email tolerates seconds of delay — so isolating them lets each worker pool autoscale on its own queue
+    depth and apply its own retry policy. This is the same fan-out-on-write reasoning as
+    <a href="0016-fb-news-feed.html">Lesson 16 (News Feed)</a>: pre-compute and buffer the heavy expansion
+    instead of doing it in the read/request path.
+  </div>
+
+  <h3>2 · Third-party gateways &amp; provider failures — retries, backoff, DLQ</h3>
+  <p>You don't own delivery; APNs, FCM, Twilio, and SES do. They rate-limit you, return transient 5xx/429s,
+  time out, and reject bad tokens. Push providers are explicitly <em>best-effort</em> and store-and-forward — if
+  a device is offline, APNs holds (and may coalesce) a notification and delivers later, with no hard guarantee.<a href="#c2" class="cite">[2]</a>
+  FCM lets you set message priority and a time-to-live so non-urgent messages don't deliver stale.<a href="#c3" class="cite">[3]</a></p>
+  <div class="box">
+    <b>Resilience pattern at the provider edge:</b>
+    <ul>
+      <li><b>Pooled, reused connections</b> — APNs uses a long-lived HTTP/2 connection with token auth; keep it open and multiplex, never one connection per message.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Classify the error</b> — transient (429/5xx/timeout) → retry; permanent (invalid/expired token) → don't retry, prune the device instead.</li>
+      <li><b>Retry with exponential backoff + jitter</b> — so a struggling provider isn't hammered (see <a href="0022-rate-limiter.html">Lesson 22</a> for the token-bucket math you respect here).</li>
+      <li><b>Circuit breaker per provider</b> — trip on sustained failures, shed load, and let the queue absorb the backlog instead of melting down.</li>
+      <li><b>DLQ after N attempts</b> — exhausted messages move to a dead-letter queue for inspection/replay, never an infinite loop.</li>
+    </ul>
+  </div>
+  <p>An <b>adapter per provider</b> normalizes these quirks behind one internal interface, so the worker logic is
+  provider-agnostic and a new SMS vendor is a new adapter, not a rewrite.</p>
+
+  <h3>3 · Idempotency &amp; dedup — never double-send</h3>
+  <p>At-least-once means duplicates are inevitable: a worker can deliver to APNs, then crash before ACKing the
+  queue, so the message reappears and sends again. Two senders firing the same OTP twice is the same hazard at the
+  front door. Both are solved with idempotency keyed on a stable token.</p>
+  <table>
+    <tr><th>Layer</th><th>Mechanism</th></tr>
+    <tr><td>Ingestion</td><td>Caller supplies a <code>dedupeKey</code> (e.g. <code>orderId + "shipped"</code>); the API records it and rejects/no-ops a repeat within a window.</td></tr>
+    <tr><td>Processing</td><td>A processed-message marker (key = <code>notificationId + channel</code>) makes re-delivery of a queue message a no-op.</td></tr>
+    <tr><td>Provider</td><td>Pass a provider-side idempotency/collapse identifier where supported so the provider itself coalesces duplicates.</td></tr>
+  </table>
+  <div class="box">
+    <b>Pick &amp; justify:</b> Enforce idempotency at <b>ingestion and at the worker</b>, backed by a fast store
+    (Redis with TTL) keyed on a stable id. True exactly-once across a network is impossible; exactly-once
+    <em>effect</em> via a dedupe key is what you actually ship — the same at-least-once + idempotency reasoning as
+    the job scheduler. Pair it with <b>delivery tracking</b>: each DeliveryAttempt row (queued → sent → delivered
+    → failed) is updated by workers and by provider feedback (APNs feedback / FCM responses, SES/Twilio webhooks),
+    giving <code>GET /notifications/{id}</code> its answer and feeding token-pruning of dead devices.
+  </div>
+
+  <h3>4 · Preferences, quiet hours, rate limiting &amp; prioritization</h3>
+  <p>Sending correctly is half the job; sending <em>appropriately</em> is the other half — and it's where staff
+  judgement shows. Filtering must happen <b>before</b> the channel queues so workers never even see a muted message.</p>
+  <table>
+    <tr><th>Concern</th><th>Approach</th><th>Note</th></tr>
+    <tr><td>Preferences / opt-out</td><td>Per-user, per-category, per-channel flags checked in the processing tier.</td><td>Cache hot preferences; a muted channel is dropped pre-queue, not at delivery.</td></tr>
+    <tr><td>Quiet hours</td><td>Hold non-urgent messages until the user's local window opens.</td><td>Transactional messages (OTP, security) bypass quiet hours by category.</td></tr>
+    <tr><td>Rate limiting</td><td>Per-user caps ("max 5 marketing/day") + per-provider throughput limits.</td><td>Token bucket per user and per provider — see <a href="0022-rate-limiter.html">Lesson 22</a>.</td></tr>
+    <tr><td>Prioritization</td><td>Separate priority lanes/queues: transactional &gt; marketing.</td><td>Workers drain high-priority first so an OTP never waits behind a blast.</td></tr>
+  </table>
+  <p>State the breadth/depth ratio aloud: you went deep on fan-out, provider resilience, idempotency, and
+  policy — the parts that fail or anger users in production — and kept auth, storage schemas, and template
+  rendering shallow because that's not where this design breaks.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why use a separate queue per channel instead of one shared queue?</p>
+      <button class="opt">Shared queues cannot ever store templated content</button>
+      <button class="opt">One queue per channel removes any need to retry</button>
+      <button class="opt">Slow channels would head-of-line block the faster ones</button>
+      <p class="fb">Per-channel queues let each scale, fail, and rate-limit independently; SMS can't stall push.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. At-least-once delivery can send twice. What makes a resend safe?</p>
+      <button class="opt">A stable dedupe key turns a resend into a no-op</button>
+      <button class="opt">A larger worker pool draining the channel queues</button>
+      <button class="opt">A longer time-to-live on every queued push message</button>
+      <p class="fb">Idempotency keyed on a stable id (e.g. notificationId+channel) gives exactly-once effect.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">3. Where should preferences and quiet hours be applied?</p>
+      <button class="opt">Inside each provider after the message is handed off</button>
+      <button class="opt">Before the channel queues, in the processing tier</button>
+      <button class="opt">Within the client app right before it shows alert</button>
+      <p class="fb">Filter pre-queue so workers never deliver muted messages; it's cheaper and avoids leaks.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. A provider returns sustained 5xx errors. Best handling?</p>
+      <button class="opt">Drop the messages so the queue can fully drain</button>
+      <button class="opt">Retry instantly forever until the provider recovers</button>
+      <button class="opt">Backoff with jitter, trip a breaker, DLQ past max tries</button>
+      <p class="fb">Exponential backoff + circuit breaker protects the provider; a DLQ stops infinite loops.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic. Try:
+    "Walk me through what happens when a worker crashes after calling APNs but before ACKing the queue."
+    "How would you design priority lanes so an OTP never waits behind a 10M-recipient marketing blast?"
+    "When would you prune a device token, and how do APNs/FCM tell you it's invalid?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/notification-service">Hello Interview — Notification Service</a>. The cleanest structured walkthrough; pairs the fan-out, multi-channel, preferences, and reliability deep dives with the exact delivery framework used in this lesson.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/notification-service">Hello Interview — Notification Service</a> (framework and core requirements: send across multiple channels, user preferences/opt-out, templating, at-least-once reliability).</p>
+    <p id="c2">[2] <a href="https://developer.apple.com/documentation/usernotifications/sending-notification-requests-to-apns">Apple Developer — Sending notification requests to APNs</a> (token-based HTTP/2 provider connection; best-effort, store-and-forward delivery for offline devices).</p>
+    <p id="c3">[3] <a href="https://firebase.google.com/docs/cloud-messaging/concept-options">Firebase — FCM message concepts</a> (message priority normal/high and time-to-live / TTL for delivery control).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0045-blob-store-s3.html">← Lesson 45</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 47 · Leaderboard</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

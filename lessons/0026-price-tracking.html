@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 26 — Design a Price Tracking / Alerting Service</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 26 · Phase 4 — Case Study · Medium</p>
+  <h1>Design a Price Tracking / Alerting Service</h1>
+  <p class="sub">Like CamelCamelCamel: poll millions of products, and fire the right alert the moment a price drops.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> This problem looks like a CRUD app and isn't.
+    The L6/L7 signal is recognizing that "which alerts fire when this price changes?" is the whole
+    interview — and <em>inverting</em> it so a price update does a cheap range lookup instead of scanning
+    every tracker. Get that, plus a queue-backed ingestion pipeline and idempotent notifications, and you've
+    shown you can find the bottleneck before you've drawn a single box.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope down to the two capabilities that define the product, and defer the rest.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>A user should be able to…</th></tr>
+    <tr><td>1</td><td>Track a product and set a <b>target price</b> (a threshold).</td></tr>
+    <tr><td>2</td><td>Be <b>notified</b> when the tracked product's price drops to or below their target.</td></tr>
+    <tr><td>3</td><td>View a product's <b>price history</b> (the chart).</td></tr>
+  </table>
+  <p><b>Out of scope</b> (say this out loud): product search/discovery, multi-retailer comparison,
+  reviews. We <em>poll</em> prices from a source; we don't model the merchant.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>For each "-ility", attach a concrete target and the design lever it pulls.</p>
+  <table>
+    <tr><th>NFR</th><th>Target</th><th>Why it shapes the design</th></tr>
+    <tr><td>Timely alerts</td><td>Notify within ~1h of a price change<a href="#c1" class="cite">[1]</a></td><td>Bounds detection latency → sets poll frequency and pipeline throughput, not real-time streaming.</td></tr>
+    <tr><td>Scalable</td><td>~500M products, millions of users<a href="#c1" class="cite">[1]</a></td><td>Can't scan all trackers per price change; can't store history in a row-per-read SQL table.</td></tr>
+    <tr><td>No spam / no dupes</td><td>≤1 alert per crossing</td><td>Need idempotency + a cooldown so a price oscillating around the threshold doesn't fire repeatedly.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Reliable delivery</td><td>At-least-once, then dedup</td><td>Queue + retries + dead-letter; lost alert is worse than a late one.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Availability &gt; consistency</td><td>Eventual consistency OK<a href="#c1" class="cite">[1]</a></td><td>A chart a few minutes stale is fine; the site staying up during Prime Day is not negotiable.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that change a decision. Anchor on the real CamelCamelCamel scale.</p>
+  <div class="box">
+    <ul>
+      <li><b>Products:</b> ~18M tracked at a 6-hour poll interval is the public figure;<a href="#c2" class="cite">[2]</a> design for 500M as the stretch target.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Price-check rate:</b> 18M ÷ 6h ≈ <b>830 checks/sec</b> sustained. At 500M and 6h that's ~23k/sec — this is the pipeline's load, and it sets worker-pool size.</li>
+      <li><b>Price records:</b> ~72M new price points/day → ~<b>26B records/year</b>.<a href="#c2" class="cite">[2]</a> At ~50 bytes/point that's ~1.3 TB/yr raw before compression → time-series store, not a B-tree.</li>
+      <li><b>Alert evaluation:</b> a single price change may match anywhere from 0 to thousands of trackers. The design must make the common case (0 matches) nearly free.</li>
+    </ul>
+    <b>Takeaways:</b> the write path (ingestion) and the match path are the two scaling problems; user-facing reads are cache-friendly and easy.
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Three entities. Derive the user from the auth token — never trust a <code>userId</code> in the body.</p>
+  <table>
+    <tr><th>Entity</th><th>Key fields</th></tr>
+    <tr><td>Product</td><td><code>productId</code> (e.g. ASIN), name, current price, store/metadata.</td></tr>
+    <tr><td>Tracker</td><td><code>id</code>, <code>userId</code>, <code>productId</code>, <code>targetPrice</code>, <code>active</code>, <code>lastNotifiedAt</code>.</td></tr>
+    <tr><td>PricePoint</td><td><code>productId</code>, <code>ts</code>, <code>price</code> — the time-series row.</td></tr>
+  </table>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/trackers</code></td><td><code>{productId, targetPrice}</code> → create a tracker for the authed user.</td></tr>
+    <tr><td><code>GET /v1/trackers</code></td><td>List the authed user's trackers.</td></tr>
+    <tr><td><code>DELETE /v1/trackers/{id}</code></td><td>Stop tracking.</td></tr>
+    <tr><td><code>GET /v1/products/{id}/history?from=&amp;to=</code></td><td>Return the price-history series for the chart.</td></tr>
+  </table>
+
+  <h2>Data Flow</h2>
+  <p>This is a pipeline, so trace the lifecycle of one price change end to end before drawing the HLD:</p>
+  <div class="box">
+    <ol style="margin:.2rem 0 .2rem 1.1rem; padding:0;">
+      <li><b>Scheduled fetch</b> — the scheduler enqueues "check product X" jobs at its poll interval.</li>
+      <li><b>Ingest &amp; persist</b> — a worker fetches the current price, appends a <code>PricePoint</code>, updates the product's current price.</li>
+      <li><b>Compare against thresholds</b> — if the price <em>dropped</em>, ask: "which trackers on X have <code>targetPrice ≥ newPrice</code>?"</li>
+      <li><b>Match → alert events</b> — each matching, non-cooled-down tracker emits an alert event onto a queue.</li>
+      <li><b>Notify</b> — the notification service fans out to email/SMS/push, idempotently, and stamps <code>lastNotifiedAt</code>.</li>
+    </ol>
+  </div>
+  <p>Steps 1–2 are the <b>ingestion</b> problem; step 3 is the <b>matching</b> problem; step 5 is the <b>fan-out</b> problem. Each gets a deep dive.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Boxes-and-arrows, mapped to the two paths — the <em>pipeline</em> (writes prices, fires alerts) and the <em>serving</em> layer (reads history, manages trackers).</p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+    <tr><td>API service</td><td>Tracker CRUD + history reads; auth.</td><td>—</td></tr>
+    <tr><td>Tracker DB</td><td>Trackers + product metadata.</td><td>Postgres (indexed by product + threshold).<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Scheduler</td><td>Enqueues price-check jobs per product on a cadence.</td><td>—</td></tr>
+    <tr><td>Job queue</td><td>Decouples scheduler from workers; absorbs bursts.</td><td>Kafka / SQS.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Fetch workers</td><td>Pull jobs, fetch price (API or scrape), persist point, trigger match.</td><td>—</td></tr>
+    <tr><td>Price history DB</td><td>Append-only price series; range + downsample reads.</td><td>Time-series (Cassandra/Timescale).<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Alert/match worker</td><td>On a drop, range-query matching trackers, emit alert events.</td><td>—</td></tr>
+    <tr><td>Notification service</td><td>Idempotent fan-out across channels; dedup + cooldown.</td><td>SES/Twilio/FCM.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Cache</td><td>Hot product histories for chart reads.</td><td>Redis (key = product+range).<a href="#c2" class="cite">[2]</a></td></tr>
+  </table>
+  <p>Read path: <code>GET /history</code> → cache → time-series DB. Write path: scheduler → queue → worker → time-series DB → match → alert queue → notifier.</p>
+
+  <h2>Deep Dive 1 — Inverting the match (the staff move)</h2>
+  <p>The naive read: when product X's price changes, load every tracker, check each one. At 500M products
+  with thousands of trackers on hot items, a per-change full scan is fatal. <b>Invert the question.</b></p>
+  <p>You don't iterate trackers; you <em>query</em> them. Maintain a composite index <code>(productId, targetPrice)</code>.
+  A price drop to <code>newPrice</code> becomes a single range query:</p>
+  <div class="box">
+    <code>SELECT id, userId FROM trackers<br>
+    WHERE productId = X AND targetPrice &gt;= newPrice AND active = true;</code>
+    <p style="margin:.6rem 0 0;">The index seeks straight to the matching slice. The common case — a price that didn't cross
+    anyone's threshold — returns <b>zero rows in log time</b>, touching almost nothing.<a href="#c2" class="cite">[2]</a></p>
+  </div>
+  <p>Two refinements interviewers reward:</p>
+  <ul>
+    <li><b>Only evaluate on a drop.</b> If the new price ≥ old price, no <code>targetPrice ≥ newPrice</code> tracker
+    that wasn't already satisfied becomes newly satisfied — skip the query entirely.</li>
+    <li><b>Avoid re-firing.</b> A tracker that already alerted shouldn't fire again next poll while the price stays low.
+    Mark it (drop from the "armed" set, or check <code>lastNotifiedAt</code>) so the range query returns only
+    <em>newly</em>-crossed trackers, not everything currently below target.</li>
+  </ul>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Saying "I'll index trackers by <code>(productId, targetPrice)</code> and turn a price change into a range query
+    instead of scanning" is the single highest-leverage sentence in this interview. It shows you reframed an
+    O(trackers) loop into an O(log n + matches) lookup — the exact judgement that separates senior from staff.
+    Bonus: note that for the hottest products this index slice fits in memory, so the match is effectively free.
+  </div>
+
+  <h2>Deep Dive 2 — The ingestion / scheduling pipeline</h2>
+  <p>You must poll millions of products politely without melting the source. Two collection models:</p>
+  <table>
+    <tr><th>Model</th><th>Pros</th><th>Cons</th></tr>
+    <tr><td><b>Push</b> (source webhooks/feed)</td><td>Real-time, no polling waste.</td><td>Rarely available for third-party retail; you don't control it.</td></tr>
+    <tr><td><b>Poll</b> (official API + scrape)</td><td>Works against any retailer; you set cadence.</td><td>Wasteful (most checks see no change); rate-limited (~1 req/s/account on the official API).<a href="#c2" class="cite">[2]</a></td></tr>
+  </table>
+  <p>The answer is <b>poll, decoupled through a queue</b>:</p>
+  <div class="box">
+    <b>Scheduler → Queue → Worker pool</b>
+    <ul>
+      <li>The <b>scheduler</b> enqueues per-product check jobs on a cadence — and varies it: hot/trending products every ~30 min, the long tail every 6–12h.<a href="#c2" class="cite">[2]</a> This concentrates effort where prices actually move.</li>
+      <li>The <b>queue</b> decouples scheduling from execution and absorbs Prime-Day bursts; <b>workers</b> scale horizontally and self-pace, partitioned by ASIN range/category.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Politeness:</b> per-source rate limiting, proxy/IP rotation, exponential backoff + retries; failures land in a dead-letter queue.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Batch</b> fetches and writes — group products to amortize connection and write overhead.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+  </div>
+  <p>Why a queue and not the scheduler calling workers directly? Backpressure. If fetches slow down, jobs
+  buffer in the queue instead of overwhelming workers or the source — and you can replay after an outage.</p>
+
+  <h2>Deep Dive 3 — Notification fan-out, dedup &amp; idempotency</h2>
+  <p>Matched alerts go onto a queue and the notification service fans out to email/SMS/push. The hard
+  requirement is "<b>don't alert twice</b>" while the transport is at-least-once (retries can redeliver).</p>
+  <ul>
+    <li><b>Idempotency key.</b> Stamp each alert event with a deterministic key, e.g.
+    <code>hash(trackerId + crossingId)</code>. The notifier records sent keys; a redelivered event with a
+    seen key is dropped. At-least-once delivery + dedup = effectively-once.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Cooldown.</b> A price oscillating around the threshold would fire on every poll. A 24-hour
+    cooldown per tracker (or "fire once, then re-arm only after the price recovers above target") kills
+    alert fatigue.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Reliable delivery.</b> Retries with backoff; persistent failures → dead-letter queue for inspection,
+    never silently dropped.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Fan-out across channels</b> via provider adapters (SES, Twilio, FCM), each with its own rate limits and retry policy.<a href="#c2" class="cite">[2]</a></li>
+  </ul>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Volunteering the idempotency key <em>before</em> being asked "what if it sends twice?" signals you treat
+    at-least-once queues as the default and design dedup in, rather than hoping delivery is exactly-once
+    (it never is).
+  </div>
+
+  <h2>Deep Dive 4 — Storing &amp; scaling price history</h2>
+  <p>26B append-only points/year, read as time-ranges to draw charts. This is a textbook <b>time-series</b>
+  workload, not a relational one.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Technique</th><th>What it buys</th></tr>
+    <tr><td>Partition by <code>productId</code></td><td>All of a product's history colocates → one-seek range scans.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Columnar compression</td><td>10–20× shrink on numeric price data.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Tiered storage</td><td>Hot SSD for recent ~90d, cold object store (S3/Glacier) for the archive.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Downsample old data</td><td>Daily/weekly aggregates for old history cut ~90% of storage and speed long-range reads.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Server-side downsampling</td><td>An 800px chart needs ≤800 points — return aggregates, not raw rows.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Cache hot products</td><td>Redis keyed by product+range; 90%+ hit rate on popular items.<a href="#c2" class="cite">[2]</a></td></tr>
+  </table>
+  <p>Keep product/user metadata in Postgres; keep the firehose of price points in the time-series store.
+  Splitting them lets each scale on its own axis — the kind of "right tool per workload" judgement L6/L7 expects.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. A price change arrives. What is the efficient way to find which trackers fire?</p>
+      <button class="opt">Load every active tracker into memory and compare each to the price</button>
+      <button class="opt">Range-query trackers indexed by product and threshold for matches</button>
+      <button class="opt">Publish the price to every user and let each client decide locally</button>
+      <p class="fb">Indexing on (productId, targetPrice) turns a full scan into a log-time range lookup.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. Why sit a queue between the scheduler and the fetch workers?</p>
+      <button class="opt">It makes the price data strongly consistent across all of the regions</button>
+      <button class="opt">It removes the need for any rate limiting against the source site</button>
+      <button class="opt">It decouples scheduling from execution and absorbs load bursts</button>
+      <p class="fb">The queue gives backpressure and replay; workers self-pace instead of overwhelming the source.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Delivery is at-least-once. How do you avoid alerting a user twice?</p>
+      <button class="opt">Attach a dedup idempotency key and drop already-sent keys</button>
+      <button class="opt">Switch the queue to exactly-once delivery so retries never happen</button>
+      <button class="opt">Send only from a single worker so two sends are impossible ever</button>
+      <p class="fb">At-least-once plus an idempotency key (per crossing) gives effectively-once delivery.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Why store price history in a time-series store instead of a normal SQL table?</p>
+      <button class="opt">Because relational stores cannot append rows fast enough at all</button>
+      <button class="opt">Because time-series stores guarantee stronger transaction isolation</button>
+      <button class="opt">Append-heavy series compress well and serve range reads cheaply</button>
+      <p class="fb">26B points/year compress ~10–20×, partition by product, and downsample for fast chart ranges.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher here — push on the hard parts. Try:
+    "Walk me through the SQL for the tracker range query and the index that makes it cheap."
+    · "How would you re-arm a tracker after a price recovers above target?"
+    · "Sketch the partitioning and downsampling for the price-history store at 26B rows/year."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/camelcamelcamel">Hello Interview — Design a Price Tracking Service like CamelCamelCamel</a>.
+  The canonical breakdown: requirements, the alert-matching deep dive, the ingestion pipeline, and time-series storage.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/camelcamelcamel">Hello Interview — CamelCamelCamel breakdown</a> (requirements, 500M-product scale, 1h SLA, time-series, batching, deep-dive list).</p>
+    <p id="c2">[2] <a href="https://www.systemdesignhandbook.com/guides/design-camelcamelcamel/">System Design Handbook — Design a Price Tracking Service like CamelCamelCamel</a> (18M products / 6h / 26B records/yr, scheduler+queue+workers, index-by-product matching, cooldown/dedup, tiered time-series storage, caching).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0025-fb-post-search.html">← Lesson 25</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 27 · Instagram</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

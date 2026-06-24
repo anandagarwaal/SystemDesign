@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 05 — Sharding &amp; Consistent Hashing</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 05 · Phase 1 — Core Concepts</p>
+  <h1>Sharding &amp; Consistent Hashing</h1>
+  <p class="sub">When one machine isn't enough, you split the data across many — and the hard part is deciding how.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> At L6/L7, sharding is rarely the interesting part — anyone can say "shard the database." The signal is in the <em>shard key</em> you pick, whether it matches the access pattern, and whether you name the hot-partition risk and its fix before the interviewer probes. This lesson gives you the vocabulary and the judgment to do that cleanly.
+  </div>
+
+  <h2>Scale up, then scale out</h2>
+  <p>There are two ways to handle more load. <b>Vertical scaling</b> (scaling up) means a bigger box: more CPU, more RAM, faster disks. It's the simplest move and you should reach for it first — a well-tuned single database with read replicas handles far more than most candidates assume.<a href="#c1" class="cite">[1]</a> But a single machine has a ceiling: you eventually run out of the biggest instance money can buy, and a single node is a single failure domain.</p>
+  <p><b>Horizontal scaling</b> (scaling out) means more boxes, each holding a slice of the data. Splitting one logical dataset across many machines is called <b>sharding</b> (or <b>partitioning</b> — the terms are used interchangeably). Each machine owns a <b>shard</b> (a partition) of the whole.</p>
+  <p>You shard when you've genuinely outgrown one node: storage in the terabytes, writes in the tens of thousands per second, or read volume that replicas can't absorb.<a href="#c1" class="cite">[1]</a> The biggest mistake candidates make is sharding too early — it adds real complexity (cross-shard queries, rebalancing, hotspots), so it should be the answer to a measured limit, not a reflex.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>Two ways to split: range vs hash</h2>
+  <p>Once you've decided to partition, you need a rule that maps each row to a shard. There are two classic strategies.<a href="#c2" class="cite">[2]</a></p>
+  <p><b>Range partitioning</b> assigns contiguous ranges of the key to each shard — e.g. users <code>A–F</code> on shard 1, <code>G–M</code> on shard 2. <b>Hash partitioning</b> runs the key through a hash function and uses the result to choose a shard, scattering neighbours far apart.</p>
+
+  <table>
+    <thead><tr><th>Strategy</th><th>Good at</th><th>Bad at</th></tr></thead>
+    <tbody>
+      <tr><td><b>Range</b> (by key range)</td><td>Range scans — "all events from March" sit together on a few shards. Natural for time-series and sequential data.</td><td>Hot spots: a popular range (today's date, latest IDs) hammers one shard while others idle.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Hash</b> (by hash of key)</td><td>Even spread — load is distributed across all shards, so no single shard is naturally a bottleneck.<a href="#c1" class="cite">[1]</a></td><td>Range queries die: adjacent keys land on different shards, so "all events from March" must fan out to every shard.<a href="#c2" class="cite">[2]</a></td></tr>
+    </tbody>
+  </table>
+
+  <p>The tension is the whole point: <b>hashing buys even load but destroys locality; ranges buy locality but invite hotspots.</b> DDIA notes some systems split the difference with <b>compound keys</b> — hash the first part to spread the data, then keep a sorted secondary part for ranged scans within a partition (e.g. hash <code>user_id</code> but sort that user's posts by timestamp).<a href="#c2" class="cite">[2]</a></p>
+
+  <h2>The shard key is the decision</h2>
+  <p>The <b>shard key</b> (a.k.a. partition key) is the field you split on, and choosing it is the architectural call — almost everything else follows from it. Two forces pull on the choice:</p>
+  <div class="box">
+    <ul>
+      <li><b>Spread load evenly.</b> A key with high cardinality and uniform access keeps every shard roughly equally busy.</li>
+      <li><b>Match the access pattern.</b> Pick a key so the queries you run most often hit one shard, not all of them. On Instagram, sharding posts by <code>user_id</code> keeps a user's posts, likes, and comments on one shard<a href="#c1" class="cite">[1]</a> — a profile page is one shard's work. But a global query like "trending posts" must now hit every shard and aggregate.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+  </div>
+  <p>These two forces often conflict, and resolving that tradeoff out loud is the senior move. The trap that turns it into a staff conversation is the <b>hot partition</b> (the "celebrity problem"): one key gets wildly disproportionate traffic — Taylor Swift's shard getting hammered while the rest sit idle.<a href="#c1" class="cite">[1]</a> Even a perfect hash can't save you, because all of one celebrity's reads/writes share a single key.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Derive the shard key from the access pattern, then name the hot-partition risk and a mitigation <em>before</em> you're asked. For a chat app: "I'll shard messages by <code>channel_id</code> so a channel's history is one shard — but a celebrity AMA channel becomes a hot partition. I'd <b>salt</b> the key (<code>channel_id:bucket</code>, fanning that one channel across N sub-shards) or give known celebrity entities a <b>dedicated path</b> — a separate cache or replica tier — rather than letting them sit in the general pool." Naming the failure mode and the fix unprompted is exactly the breadth-then-depth judgment interviewers grade at L6/L7.
+  </div>
+
+  <h2>Why naive hashing breaks: the rebalancing problem</h2>
+  <p>The obvious way to hash is <code>shard = hash(key) % N</code>, where <code>N</code> is the number of nodes. This spreads keys evenly and is trivial to implement — until <code>N</code> changes. Add or remove one node and <code>N</code> changes, so <code>hash(key) % N</code> changes for <em>almost every key</em>.<a href="#c1" class="cite">[1]</a></p>
+  <p>Concretely: add one node to a 10-node cluster and roughly <b>90% of your data has to move</b> to a new home.<a href="#c1" class="cite">[1]</a> That's a storm of network traffic and cache misses every time you scale — exactly when you can least afford it. Naive modulo hashing makes the cluster brittle precisely at the moment of growth.</p>
+
+  <h2>Consistent hashing: move only K/N keys</h2>
+  <p>Consistent hashing fixes the rebalancing problem. The mental picture is a <b>ring</b>: imagine the entire hash output space (say 0 to 2³²−1) bent into a circle.<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <b>How the ring works</b>
+    <ul>
+      <li>Hash each <b>node</b> to a point on the ring (e.g. <code>hash(node_id)</code>).</li>
+      <li>Hash each <b>key</b> to a point on the same ring.</li>
+      <li>A key is owned by the <b>first node you hit walking clockwise</b> from the key's point.</li>
+    </ul>
+  </div>
+  <p>Now add a node. It lands at one spot on the ring and claims only the keys in the arc <em>between it and the previous node clockwise</em> — every other key stays exactly where it was.<a href="#c1" class="cite">[1]</a> Remove a node and its keys simply roll over to the next node clockwise. On average only about <b>K/N keys move</b> (K keys, N nodes) instead of nearly all of them — adding one node to a 10-node ring moves ~10%, not ~90%.<a href="#c1" class="cite">[1]</a></p>
+
+  <h3>Virtual nodes</h3>
+  <p>Plain consistent hashing has a flaw: with few nodes placed randomly, the arcs are uneven, so some nodes own far more of the ring than others. The fix is <b>virtual nodes</b> — each physical node is hashed to <em>many</em> points around the ring (say 100–200 "vnodes"). This smooths the distribution, and when a node leaves, its load is spread across many neighbours instead of dumped entirely on one.<a href="#c2" class="cite">[2]</a> Virtual nodes also make it easy to give beefier machines more vnodes (more capacity), and they're what real systems actually deploy.</p>
+
+  <div class="box">
+    <b>Who uses it.</b> Distributed caches like <b>Memcached</b> and <b>Redis Cluster</b> use consistent hashing to spread keys across cache nodes; distributed databases like <b>Cassandra</b> and <b>DynamoDB</b> use it (with virtual nodes) for sharding so nodes can join and leave elastically.<a href="#c1" class="cite">[1]</a> Dynamo's original paper is where much of this entered mainstream practice.
+  </div>
+
+  <h2>How it shows up in an interview</h2>
+  <p>Keep the two ideas distinct, because they answer different questions:</p>
+  <table>
+    <thead><tr><th>Concept</th><th>Bring it up when…</th></tr></thead>
+    <tbody>
+      <tr><td><b>Sharding</b></td><td>One DB can't hold the data or serve the throughput. State the trigger (storage / write rate / read rate), then name your shard key and justify it from the access pattern.</td></tr>
+      <tr><td><b>Consistent hashing</b></td><td>Nodes come and go and you want elastic scaling without massive data movement — distributed caches, Cassandra/Dynamo-style stores. It's the <em>how</em> behind a shard key that survives resizing.</td></tr>
+    </tbody>
+  </table>
+  <p>You rarely need to derive the ring math unless asked — saying "I'll use consistent hashing for the shard key so we can add nodes without remapping everything" is usually enough signal.<a href="#c1" class="cite">[1]</a> Spend your words instead on the shard key and the hotspot mitigation; that's where the depth lives.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. You add one node to a 10-node cluster using <code>hash(key) % N</code>. Roughly how much data must move?</p>
+      <button class="opt">Around ten percent of the total keys move</button>
+      <button class="opt">Around ninety percent of the total keys move</button>
+      <button class="opt">Almost none of the total keys move at all</button>
+      <p class="fb">Changing N changes <code>hash(key) % N</code> for nearly every key, so ~90% remaps. Consistent hashing is what gets you the ~10% case.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. Which strategy gives even load but makes "all rows from last March" expensive to query?</p>
+      <button class="opt">Range partitioning across the contiguous key</button>
+      <button class="opt">Vertical scaling onto a much bigger box</button>
+      <button class="opt">Hash partitioning across the chosen key</button>
+      <button class="opt">Adding a read replica behind the leader</button>
+      <p class="fb">Hashing scatters adjacent keys across shards, so range scans fan out to every shard. Range partitioning keeps them together but risks hotspots.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. On the hash ring, which node owns a given key?</p>
+      <button class="opt">The first node found walking clockwise</button>
+      <button class="opt">The node with the smallest total load</button>
+      <button class="opt">The node whose id sorts first alpha</button>
+      <button class="opt">The node nearest in plain euclid space</button>
+      <p class="fb">A key belongs to the first node encountered moving clockwise from the key's point. Adding a node only steals the arc behind it.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. You shard chat messages by <code>channel_id</code>. What do you proactively flag at staff level?</p>
+      <button class="opt">That range scans become slower across shards</button>
+      <button class="opt">That a viral channel becomes a hot partition</button>
+      <button class="opt">That vertical scaling is no longer possible</button>
+      <button class="opt">That read replicas will increase write latency</button>
+      <p class="fb">A single super-popular channel concentrates load on one shard. Name it and offer a fix — salting the key or a dedicated path for celebrity entities.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — push on it. Try:
+    <ul>
+      <li>"Give me a system (say, a ride-hailing app) and grill me on picking a shard key and its hotspot risk."</li>
+      <li>"Walk me through exactly which keys move when a node leaves a 4-node hash ring, with numbers."</li>
+      <li>"When would you choose range partitioning <em>over</em> consistent hashing, despite the hotspot risk?"</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://dataintensive.net/">Designing Data-Intensive Applications</a> (Martin Kleppmann), Chapter 6 — Partitioning. The definitive treatment of range vs hash partitioning, skewed/hot partitions, and rebalancing strategies. Pair it with the <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/core-concepts">Hello Interview Core Concepts</a> sharding section for the interview framing.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/core-concepts">Hello Interview — Core Concepts</a> (when to shard, shard-key choice, hotspots, modulo vs consistent hashing, K/N data movement, who uses it, interview framing).</p>
+    <p id="c2">[2] <a href="https://dataintensive.net/">Designing Data-Intensive Applications, Ch. 6 — Partitioning</a> (range vs hash partitioning tradeoffs, compound keys, virtual nodes / rebalancing).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0004-caching.html">← Lesson 04</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 06 · Replication &amp; CAP</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

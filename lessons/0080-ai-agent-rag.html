@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 80 — Design an AI Agent / RAG Application</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 80 · Phase 4 — Case Study · Hard</p>
+  <h1>Design an AI Agent / RAG Application</h1>
+  <p class="sub">An LLM that answers from <em>your</em> knowledge base — and can act — where the design problem is retrieval quality and grounding, not just serving the model.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> <a href="0039-chatgpt.html">Lesson 39 (ChatGPT)</a> made the GPU the scarce resource. This case study moves the hard part <em>upstream</em>: the LLM is now a black box you call, and your job is to feed it the <em>right context</em> and stop it from making things up <a href="#c1" class="cite">[1]</a>. The senior answer is "embed docs, retrieve top-k, stuff the prompt." The staff move is to treat <b>retrieval quality, grounding/citations, and the agent loop</b> as the system — with eval as the thing that proves any of it works. This one template covers RAG apps, Perplexity-style AI search, support chatbots, and MCP tool-using agents.</p>
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>One shape covers the whole family — RAG Q&amp;A, AI search, virtual agent. Pin the core flows early; everything else (auth, doc-upload UI, fine-tuning the base model, training embeddings) is out of scope.</p>
+  <table>
+    <thead><tr><th>#</th><th>Requirement</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>A user asks a question and gets an answer <b>grounded in a knowledge base</b> (docs, wiki, tickets), not just the model's parametric memory <a href="#c1" class="cite">[1]</a>.</td></tr>
+      <tr><td>2</td><td>Answers <b>cite their sources</b> — each claim links back to the retrieved passage it came from, so the user can verify <a href="#c2" class="cite">[2]</a>.</td></tr>
+      <tr><td>3</td><td>Conversations are <b>multi-turn</b>: follow-ups resolve against prior turns ("and its pricing?").</td></tr>
+      <tr><td>4</td><td>The agent can <b>call tools / APIs</b> — search, a calculator, a database query, an MCP server — and use the results in its answer <a href="#c3" class="cite">[3]</a>.</td></tr>
+    </tbody>
+  </table>
+  <p>Scope note: we <em>call</em> the LLM and the embedding model as black boxes (Lesson 39 owns serving them). The interesting system is the <b>retrieval + orchestration</b> layer around them <a href="#c1" class="cite">[1]</a>.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <thead><tr><th>NFR</th><th>Target / priority</th></tr></thead>
+    <tbody>
+      <tr><td><b>Grounding / accuracy</b></td><td>The top priority. Answers must be faithful to retrieved context; minimize hallucination, and abstain ("I don't know") when retrieval is weak <a href="#c2" class="cite">[2]</a>.</td></tr>
+      <tr><td><b>Low latency</b></td><td>Interactive: aim for time-to-first-token under ~1–2s. Retrieval + rerank must be tens of ms; <b>stream</b> the answer so the user sees progress.</td></tr>
+      <tr><td><b>Cost</b></td><td>Every turn is one or more LLM calls plus embedding + vector search. Tokens dominate spend — control context size, cache aggressively.</td></tr>
+      <tr><td><b>Scale</b></td><td>Target ~10M docs in the KB, ~1M DAU, multi-turn sessions. Vector index in the tens-of-millions-of-chunks range.</td></tr>
+      <tr><td><b>Freshness</b></td><td>New/updated docs must be retrievable quickly (minutes), so the agent isn't answering from a stale index.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that change the design — and here they all point at chunk count, context size, and cost-per-turn.</p>
+  <div class="box">
+    <b>Vector index size.</b> 10M docs × ~10 chunks/doc = <b>~100M chunks</b>. At 1536 dims × 4 bytes ≈ 6 KB/vector → <b>~600 GB</b> of raw float vectors. <b>Implication:</b> this won't sit in one box's RAM — you need quantization and/or sharding in the vector DB (see <a href="0040-vector-databases.html">Lesson 40</a>), exactly as that lesson predicts.<br><br>
+    <b>Tokens per turn drive cost.</b> Retrieve top-k (say 20) → rerank → stuff ~5 passages × ~500 tokens = ~2.5k context tokens, + history + system prompt ≈ <b>4–5k input tokens</b> per turn. At 1M DAU × a few turns/day that's billions of input tokens/day. <b>Implication:</b> context size is a cost lever — bloating the prompt with low-value passages burns money <em>and</em> dilutes accuracy.<br><br>
+    <b>Query QPS is modest; the LLM call is the slow leg.</b> Even 1M DAU × 5 turns ≈ ~60 QPS average — trivial for the stateless tier and vector DB. The wall-clock cost is the multi-second LLM generation. <b>Implication:</b> spend the design budget on retrieval quality, caching, and the agent loop — not on QPS scaling.
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>Document</code> (source content + metadata) · <code>Chunk</code> (a passage with its <code>embedding</code> + back-reference to its <code>Document</code>) · <code>Conversation</code> (ordered <code>Message</code>s) · <code>Tool</code> (a callable function/MCP server with a schema). User identity is derived from the auth token, never sent in the body.</p>
+  <table>
+    <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>POST /v1/chat</code></td><td>Ask a question in a conversation; response is an <b>SSE stream</b> of answer tokens followed by a <code>citations</code> payload referencing the chunks used.</td></tr>
+      <tr><td><code>POST /v1/documents</code></td><td>Ingest a document into the KB (triggers async chunk → embed → upsert into the vector DB).</td></tr>
+      <tr><td><code>DELETE /v1/documents/{id}</code></td><td>Remove a doc and its chunks from the index (compliance / staleness).</td></tr>
+      <tr><td><code>GET /v1/conversations/{id}</code></td><td>Fetch message history to render or resume a thread.</td></tr>
+      <tr><td><code>GET /v1/tools</code></td><td>List tools/MCP servers available to the agent (name + JSON schema).</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <b>Request shape for <code>POST /v1/chat</code>:</b>
+    <ul>
+      <li><code>conversation_id</code> — server loads prior turns for context.</li>
+      <li><code>query</code> — the new user question.</li>
+      <li>Server replies with SSE answer tokens, then a final event with <code>citations: [{chunk_id, doc_id, span}]</code> so the UI can render footnotes.</li>
+    </ul>
+  </div>
+
+  <h2>Data Flow</h2>
+  <p>This system has two pipelines, and naming them separately is half the battle. <b>Ingestion</b> is an offline/async data-processing pipeline; <b>query</b> is the online request path.</p>
+  <table>
+    <thead><tr><th>Pipeline</th><th>Steps</th></tr></thead>
+    <tbody>
+      <tr><td><b>Ingestion</b> (write, async)</td><td>Document arrives → <b>chunk</b> it (split into ~200–500-token passages with overlap) → <b>embed</b> each chunk with the embedding model → <b>upsert</b> vectors + metadata into the vector DB → keep the raw doc in a durable blob/document store as source of truth <a href="#c1" class="cite">[1]</a>.</td></tr>
+      <tr><td><b>Query</b> (read, online)</td><td><b>Embed</b> the query (same model) → <b>retrieve</b> top-k nearest chunks (ANN) → <b>rerank</b> to top-n → <b>stuff</b> them into the prompt as context → <b>LLM generates</b> a grounded, cited answer → <b>stream</b> it back <a href="#c1" class="cite">[1]</a>.</td></tr>
+    </tbody>
+  </table>
+  <p>The agent variant wraps the query path in a loop: the LLM may decide to <em>call a tool</em> (including "search the KB" as just one tool) before answering — covered in the deep dives.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Trace a question through the boxes. The vector DB and the LLM are the two heavy dependencies; everything else is glue.</p>
+  <table>
+    <thead><tr><th>Component</th><th>Role on a <code>POST /v1/chat</code></th></tr></thead>
+    <tbody>
+      <tr><td>API gateway / LB</td><td>Auth, rate-limit, TLS. Routes to a stateless orchestrator.</td></tr>
+      <tr><td><b>Orchestrator</b></td><td>The brain. Loads history, embeds the query, calls retrieval, builds the prompt, runs the agent loop (tool calls), calls the LLM, streams tokens, assembles citations. Stateless and horizontally scalable.</td></tr>
+      <tr><td>Embedding service</td><td>Turns query (and, in ingestion, chunks) into vectors. A GPU model call — cache results.</td></tr>
+      <tr><td><b>Vector DB</b></td><td>ANN index over ~100M chunks (HNSW), sharded + quantized. Returns top-k chunk ids by similarity (<a href="0040-vector-databases.html">Lesson 40</a>).</td></tr>
+      <tr><td>Reranker</td><td>Cross-encoder that rescores ~100 candidates → top ~5 by true relevance.</td></tr>
+      <tr><td><b>LLM serving</b></td><td>The generation fleet (Lesson 39). Called with the stuffed prompt; streams tokens. A black box here.</td></tr>
+      <tr><td>Doc / blob store</td><td>Source-of-truth raw documents + the <code>Conversation</code>/<code>Message</code> history. Cheap, durable.</td></tr>
+      <tr><td>Semantic cache</td><td>Returns a cached answer for a semantically-equivalent prior query, skipping retrieval + LLM.</td></tr>
+      <tr><td>Ingestion workers</td><td>Off the request path: consume a queue of new docs, chunk/embed/upsert. The freshness path.</td></tr>
+    </tbody>
+  </table>
+  <p>Read path for history is trivial — <code>GET /v1/conversations/{id}</code> hits the doc store, no LLM. The vector DB is a <b>derived index</b>: the blob store is the source of truth, and the index is rebuilt/refreshed from it.</p>
+
+  <h2>Deep Dives</h2>
+  <p>This is the 60%. Four hard parts, each tied to an NFR.</p>
+
+  <h3>1 · The RAG pipeline — ingestion and query time</h3>
+  <p>RAG = <b>R</b>etrieval-<b>A</b>ugmented <b>G</b>eneration: instead of relying on what the model memorized at training, you fetch relevant text at query time and put it <em>in the prompt</em> so the model answers from it <a href="#c1" class="cite">[1]</a>. Two halves:</p>
+  <div class="box">
+    <b>Ingestion (offline).</b> The decisions that quietly make or break recall:
+    <ul>
+      <li><b>Chunking</b> — too big and you stuff irrelevant tokens (cost + dilution); too small and you sever context. ~200–500 tokens with overlap is the default; chunk on semantic boundaries (headings, paragraphs) when you can.</li>
+      <li><b>Embedding</b> — one model, versioned. Change it and you must re-embed <em>every</em> chunk (embedding drift, Lesson 40) — use a versioned namespace.</li>
+      <li><b>Upsert</b> — store vector + metadata (doc id, title, ACLs, timestamp) so you can filter and cite.</li>
+    </ul>
+    <b>Query (online).</b> The four-step retrieval chain:
+    <ul>
+      <li><b>Embed query</b> with the same model.</li>
+      <li><b>Retrieve top-k</b> (~50–100) via ANN — cheap, recall-oriented. Often <b>hybrid</b>: combine dense vectors with keyword/BM25 so exact terms (error codes, names) aren't lost.</li>
+      <li><b>Rerank</b> the candidates with a cross-encoder → keep top ~5 by true relevance. Two-stage retrieval: cheap recall first, expensive precision on a tiny set <a href="#c1" class="cite">[1]</a>.</li>
+      <li><b>Stuff &amp; generate</b> — put the top passages in the prompt with instructions to answer only from them and cite.</li>
+    </ul>
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior says "embed, retrieve top-k, stuff the prompt." Staff names the <b>two-stage retrieve-then-rerank</b> split and why (cheap recall, then precision), reaches for <b>hybrid search</b> so keywords survive, and treats <b>chunking + embedding versioning</b> as first-class design decisions rather than afterthoughts — because that's where retrieval quality, the top NFR, is actually won or lost.
+  </div>
+
+  <h3>2 · The agent loop &amp; orchestration</h3>
+  <p>A pure RAG app retrieves once and answers. An <b>agent</b> can reason about <em>what to do</em>: it may search, call an API, do a calculation, then decide whether it has enough to answer — a loop, not a single pass <a href="#c3" class="cite">[3]</a>. The classic shape is <b>plan → act → observe → iterate</b>:</p>
+  <table>
+    <thead><tr><th>Step</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td><b>Plan</b></td><td>LLM, given the query + tool schemas, decides the next action (call a tool, or answer now).</td></tr>
+      <tr><td><b>Act</b></td><td>Orchestrator executes the chosen tool — KB search, MCP server, SQL query, calculator — with model-supplied arguments.</td></tr>
+      <tr><td><b>Observe</b></td><td>Tool result is appended to context; the LLM sees it on the next turn.</td></tr>
+      <tr><td><b>Iterate</b></td><td>Loop until the model emits a final answer or a step/cost budget is hit.</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <b>MCP &amp; the orchestrator's job.</b> Tools are exposed via schemas; the <b>Model Context Protocol (MCP)</b> standardizes "here is a tool, its inputs, and how to call it," so an agent can use third-party tools without bespoke glue <a href="#c3" class="cite">[3]</a>. The orchestrator is the deterministic harness around the non-deterministic model: it <b>validates tool arguments, enforces a max-iteration / cost budget</b> (or the loop runs forever and bills you), <b>runs independent tool calls in parallel</b>, and <b>sandboxes</b> side-effecting tools behind allow-lists and permissions.<br><br>
+    <b>Keep it simple by default.</b> Most "agent" problems are one retrieval + one generation. Reach for the full loop only when the task genuinely needs multi-step tool use — an unnecessary agent loop adds latency, cost, and failure modes.
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The staff candidate puts the <b>guardrails</b> on the loop, not just the loop: bounded iterations, a token/cost budget, argument validation, sandboxed tools, and idempotency for side-effecting calls. They also say out loud <em>"a single RAG pass beats an agent for most questions"</em> — knowing when <b>not</b> to add the loop is the simple-by-default judgement L6/L7 rewards.
+  </div>
+
+  <h3>3 · Grounding, citations &amp; hallucination mitigation</h3>
+  <p>The #1 NFR. An LLM will confidently invent facts; grounding forces it to answer from retrieved evidence and to <em>show its work</em> <a href="#c2" class="cite">[2]</a>.</p>
+  <table>
+    <thead><tr><th>Lever</th><th>How it reduces hallucination</th></tr></thead>
+    <tbody>
+      <tr><td><b>Citations</b></td><td>Prompt the model to attach the chunk id behind each claim; the UI renders footnotes. Forces traceability and lets users verify <a href="#c2" class="cite">[2]</a>.</td></tr>
+      <tr><td><b>Abstention</b></td><td>If retrieval scores are weak/empty, instruct "say you don't know" rather than guess. Better to refuse than fabricate.</td></tr>
+      <tr><td><b>Retrieval quality</b></td><td>Garbage context → garbage answer. Reranking + hybrid search (deep dive 1) is the real grounding fix — most "hallucinations" are retrieval failures.</td></tr>
+      <tr><td><b>Faithfulness check</b></td><td>A second pass (or a cheaper model) verifies each sentence is supported by a cited chunk before returning. Costs a call; reserve for high-stakes answers.</td></tr>
+    </tbody>
+  </table>
+  <p>The throughline: grounding is mostly an <em>information-retrieval</em> problem wearing an LLM costume. If the right passage isn't in the context, no prompt trick will save you.</p>
+
+  <h3>4 · Caching, cost/latency control &amp; streaming</h3>
+  <p>Every turn costs an embedding call, a vector search, maybe a rerank, and a multi-second LLM generation. The levers:</p>
+  <div class="box">
+    <ul>
+      <li><b>Semantic cache</b> — key on the query's <em>embedding</em>, not its exact text, so "what's your refund policy?" and "how do refunds work?" hit the same cached answer. A nearest-neighbor lookup with a tight similarity threshold; huge cost/latency win for FAQ-shaped traffic. Invalidate on doc changes.</li>
+      <li><b>Cache embeddings &amp; retrieval</b> — identical queries skip the embedding model and the vector DB entirely.</li>
+      <li><b>Control context size</b> — fewer, better passages (thanks to reranking) cut input tokens, which cuts both cost and latency, and improves accuracy. Don't dump top-50 into the prompt.</li>
+      <li><b>Stream the answer</b> — SSE token streaming for low time-to-first-token, same as <a href="0039-chatgpt.html">Lesson 39</a>. The user reads while the model writes.</li>
+      <li><b>Model tiering</b> — route easy queries to a small/cheap model, hard ones to the frontier model. A router or the agent itself decides.</li>
+    </ul>
+  </div>
+
+  <h3>5 · Evaluation — proving it works</h3>
+  <p>You can't ship grounding you can't measure, and "looks good in the demo" is not an answer at L6/L7. RAG eval splits in two:</p>
+  <table>
+    <thead><tr><th>Layer</th><th>What you measure</th></tr></thead>
+    <tbody>
+      <tr><td><b>Retrieval</b></td><td>Did we fetch the right chunks? <code>recall@k</code>, <code>precision@k</code> against a labeled query→passage set. Cheap, deterministic, run in CI.</td></tr>
+      <tr><td><b>Generation</b></td><td><b>Faithfulness</b> (is every claim supported by context?) and <b>answer relevance</b>. Often scored by an <b>LLM-as-judge</b> on a fixed eval set, sampled in prod.</td></tr>
+      <tr><td><b>Online</b></td><td>Thumbs up/down, citation click-through, deflection rate. Feeds the offline eval set.</td></tr>
+    </tbody>
+  </table>
+  <p>The staff framing: most quality regressions are in <em>retrieval</em>, so eval the two stages separately — a bad answer from good context is a prompt problem; a bad answer from bad context is a retrieval problem, and you fix them in different places.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. What is the point of the rerank step between retrieve and generate?</p>
+      <button class="opt">It compresses each stored chunk vector to fit it inside RAM</button>
+      <button class="opt">It rescores cheap recall candidates for precision before stuffing</button>
+      <button class="opt">It encrypts the retrieved passages before the model reads them</button>
+      <p class="fb">Two-stage retrieval: cheap ANN maximizes recall (~100 candidates), then a cross-encoder reranker picks the few most relevant for the prompt.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. Most "hallucinations" in a RAG system are really a failure of what?</p>
+      <button class="opt">The model weights are simply too small to hold the answer</button>
+      <button class="opt">The streaming channel dropping tokens midway through output</button>
+      <button class="opt">Retrieval — the right passage never made it into the context</button>
+      <p class="fb">Grounding is an IR problem: if the correct chunk isn't retrieved, no prompt trick recovers it. Fix retrieval before blaming the model.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why key a semantic cache on the query embedding instead of its text?</p>
+      <button class="opt">Differently-worded but equivalent questions then hit one entry</button>
+      <button class="opt">Embeddings are far smaller to store than the raw query text</button>
+      <button class="opt">Text keys cannot be hashed quickly enough at production scale</button>
+      <p class="fb">Semantic caching matches by meaning, so paraphrases of the same question share a cached answer — a big win for FAQ-shaped traffic.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. What must the orchestrator enforce on the agent's plan-act-observe loop?</p>
+      <button class="opt">A single shared GPU pinned to every active user conversation</button>
+      <button class="opt">A bounded iteration and cost budget with validated tool calls</button>
+      <button class="opt">A strict ordering so all tool calls run one after another only</button>
+      <p class="fb">An unbounded loop runs forever and bills you; the harness caps iterations/cost, validates arguments, sandboxes tools, and parallels independent calls.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher — push on the hard parts. Try:
+    <ul>
+      <li>"Walk me through chunking strategy and how it changes recall and cost."</li>
+      <li>"Drill me on RAG vs. an agent loop — when is the loop over-engineering?"</li>
+      <li>"Run a live mock: design a Perplexity-style AI search and make me defend the eval plan."</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ai-agent">Hello Interview — Design an AI Agent / RAG System</a>. The canonical breakdown: requirements, the ingestion + query RAG pipeline, the agent/tool loop, grounding, and cost/latency. Read it once end-to-end, then use this lesson for recall.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ai-agent">Hello Interview — AI Agent / RAG breakdown</a> (FRs &amp; scope; ingestion chunk→embed→upsert; query embed→retrieve→rerank→stuff→generate; two-stage retrieval; LLM-as-black-box).</p>
+    <p id="c2">[2] <a href="https://arxiv.org/abs/2005.11401">Lewis et al., "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks" (2020)</a> (RAG grounds generation in retrieved evidence; citations &amp; faithfulness as the mechanism for reducing fabrication).</p>
+    <p id="c3">[3] <a href="https://modelcontextprotocol.io/">Model Context Protocol (Anthropic)</a> (standardized tool schemas; the plan→act→observe agent loop calling tools/MCP servers).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0079-ml-platform.html">← Lesson 79</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 81 · Workflow Engine</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

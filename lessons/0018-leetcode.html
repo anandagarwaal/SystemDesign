@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 18 — Design LeetCode (Online Judge)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 18 · Phase 4 — Case Study · Medium</p>
+  <h1>Design LeetCode (Online Judge)</h1>
+  <p class="sub">Running untrusted code at scale, judged asynchronously, ranked in real time.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> LeetCode looks like a simple CRUD app until you
+    notice the central problem: you are executing <em>arbitrary code written by strangers</em> on your
+    machines. The L6/L7 signal is recognizing that isolation is the whole game, and modeling judging as a
+    queue-backed long-running task with a worker pool — not a synchronous request handled in your API tier.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope ruthlessly. Three flows carry the entire design; everything else (auth, profiles, payments,
+  social) is explicitly out of scope.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <thead><tr><th>#</th><th>Users should be able to…</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>View a list of coding problems and open one (statement, examples, language stub).</td></tr>
+      <tr><td>2</td><td>Submit a solution, have it run against the problem's test cases, and see a verdict.</td></tr>
+      <tr><td>3</td><td>Compete in a live contest with a real-time leaderboard.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>The "-ilities" are where this problem earns its difficulty. Lead with isolation — it is the one NFR an
+  interviewer is waiting to hear.</p>
+  <table>
+    <thead><tr><th>NFR</th><th>Target / priority</th></tr></thead>
+    <tbody>
+      <tr><td><b>Secure isolation</b></td><td>Untrusted code must not touch the host, the network, or other submissions.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Latency</td><td>Verdict back within ~5 s of submission.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Scalability</td><td>Absorb spiky contest load — up to ~100k concurrent users.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Availability</td><td>Favor availability over strong consistency for reads and the leaderboard.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Fairness</td><td>Leaderboard ranking deterministic; ties broken by submission time.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute the number that bends the design: <b>peak judging throughput</b>. Steady-state browsing is
+  trivially cached; contests are the stress test.</p>
+  <div class="box">
+    <b>Contest spike (the one that matters)</b>
+    <ul>
+      <li>~10k submissions arriving near-simultaneously at a contest deadline.<a href="#c1" class="cite">[1]</a></li>
+      <li>Each runs against ~100 test cases × ~100 ms ⇒ ~10 s of CPU per submission.<a href="#c1" class="cite">[1]</a></li>
+      <li>10k × 10 s = 100,000 CPU-seconds. To clear in ~60 s ⇒ <b>~1,667 CPU cores</b>.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+    <b>Design implication:</b> a single large box maxes out at a few hundred vCPUs — nowhere near 1,667.
+    You <em>must</em> scale horizontally with a queue that absorbs the burst and a worker fleet that
+    drains it. This number is why the judge is asynchronous.
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Three entities. <b>Problem</b> (statement, test cases, per-language code stubs, difficulty, tags).
+  <b>Submission</b> (user code, language, status, runtime, timestamp). <b>Leaderboard</b> (contest rankings,
+  derived — it lives in Redis, not as a table you scan).<a href="#c1" class="cite">[1]</a></p>
+  <p>The user is derived from the auth token, never sent in the body.</p>
+  <table>
+    <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /v1/problems?page=&amp;limit=</code></td><td>Paginated problem list (cacheable).</td></tr>
+      <tr><td><code>GET /v1/problems/:id?lang=</code></td><td>Full problem + language stub.</td></tr>
+      <tr><td><code>POST /v1/submissions</code></td><td><code>{problemId, code, lang}</code> → returns a submission <code>id</code> immediately.</td></tr>
+      <tr><td><code>GET /v1/submissions/:id</code></td><td>Poll for status / verdict.</td></tr>
+      <tr><td><code>GET /v1/contests/:id/leaderboard</code></td><td>Top-N ranked users (served from Redis).</td></tr>
+    </tbody>
+  </table>
+  <p><code>POST /v1/submissions</code> returning an <code>id</code> rather than a verdict is the tell that you
+  understand the next two deep dives: judging is a long-running task, not a synchronous call.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Trace each request through the boxes. Reads hit the API tier and a cache. A submission is enqueued and
+  handed to an isolated worker fleet; the verdict is written back and the contest score lands in Redis.</p>
+  <table>
+    <thead><tr><th>Component</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>API server</td><td>Auth, validation, serves reads, accepts submissions, returns the submission id. <b>Never runs user code.</b></td></tr>
+      <tr><td>Problem store (e.g. DynamoDB)</td><td>Problem statements with nested test cases and per-language stubs.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Submission queue (e.g. SQS)</td><td>Buffers submissions during spikes; decouples accept from judge.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Judge worker fleet</td><td>Pool of language-specific sandboxed runners (e.g. ECS) that pull from the queue.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Redis</td><td>Sorted sets for leaderboards; cache for hot problem lists.<a href="#c1" class="cite">[1]</a></td></tr>
+    </tbody>
+  </table>
+  <p><b>Submit flow:</b> client → <code>POST /v1/submissions</code> → API writes a <code>PENDING</code> row and
+  enqueues the job → returns <code>id</code> → a worker pulls the job, runs the code in a sandbox, writes the
+  verdict, and (if a contest) does a <code>ZADD</code> to the leaderboard → client polls <code>GET /v1/submissions/:id</code>
+  until <code>ACCEPTED</code> / <code>WRONG_ANSWER</code> / <code>TLE</code>.</p>
+
+  <h2>Deep Dive 1 — Running untrusted code safely</h2>
+  <p>This is the heart of the problem and the first place to spend depth. A submission is hostile code: it may
+  try a fork bomb, read your secrets, call your internal services, exfiltrate test cases, or spin forever.
+  <b>The cardinal rule: you never execute user code in the API tier.</b> The API process holds DB credentials,
+  service tokens, and network reach — handing it untrusted code is a direct path to RCE on your control plane.
+  Execution happens only inside disposable, locked-down sandboxes on a separate fleet.</p>
+
+  <h3>Choosing the isolation boundary</h3>
+  <table>
+    <thead><tr><th>Option</th><th>Isolation</th><th>Startup</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td>Full VM (microVM)</td><td>Strongest (own kernel)</td><td>Heavy</td><td>Safest but slow to spin per-run.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Container (Docker)</b></td><td>Strong (shared kernel, namespaced)</td><td>Light</td><td><b>Best balance — the pick.</b><a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Serverless (e.g. Lambda)</td><td>Good</td><td>Cold starts</td><td>Cold-start jitter hurts the latency SLA.<a href="#c1" class="cite">[1]</a></td></tr>
+    </tbody>
+  </table>
+  <p>Containers share the host kernel but get isolated process, filesystem, and network namespaces — fast to
+  start, cheap to throw away. (Staff nuance: a shared kernel means a kernel exploit can escape; firms running
+  truly hostile code at scale layer a microVM like Firecracker or gVisor under the container. Naming this shows
+  judgement.)</p>
+  <div class="box">
+    <b>Hardening every sandbox</b>
+    <ul>
+      <li><b>Read-only filesystem</b> — block writes outside a scratch dir.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>CPU &amp; memory bounds</b> (cgroups) — kill resource hogs, contain fork bombs.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Explicit timeout</b> (~5 s) wrapping the run — catches infinite loops as TLE.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>No network</b> — drop all egress so code can't exfiltrate or reach internal services.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>seccomp profile</b> — whitelist syscalls; deny the dangerous ones.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>One submission per container, then destroy it</b> — no state leaks between runs.</li>
+    </ul>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior answer is "run it in a Docker container." The staff answer treats untrusted execution as the
+    <em>central security problem of the system</em>: it states the rule that the API tier never runs user code,
+    enumerates the concrete sandbox controls (no network, read-only FS, cgroup limits, seccomp, timeout,
+    destroy-after-use), and acknowledges the shared-kernel escape risk with a credible mitigation (microVM /
+    gVisor) — without over-building it for a generic interview.
+  </div>
+
+  <h2>Deep Dive 2 — Async submit → judge → result</h2>
+  <p>Judging takes seconds and is bursty, so it cannot block an HTTP request. This is the textbook
+  <b>long-running-task pattern</b>: accept fast, work in the background, report later.</p>
+  <ol style="font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;">
+    <li>API validates, writes a <code>PENDING</code> submission, enqueues <code>{submissionId, problemId, code, lang}</code>, and returns the <code>id</code> instantly.<a href="#c1" class="cite">[1]</a></li>
+    <li>A judge worker pulls the message, loads the test cases, runs the code in a sandbox, and compares output against expected.<a href="#c1" class="cite">[1]</a></li>
+    <li>Worker writes the verdict to the submission row (and updates the leaderboard for contest submissions).<a href="#c1" class="cite">[1]</a></li>
+    <li>Client learns the result.</li>
+  </ol>
+
+  <h3>How does the client get the verdict — poll or push?</h3>
+  <table>
+    <thead><tr><th>Mechanism</th><th>Tradeoff</th></tr></thead>
+    <tbody>
+      <tr><td><b>Short polling</b> (<code>GET /submissions/:id</code> ~1 s)</td><td>Dead simple; what LeetCode actually does. Slight latency + wasted calls — fine for a ~5 s task.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Long polling / SSE</td><td>Lower latency, fewer requests; more server-side state to hold.</td></tr>
+      <tr><td>WebSocket push</td><td>Instant; overkill for a one-shot result, justified for live contest feeds.</td></tr>
+    </tbody>
+  </table>
+  <p>Pick <b>short polling</b> and say why: the task is short and the simple option is correct. The queue gives
+  you the real payoffs — durability (a crashed worker's message reappears), automatic retries, and a buffer
+  that smooths the contest burst instead of melting the judge fleet.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>Deep Dive 3 — The contest leaderboard</h2>
+  <p>A live leaderboard read by 100k users, refreshing every few seconds, cannot be a <code>SELECT … ORDER BY</code>
+  scan over millions of rows — that load is unsustainable.<a href="#c1" class="cite">[1]</a> Use a <b>Redis sorted set</b>,
+  which keeps members ranked by score in O(log n) per write and O(log n + k) per top-k read.</p>
+  <div class="box">
+    <b>Sorted-set mechanics</b><a href="#c1" class="cite">[1]</a>
+    <ul>
+      <li>Key: <code>contest:{id}:leaderboard</code>.</li>
+      <li>On a passing submission: <code>ZADD contest:{id}:leaderboard {score} {userId}</code>.</li>
+      <li>Top N: <code>ZREVRANGE contest:{id}:leaderboard 0 N-1 WITHSCORES</code>.</li>
+      <li>A user's own rank: <code>ZREVRANK</code> — no full scan.</li>
+    </ul>
+  </div>
+  <h3>Encoding the tiebreak into one score</h3>
+  <p>Ranking is "most problems solved, ties broken by earliest finish time." A sorted set takes a single float,
+  so pack both into one monotonic score: <code>score = solved * K − (finishTimestamp / scale)</code>. More
+  problems dominates; for equal counts, an earlier finish yields a higher score, so faster solvers rank ahead —
+  fairly and deterministically. (Equivalent: a composite numeric key with solved in the high bits and inverted
+  time in the low bits.)</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Reaching for a sorted set is senior. Staff-level is encoding the tiebreak into the score so ranking stays a
+    single O(log n) operation, and being explicit that the leaderboard is a <em>derived, eventually-consistent
+    cache</em> of the durable submission log — if Redis is lost, you replay submissions to rebuild it. That keeps
+    "availability over consistency" honest instead of a slogan.
+  </div>
+
+  <h2>Deep Dive 4 — Scaling the judge fleet for contest spikes</h2>
+  <p>The capacity math demanded ~1,667 cores at peak and near-zero between contests. Provisioning for the peak
+  burns money 99% of the time; provisioning for the average melts during a contest. The queue makes elasticity
+  possible: it absorbs the burst so workers can scale on their own clock.</p>
+  <table>
+    <thead><tr><th>Approach</th><th>Why it does / doesn't work</th></tr></thead>
+    <tbody>
+      <tr><td>Vertical (bigger box)</td><td>Hard ceiling at a few hundred vCPUs — can't reach 1,667.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Horizontal + queue</b></td><td>Add language-specific worker containers; <b>autoscale on queue depth</b>.<a href="#c1" class="cite">[1]</a></td></tr>
+    </tbody>
+  </table>
+  <p>Scale the consumers on <b>queue depth / age of oldest message</b>, not just CPU — depth is the leading
+  signal that submissions are backing up, and it reacts before latency blows the 5 s SLA. Between contests the
+  fleet scales toward zero; at the deadline spike it fans out to hundreds of workers. Because the queue holds
+  the durable backlog, a slow scale-up degrades gracefully (verdicts arrive a little late) rather than dropping
+  submissions, and worker crashes simply re-deliver the message.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Where should user-submitted code actually execute?</p>
+      <button class="opt">Inside the API server process to keep result latency as low as possible</button>
+      <button class="opt">Inside the database engine using stored procedures for fast data access</button>
+      <button class="opt">Inside isolated sandbox workers fully separated from the trusted API tier</button>
+      <button class="opt">Inside the client browser so the backend never touches any risky payload</button>
+      <p class="fb">The API tier holds credentials and network reach; untrusted code runs only in disposable, hardened sandboxes.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Why does <code>POST /v1/submissions</code> return an id rather than a verdict?</p>
+      <button class="opt">Because returning verdicts directly would leak the hidden test cases to clients</button>
+      <button class="opt">Because judging is a long-running task done by background workers off a queue</button>
+      <button class="opt">Because REST forbids returning computed result bodies from any POST request</button>
+      <button class="opt">Because the leaderboard must be updated before any verdict can be computed</button>
+      <p class="fb">Accept fast, judge asynchronously, report later — the long-running-task pattern. The client then polls the id.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. How are leaderboard ties (same problems solved) broken in the sorted set?</p>
+      <button class="opt">By packing earlier finish time into the same score so faster solvers rank higher</button>
+      <button class="opt">By running a separate ranking query against the durable submissions table now</button>
+      <button class="opt">By randomly ordering the tied users to keep the contest fair across everyone</button>
+      <button class="opt">By giving whichever user registered for the contest first the higher position</button>
+      <p class="fb">Encode solved-count and inverted finish time into one float so ranking stays a single O(log n) op.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. Which metric best drives autoscaling of the judge worker fleet?</p>
+      <button class="opt">The total number of registered users across every contest currently open</button>
+      <button class="opt">The average response latency measured at the read-serving API tier only</button>
+      <button class="opt">The cache hit ratio on the hot problem list served out of the Redis layer</button>
+      <button class="opt">The depth or age of the submission queue, the leading signal of backlog</button>
+      <p class="fb">Queue depth/age reacts before latency breaches the SLA; scale consumers on the backlog, not just CPU.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it. Try:
+    "Walk me through what a malicious submission could do and which sandbox control stops each attack."
+    · "How would I rebuild the leaderboard if Redis is wiped mid-contest?"
+    · "Compare short polling vs. WebSockets for delivering the verdict, and when each wins."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/leetcode">Hello Interview — Design LeetCode / Online Judge</a>.
+  The canonical walkthrough: sandboxed Docker execution, the async submit-judge-poll flow, Redis sorted-set
+  leaderboards, and queue-driven worker autoscaling for contest spikes.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/leetcode">Hello Interview — Design LeetCode</a> (FRs/NFRs, ~1,667-core capacity, entities &amp; API, Docker sandbox hardening, async judge flow, Redis sorted-set leaderboard, horizontal queue-based autoscaling).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0017-tinder.html">← Lesson 17</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 19 · WhatsApp</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

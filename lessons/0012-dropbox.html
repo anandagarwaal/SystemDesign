@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 12 — Design Dropbox (File Storage & Sync)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 12 · Phase 4 — Case Study · Easy</p>
+  <h1>Design Dropbox (File Storage & Sync)</h1>
+  <p class="sub">Move the metadata through your servers and the bytes around them.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Dropbox looks deceptively simple — "store a file" — but it's the canonical test of one staff-level instinct: <em>don't stream large blobs through your application tier.</em> Get the metadata/blob separation and direct-to-S3 presigned upload right in the first five minutes, and the rest of the interview becomes a tour of well-known deep dives. Get it wrong, and you spend the hour fighting a bottleneck you invented.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope ruthlessly. Three flows carry the whole design; everything else is gravy.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td><b>Upload</b> a file from any device.</td></tr>
+    <tr><td>2</td><td><b>Download</b> a file from any device.</td></tr>
+    <tr><td>3</td><td><b>Sync &amp; share</b> — changes propagate automatically across a user's devices and to people they share with.</td></tr>
+  </table>
+  <p><b>Explicitly out of scope</b> (say this aloud): in-browser editing, file preview without download, and full version history. Naming them shows judgement about what to defer.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th></tr>
+    <tr><td><b>Availability &gt; Consistency</b></td><td>Users tolerate seeing a stale version for seconds; they do not tolerate the app being down. Choose AP.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>Durability</b></td><td>Never lose a file — the cardinal sin. Lean on blob-store replication (S3 = 11 nines).</td></tr>
+    <tr><td><b>Large files</b></td><td>Support files up to <b>~50 GB</b>. This single number forces chunking.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>Low-latency sync</b></td><td>A change on device A should reach device B in seconds, not minutes.</td></tr>
+    <tr><td><b>Scalable storage</b></td><td>Petabytes of blobs and billions of metadata rows, growing forever.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only estimate numbers that <em>change a decision</em>. For Dropbox, the load-bearing number is file size, not QPS.</p>
+  <div class="box">
+    <ul>
+      <li><b>File size → chunking.</b> A 50 GB file over a 100 Mbps link takes ~1.1 hours to transfer.<a href="#c1" class="cite">[1]</a> No single HTTP request survives that (load balancers and proxies time out in 30–60s). <b>Implication:</b> uploads must be chunked and resumable.</li>
+      <li><b>Storage growth.</b> 500M users × 50 GB cap, even at 1% fill = <b>~250 PB</b>. <b>Implication:</b> blobs live in object storage, never on app-server disks; and dedup is worth real money.</li>
+      <li><b>Bandwidth.</b> If every byte flowed through the app tier, you'd provision the app fleet for petabyte-scale throughput. <b>Implication:</b> bytes must bypass the app tier entirely (direct-to-S3 + CDN).</li>
+    </ul>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Three entities. Note how <code>File</code> (the bytes) is deliberately separate from <code>FileMetadata</code> (the description) — that split <em>is</em> the design.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Entity</th><th>Holds</th></tr>
+    <tr><td><code>File</code></td><td>Raw bytes. Lives in blob storage (S3), addressed by a content hash.</td></tr>
+    <tr><td><code>FileMetadata</code></td><td>id, name, size, MIME type, ownerId, chunk list + status, content hash. Lives in a DB.</td></tr>
+    <tr><td><code>User</code></td><td>Account + the devices they sync.</td></tr>
+  </table>
+  <p>The user is derived from the auth token, never passed in the body.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/files</code></td><td>Initiate upload: send <code>FileMetadata</code>, get back <b>presigned URL(s)</b> to PUT bytes directly to S3.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><code>POST /v1/files/{id}/complete</code></td><td>Tell the backend all chunks landed; it verifies and flips status to <code>uploaded</code>.</td></tr>
+    <tr><td><code>GET /v1/files/{id}</code></td><td>Returns a presigned (CDN-signed) download URL, not the bytes.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><code>GET /v1/files/changes?since={ts}</code></td><td>Sync feed: list of <code>ChangeEvent</code>s newer than a cursor.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><code>POST /v1/files/{id}/share</code></td><td>Grant access to a list of users.<a href="#c1" class="cite">[1]</a></td></tr>
+  </table>
+
+  <h2>High-Level Design</h2>
+  <p>The whole system hinges on one decision: <b>separate the metadata path from the blob path.</b> Metadata (small, structured, queried constantly) flows through your app servers into a database. Blobs (huge, opaque, written once) go <em>around</em> the app tier, straight to object storage.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+    <tr><td>Client</td><td>Watches the local folder; chunks files; PUTs bytes to S3; long-polls the change feed.</td><td>—</td></tr>
+    <tr><td>Metadata Service</td><td>Issues presigned URLs, records chunk status, serves the changes feed and ACL checks.</td><td>DynamoDB / NoSQL<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Blob Storage</td><td>Holds the actual file bytes, content-addressed.</td><td>Amazon S3<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>CDN</td><td>Caches blobs at the edge for fast download.</td><td>CloudFront</td></tr>
+    <tr><td>Notifier</td><td>Pushes "your files changed" events to connected devices.</td><td>WebSocket/SSE</td></tr>
+  </table>
+  <p><b>Upload flow (three steps):</b> (1) client POSTs metadata → backend writes a row with status <code>uploading</code> and returns a presigned URL; (2) client PUTs the bytes <em>directly to S3</em>; (3) an S3 event notification tells the backend to flip status to <code>uploaded</code>.<a href="#c1" class="cite">[1]</a> The file's bytes never touch an app server — that's the point.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The instant you say "the client uploads the bytes straight to S3 via a presigned URL, and only the metadata flows through my service," you've shown the load-bearing insight. The anti-pattern — proxying multi-GB blobs through your app tier — forces you to scale the app fleet for raw bandwidth, doubles every byte's network hops, and couples upload throughput to your server count. A senior candidate often draws "client → app server → S3." A staff candidate draws "client → S3" for bytes and "client → app server → DB" for metadata, and can explain <em>why</em> the two paths must diverge.
+  </div>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1. Large file uploads — chunking, resumable, multipart</h3>
+  <p>A 50 GB file cannot ride a single request.<a href="#c1" class="cite">[1]</a> Break it into <b>5–10 MB chunks</b> and track each one in metadata:</p>
+  <div class="box">
+    <code>{ id, status:"uploading", chunks:[ {id:"c1", status:"uploaded"}, {id:"c2", status:"uploading"} ] }</code>
+  </div>
+  <ul>
+    <li><b>Resumable.</b> If the connection drops at chunk 7 of 5,000, the client asks which chunks already landed and uploads only the rest. Don't identify the file by name — names lie. Identify it by a <b>cryptographic content hash (fingerprint)</b> of the bytes, with a per-chunk hash too.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Trust nothing.</b> The client reports "chunk done," but a malicious or buggy client could lie. The backend verifies via S3's <code>ListParts</code> API and the per-chunk ETags before flipping status.<a href="#c1" class="cite">[1]</a> Server-side verification, not client assertion.</li>
+    <li><b>Assemble.</b> Once every chunk is confirmed, the backend calls S3 <code>CompleteMultipartUpload</code> with the part numbers and ETags; S3 stitches them into one object.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Parallelism.</b> Upload chunks concurrently and size them adaptively to network conditions for throughput.<a href="#c1" class="cite">[1]</a></li>
+  </ul>
+
+  <h3>2. Sync — change detection, the feed, conflicts, dedup</h3>
+  <p>Sync is two directions stitched together.<a href="#c1" class="cite">[1]</a></p>
+  <ul>
+    <li><b>Local → remote:</b> the client watches the filesystem, queues changes, and uploads via the file service.</li>
+    <li><b>Remote → local (hybrid):</b> the server <em>pushes</em> changes over WebSocket/SSE for low latency, and the client also <em>polls</em> <code>GET /v1/files/changes?since={ts}</code> periodically as a fallback to catch anything missed when a connection dropped.<a href="#c1" class="cite">[1]</a> Push for speed, poll for correctness.</li>
+  </ul>
+  <p><b>Conflicts:</b> two devices edit offline, then both sync. The simple, defensible default is <b>last-write-wins</b> by timestamp; mention that real Dropbox keeps both as "conflicted copies" rather than silently dropping data.<a href="#c1" class="cite">[1]</a></p>
+  <p><b>Dedup via content hashes.</b> If two users upload the same file (or one user re-saves a 50 GB file after editing 1 KB), don't store it twice. Address blocks by their content hash; an identical hash means the bytes already exist — just point new metadata at them. Naïve <em>fixed-size</em> block boundaries break on insertion: adding one byte near the start shifts every later boundary, busting the whole dedup. The fix is <b>content-defined chunking</b> with a rolling hash (Rabin fingerprinting) so a local edit only re-chunks its neighborhood.<a href="#c2" class="cite">[2]</a> This is also how <em>delta sync</em> uploads only changed blocks.</p>
+
+  <h3>3. Presigned URLs + CDN for download</h3>
+  <p>Serving downloads is the mirror of uploads: the backend returns a <b>presigned URL</b> and the client fetches bytes directly — never through the app tier. To cut latency globally, don't hand out a raw S3 URL; hand out a <b>CDN-signed URL</b> so users pull from the nearest edge location.<a href="#c1" class="cite">[1]</a> Keep expirations short (e.g., 5 minutes) so a leaked link can't be reshared, and have the CDN validate the signature with a private key.<a href="#c1" class="cite">[1]</a></p>
+
+  <h3>4. Consistency between metadata and blob</h3>
+  <p>The two paths can disagree: metadata says <code>uploaded</code> but the blob PUT actually failed, or the blob lands but the "complete" call is lost. The discipline is to treat the <b>blob store as the source of truth for existence</b> and metadata as a claim that must be verified. That's exactly why status starts at <code>uploading</code> and only advances after S3's own APIs (ListParts / event notification) confirm the bytes.<a href="#c1" class="cite">[1]</a> Reads should never surface a file whose metadata is still <code>uploading</code>. This gives you read-after-write correctness for the user without demanding strong consistency across the two stores.</p>
+
+  <h3>5. Sharing &amp; permissions</h3>
+  <p>Progressive normalization — and naming the steps shows you know why the naïve version fails:</p>
+  <table>
+    <tr><th>Stage</th><th>Design</th><th>Problem it fixes</th></tr>
+    <tr><td>Good</td><td>A <code>sharelist</code> array on <code>FileMetadata</code>.</td><td>Works, but "show me everything shared with me" requires a full scan.</td></tr>
+    <tr><td>Better</td><td>Cache the inverse mapping <code>userId → files</code>.</td><td>Fast reads, but two structures to keep in sync.</td></tr>
+    <tr><td>Best</td><td>A dedicated <code>SharedFiles</code> table, PK <code>userId</code> / SK <code>fileId</code>.</td><td>One source of truth; cheap lookups in both directions.<a href="#c1" class="cite">[1]</a></td></tr>
+  </table>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why do file bytes go directly to S3 instead of through the app servers?</p>
+      <button class="opt">S3 buckets are cheaper to read from than the app server disks are</button>
+      <button class="opt">Proxying multi-GB blobs would force scaling the app tier for bandwidth</button>
+      <button class="opt">Presigned URLs are the only secure way to write objects into S3</button>
+      <p class="fb">Routing bytes around the app tier decouples upload throughput from server count.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. What is the main reason files are uploaded as chunks?</p>
+      <button class="opt">Chunks let the database index each file by its individual rows</button>
+      <button class="opt">The CDN can only cache objects smaller than ten megabytes each</button>
+      <button class="opt">A 50 GB single request exceeds proxy timeouts and cannot resume</button>
+      <button class="opt">Chunks make the share permission table simpler to query later</button>
+      <p class="fb">Chunking enables resumable, parallel uploads that survive dropped connections.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why use content-defined chunking instead of fixed-size blocks for dedup?</p>
+      <button class="opt">Inserting one byte early shifts every fixed boundary, ruining the dedup</button>
+      <button class="opt">Content-defined chunks are always exactly the same size as the file</button>
+      <button class="opt">Fixed blocks cannot be stored inside an S3 bucket without encryption</button>
+      <button class="opt">Rolling hashes let the metadata database skip the uploading status</button>
+      <p class="fb">A rolling hash keeps boundaries stable so edits re-chunk only locally.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. How does remote-to-local sync stay both fast and correct?</p>
+      <button class="opt">Clients poll the change feed once per hour on a strict fixed timer</button>
+      <button class="opt">Servers push over WebSocket while clients also poll as a fallback</button>
+      <button class="opt">Servers email a digest whenever any shared file boundary changes</button>
+      <button class="opt">Clients trust the last-write-wins timestamp without any polling</button>
+      <p class="fb">Push gives low latency; periodic polling catches anything missed during outages.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it. Try: <em>"Walk me through what happens when my upload dies at chunk 4,000 of 5,000 and I reconnect on a different device."</em> · <em>"Reason out whether the metadata DB should be SQL or NoSQL here, and what the partition key is."</em> · <em>"How would block-level dedup change the bill at 250 PB, and where does it break down?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/dropbox">Hello Interview — Dropbox System Design</a>. The clearest walkthrough of the metadata/blob split, presigned multipart uploads, and the sync deep dive; read it end to end before your interview.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/dropbox">Hello Interview — Dropbox breakdown</a> (requirements, 50 GB / chunking, presigned + multipart upload, metadata/blob split, changes feed, sharing table, CDN-signed URLs).</p>
+    <p id="c2">[2] Content-defined chunking &amp; Rabin fingerprinting — established CS technique for shift-resistant deduplication and delta sync (rsync / LBFS lineage).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0011-bitly.html">← Lesson 11</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 13 · Local Delivery</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

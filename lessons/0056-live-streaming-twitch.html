@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 56 — Design a Live Streaming Platform (Twitch)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 56 · Phase 4 — Case Study · Hard</p>
+  <h1>Design a Live Streaming Platform (Twitch)</h1>
+  <p class="sub">One broadcaster, millions of viewers, and a hard ceiling on how far ahead "live" is allowed to drift. The whole design is a negotiation between latency and scale.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Twitch is YouTube's harder cousin. You can't pre-transcode an upload — the video is being created <em>right now</em>, so ingest, transcode, and delivery all happen on a live clock. The L6/L7 signal is recognizing that <b>latency and scale are in direct tension</b>: the cheap, infinitely-scalable answer (HLS over CDN) costs you seconds of delay, and the low-latency answer (WebRTC) doesn't fan out to millions for free. Staff candidates name that tradeoff out loud, pick per use-case, and don't pretend one transport wins everywhere.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Three flows define the product. Recommendations, follows, subscriptions, payments, and discovery are explicitly out of scope — say so to buy depth on the media path.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th><th>Why it shapes the design</th></tr>
+    <tr><td>1</td><td>Broadcast a live stream from their device</td><td>Ingest path — a single sustained upload of encoded video</td></tr>
+    <tr><td>2</td><td>Watch a live stream with low delay</td><td>The fan-out problem — millions of concurrent viewers per stream</td></tr>
+    <tr><td>3</td><td>Send and read live chat alongside the video</td><td>A second real-time fan-out, parallel to the video plane</td></tr>
+  </table>
+  <div class="box">
+    <b>Out of scope (say it out loud):</b> stream discovery/browse, follows &amp; subscriptions, monetization, clips, moderation tooling, and emote rendering. We also assume one broadcaster per stream — co-streaming and guest invites are a separate problem.<a href="#c2" class="cite">[2]</a>
+  </div>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>This system is defined by its NFRs. The headline tension — <b>low latency vs. massive read fan-out</b> — is the whole interview. State the target, not just the "-ility."</p>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th></tr>
+    <tr><td>Low end-to-end latency</td><td>Glass-to-glass <b>2–5s</b> for standard live; <b>&lt; 1s</b> for interactive (auctions, Q&amp;A)<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>Read scale</td><td>Millions of concurrent viewers on a single popular stream; the read:write skew is extreme</td></tr>
+    <tr><td>Availability over consistency</td><td>A dropped chat message or a single skipped frame beats the whole stream stalling</td></tr>
+    <tr><td>Broadcaster resilience</td><td>Absorb a flaky upstream connection without killing the broadcast (adaptive ingest)</td></tr>
+    <tr><td>Chat real-time</td><td>Chat delivered in &lt; 1s, roughly aligned to the video the viewer is seeing</td></tr>
+  </table>
+  <div class="box">
+    <b>The key tension:</b> "live" is not one latency. A 30M-viewer esports final is happy at 3–5s of delay served from a CDN for pennies; a 50-viewer poker stream taking real-time bets needs sub-second and can afford WebRTC. <b>The transport you pick is a function of the latency budget and the audience size</b> — that's Deep Dive 2, and it's the load-bearing decision.<a href="#c3" class="cite">[3]</a>
+  </div>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute numbers that change a decision. Two matter: the per-stream egress fan-out, and the transcode cost per concurrent stream. (All figures are my own back-of-envelope estimates.)</p>
+  <div class="box">
+    <ul>
+      <li><b>Egress fan-out (the cost):</b> one popular stream at <b>5 Mbps</b> × <b>1M concurrent viewers</b> = <b>5 Tbps</b> for a <i>single</i> stream. Serving that from origin is impossible and bankrupting — it <b>must</b> come from the CDN edge, exactly like VOD.</li>
+      <li><b>Transcode cost (per live stream, not per viewer):</b> each ingested stream is transcoded into a ladder of ~5 renditions (1080p→160p) in real time. Cost scales with <b>concurrent broadcasters</b> (~hundreds of thousands), not viewers. This is the part that's unique to live — you pay CPU continuously while the stream is up.</li>
+      <li><b>Ingest bandwidth:</b> trivial by comparison — one upstream per broadcaster at ~6 Mbps. Ingest is not the bottleneck; <i>delivery</i> is.</li>
+      <li><b>Chat:</b> a hot stream at thousands of messages/sec × millions of viewers = billions of message-deliveries/sec — its own fan-out problem (Deep Dive 3).</li>
+    </ul>
+    <b>Design implication:</b> two independent scaling axes. <i>Transcode</i> scales with broadcasters; <i>delivery</i> scales with viewers and is owned by the CDN. Never confuse the two.
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <h3>Entities</h3>
+  <table>
+    <tr><th>Entity</th><th>Fields (sketch)</th></tr>
+    <tr><td>User</td><td><code>userId</code>, name — broadcaster or viewer</td></tr>
+    <tr><td>Stream</td><td><code>streamId</code>, <code>broadcasterId</code>, <code>status</code> (live/ended), <code>ingestUrl</code>, <code>streamKey</code>, <code>manifestUrl</code>, <code>startedAt</code></td></tr>
+    <tr><td>ChatMessage</td><td><code>messageId</code> (time-sortable), <code>streamId</code>, <code>userId</code>, <code>text</code>, <code>createdAt</code></td></tr>
+  </table>
+  <h3>API</h3>
+  <p>Derive <code>userId</code> from the auth token, never the body. The video bytes never flow through this API — broadcasters push to an ingest endpoint via RTMP and viewers pull segments straight from the CDN.<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <ul>
+      <li><code>POST /v1/streams</code> — broadcaster goes live; returns an <code>ingestUrl</code> + secret <code>streamKey</code> for the RTMP push.</li>
+      <li><code>GET /v1/streams/{id}</code> — returns metadata + <code>manifestUrl</code> (the HLS/DASH playback entry point).</li>
+      <li><code>GET</code> manifest &amp; <code>GET</code> segments — served by the <b>CDN</b>, not the app tier; the manifest refreshes as new segments land.</li>
+      <li><code>POST /v1/streams/{id}/chat</code> — send a chat message; <code>userId</code> from JWT.</li>
+      <li><code>GET /v1/streams/{id}/chat/stream</code> — <b>WebSocket/SSE subscription</b> for live chat (see Deep Dive 3 and Lesson 24).</li>
+    </ul>
+  </div>
+
+  <h2>Data Flow — glass to glass</h2>
+  <p>Live streaming is a pipeline on a real-time clock, so trace the bytes once before drawing boxes:</p>
+  <div class="box">
+    <ol style="margin:.2rem 0 .2rem 1.1rem; padding:0;">
+      <li><b>Capture &amp; encode:</b> broadcaster's software (OBS) encodes camera + screen to H.264/AAC and pushes a continuous <b>RTMP</b> stream to the nearest ingest PoP.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Ingest:</b> an ingest server terminates the RTMP connection, authenticates the <code>streamKey</code>, and hands the raw feed to transcoding.</li>
+      <li><b>Transcode:</b> a worker produces a <b>bitrate ladder</b> (e.g. 1080p/720p/480p/360p/160p) in real time and cuts each into 2–6s <b>segments</b>.<a href="#c4" class="cite">[4]</a></li>
+      <li><b>Package + manifest:</b> segments are written and an HLS <code>.m3u8</code> / DASH <code>.mpd</code> manifest is continuously updated with the newest segment URLs.</li>
+      <li><b>Distribute:</b> segments + manifest are pushed to the <b>CDN</b>; viewers' players poll the manifest, fetch segments à la carte, and adapt quality. Live chat fans out on a separate real-time plane.</li>
+    </ol>
+  </div>
+
+  <h2>High-Level Design</h2>
+  <p>Three planes, deliberately separated: an <b>ingest/transcode plane</b> (scales with broadcasters), a <b>delivery plane</b> (scales with viewers, owned by the CDN), and a <b>chat plane</b> (its own fan-out). Map each requirement to a component.</p>
+  <table>
+    <tr><th>Component</th><th>Responsibility</th></tr>
+    <tr><td>Ingest servers (RTMP)</td><td>Terminate the broadcaster's push, authenticate the stream key, forward the feed. Geographically close to reduce first-hop latency.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Transcoding fleet</td><td>Real-time, per-stream: produce the bitrate ladder and cut segments. Autoscaled by concurrent broadcasters.<a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td>Packager + Origin</td><td>Writes segments + live manifest to an origin store; the CDN pulls from here on a cache miss.</td></tr>
+    <tr><td>CDN (edge)</td><td>Caches segments + manifests at PoPs near viewers. Absorbs essentially all read bandwidth.<a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td>Stream metadata service</td><td>Stateless; mints ingest URLs/keys, serves <code>manifestUrl</code> and live/ended status.</td></tr>
+    <tr><td>Chat service + pub/sub</td><td>Persistent connections fed by a channel-per-stream backplane (see Lesson 24).</td></tr>
+    <tr><td>DVR/VOD recorder</td><td>Persists segments to object storage so the stream becomes a replayable VOD (Deep Dive 4).</td></tr>
+  </table>
+  <p><b>Watch path:</b> <code>GET /v1/streams/{id}</code> → metadata service → returns <code>manifestUrl</code> → player fetches the live manifest from the CDN → player requests the latest segments from the CDN, adapting quality and re-polling the manifest as new segments appear. The app tier is touched once, for tiny JSON; all heavy bytes flow edge → client — identical to VOD on the read side. (Same CDN + ABR machinery as <a href="0033-youtube.html">Lesson 33, YouTube</a>.)</p>
+
+  <h2>Deep Dives</h2>
+  <p>This is 60% of the interview. Four hard parts, each with the alternative and a justified pick.</p>
+
+  <h3>Deep Dive 1 — Ingest → real-time transcode → segmented delivery</h3>
+  <p>The broadcaster's encoder (OBS, a console, a phone) pushes a single continuous feed. The standard ingest protocol is <b>RTMP</b> — it's old, TCP-based, and universally supported by encoders, which is exactly why it's still the default contributor protocol.<a href="#c2" class="cite">[2]</a> The ingest server authenticates the stream key and hands the feed to a transcoder.</p>
+  <p>Why transcode at all? The broadcaster sends <i>one</i> quality (say 1080p/6 Mbps), but viewers are on everything from fiber to a phone on the subway. So the transcoder produces a <b>bitrate ladder</b> in real time and cuts the output into short <b>segments</b> (2–6s), generating a continuously-updated HLS/DASH manifest.<a href="#c4" class="cite">[4]</a> From the viewer's side this is now identical to VOD: small immutable segments, indexed by a manifest, fetched à la carte and cached at the CDN edge.</p>
+  <table>
+    <tr><th>Choice</th><th>Pick &amp; why</th></tr>
+    <tr><td>Ingest protocol</td><td><b>RTMP</b> for contribution — universal encoder support; SRT/WebRTC for lower-latency ingest if needed.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Transcode timing</td><td><b>Real-time, per active stream.</b> Unlike VOD you can't pre-process — the content doesn't exist yet. Cost scales with broadcasters.</td></tr>
+    <tr><td>Delivery format</td><td><b>Segmented HLS/DASH over CDN.</b> Turns "live" into cacheable static objects so delivery scales like VOD.<a href="#c4" class="cite">[4]</a></td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The reframe that earns the level: <b>once it's segmented, live delivery is just VOD with a sliding window.</b> The genuinely live-only cost is <i>real-time transcode per broadcaster</i> — and you can cap it (transcode fewer renditions for tiny streams, full ladder only for popular ones). State the two scaling axes explicitly: transcode scales with broadcasters, delivery scales with viewers and is the CDN's job. Candidates who try to scale the origin for delivery have missed the problem.
+  </div>
+
+  <h3>Deep Dive 2 — The latency-vs-scale tradeoff: HLS chunks vs WebRTC</h3>
+  <p>This is the load-bearing decision. Segmented HLS/DASH is what lets one stream reach millions cheaply — but it <i>builds in latency</i>: the player must wait for a segment to be fully written before it can fetch it, and it buffers a few segments to absorb jitter. With 2–6s segments that's commonly <b>6–15s glass-to-glass</b>.<a href="#c3" class="cite">[3]</a> For watching esports that's fine. For an interactive auction or a "guess the next play" bet, it's unusable.</p>
+  <table>
+    <tr><th>Transport</th><th>Latency</th><th>Scale</th><th>When to use</th></tr>
+    <tr><td>Standard HLS/DASH</td><td>~6–15s</td><td>Millions (pure CDN)</td><td>Default — large passive audiences</td></tr>
+    <tr><td>Low-Latency HLS (LL-HLS)</td><td>~2–4s</td><td>Millions (CDN, partial segments)</td><td>The sweet spot for most "live"<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>WebRTC</td><td>&lt; 500ms</td><td>Hundreds–low thousands</td><td>Truly interactive, small rooms</td></tr>
+  </table>
+  <p><b>Why WebRTC doesn't just win:</b> it's built for real-time peer-to-peer media, so it gives sub-second latency — but it relies on persistent per-viewer media sessions (SFUs/relays), which don't ride the CDN's cheap static-object caching. Fanning a WebRTC stream out to a million viewers means a fleet of media relays doing per-connection work, which is orders of magnitude more expensive than serving cached segments.<a href="#c5" class="cite">[5]</a></p>
+  <div class="box">
+    <b>The pick:</b> <b>LL-HLS over CDN as the default</b> — it claws latency down to a few seconds (delivering partial segments before they're complete) while keeping the cacheable, CDN-scalable model. Reach for <b>WebRTC only for the genuinely interactive, small-audience case</b>, and accept that it scales via relays, not the CDN.<a href="#c3" class="cite">[3]</a> If a WebRTC stream goes viral, transcode it into the HLS ladder and switch the overflow audience to CDN delivery.
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior→staff jump is refusing the "one transport wins" trap. Staff says: <i>latency and scale trade off, so pick per use-case.</i> Name the spectrum (WebRTC → LL-HLS → HLS), tie each to an audience size and a latency budget, and propose a <b>hybrid</b> — WebRTC for the interactive core, CDN-backed HLS for the long tail of passive viewers. Relaxing the latency NFR where you can afford to is what makes million-viewer delivery economical.
+  </div>
+
+  <h3>Deep Dive 3 — Live chat fan-out at scale</h3>
+  <p>Chat is a second real-time fan-out problem, running parallel to the video plane, and it's the same shape as <a href="0024-fb-live-comments.html">Lesson 24, Facebook Live Comments</a>. A hot stream takes thousands of messages/sec but must <i>deliver</i> each to millions of open connections — so you optimize the read fan-out, not the write.<a href="#c6" class="cite">[6]</a></p>
+  <table>
+    <tr><th>Concern</th><th>Approach</th></tr>
+    <tr><td>Transport</td><td>Persistent push — WebSocket (chat is two-way) or SSE; never poll.<a href="#c6" class="cite">[6]</a></td></tr>
+    <tr><td>Fan-out primitive</td><td><b>Channel per stream</b> over a pub/sub backplane; connection servers subscribe only to channels they serve.</td></tr>
+    <tr><td>Co-location</td><td>L7 LB consistent-hashes on <code>streamId</code> so same-stream viewers cluster on the same connection servers.</td></tr>
+    <tr><td>Mega-stream</td><td>Sample/curate messages and snapshot a tail buffer to the CDN — nobody reads 1,000 msgs/sec anyway.</td></tr>
+  </table>
+  <div class="box">
+    <b>Align chat to video, not wall-clock.</b> Because video is delayed several seconds by segmentation, raw real-time chat would spoil moments before the viewer sees them. Tag messages with a stream timecode and let the client render chat roughly in step with the segment it's playing. This "chat lag matches video lag" detail is a strong tell — see Lesson 24 for the full fan-out treatment.<a href="#c6" class="cite">[6]</a>
+  </div>
+
+  <h3>Deep Dive 4 — DVR &amp; VOD recording</h3>
+  <p>Two related features fall out of segmentation almost for free. <b>DVR</b> (pause/rewind a live stream) just means keeping a sliding window of recent segments addressable in the manifest, so the player can seek backward within it. <b>VOD</b> (the stream becomes a permanent replay) means persisting every segment to durable object storage as it's produced.<a href="#c4" class="cite">[4]</a></p>
+  <table>
+    <tr><th>Feature</th><th>How segmentation gives it to you</th></tr>
+    <tr><td>DVR / rewind</td><td>Retain last N minutes of segments; expose them in the live manifest so the player can seek back.</td></tr>
+    <tr><td>VOD archive</td><td>Tee every segment to S3 as it's written; on stream end, freeze a VOD manifest over the stored segments.</td></tr>
+    <tr><td>Clips/highlights</td><td>A clip is just a byte-range of segments — generated by referencing existing segments, no re-encode.</td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The insight: <b>segments are the universal currency.</b> The same immutable chunks serve live playback, DVR rewind, VOD replay, and clipping — you do the expensive transcode <i>once</i>, then everything downstream is metadata over existing bytes. Recognizing that recording is a near-free byproduct of the delivery design (just don't delete the segments) — rather than a separate pipeline — is the staff-level economy of mechanism.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What lets a single live stream reach millions of viewers economically?</p>
+      <button class="opt">A WebRTC media relay opens one persistent session to each viewer</button>
+      <button class="opt">The origin server streams the raw feed straight to every viewer</button>
+      <button class="opt">Segmented HLS over a CDN turns live into cacheable static files</button>
+      <button class="opt">The broadcaster uploads one separate copy for each viewer region</button>
+      <p class="fb">Once the live feed is cut into immutable segments, delivery is just VOD on a sliding window — the CDN edge absorbs the read bandwidth.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Why isn't WebRTC simply the best transport for every live stream?</p>
+      <button class="opt">WebRTC cannot encode any high-resolution video above the 480p level</button>
+      <button class="opt">It needs per-viewer media relays, so it cannot ride cheap CDN caching</button>
+      <button class="opt">It adds many seconds of latency compared to the standard HLS pipeline</button>
+      <button class="opt">It only works for chat messages and never for the actual video plane</button>
+      <p class="fb">WebRTC gives sub-second latency but relies on per-connection relays; it doesn't fan out to millions cheaply, so it fits small interactive audiences.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Which scaling axis is unique to live (versus on-demand) video?</p>
+      <button class="opt">Real-time transcode cost, which scales with concurrent broadcasters</button>
+      <button class="opt">Edge egress bandwidth, which scales with the concurrent viewers</button>
+      <button class="opt">Metadata write throughput, which scales with the total stream count</button>
+      <button class="opt">Object storage capacity, which scales with the archived VOD library</button>
+      <p class="fb">You can't pre-transcode content that's being created live, so you pay CPU continuously per active broadcaster; delivery still scales like VOD.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. How do DVR rewind and VOD replay come almost for free?</p>
+      <button class="opt">A separate batch pipeline re-encodes the whole stream after it ends</button>
+      <button class="opt">Segments are retained and re-indexed by a manifest for seek and replay</button>
+      <button class="opt">The CDN keeps a permanent live WebRTC session open for each viewer</button>
+      <button class="opt">The chat service stores frames inline with each delivered message log</button>
+      <p class="fb">DVR keeps a window of recent segments seekable; VOD persists every segment to storage — the expensive transcode happened once, everything else is metadata.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it:
+    <ul>
+      <li>"Walk me through the LL-HLS partial-segment trick — how does it shave latency without breaking CDN caching?"</li>
+      <li>"Ramp my stream from 50 interactive viewers to 30M passive ones and make me re-architect the transport at each step."</li>
+      <li>"How do I keep chat aligned to the delayed video, and what breaks if I just push chat in real wall-clock time?"</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/live-video-streaming">Hello Interview — Live video streaming breakdown</a>. The clearest interview-shaped walkthrough of ingest, real-time transcode, segmented CDN delivery, and the latency-vs-scale transport tradeoff. Pair it with <a href="0033-youtube.html">Lesson 33 (YouTube)</a> for the shared CDN/ABR machinery and <a href="0024-fb-live-comments.html">Lesson 24</a> for chat fan-out.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] General live-streaming architecture and the latency-vs-scale framing — grounded in CDN/ABR fundamentals; capacity figures are the author's own estimates.</p>
+    <p id="c2">[2] <a href="https://rtmp.veriskope.com/docs/spec/">Adobe RTMP specification</a> (ingest/contribution protocol).</p>
+    <p id="c3">[3] <a href="https://datatracker.ietf.org/doc/html/rfc8216">RFC 8216 — HTTP Live Streaming (HLS)</a> and the Low-Latency HLS extension (segment-driven latency, partial segments).</p>
+    <p id="c4">[4] <a href="https://datatracker.ietf.org/doc/html/rfc8216">RFC 8216 — HLS</a> / <a href="https://www.iso.org/standard/79329.html">MPEG-DASH (ISO/IEC 23009-1)</a> (segmentation, manifests, bitrate ladders, CDN-cacheable assets).</p>
+    <p id="c5">[5] <a href="https://webrtc.org/">WebRTC</a> (real-time, sub-second transport; per-session relay/SFU model).</p>
+    <p id="c6">[6] <a href="0024-fb-live-comments.html">Lesson 24 — Facebook Live Comments</a> (real-time chat fan-out: persistent connections, channel-per-stream pub/sub, sampling + CDN tail snapshot).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0055-spotify.html">← Lesson 55</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 57 · Video Conferencing (Zoom)</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

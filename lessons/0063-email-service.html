@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 63 — Design an Email Service (Gmail / Outlook)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 63 · Phase 4 — Case Study · Medium</p>
+  <h1>Design an Email Service (Gmail / Outlook)</h1>
+  <p class="sub">A read-heavy mailbox over a write-once log of immutable messages — where durability is non-negotiable and search is the hard part.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Email looks like CRUD and is anything but. At L6/L7 the
+    interviewer watches whether you separate the <em>immutable message blob</em> from the <em>mutable per-user
+    metadata</em>, whether you treat labels as a view rather than folders as storage, and whether you can wire up
+    SMTP ingestion, full-text search, and attachment dedup without re-deriving each from scratch. Reaching for
+    "store it in Postgres" is senior; modeling the storage/metadata split and naming the durability bar is staff.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Email's surface is huge; lock the core before designing so the deep dives stay focused.</p>
+  <table>
+    <tr><th>#</th><th>The user should be able to…</th></tr>
+    <tr><td>1</td><td>Send and receive email, including attachments, to/from any internet address.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>2</td><td>Organize mail with folders and labels (Inbox, Sent, archive, stars).<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>3</td><td>Search their mailbox by keyword over subject, body, and sender.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>4</td><td>Define filters/rules that auto-label or route incoming mail.</td></tr>
+  </table>
+  <p><b>Explicitly out of scope:</b> calendar/contacts, rich collaborative editing, end-to-end encryption,
+  threading heuristics, and the deliverability/reputation game. Naming these signals you know where the rabbit
+  holes are and are choosing the interview-relevant core.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th></tr>
+    <tr><td>Durability</td><td><b>The hard bar:</b> a delivered message must never be lost — target ≥ 11 nines. Mail is a system of record.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Availability</td><td>High availability for reads/sends; brief send delays are tolerable, data loss is not.</td></tr>
+    <tr><td>Search latency</td><td>Mailbox search returns in &lt; 500&nbsp;ms over years of accumulated mail.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Scale</td><td>~1B users, billions of messages/day; per-user mailbox into the tens of GB.</td></tr>
+    <tr><td>Consistency</td><td>Read-your-writes within a mailbox (a sent mail appears in Sent immediately); cross-user delivery is eventual.</td></tr>
+  </table>
+  <div class="box">
+    <b>The two tensions to name up front.</b>
+    <ul>
+      <li><b>Durability vs. cost</b> — never losing a message means replicated, write-once storage and acknowledged hand-offs at every hop, not best-effort fire-and-forget.</li>
+      <li><b>Read-heavy access vs. huge cold corpus</b> — users touch recent mail constantly but keep everything forever, so the design splits hot metadata from cheap cold message bodies.</li>
+    </ul>
+  </div>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that change a decision. The headline: this is a <b>read-heavy</b> system with a durability
+  bar, and attachments — not text — dominate storage.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Messages received</td><td>~100B/day ≈ ~1M/s peak (1B users × ~100 msgs/day)</td><td>Ingestion must be a queued, horizontally-scalable pipeline.</td></tr>
+    <tr><td>Reads vs. writes</td><td>~10:1 reads to writes (list, open, search)</td><td>Optimize the metadata read path; cache aggressively.</td></tr>
+    <tr><td>Avg message size</td><td>~10&nbsp;KB text; attachments ~1&nbsp;MB on ~20% of mail</td><td>Attachments are ~95% of bytes → store as blobs, not in the DB.</td></tr>
+    <tr><td>Storage growth</td><td>~100B × 0.25&nbsp;MB ≈ tens of PB/day raw before dedup</td><td>Dedup attachments and tier cold mail to cheap storage.</td></tr>
+  </table>
+  <p>The punchline is the size split: message <em>metadata</em> is tiny and hot; message <em>bodies and
+  attachments</em> are enormous and mostly cold. That asymmetry drives the entire storage model below.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>User</code> (mailbox owner), <code>Message</code> (immutable: headers + body +
+  attachment refs), <code>MailboxEntry</code> (mutable per-user metadata: labels, read/star flags, pointer to a
+  Message), <code>Attachment</code> (a content-addressed blob). The split between immutable <code>Message</code>
+  and mutable <code>MailboxEntry</code> is the whole design.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/messages</code></td><td>Send a message (sender from auth token; body + attachment IDs).</td></tr>
+    <tr><td><code>POST /v1/attachments</code></td><td>Upload an attachment, returns a content-addressed blob ID.</td></tr>
+    <tr><td><code>GET /v1/messages?label=&amp;cursor=</code></td><td>List a folder/label view, newest first, cursor-paginated.</td></tr>
+    <tr><td><code>GET /v1/messages/{id}</code></td><td>Fetch one message (metadata + body + attachment links).</td></tr>
+    <tr><td><code>PATCH /v1/messages/{id}</code></td><td>Mutate metadata only: add/remove label, mark read/starred.</td></tr>
+    <tr><td><code>GET /v1/search?q=&amp;cursor=</code></td><td>Full-text search across the caller's mailbox.</td></tr>
+  </table>
+  <p>Note that <code>PATCH</code> touches the <code>MailboxEntry</code>, never the <code>Message</code>: labels and
+  flags are mutable metadata, the message itself is write-once. And it's <code>cursor</code>, not <code>page</code>
+  — offset pagination breaks when new mail arrives mid-scroll.</p>
+
+  <h2>High-Level Design</h2>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>API / Sync Gateway</td><td>Auth, rate-limiting, routing; terminates client sync (IMAP/JMAP-style).</td></tr>
+    <tr><td>Mailbox Service</td><td>Reads/writes <code>MailboxEntry</code> metadata; serves folder/label views.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Metadata store</td><td>Sharded-by-user DB of mailbox entries (labels, flags, message pointers).<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Message / Blob store</td><td>Immutable message bodies &amp; attachments in object storage (S3-style).<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>SMTP Ingress (MTA)</td><td>Accepts inbound internet mail; pushes to a durable queue.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Send Pipeline (MTA out)</td><td>Queues outbound mail; retries, applies spam/DKIM checks.<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>Search Service + index</td><td>Per-user inverted index over subject/body/sender.<a href="#c4" class="cite">[4]</a></td></tr>
+  </table>
+  <p><b>Send path:</b> <code>POST /messages</code> → Mailbox Service writes Sent entry → enqueue to Send Pipeline →
+  outbound MTA delivers to recipient domains. <b>Receive path:</b> SMTP Ingress accepts mail → durable queue →
+  Mailbox Service runs filters, writes a <code>MailboxEntry</code>, stores body in blob store, emits an index
+  event. <b>Read path:</b> <code>GET /messages</code> → Mailbox Service reads metadata (hot) → hydrates bodies
+  from blob store on open (cold).</p>
+
+  <h2>Deep Dive 1 — Mailbox storage model &amp; metadata index</h2>
+  <p>The instinct to "put each email in a row" collapses under the read-heavy/huge-corpus split. The staff move is
+  to separate <b>what the message is</b> from <b>where it lives for each user</b>.</p>
+  <h3>Two stores, two access patterns</h3>
+  <ul style="font-size:.92rem;">
+    <li><b>Message store (immutable, cold):</b> the raw RFC&nbsp;5322 message — headers, body, attachment refs —
+        written once to object storage and never edited.<a href="#c2" class="cite">[2]</a> Cheap, replicated, content-addressed.</li>
+    <li><b>Metadata store (mutable, hot):</b> one small <code>MailboxEntry</code> per (user, message) holding
+        labels, read/star flags, timestamp, and a pointer to the message blob.<a href="#c1" class="cite">[1]</a></li>
+  </ul>
+  <p>Sharding the metadata store <b>by user</b> keeps a mailbox's entries co-located, so listing a folder is a
+  single-shard range scan — no scatter-gather for the common case.<a href="#c1" class="cite">[1]</a></p>
+  <h3>Folders vs. labels — the modeling tell</h3>
+  <p>A folder implies one home per message; a label is a tag, and a message can carry many. Modeling labels as a
+  <em>set on the <code>MailboxEntry</code></em> (not as physical folders) means "Inbox", "Sent", and "Important"
+  are all just queries over the same entries — and a <code>PATCH</code> to relabel never moves any bytes.</p>
+  <div class="box">
+    <b>Index the views you list by.</b> "List Inbox newest-first" and "list unread in label X" are the hot reads,
+    so maintain secondary indexes on <code>(user, label, timestamp)</code> and <code>(user, label, read)</code>.
+    The message blob stays untouched; only the tiny metadata row is indexed and mutated.
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Recognizing that a delivered message is <em>immutable</em> and only per-user metadata changes is the unlock.
+    It lets you store one blob per message regardless of recipients, make relabeling a metadata-only write, and
+    tier cold bodies to cheap storage — all without ever rewriting the message. Senior candidates store rows;
+    staff candidates store an append-only log with a mutable index on top.
+  </div>
+
+  <h2>Deep Dive 2 — Full-text search over mail</h2>
+  <p>Search is the part that breaks the naïve design. Scanning a user's tens-of-GB mailbox per query is hopeless,
+  so this reduces to the <b>inverted index</b> — the same machinery behind
+  <a href="../lessons/0025-fb-post-search.html">Facebook Post Search</a>, scoped per user.<a href="#c4" class="cite">[4]</a></p>
+  <h3>Per-user index, not one global index</h3>
+  <p>Unlike public post search, mail is private: a query must only ever touch the caller's own mail. So the index
+  is <b>partitioned by user</b> — each mailbox owns its inverted index (<code>term → message IDs</code>) over
+  subject, body, and sender. A search is a single-user lookup, which keeps both latency and the privacy boundary
+  clean — no cross-tenant scatter.</p>
+  <pre style="font-family:'SF Mono',Menlo,monospace; font-size:.78rem; background:#f3ece1; padding:.9rem 1rem; border-radius:6px; overflow:auto;">user42 / "invoice"  → [m17, m412, m9981]
+user42 / "refund"   → [m412, m9981]
+user42 / "acme"     → [m17, m412]</pre>
+  <p>Multi-word queries become an <b>intersection</b> of posting lists, exactly as in post search; sender/label
+  filters are extra intersected lists. Indexing happens off the ingestion path: when the Mailbox Service writes a
+  new entry, it emits an event to an indexer that tokenizes and updates that user's index.<a href="#c4" class="cite">[4]</a></p>
+  <p>For the index mechanics — tokenization, posting-list intersection, document vs. term partitioning, and
+  near-real-time freshness — see the
+  <a href="../lessons/0025-fb-post-search.html">Post Search deep dives</a>; the only twist here is the per-user
+  partition and the privacy constraint it enforces. Decoupling indexing via a queue is the same
+  <a href="../lessons/0007-messaging-and-async.html">async/messaging pattern</a> used everywhere else in the system.</p>
+
+  <h2>Deep Dive 3 — Attachments as blobs with dedup</h2>
+  <p>Attachments are ~95% of the bytes and the same file (a 5&nbsp;MB deck mailed to 200 people) lands hundreds of
+  times. Storing them inline in the DB, or once per recipient, is the expensive mistake.</p>
+  <h3>Content-addressed blob storage</h3>
+  <p>Push every attachment to an object store and key it by the <b>hash of its content</b> (e.g. SHA-256) — this
+  is the canonical <a href="../lessons/0045-blob-store-s3.html">blob store / S3 pattern</a>.<a href="#c2" class="cite">[2]</a>
+  The <code>Message</code> holds only a reference: <code>{blobId: sha256, filename, size}</code>. Because the key
+  <em>is</em> the content hash, identical files map to the same blob automatically.</p>
+  <table>
+    <tr><th></th><th>Inline in metadata DB</th><th>Content-addressed blob store</th></tr>
+    <tr><td>Cost</td><td>DB bloats with binary; backups balloon.</td><td>Cheap object storage; tier cold blobs down.</td></tr>
+    <tr><td>Dedup</td><td>None — N copies of one file.</td><td>Hash key collapses duplicates to one blob.</td></tr>
+    <tr><td>Read path</td><td>Couples body fetch to heavy bytes.</td><td>Fetch metadata fast; hydrate blob lazily.</td></tr>
+  </table>
+  <h3>Dedup needs reference counting</h3>
+  <p>If one physical blob is shared by many messages, you can't delete it when one user trashes their copy.
+  Maintain a <b>reference count</b> (or a set of referencing message IDs) per blob; garbage-collect a blob only
+  when its count hits zero.<a href="#c2" class="cite">[2]</a> Uploads also go <b>direct-to-blob via presigned
+  URLs</b>, so multi-MB files never stream through the API tier.</p>
+  <div class="box">
+    <b>Dedup vs. isolation.</b> Cross-user dedup maximizes savings but means one tenant's delete can't free
+    shared bytes, and a corrupt blob hits everyone. A common middle ground: dedup within a user (or org) only, so
+    blast radius and billing stay per-tenant while still collapsing the "mailed to the whole team" case.
+  </div>
+
+  <h2>Deep Dive 4 — SMTP send pipeline: queueing, retries &amp; spam</h2>
+  <p>Sending isn't a synchronous RPC — the recipient's server may be slow, greylisting, or down for hours. The
+  send path must be a durable, retrying <a href="../lessons/0007-messaging-and-async.html">async pipeline</a>, or
+  you violate the durability NFR the moment a downstream MTA hiccups.<a href="#c3" class="cite">[3]</a></p>
+  <h3>Outbound flow</h3>
+  <ol style="font-size:.92rem;">
+    <li><b>Accept &amp; persist:</b> write the Sent entry and enqueue the message <em>before</em> ACKing the user —
+        once accepted, it cannot be lost.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Authenticate:</b> sign with <b>DKIM</b> and align <b>SPF/DMARC</b> so receivers trust the mail.<a href="#c3" class="cite">[3]</a></li>
+    <li><b>Deliver with retries:</b> outbound MTA looks up the recipient's <b>MX</b> records and attempts SMTP
+        delivery, retrying with exponential backoff over hours/days before bouncing.<a href="#c3" class="cite">[3]</a></li>
+  </ol>
+  <h3>Inbound &amp; spam filtering</h3>
+  <p>SMTP Ingress accepts inbound mail to a <b>durable queue</b> first, then the Mailbox Service runs <b>spam
+  classification</b> and user filters before writing the entry. Doing spam scoring asynchronously off the accept
+  path keeps ingestion fast and lets the classifier evolve without touching the delivery hot path.<a href="#c3" class="cite">[3]</a></p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The durability bar is won at the <em>hand-offs</em>: every hop (accept → queue → deliver) acknowledges only
+    after a durable write, so a crash anywhere replays rather than drops. Naming "at-least-once with idempotent
+    delivery and dedup on Message-ID" — rather than hoping the network cooperates — is the staff-level answer.
+  </div>
+
+  <h2>Deep Dive 5 — Sync protocol to clients</h2>
+  <p>A user has a phone, a laptop, and a webmail tab open at once. They expect a swipe-to-archive on one to appear
+  on all within seconds — without each client re-downloading the whole mailbox.</p>
+  <h3>Delta sync over a change log</h3>
+  <p>Give each mailbox a monotonic <b>change cursor</b> (a version/sequence that bumps on every metadata mutation,
+  IMAP's <code>MODSEQ</code> / JMAP's state string). A client stores its last cursor and asks "what changed since
+  X?"; the server returns only the deltas — new messages, flag changes, relabels — plus the new cursor.</p>
+  <table>
+    <tr><th>Approach</th><th>Tradeoff</th></tr>
+    <tr><td>Full re-fetch</td><td>Simple but burns bandwidth and battery; unusable at GB scale.</td></tr>
+    <tr><td>Client polling deltas</td><td>Bandwidth-light; freshness bounded by poll interval.</td></tr>
+    <tr><td>Push + delta sync</td><td>Server notifies on change, client pulls delta — fast and cheap.</td></tr>
+  </table>
+  <p>The metadata/message split pays off again: sync ships tiny metadata deltas, and a client hydrates message
+  bodies from the blob store only when the user actually opens a message.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why split storage into an immutable message and a mutable mailbox entry?</p>
+      <button class="opt">Because folders must each physically own a separate copy of mail</button>
+      <button class="opt">Because labels and flags change while the message itself never does</button>
+      <button class="opt">Because the message body must be rewritten on every single read</button>
+      <p class="fb">A delivered message is write-once; only per-user metadata (labels, flags) mutates, so relabeling is a metadata-only write.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. How is the mail search index partitioned, and why?</p>
+      <button class="opt">By keyword term, so one viral word lands on a single shared node</button>
+      <button class="opt">By message size, so large attachments index on separate shards</button>
+      <button class="opt">By user, so a query stays private and hits one small index</button>
+      <button class="opt">By calendar date, so old mail can drop out of the index fully</button>
+      <p class="fb">Mail is private, so each mailbox owns its inverted index — search is a single-user lookup with a clean privacy boundary.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What makes content-addressed attachment storage dedup automatically?</p>
+      <button class="opt">The blob key is the hash, so identical files collapse to one</button>
+      <button class="opt">The blob key is the sender, so each user keeps a single copy</button>
+      <button class="opt">The blob key is the date, so daily files reuse the same entry</button>
+      <button class="opt">The blob key is the name, so renamed files share one storage</button>
+      <p class="fb">Keying by content hash means duplicate bytes map to the same blob; a reference count guards deletion.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. How does the send pipeline meet the durability bar on a slow recipient?</p>
+      <button class="opt">It drops the message after one failed delivery to keep queues short</button>
+      <button class="opt">It persists then queues before ACK, retrying with backoff for hours</button>
+      <button class="opt">It sends synchronously and returns an error straight to the sender</button>
+      <button class="opt">It stores the message only inside the recipient server's local disk</button>
+      <p class="fb">Accept means durable write + enqueue before ACK; outbound MTA retries with backoff and bounces only after exhausting attempts.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> Try: <em>"Walk me through exactly what happens when the same attachment is
+    sent to 500 recipients, blob by blob."</em> · <em>"How would threading/conversation view change the metadata
+    model?"</em> · <em>"Where would greylisting and per-domain rate limits sit in the outbound MTA, and how do
+    they affect retries?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/gmail">Hello Interview — Gmail / Email Service breakdown</a>.
+  The cleanest end-to-end walkthrough: requirements, the metadata-vs-message split, per-user search, attachment
+  storage, and the SMTP send/receive pipeline. Read it alongside the inverted-index and blob-store lessons in this
+  course for the mechanics it builds on.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/gmail">Hello Interview — Gmail / Email Service</a> (requirements, durability bar, metadata/message split, per-user sharding, send/receive flow).</p>
+    <p id="c2">[2] <a href="../lessons/0045-blob-store-s3.html">Lesson 45 — Blob Store (S3)</a> (object storage, content-addressed keys, reference counting, presigned uploads, cold tiering).</p>
+    <p id="c3">[3] <a href="https://datatracker.ietf.org/doc/html/rfc5321">RFC 5321 — Simple Mail Transfer Protocol</a> (MX lookup, store-and-forward delivery, retry/bounce semantics; DKIM/SPF/DMARC for sender authentication).</p>
+    <p id="c4">[4] <a href="../lessons/0025-fb-post-search.html">Lesson 25 — Facebook Post Search</a> (inverted index, tokenization, posting-list intersection, near-real-time indexing pipeline).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0062-ecommerce-flash-sale.html">← Lesson 62</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 64 · Google Photos</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

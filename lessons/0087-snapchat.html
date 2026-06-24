@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 87 — Design Snapchat (Ephemeral Messaging)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 87 · Phase 4 — Case Study · Medium</p>
+  <h1>Design Snapchat (Ephemeral Messaging)</h1>
+  <p class="sub">Snapchat looks like a media-messaging app, but the interview-defining twist is the inverse of every other system: the hard requirement is not to <em>keep</em> data — it is to <em>delete</em> it, reliably, on a deadline.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Snapchat is the canonical "ephemerality" interview. At L6/L7 the bar is not "draw a chat app with photos" — it is to recognize that <em>deletion is a first-class feature with its own correctness guarantee</em>, then design a media lifecycle (upload → CDN deliver → TTL delete) and be honest that "true" deletion is impossible across caches, CDNs, and client devices. Naming what you <em>can</em> guarantee versus what you can only <em>discourage</em> is the staff move.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope tightly. Snap messaging + stories, with auto-deletion as the load-bearing capability. Defer the rest out loud.</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td>Send a <b>disappearing photo/video snap</b> to one or more friends.</td></tr>
+    <tr><td>2</td><td><b>View a snap once</b>, after which it auto-deletes (and expires unopened after a window).</td></tr>
+    <tr><td>3</td><td>Post a <b>story</b> visible to friends that auto-expires <b>24 hours</b> after posting.</td></tr>
+    <tr><td>4</td><td>Capture and attach <b>media</b> (image/video) that streams back fast on view.</td></tr>
+  </table>
+  <p style="font-size:.9rem;color:var(--muted);">Out of scope (say so out loud): the camera/AR lens pipeline, Snap Map, Discover content, group video calls, and end-to-end encryption (acknowledged, not designed).</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>The "-ilities" drive every decision below. The unusual one — and the one to lead with — is the <b>ephemerality guarantee</b>.</p>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th><th>Why it shapes the design</th></tr>
+    <tr><td>Ephemerality</td><td>Snap deleted server-side promptly after view/expiry; story after 24h</td><td>Forces a <b>TTL/lifecycle engine</b> on every store and a definition of "deleted".</td></tr>
+    <tr><td>Low latency</td><td>Snap opens with media in &lt;1s</td><td>Forces <b>CDN delivery</b> + direct-to-blob upload, never proxying bytes through app servers.</td></tr>
+    <tr><td>Durability (bounded)</td><td>No loss <i>until</i> delivered/expired; then intentional loss</td><td>Forces durable blob + metadata store, but with deletion as the terminal state.</td></tr>
+    <tr><td>Scale</td><td>~Billions of snaps/day; heavy write + read of large media</td><td>Forces blob storage + CDN tiers; metadata is tiny vs. bytes.</td></tr>
+    <tr><td>Availability</td><td>Sending/viewing resilient to host failure</td><td>Replicated stores; deletion is idempotent and retry-safe.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only what changes the design. For Snapchat the load-bearing numbers are <b>media bytes</b> (storage + egress), not metadata rows. The following are my own back-of-envelope estimates.</p>
+  <div class="box">
+    <ul>
+      <li><b>Snaps/day:</b> ~5B snaps/day ≈ <b>~60K snaps/s</b> average, peaking several × higher in the evening. Each is a small metadata row + one media blob.</li>
+      <li><b>Media size:</b> a compressed snap averages ~1–5 MB. At 5B/day × ~2 MB that is ~<b>10 PB/day of writes</b> — but most of it is short-lived, so steady-state storage is bounded by the TTL window, not the cumulative total.</li>
+      <li><b>Storage is a flow, not a stock:</b> because snaps are deleted on view and stories after 24h, retained bytes ≈ (one day of unopened snaps + one day of stories), perhaps low single-digit PB resident — orders of magnitude smaller than a "keep forever" design. <b>This is the design-changing number.</b></li>
+      <li><b>Read egress:</b> stories are read by many friends, so view bandwidth &gt; upload bandwidth. That gap is exactly what a <b>CDN</b> exists to absorb.</li>
+    </ul>
+    <p style="margin:.6rem 0 0;"><b>Implication:</b> the system is bytes-dominated and ephemeral, so the architecture is <i>blob store + CDN + a relentless TTL reaper</i>; the metadata/messaging tier is comparatively cheap.</p>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>User</code>, <code>Snap</code> (metadata: sender, media pointer, expiry, view state), <code>Media</code> (the blob + CDN URL), <code>Recipient</code> (per-friend delivery + view record), and <code>Story</code> (a user's 24h-TTL collection of snaps).</p>
+  <p>Bytes go directly to blob storage; only small metadata touches the app tier. The user is always derived from the auth token, never passed in the body.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/media</code></td><td>Returns a <b>pre-signed upload URL</b>; client PUTs bytes straight to the blob store <a href="#c2" class="cite">[2]</a>.</td></tr>
+    <tr><td><code>POST /v1/snaps</code></td><td>Create a snap (<code>mediaId</code>, <code>recipientIds</code>, <code>expirySeconds</code>); fans out delivery.</td></tr>
+    <tr><td><code>GET /v1/snaps/inbox</code></td><td>List undelivered/unopened snaps for the caller.</td></tr>
+    <tr><td><code>POST /v1/snaps/{id}/view</code></td><td>Mark viewed → triggers read receipt + deletion lifecycle.</td></tr>
+    <tr><td><code>POST /v1/stories</code></td><td>Append a snap to the caller's story with a 24h TTL.</td></tr>
+    <tr><td><code>GET /v1/stories/{userId}</code></td><td>Fetch a friend's still-live (non-expired) story entries.</td></tr>
+  </table>
+
+  <h2>High-Level Design</h2>
+  <p>The defining move is separating the <b>tiny control plane</b> (metadata, messaging, lifecycle decisions) from the <b>fat data plane</b> (media bytes that flow blob → CDN → device, never through app servers).</p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>State</th></tr>
+    <tr><td>API / app servers</td><td>Auth, snap metadata CRUD, pre-signed URL minting, fan-out of delivery.</td><td>Stateless</td></tr>
+    <tr><td>Metadata store</td><td><code>Snap</code> / <code>Recipient</code> / <code>Story</code> rows with a <b>per-row TTL</b> (e.g. DynamoDB TTL).</td><td>Durable</td></tr>
+    <tr><td>Blob storage</td><td>Holds media; per-object lifecycle/TTL rules drive expiry (see Lesson 45) <a href="#c2" class="cite">[2]</a>.</td><td>Durable</td></tr>
+    <tr><td>CDN</td><td>Caches and serves media near the viewer for &lt;1s opens.</td><td>Cached</td></tr>
+    <tr><td>Messaging / delivery path</td><td>Pushes "you have a snap" to recipients (same primitives as WhatsApp) <a href="#c1" class="cite">[1]</a>.</td><td>Stateful</td></tr>
+    <tr><td>TTL reaper / lifecycle worker</td><td>Deletes expired blobs, metadata, and purges CDN on schedule.</td><td>Background</td></tr>
+  </table>
+  <p><b>Send-snap flow:</b> client requests a pre-signed URL → uploads media straight to blob storage → calls <code>POST /v1/snaps</code> with the <code>mediaId</code> and recipients → app server writes a <code>Snap</code> + one <code>Recipient</code> row per friend (each with its own expiry) → the delivery path notifies online recipients (and queues for offline ones, exactly like WhatsApp's inbox) <a href="#c1" class="cite">[1]</a>. <b>View flow:</b> recipient fetches the CDN URL, streams the media, then calls <code>/view</code> → that marks the recipient row viewed, fires the read receipt back to the sender, and enqueues the snap for deletion.</p>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1. Ephemeral media lifecycle: store → deliver → delete</h3>
+  <p>This is the heart of the problem. A snap's metadata moves through an explicit state machine, and each transition has a deletion consequence:</p>
+  <table>
+    <tr><th>State</th><th>What's true</th><th>Deletion trigger</th></tr>
+    <tr><td><code>UPLOADED</code></td><td>Blob in storage, not yet sent.</td><td>Orphan sweep if never attached to a snap.</td></tr>
+    <tr><td><code>DELIVERED</code></td><td>Recipient notified, not yet opened.</td><td><b>Unopened TTL</b> (e.g. 30 days) expires it.</td></tr>
+    <tr><td><code>VIEWED</code></td><td>Recipient opened it.</td><td>Delete <b>immediately after view</b> (per recipient).</td></tr>
+    <tr><td><code>EXPIRED</code></td><td>All recipients viewed or TTL hit.</td><td>Reaper removes blob + metadata + CDN copy.</td></tr>
+  </table>
+  <p>Two complementary mechanisms do the deleting. <b>Passive TTL</b>: every metadata row and every blob object carries an expiry timestamp, and the store auto-evicts on its own schedule — this is your safety net so nothing lives forever even if the active path fails. <b>Active deletion</b>: on the <code>/view</code> call (or when the last recipient views), a lifecycle worker proactively deletes the blob and purges it from the CDN so it stops being servable in seconds, not days. You want both: active for the promptness users expect, passive TTL as the guarantee that holds even when a worker crashes.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Say this explicitly: <b>"Deletion is a feature with its own SLA, so I make it idempotent and back it with a passive TTL, not just an active delete."</b> A senior wires up a "delete on view" handler and calls it done. A staff engineer asks "what happens if that handler never runs?" and answers it: the row and blob also carry a TTL, so the worst case is delayed deletion, never permanent retention. Designing the <i>fallback</i> path for a correctness-critical action — and making delete safe to run twice — is the difference.
+  </div>
+
+  <h3>2. The deletion guarantee — and why "true" deletion is hard</h3>
+  <p>Be honest in the interview: you can guarantee deletion from <i>systems you control</i>, but you cannot guarantee a snap is gone from the universe. Walk through where copies leak and what you actually do about each:</p>
+  <table>
+    <tr><th>Where a copy can survive</th><th>What you can do</th></tr>
+    <tr><td>Origin blob store + metadata</td><td><b>Fully controllable</b> — active delete + TTL guarantees removal.</td></tr>
+    <tr><td>CDN edge caches</td><td><b>Mostly</b> — short cache TTLs + explicit purge API; brief windows remain.</td></tr>
+    <tr><td>Recipient's device cache</td><td><b>Discourage</b> — render in-app, don't write to gallery, clear on view.</td></tr>
+    <tr><td>Screenshots / a second camera</td><td><b>Cannot prevent</b> — only <i>detect</i> (screenshot notification) and notify the sender.</td></tr>
+  </table>
+  <p>So the honest claim is: <em>"We guarantee server-side deletion within seconds of view and at-most-TTL otherwise; CDN copies expire within their cache window; client and out-of-band copies we can only discourage and detect."</em> Stating that boundary precisely — rather than promising magic — is what an L6/L7 interviewer is listening for. The screenshot-detection trick is the classic "you can't stop it, so surface it" judgement call.</p>
+
+  <h3>3. Media upload to blob + CDN delivery</h3>
+  <p>Never stream large media through your application servers — it wastes CPU, memory, and bandwidth on a tier that should stay thin. The pattern (full treatment in <a href="0045-blob-store-s3.html">Lesson 45 · Blob Store</a> <a href="#c2" class="cite">[2]</a>):</p>
+  <ul style="font-size:.92rem;">
+    <li><b>Upload:</b> client asks for a <b>pre-signed URL</b> and PUTs bytes <i>directly</i> to the blob store; the app server only ever sees the small <code>mediaId</code>, never the bytes <a href="#c2" class="cite">[2]</a>.</li>
+    <li><b>Deliver:</b> on view, the client fetches the media from a <b>CDN</b> URL; the CDN pulls from the origin blob once and serves cached copies near each viewer, giving the &lt;1s open. This matters most for <b>stories</b>, where one upload is read by many friends.</li>
+    <li><b>Ephemerality wrinkle:</b> because deletion is the goal, keep CDN cache TTLs <i>short</i> and call the CDN's <b>purge/invalidation</b> API on delete, so an expired snap stops being servable quickly. This is the tension unique to Snapchat — CDNs are built to cache aggressively, but you need them to forget aggressively.</li>
+  </ul>
+  <p>This is the same upload/CDN split you'd describe for <a href="0027-instagram.html">Instagram (Lesson 27)</a>; the only difference is that Instagram caches forever and Snapchat deliberately purges.</p>
+
+  <h3>4. Messaging / delivery path + read-receipt-triggered deletion</h3>
+  <p>The "get a snap to a friend, online or offline" sub-problem is <em>exactly</em> the WhatsApp problem — don't reinvent it, reuse it (see <a href="0019-whatsapp.html">Lesson 19 · WhatsApp</a> <a href="#c1" class="cite">[1]</a>). A persistent connection plus a connection registry routes the "you have a snap" notification to an online recipient; a <b>durable per-recipient inbox</b> holds it for offline users until they reconnect and ACK <a href="#c1" class="cite">[1]</a>. The snap <i>metadata</i> rides this path; the <i>bytes</i> always come separately from the CDN.</p>
+  <p>The Snapchat-specific twist: the <b>read receipt and the deletion trigger are the same event</b>. When the recipient opens the snap and the client posts <code>/view</code>, that single signal (a) tells the sender "opened" (read receipt) and (b) marks the recipient row <code>VIEWED</code>, which enqueues deletion once all recipients have viewed. One action does double duty — receipt and reaper share a trigger. For a snap sent to several friends, you delete <b>per recipient</b> and only purge the shared blob once the <i>last</i> recipient has viewed or all their TTLs lapse.</p>
+
+  <h3>5. Stories fan-out with a 24h TTL</h3>
+  <p>A story is a one-to-many read problem with a hard expiry, which makes it a clean <b>fan-out-on-read</b> case. Contrast the two approaches:</p>
+  <table>
+    <tr><th>Approach</th><th>Verdict</th></tr>
+    <tr><td>Fan-out-on-write: copy each story entry into every friend's feed</td><td><b>Wasteful</b> — duplicates large media pointers across all friends, and every copy needs its own 24h TTL cleanup.</td></tr>
+    <tr><td>Fan-out-on-read: store the story once, friends pull live entries on open</td><td><b>Better</b> — one copy, one TTL; friends query "your friends' non-expired stories" at read time.</td></tr>
+  </table>
+  <p>Because stories are pulled when a user opens the app (not pushed instantly like a snap), read-time fan-in is fine and avoids write amplification. Expiry is trivial with a <b>per-entry TTL</b>: each story snap row carries <code>createdAt + 24h</code>; the store auto-evicts it and the reaper purges the underlying blob + CDN copy. The read query simply filters <code>expiry &gt; now</code>, so even before physical deletion runs, an expired entry is never shown. That "filter on read, delete in background" pattern means correctness (what users see) never waits on the reaper.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why does Snapchat back active "delete on view" with a passive per-row TTL as well?</p>
+      <button class="opt">Because a TTL makes each snap open noticeably faster than an active delete can</button>
+      <button class="opt">Because the CDN refuses to serve any object that does not carry a TTL value</button>
+      <button class="opt">Because if the active delete worker fails, the TTL still guarantees eventual removal</button>
+      <button class="opt">Because metadata rows cannot be deleted at all once a snap has been viewed once</button>
+      <p class="fb">Active delete gives promptness; the TTL is the fallback so nothing is ever retained forever.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. What is the honest scope of Snapchat's deletion guarantee in an interview?</p>
+      <button class="opt">Every copy everywhere is provably erased the instant the recipient opens the snap</button>
+      <button class="opt">Server and CDN copies expire reliably; device and screenshot copies are only deterred</button>
+      <button class="opt">Nothing can ever be deleted, so the app simply hides snaps behind an access check</button>
+      <button class="opt">Only the sender device is wiped; all recipient and server copies live on forever</button>
+      <p class="fb">You control origin + CDN; client caches and screenshots you can only discourage and detect.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why are media bytes uploaded with a pre-signed URL instead of through app servers?</p>
+      <button class="opt">So bytes go straight to the blob store and the thin app tier never proxies them</button>
+      <button class="opt">So the app tier can compress and re-encode every frame before it is finally stored</button>
+      <button class="opt">So the CDN is bypassed entirely and viewers always read from the origin blob</button>
+      <button class="opt">So each snap can be encrypted twice by the server before reaching the blob store</button>
+      <p class="fb">Pre-signed URLs keep the bytes off the app tier; it only handles the small mediaId metadata.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Why is fan-out-on-read the better fit for stories with a 24h expiry?</p>
+      <button class="opt">Because pushing each story entry to every friend reduces total read query latency</button>
+      <button class="opt">Because read fan-in lets the system skip storing any media in the blob store at all</button>
+      <button class="opt">Because one stored copy with one TTL avoids duplicating media across all friends</button>
+      <button class="opt">Because stories must be delivered instantly the way a direct snap push is delivered</button>
+      <p class="fb">Stories are pulled on open, so store once with one TTL and filter expiry &gt; now at read time.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it:
+    <ul style="margin:.4rem 0 0;">
+      <li>"Walk me through deleting a snap sent to five friends when only three have viewed it."</li>
+      <li>"How would you keep a CDN from serving an expired snap during its cache window?"</li>
+      <li>"When would you switch stories from fan-out-on-read to fan-out-on-write?"</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/snapchat">Hello Interview — Snapchat / Ephemeral Messaging System Design</a>. The clearest walkthrough of the ephemeral media lifecycle, the deletion guarantee boundary, and the blob+CDN delivery split for an L6/L7 audience.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="0019-whatsapp.html">Lesson 19 — Design WhatsApp</a> (real-time delivery via persistent connections, connection registry, durable per-recipient inbox + ACKs, read receipts — reused for snap delivery).</p>
+    <p id="c2">[2] <a href="0045-blob-store-s3.html">Lesson 45 — Blob Store (S3)</a> (pre-signed upload URLs, direct-to-blob uploads, object lifecycle/TTL rules, CDN delivery — the media plane for snaps and stories).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0086-weather-app.html">← Lesson 86</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 88 · Deep Dive: PostgreSQL</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

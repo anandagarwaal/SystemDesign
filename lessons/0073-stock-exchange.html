@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 73 — Design a Stock Exchange / Matching Engine</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 73 · Phase 4 — Case Study · Hard</p>
+  <h1>Design a Stock Exchange / Matching Engine</h1>
+  <p class="sub">The venue itself: one tiny piece of memory where every order in the world lines up, and the rule that decides who trades first must be the same answer every single time.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Most candidates reflexively reach for queues, databases, and horizontal sharding — and at a stock exchange every one of those instincts is <em>wrong on the hot path</em>. The matching engine is a single-threaded, in-memory state machine measured in microseconds, not a distributed CRUD service. The L6/L7 signal is knowing <em>when to delete the distributed system</em>: collapse the core to one deterministic thread for latency and fairness, and recover durability through an append-only log and replay rather than a database write per order. This is the opposite of <a href="../lessons/0030-robinhood.html">Lesson 30 (Robinhood)</a> — there you built a broker that routes out to an exchange; here you build the exchange.</p>
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>An <b>exchange</b> matches buyers to sellers directly — it is the counterparty-discovery venue, not a broker forwarding orders elsewhere.<a href="#c3" class="cite">[3]</a> Scope the core operations:</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th><th>Why it shapes the design</th></tr>
+    <tr><td>1</td><td><b>Place an order</b> (limit or market, buy or sell) for a symbol</td><td>The latency-critical write that mutates the order book</td></tr>
+    <tr><td>2</td><td><b>Cancel / replace</b> a resting order they own</td><td>Must be as fast and as ordered as a place — it races fills</td></tr>
+    <tr><td>3</td><td>Have crossing orders <b>matched</b> into trades by a deterministic rule</td><td>The heart of the engine: price-time priority matching</td></tr>
+    <tr><td>4</td><td>Receive a <b>market-data feed</b> (book updates + trade prints)</td><td>Massive fan-out read path, separate from matching</td></tr>
+  </table>
+  <p><b>Order types in scope:</b> limit and market, plus the standard time-in-force flags (IOC — immediate-or-cancel, FOK — fill-or-kill, GTC — good-till-canceled). <b>Out of scope</b> (say so): clearing &amp; settlement (T+1), custody, market surveillance, complex order types (icebergs, stop-loss), and multi-asset support. Naming exclusions bounds the 45 minutes — a senior signal in itself.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>This system is defined by guarantees that are stricter than almost any other interview problem. State the priority order out loud — it dictates every later choice.</p>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th><th>Why</th></tr>
+    <tr><td><b>Ultra-low latency &amp; determinism</b></td><td>Match in <b>single-digit microseconds</b>, p99 tight and predictable; same inputs → byte-identical outputs</td><td>HFT competes on nanoseconds; jitter is itself a defect</td></tr>
+    <tr><td><b>Correctness — no lost orders</b></td><td>Every accepted order is durably recorded and either rests, fills, or is rejected — never silently dropped</td><td>A lost order is money and a regulatory incident</td></tr>
+    <tr><td><b>Fairness</b></td><td>Strict, defensible ordering (price-time priority); no participant jumps the queue</td><td>The exchange's license to operate depends on it</td></tr>
+    <tr><td><b>Throughput</b></td><td>Millions of orders/sec per symbol-group at peak (open/close bursts)</td><td>One thread must absorb the whole book's traffic</td></tr>
+    <tr><td><b>Availability</b></td><td>Hot-standby failover with zero state loss during the trading session</td><td>Downtime mid-session halts a market</td></tr>
+  </table>
+  <div class="box">
+    <b>The one sentence that frames everything:</b> "The matching core is a <b>single-threaded, in-memory, deterministic</b> state machine on the hot path; durability and availability come from an <b>append-only input log + replay</b>, not from touching a database per order." Say this before drawing a single box.
+  </div>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only the numbers that <em>change a decision</em>. For an exchange, two do: the per-order time budget and the market-data fan-out.</p>
+  <table>
+    <tr><th>Quantity</th><th>Rough math</th><th>Design implication</th></tr>
+    <tr><td>Per-order time budget</td><td>Target ~1M orders/sec on one core → <b>~1&nbsp;µs/order</b> of CPU budget</td><td>No network hop, no disk, no lock, no GC pause fits in 1&nbsp;µs → matching must be in-memory and single-threaded</td></tr>
+    <tr><td>Order book memory</td><td>~10k symbols × ~10k resting orders × ~200&nbsp;B ≈ <b>~20&nbsp;GB</b></td><td>The entire active book fits in RAM on one server — no reason to involve a database on the hot path</td></tr>
+    <tr><td>Market-data fan-out</td><td>1M trades/sec × thousands of subscribers = <b>billions of msgs/sec</b> if unicast</td><td>Cannot fan out from the engine itself; needs one-to-many <b>multicast</b> off a separate feed tier</td></tr>
+  </table>
+  <p>The punchline: the working set is <em>small enough to live in memory</em>, and the time budget is <em>too small for anything else</em>. Those two facts, together, justify deleting the database from the critical path — the single most counterintuitive (and most senior) move in the design.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>Order</code> (id, symbol, side, price, qty, type, TIF, sequence number), <code>OrderBook</code> (per symbol: two sorted sides of resting orders), <code>Trade</code> (a match: aggressor + resting order, price, qty, timestamp), and an append-only <code>EventLog</code> of every accepted command in arrival order. Participant identity comes from the authenticated session, never the message body.</p>
+  <p>Real exchanges use binary session protocols (e.g. FIX / native ITCH-OUCH-style), but interview-friendly REST/WS sketches the contract:</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/orders</code></td><td>Submit a new order (<code>symbol, side, price, qty, type, tif</code> + <code>client_order_id</code>). Returns an ack with the exchange-assigned id and accepted sequence number.</td></tr>
+    <tr><td><code>DELETE /v1/orders/{id}</code></td><td>Cancel a resting order; may race a fill (responds <code>canceled</code> or <code>too-late</code>).</td></tr>
+    <tr><td><code>PUT /v1/orders/{id}</code></td><td>Cancel/replace (amend price or qty) — modeled as cancel + new for priority rules.</td></tr>
+    <tr><td><code>GET /v1/book/{symbol}</code></td><td>Snapshot of the top-of-book / depth (for late joiners syncing to the live feed).</td></tr>
+    <tr><td><code>WS|multicast /v1/marketdata/{symbol}</code></td><td>Subscribe to the real-time feed: order-book deltas + trade prints.</td></tr>
+  </table>
+
+  <h2>High-Level Design</h2>
+  <p>Picture a thin, fast funnel into one core, with everything durable and fan-out pushed to the <em>edges</em> so the core stays pure.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td><b>Gateway / session tier</b></td><td>Terminates client connections, authenticates, parses the binary protocol, runs cheap stateless validation. Stateless and horizontally scaled.</td></tr>
+    <tr><td><b>Pre-trade risk gate</b></td><td>Per-participant checks (credit/buying-power, position &amp; rate limits, fat-finger price bands) <em>before</em> an order reaches the book.<a href="#c5" class="cite">[5]</a></td></tr>
+    <tr><td><b>Sequencer</b></td><td>Stamps every accepted command with a single global, monotonic sequence number and appends it to the input <b>event log</b> — this fixes the canonical order of the universe.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>Matching engine</b></td><td>Single-threaded, in-memory. Consumes the sequenced log, mutates the limit order book, emits trades + book deltas. <em>Deterministic</em>: pure function of the log.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>Replica engines (hot standby)</b></td><td>Identical engines replaying the same log in lockstep (state-machine replication). On primary failure, a replica is already warm at the same state.<a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td><b>Market-data publisher</b></td><td>Takes the engine's output stream and fans it out via <b>multicast</b> to all subscribers; also builds periodic snapshots for late joiners.</td></tr>
+    <tr><td><b>Downstream (off hot path)</b></td><td>Drop-copy, clearing, surveillance, persistence — all consume the same event log asynchronously, never blocking matching.</td></tr>
+  </table>
+  <p><b>Order flow.</b> <code>POST /orders</code> → gateway validate → risk gate → <b>sequencer appends to the log</b> (this is the durable commit point) → matching engine consumes the next sequence number, matches against the book, emits trades + deltas → publisher multicasts the result; replicas replay the same entry. The order is durable the instant it's in the log — <em>before</em> it's matched — so a crash mid-match loses nothing: a replica resumes from the same log position.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The whole interview hinges on one inversion of instinct: <b>the database is not on the critical path; the log is.</b> A senior engineer reaches for a sharded DB + a queue + worker pool and gets correctness but milliseconds of latency and nondeterministic interleaving. A staff engineer says "the active book is ~20&nbsp;GB and my budget is ~1&nbsp;µs, so I'll match on a single thread against in-memory data, sequence all input into an append-only log, and get durability + HA from replaying that log into hot replicas." This is the LMAX architecture<a href="#c1" class="cite">[1]</a> and the classic <em>state-machine replication</em> result<a href="#c4" class="cite">[4]</a> — and being able to justify <em>removing</em> the distributed machinery is the signal.
+  </div>
+
+  <h2>Deep Dive 1 — The in-memory limit order book &amp; price-time priority</h2>
+  <p>The order book is, per symbol, two sorted collections: <b>bids</b> (buyers, sorted high→low) and <b>asks</b> (sellers, sorted low→high). A <b>limit order book</b> holds resting orders that aren't yet matchable; a marketable order "crosses the spread" and trades immediately.</p>
+  <h3>The matching rule: price-time priority (FIFO)</h3>
+  <p>An incoming aggressor matches the best available price first; <em>within</em> a price level, the order that arrived earliest fills first.<a href="#c3" class="cite">[3]</a> Example: an incoming buy of 100 @ $10 hits the lowest asks — fully consuming the oldest $10 ask before touching a newer one, then walking up to $10.01 if size remains. Whatever doesn't fill <b>rests</b> in the book at its limit, taking its place at the back of that price level's queue.</p>
+  <h3>The data structure that makes it microsecond-fast</h3>
+  <table>
+    <tr><th>Need</th><th>Structure</th><th>Why</th></tr>
+    <tr><td>Find best bid/ask</td><td>Sorted map of <em>price level</em> → queue (or array indexed by price tick)</td><td>O(1) top-of-book; ticks are discrete so an array of price levels is cache-friendly</td></tr>
+    <tr><td>FIFO within a level</td><td>Doubly-linked list / ring of orders at each level</td><td>O(1) append on arrival and O(1) remove on cancel</td></tr>
+    <tr><td>Cancel by order id</td><td>Hash map: order id → node pointer</td><td>O(1) locate, then unlink from its level</td></tr>
+  </table>
+  <p>Place, cancel, and match all become near-O(1) on contiguous, pre-allocated memory — no allocation, no pointer-chasing across the heap, no locks. (Compare <a href="../lessons/0023-online-auction.html">Lesson 23, online auction</a>: an auction is a slow, single-winner version of the same crossing logic; an exchange is the continuous, high-frequency limit.)</p>
+
+  <h2>Deep Dive 2 — Single-threaded deterministic engine + log &amp; replay (the staff insight)</h2>
+  <p>Why one thread? Because the obvious alternatives all lose:</p>
+  <table>
+    <tr><th>Approach</th><th>What breaks</th></tr>
+    <tr><td>DB write per order</td><td>A disk/round-trip is 100&nbsp;µs–ms — 100–1000× over budget; and it serializes anyway</td></tr>
+    <tr><td>Multi-threaded book w/ locks</td><td>Lock contention + nondeterministic interleaving → not reproducible, not fair, and slower under contention</td></tr>
+    <tr><td>Queue + worker pool</td><td>Reorders work; "who was first" becomes ambiguous → fairness violated</td></tr>
+    <tr><td><b>Single thread, in-memory</b></td><td><b>Nothing</b> — a tight loop over RAM has no contention, predictable cache behavior, and a single well-defined order</td></tr>
+  </table>
+  <p>A single core can comfortably do millions of simple matches per second, and a busy symbol's matching is inherently serial anyway (you can't match the same book in parallel without locks). The constraint becomes a feature: <b>one thread defines a total order for free.</b><a href="#c1" class="cite">[1]</a></p>
+  <h3>Durability without a database: log first, then match</h3>
+  <p>The sequencer appends every accepted command to an <b>append-only event log</b> on fast storage <em>before</em> the engine acts on it. The matching engine is then a pure, deterministic function: <code>state(n) = apply(state(n-1), log[n])</code>. Because output depends <em>only</em> on the log, durability and recovery are just "keep the log" — exactly event sourcing (revisit <a href="../lessons/0006-replication-and-cap.html">Lesson 6</a> on replication).</p>
+  <h3>High availability via state-machine replication</h3>
+  <p>Run replica engines that consume the <em>same</em> log in the same order. By the <b>state-machine replication</b> principle, deterministic replicas fed identical inputs reach identical states.<a href="#c4" class="cite">[4]</a> A hot standby is therefore always at the primary's exact state; failover = promote a replica + resume from the last sequence number. No state is lost because no state ever lived only in the primary — it lives in the log.</p>
+  <div class="box">
+    <b>Why determinism is non-negotiable here:</b> it powers three things at once — <b>fairness</b> (one defined order), <b>recovery</b> (replay reproduces the book exactly), and <b>HA</b> (replicas stay byte-identical). Lose determinism (a wall-clock read, a hash-map iteration order, a thread race) and all three collapse simultaneously.
+  </div>
+
+  <h2>Deep Dive 3 — Market-data dissemination (multicast fan-out)</h2>
+  <p>The engine emits a stream of book deltas and trade prints. Thousands of subscribers (HFT firms, brokers, data vendors) want it with minimal, <em>equal</em> latency. Unicasting to each is billions of messages/sec and — worse — gives whoever's first in the send loop an unfair head start.</p>
+  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem;">
+    <li><b>UDP multicast for fairness + fan-out.</b> The publisher sends each update <em>once</em> onto a multicast group; the network delivers a copy to every subscriber roughly simultaneously. One send, N receivers — and no participant is systematically favored by send order.</li>
+    <li><b>Sequence numbers + a recovery channel.</b> Multicast is lossy (UDP). Every message carries a monotonic sequence number; a subscriber that detects a gap requests retransmit from a separate recovery service rather than slowing the main feed.</li>
+    <li><b>Snapshots for late joiners.</b> A subscriber connecting mid-session grabs a periodic full book snapshot, then applies live deltas from the snapshot's sequence number forward — the same snapshot-plus-delta pattern as the price firehose in <a href="../lessons/0030-robinhood.html">Robinhood (Lesson 30)</a>, but here it's the read side of <em>this</em> exchange, not a feed from an external one.</li>
+  </ul>
+  <p>Critically, fan-out lives <b>outside</b> the matching thread. The engine writes to a fast output buffer; a separate publisher tier does the network work, so dissemination scale never steals the core's microseconds.</p>
+
+  <h2>Deep Dive 4 — Pre-trade risk checks</h2>
+  <p>Regulators (and the exchange's own survival) require that obviously-bad orders are stopped <em>before</em> they touch the book — without blowing the latency budget.<a href="#c5" class="cite">[5]</a> The tension: risk checks add work to the hottest path.</p>
+  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem;">
+    <li><b>What to check:</b> buying-power / credit limits, max order size &amp; rate (throttle a runaway algo), and <b>price bands</b> / fat-finger guards (reject a buy 50% through the book that's likely an error).</li>
+    <li><b>Where to put it:</b> in the gateway / risk gate <em>before</em> the sequencer — so rejected orders never enter the log or the book, keeping the engine's input clean and its order canonical.</li>
+    <li><b>How to keep it fast:</b> precompute per-participant limits into in-memory counters updated on each accepted order; the check is a handful of integer comparisons (sub-microsecond), not a database lookup. Risk state is itself rebuilt by replaying the log.</li>
+  </ul>
+  <p>Done right, risk is a cheap, deterministic filter on the ingress — protecting the market without turning the hot path into a synchronous database call.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why does the matching engine run on a single thread with no database on the hot path?</p>
+      <button class="opt">Because a single global lock around the order book is simpler to reason about than sharding</button>
+      <button class="opt">Because regulators require that every order be written to durable disk before it can be matched</button>
+      <button class="opt">Because the book fits in RAM and a ~1µs budget rules out disk, locks, and nondeterministic threads</button>
+      <button class="opt">Because matching is embarrassingly parallel and one thread per symbol gives the best throughput</button>
+      <p class="fb">The active book (~20GB) fits in memory and the per-order budget (~1µs) is too small for any I/O, lock, or thread race — so one in-memory thread wins.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Under price-time priority, how is an incoming marketable buy order matched?</p>
+      <button class="opt">Against the largest resting sell order first, then splitting any remainder evenly across the rest</button>
+      <button class="opt">Against the lowest-priced sells first, and within a price the earliest-arriving resting order first</button>
+      <button class="opt">Against the newest resting sell order first, since recent quotes best reflect the current fair price</button>
+      <button class="opt">Against a randomly chosen resting sell at the best price to guarantee fairness among the sellers</button>
+      <p class="fb">Best price wins first; ties at a price level are broken by arrival time (FIFO) — that is exactly price-time priority.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. How does the design provide durability and high availability without a per-order database write?</p>
+      <button class="opt">By writing the full order book to a replicated SQL database after every single match completes</button>
+      <button class="opt">By sharding the order book across many nodes so any one node failing loses only its own shard</button>
+      <button class="opt">By caching recent orders in memory and flushing them to disk in a batch once per trading day</button>
+      <button class="opt">By sequencing all input into an append-only log and replaying it into deterministic hot replicas</button>
+      <p class="fb">Log-first commit plus state-machine replication: replicas replay the same ordered log to identical state, so failover loses nothing.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">4. Why is determinism in the matching engine treated as non-negotiable, not just nice-to-have?</p>
+      <button class="opt">It underpins fairness, recovery, and replica consistency at once — losing it breaks all three together</button>
+      <button class="opt">It lets the engine skip sequence numbers because identical inputs never produce any duplicate outputs</button>
+      <button class="opt">It allows the matching thread to read the wall clock freely without affecting any downstream replay</button>
+      <button class="opt">It removes the need for a market-data feed because clients can recompute the book from their orders</button>
+      <p class="fb">One defined order = fairness; replay reproduces state exactly = recovery; identical replicas = HA. A clock read or hash-iteration race kills all three.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this one — push on it. Try: "Walk me through exactly what happens to in-flight orders when the primary matching engine crashes and a replica is promoted." Or: "How would a cancel/replace race a fill, and how does the single-threaded log resolve it deterministically?" Or: "Compare price-time priority vs. pro-rata matching and when an exchange would choose each."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://martinfowler.com/articles/lmax.html">Martin Fowler — The LMAX Architecture</a>. The canonical write-up of a real exchange's single-threaded, in-memory business-logic processor (the "Disruptor" design): event sourcing for durability, replay for recovery, and replicas for HA — the exact pattern this lesson builds toward.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://martinfowler.com/articles/lmax.html">Martin Fowler — The LMAX Architecture</a> (single-threaded in-memory business logic processor, input event log, replicas via replay).</p>
+    <p id="c2">[2] <a href="https://lmax-exchange.github.io/disruptor/disruptor.html">LMAX Disruptor technical paper</a> (Thompson, Farley, Barker, Gee, Stewart — mechanical sympathy, lock-free ring buffer, microsecond latency).</p>
+    <p id="c3">[3] <a href="https://www.cmegroup.com/confluence/display/EPICSANDBOX/Matching+Algorithms">CME Group — Matching Algorithms</a> (price-time / FIFO priority as the canonical continuous-matching rule).</p>
+    <p id="c4">[4] <a href="https://dl.acm.org/doi/10.1145/98163.98167">Fred B. Schneider — Implementing Fault-Tolerant Services Using the State Machine Approach</a> (deterministic replicas fed identical ordered inputs reach identical states).</p>
+    <p id="c5">[5] <a href="https://www.sec.gov/rules/final/2010/34-63241.pdf">SEC Rule 15c3-5 — Market Access Rule</a> (mandatory pre-trade risk controls: credit/capital, price, and size checks before an order reaches the market).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0072-fraud-detection.html">← Lesson 72</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 74 · Digital Wallet / P2P</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

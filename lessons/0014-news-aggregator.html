@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 14 — Design a News Aggregator</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 14 · Phase 4 — Case Study · Easy</p>
+  <h1>Design a News Aggregator</h1>
+  <p class="sub">Ingest the world's articles, dedup the same story across outlets, and serve a fresh ranked feed in under 200 ms.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A news aggregator looks easy — "just show articles" — which is exactly the trap. The L6/L7 signal is recognizing this is two systems wearing one hat: a write-heavy <em>ingestion pipeline</em> and a read-heavy <em>serving path</em>. The candidate who keeps them separate, buffers ingestion with a queue, and reads from a cache/index sounds senior. The one who content-hashes to dedup the same story across 50 outlets sounds staff.
+
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Anchor on what the user actually does. The reference breakdown lists three core flows.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <thead><tr><th>#</th><th>Users should be able to…</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>View an aggregated feed of articles drawn from thousands of publishers, optionally filtered by <b>category</b> (Tech, Sports, World…).</td></tr>
+      <tr><td>2</td><td>Scroll the feed "infinitely" — a personalized, recency-and-popularity-ranked stream.</td></tr>
+      <tr><td>3</td><td>Click an article to read it (open the full piece on the publisher's page).</td></tr>
+    </tbody>
+  </table>
+  <p><b>Out of scope</b> (say so out loud): authoring content, comments, social graph, push notifications. Naming these buys you credibility and time.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>The "-ilities" decide the architecture. State each as a target, not an adjective.</p>
+  <table>
+    <thead><tr><th>NFR</th><th>Target</th><th>Why it shapes design</th></tr></thead>
+    <tbody>
+      <tr><td>Read availability</td><td>High; <b>availability &gt; consistency</b></td><td>Users prefer slightly stale content over an error page.<a href="#c1" class="cite">[1]</a> Serve from cache/replicas; tolerate seconds of staleness.</td></tr>
+      <tr><td>Freshness</td><td>Publish → feed in &lt; ~30 min<a href="#c1" class="cite">[1]</a></td><td>Ingestion latency, not just throughput, is a first-class metric. Drives polling cadence + a streaming pipeline.</td></tr>
+      <tr><td>Read latency</td><td>p99 feed load &lt; 200 ms<a href="#c1" class="cite">[1]</a></td><td>No fan-out compute on the read path — precompute and cache the feed.</td></tr>
+      <tr><td>Scalable ingestion</td><td>Millions of articles/day, bursty</td><td>Decouple producers (pollers) from consumers (processors) with a durable queue.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute numbers that change a decision. Round hard.</p>
+  <div class="box">
+    <ul>
+      <li><b>Sources:</b> ~100K RSS/crawl sources, polled every ~20 min ⇒ ~83 polls/sec — modest, but spiky.</li>
+      <li><b>Ingest volume:</b> ~1–2M articles/day ⇒ ~15–25 writes/sec average, with breaking-news bursts many times that. <b>Implication:</b> the write path needs a buffer (queue), not a synchronous DB write.</li>
+      <li><b>Read QPS:</b> say 100M DAU × ~10 feed loads/day ≈ 1B reads/day ⇒ ~12K read QPS, peaking ~30K+. <b>Implication:</b> read path is 1000× the write path — this is a read-heavy system; optimize reads ruthlessly.</li>
+      <li><b>Storage:</b> ~2M articles/day × ~10 KB metadata ≈ 20 GB/day ≈ 7 TB/yr. Trivial for the store; the <em>hot</em> recent window (last few days) is what must be fast.</li>
+    </ul>
+    The one number that matters: <b>reads dominate writes by ~1000×</b>. That single ratio justifies splitting ingestion from serving and putting a cache in front of reads.
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Three entities carry the whole design.</p>
+  <table>
+    <thead><tr><th>Entity</th><th>Key fields</th></tr></thead>
+    <tbody>
+      <tr><td><code>Source</code></td><td>id, url, type (rss/crawl/api), poll_interval, last_polled, etag</td></tr>
+      <tr><td><code>Article</code></td><td>id, source_id, url, title, summary, image, published_at, category, content_hash, cluster_id, popularity</td></tr>
+      <tr><td><code>Cluster</code> (story)</td><td>id, canonical_article_id, member_article_ids[], score — groups the same event across outlets</td></tr>
+    </tbody>
+  </table>
+  <p>Reads only; user is derived from the auth token. Both endpoints use <b>cursor pagination</b>, never <code>offset</code> (offset shifts as new articles arrive — see Deep Dive 3).</p>
+  <table>
+    <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /v1/feed?category=&amp;cursor=&amp;limit=</code></td><td>A page of the ranked feed. Omit <code>category</code> for the blended feed. Returns <code>{ items[], next_cursor }</code>.</td></tr>
+      <tr><td><code>GET /v1/articles/{id}</code></td><td>Full metadata for one article (title, summary, canonical publisher URL to redirect to).</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Data Flow</h2>
+  <p>This is a pipeline system, so trace one article from source to screen before drawing boxes. Each stage is an independent stateless worker reading from and writing back to the queue.</p>
+  <table>
+    <thead><tr><th>Stage</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td>1. Poll / crawl</td><td>Scheduler dispatches due sources to fetch workers; RSS via <code>etag</code>/<code>If-Modified-Since</code>, others crawled. Raw items pushed to the queue.</td></tr>
+      <tr><td>2. Dedup</td><td>Compute a <code>content_hash</code> (normalized title + body). Drop exact repeats; near-duplicates get clustered (Deep Dive 1).</td></tr>
+      <tr><td>3. Parse / extract</td><td>Pull title, summary, lead image, publish time, canonical URL from messy HTML/feeds.</td></tr>
+      <tr><td>4. Categorize / rank</td><td>Classify into a category; compute a base score from recency + source authority + early popularity.</td></tr>
+      <tr><td>5. Store / index</td><td>Write enriched article to the article store, the search index, and the feed cache.</td></tr>
+      <tr><td>6. Serve</td><td>Feed service reads precomputed, cached, ranked pages — no heavy compute on the request path.</td></tr>
+    </tbody>
+  </table>
+  <p>The seam between stage 5 (pipeline writes) and stage 6 (serving reads) is the system's spine: the pipeline can fall over without taking reads down with it.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Map each requirement onto components. Note how the queue cleanly cleaves the write path from the read path.</p>
+  <table>
+    <thead><tr><th>Component</th><th>Role</th><th>Tech</th></tr></thead>
+    <tbody>
+      <tr><td>Scheduler</td><td>Tracks <code>poll_interval</code> per source; enqueues due fetch jobs. Adaptive cadence.</td><td>Cron/coordinator + priority queue</td></tr>
+      <tr><td>Fetch + processing workers</td><td>Autoscaling pool draining the queue through dedup → parse → rank.</td><td>Stateless workers</td></tr>
+      <tr><td>Ingestion queue</td><td>Durable, ordered buffer absorbing bursts; lets multiple consumers fan out to stores.</td><td>Kafka<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td>Article store</td><td>Canonical metadata, source of truth.</td><td>Postgres / Cassandra</td></tr>
+      <tr><td>Search index</td><td>Category/keyword queries, recency sort.</td><td>Elasticsearch<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td>Feed cache</td><td>Precomputed ranked pages per category; the read path's primary store.</td><td>Redis / Valkey<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td>Feed service</td><td>Stateless read API; cursor pagination from cache, falls back to index.</td><td>Service + CDN edge</td></tr>
+    </tbody>
+  </table>
+  <p><b>Request flow.</b> <code>GET /v1/feed</code> hits the feed service → reads the precomputed page for that category from the cache by cursor → returns items + <code>next_cursor</code>. A cache miss falls back to a recency-sorted query against Elasticsearch, then backfills the cache. <code>GET /v1/articles/{id}</code> reads the article store (cacheable, immutable once published).</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The move that separates senior from staff is naming the <b>two independent failure domains</b> and designing the seam between them. Ingestion is write-heavy, bursty, and depends on flaky upstreams — so you buffer it behind a queue and let workers scale and retry. Serving is read-heavy and latency-bound — so you read from a cache/index that's already been populated. If the entire ingestion pipeline is down, reads keep serving slightly stale content. State that out loud — it's the availability-over-consistency NFR made concrete.
+  </div>
+
+  <h2>Deep Dives</h2>
+  <p>This is where 60% of an L6/L7 interview lives. Each dive states the problem, the options, and a justified pick.</p>
+
+  <h3>1. Ingestion at scale — polling and deduping the same story</h3>
+  <p><b>Scheduling.</b> Naively polling 100K sources on a fixed timer wastes requests on dead feeds and lags hot ones. Use an <b>adaptive cadence</b>: shorten <code>poll_interval</code> for sources that publish often, lengthen it for stale ones; honor <code>etag</code>/<code>If-Modified-Since</code> so unchanged feeds cost a cheap 304. A coordinator pushes due jobs into the queue; the worker pool autoscales on queue depth, decoupling "how often we check" from "how fast we process."</p>
+  <p><b>Dedup is the hard part.</b> One event ("election result") is published by dozens of outlets within minutes. Three layers:</p>
+  <table>
+    <thead><tr><th>Layer</th><th>Catches</th><th>Mechanism</th></tr></thead>
+    <tbody>
+      <tr><td>Exact</td><td>Same article re-fetched, syndicated verbatim</td><td><b>Content hash</b> of normalized title+body; seen-set lookup → drop.</td></tr>
+      <tr><td>Near-dup</td><td>Reworded versions of one wire story</td><td>MinHash / SimHash fingerprint; group by Hamming distance.</td></tr>
+      <tr><td>Story cluster</td><td>Independent coverage of one event</td><td>Embedding similarity within a time window → assign <code>cluster_id</code>.</td></tr>
+    </tbody>
+  </table>
+  <p>The feed shows one canonical article per cluster ("…and 40 more"), so a breaking story doesn't flood the feed with 40 near-identical cards. Content hashing for exact dups is cheap and high-value; mention embeddings/clustering as the next tier without over-engineering it.</p>
+
+  <h3>2. Ranking and personalization — precompute vs. compute-at-read</h3>
+  <p>The feed score blends <b>recency</b> (time-decay), <b>popularity</b> (early clicks/shares), <b>source authority</b>, and <b>category affinity</b> to the user. The question is <em>where</em> the work happens.</p>
+  <table>
+    <thead><tr><th>Approach</th><th>Pro</th><th>Con</th></tr></thead>
+    <tbody>
+      <tr><td>Compute at read</td><td>Always fresh, fully personalized</td><td>Heavy CPU on every request — blows the 200 ms budget at 30K QPS.</td></tr>
+      <tr><td>Precompute global</td><td>Read is a cheap cache lookup</td><td>Same feed for everyone — no personalization.</td></tr>
+      <tr><td><b>Hybrid (pick)</b></td><td>Precompute ranked category pages; re-rank a small top-N per user at read</td><td>A little read-time cost, bounded and cacheable</td></tr>
+    </tbody>
+  </table>
+  <p>The pipeline maintains per-category ranked lists in the cache (the expensive global scoring done once at ingest). At read time the feed service takes the top slice and applies a lightweight personalization re-rank by category affinity. Heavy global ranking is amortized across all readers; personalization stays cheap and per-request.</p>
+
+  <h3>3. Serving the feed fast — caching and stable pagination</h3>
+  <p><b>Caching.</b> Per-category ranked pages live in Redis; the feed service rarely touches the database. A CDN/edge cache absorbs the long read tail for anonymous and category feeds.</p>
+  <p><b>Pagination must be cursor-based, not offset.</b> New articles arrive constantly; with <code>OFFSET 40</code> the second page would skip or repeat items as the list shifts under you. The cursor encodes <code>(score, article_id)</code> of the last item, so "give me what comes after this" is stable even as the head of the feed changes — the user keeps scrolling a consistent stream and the query stays O(page), not O(offset).</p>
+
+  <h3>4. Freshness vs. cost — and breaking-news spikes</h3>
+  <p>Freshness costs money: faster polling = more fetch/compute, deeper personalization = more read-time work. Tune cadence by source tier — poll major wires every minute, long-tail blogs hourly — so spend tracks value.</p>
+  <p><b>Breaking news</b> is the stress test: one event drives a fetch surge (every outlet publishes) <em>and</em> a read surge (everyone opens the app). The queue absorbs the write burst — workers scale on depth, lag grows gracefully instead of dropping data. On reads, the cache plus CDN soak the spike since everyone wants the same few hot stories. Graceful degradation: if the pipeline lags, serve slightly stale cached feeds rather than erroring — exactly the availability-over-consistency tradeoff, made operational.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why put a durable queue between the pollers and the processing workers?</p>
+      <button class="opt">It makes every single article reach readers strictly faster</button>
+      <button class="opt">It buffers bursty writes and decouples ingestion from serving</button>
+      <button class="opt">It removes the need to store any article metadata at all</button>
+      <p class="fb">The queue absorbs spikes and lets the two failure domains scale and fail independently.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. The same story is published by 40 outlets. The cheapest first defense is:</p>
+      <button class="opt">Train an embedding model on the full body of each story</button>
+      <button class="opt">Drop every article whose source ranks below a threshold</button>
+      <button class="opt">Hash normalized content and drop exact repeats early</button>
+      <p class="fb">A content hash catches exact/syndicated dups cheaply; clustering handles the near-dups next.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why is offset pagination wrong for a constantly-updating feed?</p>
+      <button class="opt">New articles shift the list, so pages skip or repeat items</button>
+      <button class="opt">Offsets cannot encode which category the user picked</button>
+      <button class="opt">Offset queries always bypass the cache and hit storage</button>
+      <p class="fb">A cursor on (score, id) stays stable as the head of the feed changes; offset does not.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. To hit p99 feed latency under 200 ms at 30K QPS, you should:</p>
+      <button class="opt">Run the full personalized ranking model on each read</button>
+      <button class="opt">Precompute ranked pages and re-rank a small top-N</button>
+      <button class="opt">Query Elasticsearch directly for every feed request</button>
+      <p class="fb">Amortize heavy global ranking at ingest; keep only cheap per-user re-ranking on the read path.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it:
+    <ul>
+      <li>"Walk me through the dedup layers if the same wire story arrives reworded — when do I reach for SimHash vs. embeddings?"</li>
+      <li>"Draw the breaking-news spike on both the write and read paths and show me exactly where it degrades gracefully."</li>
+      <li>"How would the design change if articles had to be ranked fully per-user with no shared precompute?"</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/google-news">Hello Interview — Design a News Aggregator like Google News</a>. The canonical breakdown: three FRs, availability-over-consistency, and deep dives on pagination, sub-200ms latency, 30-min freshness, media, and breaking-news spikes. Read it alongside their Facebook News Feed write-up to contrast aggregation vs. social fan-out.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/google-news">Hello Interview — Design a News Aggregator like Google News</a> (functional requirements, availability &gt; consistency, freshness/latency targets, deep-dive topics).</p>
+    <p id="c2">[2] Established practice for ingestion pipelines: Kafka as a durable buffer, Elasticsearch for the search/recency index, Redis/Valkey for the precomputed feed cache.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0013-local-delivery.html">← Lesson 13</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 15 · Ticketmaster</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

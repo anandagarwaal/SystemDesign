@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 111 — Deep Dive: API Design — REST vs GraphQL</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 111 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: API Design — REST vs GraphQL</h1>
+  <p class="sub">The API is the contract every client depends on. Choosing its shape — and getting pagination, idempotency, and auth right — is a quiet staff-level skill.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> In almost every case study you'll define a "Core Entities &amp; API" section, and interviewers read it as a tell. A junior lists endpoints. A staff candidate picks <em>REST, GraphQL, or gRPC for a stated reason</em>, then nails the cross-cutting details that separate a toy API from a production one: idempotency keys so a retried payment doesn't double-charge, cursor pagination so a feed doesn't break under writes, and an auth/rate-limit story. This lesson gives you a crisp decision rubric and the handful of details to drop into every API design.
+  </div>
+
+  <h2>REST done well</h2>
+  <p><b>REST</b> models your system as <b>resources</b> (nouns) addressed by URLs, manipulated with HTTP <b>verbs</b>.<a href="#c1" class="cite">[1]</a> The discipline is more than "JSON over HTTP" — it's using the protocol's own semantics so caches, proxies, and clients behave predictably.</p>
+  <table>
+    <thead><tr><th>Verb</th><th>Meaning</th><th>Idempotent?</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET</code></td><td>Read a resource; safe, no side effects, cacheable.</td><td>Yes</td></tr>
+      <tr><td><code>POST</code></td><td>Create a sub-resource / trigger an action.</td><td>No</td></tr>
+      <tr><td><code>PUT</code></td><td>Replace a resource wholesale at a known URL.</td><td>Yes</td></tr>
+      <tr><td><code>PATCH</code></td><td>Partially update fields of a resource.</td><td>No (usually)</td></tr>
+      <tr><td><code>DELETE</code></td><td>Remove a resource.</td><td>Yes</td></tr>
+    </tbody>
+  </table>
+  <p><b>Idempotency</b> is the property that doing the operation twice has the same effect as once — and it's the single most important word in API design. Networks retry; a client that times out on a <code>POST /payments</code> doesn't know if the charge happened. The fix is an <b>idempotency key</b>: the client sends a unique <code>Idempotency-Key</code> header, the server records the result against that key, and a replay returns the original result instead of charging again.<a href="#c3" class="cite">[3]</a> Stripe does exactly this — mention it for any write that must not duplicate.</p>
+
+  <h3>Status codes, versioning, pagination</h3>
+  <ul>
+    <li><b>Status codes carry meaning:</b> <code>2xx</code> success, <code>4xx</code> client error (<code>400</code> bad input, <code>401</code> unauthenticated, <code>403</code> unauthorized, <code>404</code> missing, <code>409</code> conflict, <code>429</code> rate-limited), <code>5xx</code> server error. Don't return <code>200</code> with an error body.</li>
+    <li><b>Versioning:</b> evolve without breaking clients via a URL prefix (<code>/v1/</code>) or a header. Prefer additive, non-breaking changes; reserve a version bump for genuine contract breaks.</li>
+    <li><b>Pagination — cursor beats offset:</b> <code>?limit=20&amp;offset=100</code> is simple but <em>breaks under writes</em> — insert a row and page 6 repeats an item or skips one, and large offsets force the DB to scan-and-discard. <b>Cursor (keyset) pagination</b> passes an opaque pointer to the last item seen (<code>?limit=20&amp;after=eyJpZCI6...</code>) and queries <code>WHERE id &lt; cursor ORDER BY id LIMIT 20</code> — stable under concurrent writes and index-friendly at any depth. Use cursors for feeds and large/append-heavy lists.</li>
+  </ul>
+  <p>(<b>HATEOAS</b> — responses embedding links to related actions — is the purest form of REST but rarely implemented in practice; know the term, don't over-invest.)</p>
+
+  <h2>GraphQL</h2>
+  <p><b>GraphQL</b> exposes a <em>single endpoint</em> (<code>POST /graphql</code>) and a typed <b>schema</b>; the client sends a query describing <em>exactly</em> the fields it wants, and the server returns precisely that shape.<a href="#c2" class="cite">[2]</a> Each field is backed by a <b>resolver</b> function. It exists to kill two REST pain points on rich, nested data:</p>
+  <ul>
+    <li><b>Over-fetching:</b> a REST <code>GET /users/42</code> returns the whole user object even when the mobile client needs only the name and avatar.</li>
+    <li><b>Under-fetching / multiple round-trips:</b> rendering a profile screen needs the user, their last 3 posts, and each post's comment count — three or more REST calls. One GraphQL query fetches the whole tree in a single request, which is a big win on high-latency mobile networks.<a href="#c2" class="cite">[2]</a></li>
+  </ul>
+
+  <div class="box">
+    <b>The N+1 resolver problem — GraphQL's signature trap</b>
+    <ul>
+      <li>A query for "10 posts, each with its author" naively runs <b>1 query for posts + 10 queries for authors</b> — the resolver for <code>author</code> fires once per post. At scale this hammers the database.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Fix — DataLoader batching:</b> instead of resolving each author immediately, collect all author IDs requested in one tick and issue a single <code>WHERE id IN (...)</code> batch query, then de-multiplex the results. This collapses N+1 into 2 queries.</li>
+      <li><b>Caching is harder:</b> because everything is one <code>POST</code> URL, you lose HTTP/CDN caching for free; you cache at the resolver/field layer (e.g. persisted queries, response caches keyed by query+vars) instead.</li>
+      <li><b>New risks:</b> a client can ask for a hugely deep/expensive query, so you add query depth/complexity limits and cost analysis.</li>
+    </ul>
+  </div>
+
+  <h2>Choosing — and the cross-cutting concerns</h2>
+  <table>
+    <thead><tr><th></th><th>REST</th><th>GraphQL</th><th>gRPC</th></tr></thead>
+    <tbody>
+      <tr><td><b>Best for</b></td><td>Public APIs, simple CRUD, cache-heavy reads</td><td>Rich nested data, many clients with different needs (mobile + web)</td><td>Internal service-to-service, low latency</td></tr>
+      <tr><td><b>Transport</b></td><td>HTTP/1.1+, any verb</td><td>HTTP, one POST endpoint</td><td>HTTP/2 + Protobuf (see <a href="0110-grpc.html">Lesson 110</a>)</td></tr>
+      <tr><td><b>Caching</b></td><td>Easy (HTTP/CDN by URL)</td><td>Hard (do it per-field)</td><td>Manual</td></tr>
+      <tr><td><b>Payload</b></td><td>Fixed per endpoint</td><td>Client-shaped</td><td>Compact binary</td></tr>
+    </tbody>
+  </table>
+  <p>Default heuristic: <b>REST</b> for public, cacheable, resource-oriented APIs; <b>GraphQL</b> when many heterogeneous clients fetch deep, varied slices of a graph and over/under-fetching is real; <b>gRPC</b> between your own services where you control both ends and want speed. These aren't exclusive — many companies expose REST/GraphQL at the edge and gRPC internally.</p>
+  <p>Whatever you pick, these concerns are identical and worth a sentence each in an interview: <b>authentication/authorization</b> (bearer token / OAuth — see <a href="0115-auth-oauth-jwt.html">Lesson 115</a>), <b>rate limiting</b> (<code>429</code> + a token bucket — see <a href="0022-rate-limiter.html">Lesson 22</a>), <b>pagination</b> (cursors), <b>idempotency</b> (keys on writes), and <b>error design</b> (consistent machine-readable error bodies).</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Junior candidates list endpoints. Staff candidates make the API a <em>contract</em>. They say "<code>POST /payments</code> needs an idempotency key because the client will retry on timeout and we must never double-charge,"<a href="#c3" class="cite">[3]</a> and "I'll use cursor pagination on the feed so concurrent posts don't shift the page." When they propose GraphQL they immediately name the N+1 problem and reach for DataLoader and query-cost limits — showing they know the operational cost, not just the buzzword.<a href="#c2" class="cite">[2]</a> The tell is that they discuss <em>how the API behaves under retries, writes, and abuse</em>, not just its happy-path shape.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>In the "Core Entities &amp; API" step: (1) list the 3-4 core entities, (2) pick a style with one sentence of justification ("REST — this is a public CRUD-ish API and I want CDN caching on reads"), (3) sketch 4-6 endpoints with the right verbs and status codes, (4) proactively drop the two details that signal seniority — an <b>idempotency key</b> on the critical write and <b>cursor pagination</b> on the big list — and (5) name auth + rate limiting in a line. Don't agonize over REST vs GraphQL; state a default fast and spend your depth budget on idempotency, consistency, and pagination instead.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why does cursor pagination beat offset pagination?</p>
+      <button class="opt">It lets clients jump directly to any arbitrary page number</button>
+      <button class="opt">It returns every page in a single compressed binary frame</button>
+      <button class="opt">It stays stable and index-friendly even under concurrent writes</button>
+      <button class="opt">It removes the need for the server to sort the result set</button>
+      <p class="fb">A cursor anchors to the last item seen, so inserts don't shift pages and the DB seeks instead of scanning-and-discarding at large offsets.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. What does an idempotency key on a POST prevent?</p>
+      <button class="opt">A retried request from performing the action a second time</button>
+      <button class="opt">An attacker from reading another user's private resource</button>
+      <button class="opt">The server from ever returning a 5xx error to a client</button>
+      <button class="opt">The client from over-fetching fields it does not need</button>
+      <p class="fb">The server records the result against the key, so a replay after a timeout returns the original outcome instead of charging again.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. What problem is GraphQL specifically designed to solve?</p>
+      <button class="opt">Guaranteeing exactly-once delivery of asynchronous events</button>
+      <button class="opt">Making every response cacheable at the CDN edge by URL</button>
+      <button class="opt">Encrypting payloads in transit without extra configuration</button>
+      <button class="opt">Over-fetching and multi-round-trip under-fetching of nested data</button>
+      <p class="fb">Clients request the exact fields they need in one query, eliminating fixed over-sized responses and many sequential REST calls.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. How does DataLoader fix GraphQL's N+1 problem?</p>
+      <button class="opt">It caches the entire query response at the HTTP edge layer</button>
+      <button class="opt">It batches per-field lookups into one IN-query per tick</button>
+      <button class="opt">It rejects any query that nests deeper than three levels</button>
+      <button class="opt">It converts the GraphQL schema into REST endpoints first</button>
+      <p class="fb">Instead of one DB call per parent, it collects all requested IDs and issues a single batched query, collapsing N+1 into ~2 queries.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Design the full REST API for the <a href="0011-bitly.html">URL shortener</a>, including idempotency and rate limiting." · "Walk through exactly how a GraphQL query becomes N+1 database calls and how DataLoader batches them." · "When would you regret choosing GraphQL, and what would you migrate to?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://graphql.org/learn/">The GraphQL specification &amp; learn guide</a> for the query/schema/resolver model, paired with Roy Fielding's dissertation on REST<a href="#c1" class="cite">[1]</a> and Stripe's idempotency docs<a href="#c3" class="cite">[3]</a> for the production details that matter in interviews.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://ics.uci.edu/~fielding/pubs/dissertation/rest_arch_style.htm">Fielding, "Architectural Styles and the Design of Network-based Software Architectures" (2000)</a> — the dissertation that defined REST and its use of HTTP verbs, statelessness, and cacheability.</p>
+    <p id="c2">[2] <a href="https://graphql.org/learn/">GraphQL official documentation</a> — schema/types/resolvers, solving over- and under-fetching, and the N+1 resolver pattern addressed by batching.</p>
+    <p id="c3">[3] <a href="https://docs.stripe.com/api/idempotent_requests">Stripe API — Idempotent Requests</a> — canonical treatment of idempotency keys for safely retrying state-changing API calls.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0110-grpc.html">← Lesson 110</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 112 · Distributed Transactions</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

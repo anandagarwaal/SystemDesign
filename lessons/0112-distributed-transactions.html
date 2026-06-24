@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 112 — Deep Dive: Distributed Transactions (2PC, TCC, Saga)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 112 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Distributed Transactions (2PC, TCC, Saga)</h1>
+  <p class="sub">When the data lives in many services or shards and there is no single database to wrap in <code>BEGIN</code>…<code>COMMIT</code> — how do you still keep money from vanishing?</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> The moment you split a monolith into services or shard a database, the free atomicity a single SQL transaction gave you is gone. At L6/L7 the interviewer will hand you a flow that touches three services — "deduct wallet, reserve inventory, create order" — and watch how you keep it consistent. A senior reaches for two-phase commit by reflex. A staff candidate explains <em>why 2PC blocks and kills availability</em>, then reaches for a Saga, names the consistency you gave up (isolation), and says how they'll claw it back with idempotency and semantic locks. This lesson gives you the three tools and the judgement to pick between them.
+  </div>
+
+  <h2>The problem: atomicity without a single database</h2>
+  <p>A local database transaction gives you <b>ACID</b>: Atomicity (all-or-nothing), Consistency (invariants hold), Isolation (concurrent transactions don't see each other's partial state), and Durability (committed data survives crashes).<a href="#c2" class="cite">[2]</a> The engine pulls this off because one process owns all the data and one write-ahead log decides the outcome. Wrap five updates in a transaction; either all five land or none do.</p>
+
+  <p>Now split that data. Wallet balance lives in the Payments service, stock counts in Inventory, the order row in Orders — three databases, three processes, three machines that can each crash or get partitioned independently. There is no shared log and no single authority to say "commit." Yet the business invariant is unchanged: you must never charge a customer without reserving their item, and never reserve an item the charge failed to cover. That is the <b>distributed transaction</b> problem — preserving atomicity (and ideally the rest of ACID) across operations that span multiple independent data stores.<a href="#c2" class="cite">[2]</a></p>
+
+  <p>The hard truth, rooted in CAP (see <a href="0006-replication-and-cap.html">Replication &amp; CAP, Lesson 6</a>): in a distributed system you can't have strict atomicity, low latency, and high availability at once. So the field splits into two philosophies.</p>
+
+  <table>
+    <thead><tr><th>Model</th><th>Promise</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>ACID</b> (strong, synchronous)</td>
+        <td>All participants commit or abort together, atomically and isolated.<a href="#c2" class="cite">[2]</a></td>
+        <td>Locks held across the network; blocks on failures; low availability. This is 2PC / TCC territory.</td>
+      </tr>
+      <tr>
+        <td><b>BASE</b> (Basically Available, Soft-state, Eventually consistent)</td>
+        <td>Each step commits locally and immediately; the system converges to a consistent state.<a href="#c2" class="cite">[2]</a></td>
+        <td>No global isolation — other readers can see intermediate state; you handle anomalies yourself. This is Saga territory.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Two-Phase Commit (2PC)</h2>
+  <p>2PC is the textbook way to make multiple databases commit <em>atomically</em>. A <b>coordinator</b> (transaction manager) drives a set of <b>participants</b> through two rounds.<a href="#c2" class="cite">[2]</a></p>
+  <ol>
+    <li><b>Phase 1 — Prepare (voting):</b> the coordinator asks every participant "can you commit?" Each does the work, writes it to its log so it's recoverable, takes the necessary locks, and replies <code>YES</code> (a promise it <em>can</em> commit) or <code>NO</code>.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Phase 2 — Commit/Abort:</b> if <em>all</em> voted YES, the coordinator writes a commit decision and tells everyone to commit; if any voted NO (or timed out), it tells everyone to abort. Participants apply the decision and release locks.<a href="#c2" class="cite">[2]</a></li>
+  </ol>
+  <p>The trick that buys atomicity: once a participant votes YES, it has <b>given up the right to abort unilaterally</b> — it must wait for and obey the coordinator's decision, holding its locks the whole time.<a href="#c2" class="cite">[2]</a> That promise is exactly what makes 2PC both correct and fragile.</p>
+
+  <div class="box">
+    <b>Why 2PC blocks — the failure that defines it</b>
+    <ul>
+      <li><b>Coordinator crashes after participants voted YES:</b> each participant is now stuck "in doubt." It can't commit (maybe someone voted NO) and can't abort (maybe everyone voted YES and committed). It must <em>block, holding its locks,</em> until the coordinator recovers and re-announces the decision.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Held locks = low availability:</b> those locked rows are unreadable/unwritable by everyone else for the duration. One slow or dead participant — or coordinator — stalls the whole group. 2PC is a <b>blocking protocol</b>; latency tracks the slowest node and availability tracks the <em>least</em> available node.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Synchronous &amp; coupled:</b> all participants must be up at the same instant. This is why 2PC rarely scales past a few tightly-coupled databases and is a poor fit across loosely-coupled microservices.</li>
+    </ul>
+  </div>
+
+  <p><b>3PC note:</b> Three-Phase Commit inserts a "pre-commit" round between prepare and commit so participants can reach a decision by timeout if the coordinator dies, making it <em>non-blocking</em> under certain failure assumptions. In practice 3PC is rarely used: it adds a network round-trip (more latency) and its safety guarantee breaks under network partitions, which are the exact failures you most care about. Mention it to show you know the lineage, then move on.</p>
+
+  <p>Use 2PC only when you genuinely need cross-store atomicity <em>and</em> the participants are few, co-located, and trusted (e.g. an <code>XA</code> transaction across two databases inside one data center). For services across a network, the next two patterns are almost always the better answer.</p>
+
+  <h2>Saga pattern — the workhorse for microservices</h2>
+  <p>A <b>Saga</b> replaces one big distributed transaction with a <b>sequence of local transactions</b>, one per service. Each local transaction commits immediately (no held locks across the network). If a later step fails, the Saga runs <b>compensating transactions</b> that semantically undo the already-committed earlier steps — walking backward to restore a consistent state.<a href="#c1" class="cite">[1]</a> The idea comes from Garcia-Molina &amp; Salem's 1987 "Sagas" paper, originally for long-lived transactions in a single database.<a href="#c1" class="cite">[1]</a></p>
+
+  <p>Example — place order: <code>T1</code> deduct wallet → <code>T2</code> reserve inventory → <code>T3</code> create order. If <code>T3</code> fails, run <code>C2</code> release inventory, then <code>C1</code> refund wallet. Each <code>Ci</code> is a real, forward-committed transaction — you don't "roll back" a committed step, you <em>compensate</em> it.<a href="#c1" class="cite">[1]</a></p>
+
+  <h3>Two ways to coordinate the steps</h3>
+  <table>
+    <thead><tr><th></th><th>Orchestration</th><th>Choreography</th></tr></thead>
+    <tbody>
+      <tr><td><b>How</b></td><td>A central <b>orchestrator</b> service tells each participant what to do next and tracks state.</td><td>No central brain: each service emits <b>events</b>, others subscribe and react, triggering the next local step.</td></tr>
+      <tr><td><b>Pro</b></td><td>Logic is centralized and easy to reason about; the workflow is explicit and observable.</td><td>Loosely coupled, no single point of control; services stay autonomous.</td></tr>
+      <tr><td><b>Con</b></td><td>Orchestrator is a dependency (and must itself be reliable); risk of a "god service."</td><td>Hard to follow the flow; cyclic event dependencies and debugging across services get painful.</td></tr>
+      <tr><td><b>Default</b></td><td colspan="2">Prefer <b>orchestration</b> for anything with branching or more than ~3 steps — the explicit state machine is worth it; reserve choreography for short, linear, truly decoupled flows.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box">
+    <b>What a Saga gives up — and how you pay it back</b>
+    <ul>
+      <li><b>No isolation (the big one):</b> because each step commits immediately, other transactions can observe intermediate state — a "dirty read" of money that's deducted before the item is reserved.<a href="#c1" class="cite">[1]</a> Sagas give you atomicity and durability but <em>not</em> the I in ACID.</li>
+      <li><b>Countermeasure — semantic lock:</b> mark a record as <code>PENDING</code> (e.g. order status) so other operations know it's in-flight and don't act on it as final.</li>
+      <li><b>Countermeasure — idempotency:</b> retries are guaranteed in async systems, so every step and every compensation must be safe to apply more than once (dedupe by a request/transaction id). See <a href="0010-common-patterns.html">Common Patterns (Lesson 10)</a>.</li>
+      <li><b>Compensations must be commutative-safe &amp; always succeed:</b> design them so they can run even if the forward step partially ran; "refund" must work whether or not the charge fully settled.</li>
+    </ul>
+  </div>
+
+  <p><b>When to use a Saga:</b> long-running, multi-service business workflows where you can tolerate <em>eventual</em> consistency and can define a sensible compensation for each step — order placement, travel booking, the <a href="0037-payment-system.html">payment system (Lesson 37)</a>, and the <a href="0074-digital-wallet-p2p.html">digital wallet P2P transfer (Lesson 74)</a>. It's the default for distributed transactions in a microservices world.<a href="#c2" class="cite">[2]</a></p>
+
+  <h2>TCC (Try-Confirm-Cancel) — the reservation middle ground</h2>
+  <p>TCC is a Saga variant that buys back some isolation by splitting each step into <b>two business phases</b> instead of one:</p>
+  <ul>
+    <li><b>Try:</b> reserve the resources without committing the final effect — hold the funds, earmark the stock. Nothing is visible as final yet.</li>
+    <li><b>Confirm:</b> once every participant's Try succeeded, turn the reservations into the real, committed effect (idempotently).</li>
+    <li><b>Cancel:</b> if any Try failed, release every reservation.</li>
+  </ul>
+  <p>It looks like 2PC's prepare/commit, but the key difference is that there are <b>no database-level locks held across the network</b> — the "reservation" is a normal, committed business state (e.g. <code>reserved_balance</code>), so each service stays independently available.<a href="#c2" class="cite">[2]</a> TCC sits between 2PC (strong, blocking) and a plain Saga (eventual, no isolation): you get a reservation window that prevents the dirty-read anomaly, at the cost of every participant implementing three idempotent operations and you managing reservation timeouts. Reach for it when a plain Saga's lack of isolation is unacceptable — money movement is the classic case.</p>
+
+  <h2>Choosing — and the outbox pattern</h2>
+  <table>
+    <thead><tr><th>Pattern</th><th>Consistency</th><th>Availability</th><th>Use when</th></tr></thead>
+    <tbody>
+      <tr><td><b>2PC</b></td><td>Strong / atomic</td><td>Low (blocks)</td><td>Few, co-located, trusted databases; need true atomicity.<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><b>TCC</b></td><td>Strong-ish (reservation)</td><td>High</td><td>Cross-service money movement; can't accept dirty reads.</td></tr>
+      <tr><td><b>Saga</b></td><td>Eventual</td><td>High</td><td>Long, multi-service workflows; compensations exist.<a href="#c1" class="cite">[1]</a></td></tr>
+    </tbody>
+  </table>
+
+  <p>Rule of thumb: across microservices, <b>default to a Saga</b>; upgrade to <b>TCC</b> only when missing isolation is a correctness risk; use <b>2PC</b> only inside a tight, co-located cluster of databases. Above all, push for a design that avoids the distributed transaction entirely — co-locating the data that must change together in one service/shard is the simplest-by-default move.</p>
+
+  <h3>The transactional outbox — reliable event publishing</h3>
+  <p>Every Saga step has a lurking dual-write bug: a service must <b>update its database</b> AND <b>publish an event</b> (or call the next service). These are two systems, so a crash between them loses the event — the order commits but Inventory never hears about it.<a href="#c2" class="cite">[2]</a> You cannot fix this with a try/catch.</p>
+  <div class="box">
+    <b>Outbox pattern</b>
+    <ul>
+      <li>In the <em>same local transaction</em> that changes business state, also insert the event row into an <code>outbox</code> table. One commit, fully atomic — no dual write.<a href="#c2" class="cite">[2]</a></li>
+      <li>A separate <b>relay / message relay</b> (often via <a href="#cdc">Change Data Capture</a> on the DB log, the topic of Lesson 113) reads new outbox rows and publishes them to the broker, marking them sent.</li>
+      <li>The relay guarantees <b>at-least-once</b> delivery, which is exactly why every consumer and Saga step must be <b>idempotent</b>.</li>
+    </ul>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior candidates say "I'll use a distributed transaction" or default to 2PC. Staff candidates do three things. <b>First, they try to avoid it:</b> "Can these two pieces of state live in one service so a local transaction suffices? If yes, this whole problem disappears." <b>Second, they name the tradeoff out loud:</b> "2PC gives atomicity but blocks holding locks if the coordinator dies — unacceptable for an always-on checkout — so I'll run a Saga and accept eventual consistency."<a href="#c1" class="cite">[1]</a> <b>Third, they pre-empt the two traps before being asked:</b> the isolation gap ("I'll use a <code>PENDING</code> status as a semantic lock so nobody acts on half-done state") and the dual-write bug ("I'll publish events via an outbox so the state change and the event commit atomically; consumers are idempotent because delivery is at-least-once"). Naming the failure mode before the interviewer probes it is the whole game.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When a flow spans services, deliver it in this arc: (1) <b>spot the boundary</b> — "this touches Wallet, Inventory, and Orders, so there's no single transaction." (2) <b>State the invariant</b> you must protect ("never charge without reserving"). (3) <b>Reject 2PC with a reason</b> — blocking + held locks kill availability for an online flow. (4) <b>Pick a Saga</b> (orchestration for non-trivial flows), and walk one happy path plus one compensation path on the whiteboard. (5) <b>Close the gaps</b> — semantic lock for isolation, idempotency for retries, and the <b>outbox</b> for reliable event publishing. (6) If money is involved and dirty reads are unacceptable, <b>upgrade the critical step to TCC</b>. That sequence is breadth-then-depth: a fast justified pick, then 60% depth on the consistency you gave up and how you recover it.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why is two-phase commit called a blocking protocol?</p>
+      <button class="opt">Readers must wait while the coordinator rebalances all the shards</button>
+      <button class="opt">Each participant retries its vote until the network finally settles</button>
+      <button class="opt">A crashed coordinator leaves voted participants stuck holding locks</button>
+      <button class="opt">The commit phase repeats forever until every replica acknowledges</button>
+      <p class="fb">After voting YES a participant can't decide alone, so a coordinator crash forces it to block while holding locks until recovery.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. What property does a plain Saga fail to provide?</p>
+      <button class="opt">Isolation — other reads can observe partial, in-flight state</button>
+      <button class="opt">Atomicity — some local steps commit while others never run</button>
+      <button class="opt">Durability — committed local steps vanish after a node crash</button>
+      <button class="opt">Liveness — the workflow stalls forever on the very first step</button>
+      <p class="fb">Each step commits immediately, so there's no global isolation; you add semantic locks (PENDING) to mask intermediate state.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. How does a Saga undo an already-committed earlier step?</p>
+      <button class="opt">It rolls the local database log backward to the prior point</button>
+      <button class="opt">It asks the coordinator to broadcast a global abort message</button>
+      <button class="opt">It releases the network locks the prepare phase had acquired</button>
+      <button class="opt">It runs a compensating transaction that semantically reverses it</button>
+      <p class="fb">You can't roll back a committed step; a Saga runs a forward-committed compensating transaction (e.g. refund) to reverse it.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. What problem does the transactional outbox pattern solve?</p>
+      <button class="opt">It keeps two separate coordinators agreeing on one global decision</button>
+      <button class="opt">It stops a crash from losing an event after the state was committed</button>
+      <button class="opt">It removes the network locks that the commit phase would require</button>
+      <button class="opt">It guarantees that every consumer receives each event exactly once</button>
+      <p class="fb">Writing the event to an outbox table in the same local transaction makes the state change and the event atomic — no lost dual write.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Walk me through the full Saga for the <a href="0074-digital-wallet-p2p.html">P2P wallet transfer</a>, including every compensation and where I'd put semantic locks." · "Show me exactly how a dual-write bug corrupts state, then how the outbox + CDC fixes it." · "When is TCC genuinely worth the extra three operations over a plain Saga?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf">Garcia-Molina &amp; Salem, "Sagas" (SIGMOD 1987)</a>. The original paper that introduced the Saga as a sequence of transactions with compensations; pair it with the "Transactions" and "Consistency" chapters of <em>Designing Data-Intensive Applications</em> for the 2PC/ACID-vs-BASE foundations.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.cs.cornell.edu/andru/cs711/2002fa/reading/sagas.pdf">Garcia-Molina &amp; Salem, "Sagas" (SIGMOD 1987)</a> (the Saga model: a sequence of local transactions with compensating transactions, trading isolation for availability in long-lived workflows).</p>
+    <p id="c2">[2] <a href="https://martin.kleppmann.com/2017/03/27/designing-data-intensive-applications.html">Kleppmann, <em>Designing Data-Intensive Applications</em> (O'Reilly)</a> (ACID vs BASE, two-phase commit and its blocking/coordinator-failure behavior, the dual-write problem, and the outbox/CDC approach to reliable event publishing).</p>
+    <p id="cdc">[3] Forward reference: <a href="0113-change-data-capture.html">Change Data Capture (Lesson 113)</a> — the log-based mechanism a robust outbox relay uses to publish events reliably.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0111-rest-vs-graphql.html">← Lesson 111</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 113 · Change Data Capture (CDC)</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

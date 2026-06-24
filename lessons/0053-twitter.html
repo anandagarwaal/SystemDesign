@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 53 — Design Twitter / X</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 53 · Phase 4 — Case Study · Hard</p>
+  <h1>Design Twitter / X</h1>
+  <p class="sub">A read-heavy timeline for hundreds of millions of users — where the interview lives or dies on how you handle the account that follows nobody's rules: the celebrity.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Twitter is the canonical "timeline fan-out" problem, and it's deceptively dangerous: the naive answer works for 99.9% of accounts and explodes on the other 0.1%. A senior recites "fan-out on write vs. read." A staff candidate <em>derives</em> the hybrid from the follower-count distribution, names <b>celebrity fan-out</b> as the bottleneck before the interviewer asks, and treats the push/pull threshold as a tunable knob, not dogma. This lesson trains the second behavior — and it shares its spine with <a href="0016-fb-news-feed.html">Facebook News Feed</a> and <a href="0027-instagram.html">Instagram</a>, so the patterns compound.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope ruthlessly. Four capabilities cover the core of a timeline product; everything else you name as out-of-scope so the interviewer sees you noticed it and chose to defer.</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td><b>Post a tweet</b> (text, optionally media) that their followers can see.</td></tr>
+    <tr><td>2</td><td><b>Follow</b> other users (a uni-directional follow edge).</td></tr>
+    <tr><td>3</td><td><b>View a home timeline</b> of tweets from people they follow, and page through it.</td></tr>
+    <tr><td>4</td><td><b>Like / retweet</b> a tweet (engagement that feeds both counts and ranking).</td></tr>
+  </table>
+  <p style="font-size:.9rem;color:var(--muted)"><b>Out of scope:</b> replies/threads, DMs, search, ads, notifications, follower-of-follower recommendations. State this explicitly so the interviewer knows the boundary is deliberate.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>NFRs set the targets the design must hit. For a timeline the dominant tension is the classic one — you trade consistency for availability and low read latency, because nobody is harmed by seeing a tweet a few seconds late.</p>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th></tr>
+    <tr><td>Read/write ratio</td><td><b>Read-heavy</b> — timelines are viewed far more than tweets are posted (on the order of 100:1 or more).</td></tr>
+    <tr><td>Timeline latency</td><td><b>Low</b> — home-timeline read &lt;200ms (p99 &lt;500ms). This is the path that must feel instant.</td></tr>
+    <tr><td>Availability</td><td><b>Highly available</b>, prioritized <em>over</em> strong consistency for the timeline.</td></tr>
+    <tr><td>Consistency</td><td><b>Eventual</b> — a few seconds of tweet staleness in a timeline is fine.</td></tr>
+    <tr><td>Scale</td><td>Hundreds of millions of users; follower counts span from zero to <b>100M+</b> for the largest accounts.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute numbers that <em>change a decision</em>. Two numbers matter here: can we afford to precompute timelines for everyone, and what is the write blast-radius of the worst-case poster? (Figures below are my own back-of-envelope estimates, not quoted from a source.)</p>
+  <div class="box">
+    <p><b>Can we precompute (materialize) a timeline per user?</b></p>
+    <ul>
+      <li>Keep ~800 recent tweet IDs per timeline; an ID + minimal metadata is ~few bytes, so a timeline is a few KB.</li>
+      <li>~5KB × ~500M active users ≈ <b>~2–3 TB</b>. That is trivially cheap on modern infra. <b>Implication:</b> precomputation is affordable — the constraint is <em>write cost</em>, not storage.</li>
+    </ul>
+    <p><b>What is the write cost of a single tweet?</b></p>
+    <ul>
+      <li>An average user posts → fan out to a few hundred followers. Cheap, bounded.</li>
+      <li>A celebrity with <b>100M followers</b> posts → fan out to 100M timelines in one shot. <b>Implication:</b> one tweet can trigger ~100M writes — this is the bottleneck the whole design must answer.</li>
+    </ul>
+    <p><b>Tweet ingest:</b> even hundreds of millions of tweets/day is only thousands of writes/sec on average — small. <b>Implication:</b> the system is not write-throughput-bound on tweets; it is bound by <em>fan-out amplification</em> at the tail.</p>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Three core entities. Note that <code>Follow</code> is a uni-directional edge — modeling it as a directed graph is what later lets you query "who follows X" cheaply, which fan-out depends on.</p>
+  <table>
+    <tr><th>Entity</th><th>Shape</th></tr>
+    <tr><td><b>User</b></td><td>An individual account, with a cached <code>followerCount</code> (drives the push/pull decision).</td></tr>
+    <tr><td><b>Follow</b></td><td>Directed edge: <code>(followerId → followedId)</code>.</td></tr>
+    <tr><td><b>Tweet</b></td><td>Content with <code>id</code>, <code>authorId</code>, <code>body</code>, <code>media?</code>, <code>createdAt</code>.</td></tr>
+  </table>
+  <p>Derive the acting user from the auth token, never from the request body.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/tweets</code></td><td>Create a tweet. Body: <code>{ body, media? }</code>; author from token.</td></tr>
+    <tr><td><code>POST /v1/follow</code></td><td>Follow a user. Body: <code>{ followedId }</code>.</td></tr>
+    <tr><td><code>POST /v1/tweets/{id}/like</code></td><td>Like (or unlike) a tweet; idempotent per user.</td></tr>
+    <tr><td><code>POST /v1/tweets/{id}/retweet</code></td><td>Retweet — creates a tweet referencing the original.</td></tr>
+    <tr><td><code>GET /v1/timeline?cursor=&amp;pageSize=</code></td><td>Read the home timeline. Returns <code>{ items: Tweet[], nextCursor }</code>.</td></tr>
+  </table>
+  <p>The timeline uses a <b>cursor</b>, not an <code>offset</code> — a constantly-growing list makes offset paging produce duplicates and skips. (See <a href="0016-fb-news-feed.html">Lesson 16</a> for the full cursor-vs-offset deep dive; we won't repeat it here.)</p>
+
+  <h2>Data Flow</h2>
+  <p>Twitter is a feed-generation pipeline, so it's worth tracing the lifecycle of a single tweet end to end before we draw boxes.</p>
+  <ol style="font-family:-apple-system,sans-serif;font-size:.92rem;">
+    <li><b>Write:</b> client → <code>POST /tweets</code> → Tweet Service persists the tweet to the Tweet Store, returns 200.</li>
+    <li><b>Fan-out decision:</b> service emits a <code>tweet-created</code> event to a queue. Workers look up the author's <code>followerCount</code>: below threshold → push; above → skip fan-out and mark the author as a "pull" source.</li>
+    <li><b>Materialize:</b> for push authors, workers append the <code>tweetId</code> into each follower's timeline cache entry.</li>
+    <li><b>Read:</b> client → <code>GET /timeline</code> → Timeline Service reads the precomputed list from cache, <em>merges in</em> recent tweets from the celebrities this user follows (pulled live), ranks, hydrates bodies, returns a page.</li>
+  </ol>
+  <p>The asymmetry is the whole story: the write path does the heavy lifting for normal authors so the read path stays a near-instant lookup — except for the celebrity tail, which we deliberately invert.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Trace each request through the boxes. Keep the HLD simple by default; the cleverness belongs in the deep dives, not here.</p>
+  <table>
+    <tr><th>Component</th><th>Responsibility &amp; store</th></tr>
+    <tr><td><b>Tweet Service</b></td><td>Stateless service behind the gateway. Writes tweets to the <b>Tweet Store</b> (e.g. Cassandra/DynamoDB, keyed by <code>tweetId</code>; partition by author for author-timeline reads).</td></tr>
+    <tr><td><b>Follow / Graph Service</b></td><td>Stores follow edges. Partition key <code>follower</code>, sort key <code>followed</code>; plus a reverse index on <code>followed</code> for "who follows X" (the list fan-out walks).</td></tr>
+    <tr><td><b>Fan-out workers</b></td><td>Consume the <code>tweet-created</code> queue (Kafka) and append <code>tweetId</code> into each follower's timeline — for push authors only.</td></tr>
+    <tr><td><b>Timeline cache</b></td><td>Redis holding the materialized per-user timeline (a capped list of tweet IDs). The hot path for reads.</td></tr>
+    <tr><td><b>Timeline Service</b></td><td>Serves <code>GET /timeline</code>: read precomputed list, merge in celebrity pulls, rank, hydrate, paginate.</td></tr>
+    <tr><td><b>Engagement Service</b></td><td>Handles likes/retweets; stores counts (often in a counter store) and feeds ranking signals.</td></tr>
+  </table>
+  <p><b>Write path:</b> <code>POST /tweets</code> → Tweet Store → emit event → fan-out workers append to follower timelines (push authors). <b>Read path:</b> <code>GET /timeline</code> → Timeline Service reads the cached list → merges recent celebrity tweets → ranks &amp; hydrates → returns a page.</p>
+
+  <h2>Deep Dive 1 — Fan-out on write vs. fan-out on read</h2>
+  <p>This is the heart of the problem. "Fan-out" = the work of getting one tweet in front of N followers. The only question is <em>when</em> you do it: at write time (push) or at read time (pull).</p>
+
+  <h3>Fan-out on read (pull)</h3>
+  <p>Store nothing extra. When a user opens their timeline, look up everyone they follow, gather each one's recent tweets, merge, and sort. Writes are trivial — one insert. Reads are brutal: a user following 1,000 accounts fans a single read into 1,000 sub-queries plus an in-memory merge, all inside a sub-200ms budget. Wrong for a read-heavy product as the default.</p>
+
+  <h3>Fan-out on write (push)</h3>
+  <p>When a tweet is created, immediately append its <code>tweetId</code> into every follower's materialized timeline (via the queue + workers). Reads become a single list lookup — blazing fast, exactly what a read-heavy system wants. The cost moves to write time and to storage (the ~2–3TB above — cheap).</p>
+
+  <table>
+    <tr><th>Dimension</th><th>Fan-out on write (push)</th><th>Fan-out on read (pull)</th></tr>
+    <tr><td>Read latency</td><td><b>Fast</b> — one list lookup</td><td><b>Slow</b> — N lookups + merge</td></tr>
+    <tr><td>Write cost</td><td><b>High</b> — write to N timelines</td><td><b>Cheap</b> — one insert</td></tr>
+    <tr><td>Write amplification</td><td>1 tweet → N writes</td><td>1 tweet → 1 write</td></tr>
+    <tr><td>Storage</td><td>Higher (materialized lists)</td><td>Minimal</td></tr>
+    <tr><td>Worst case</td><td><b>Celebrity tweets</b> (100M writes)</td><td><b>Heavy followers</b> (1000s of reads)</td></tr>
+    <tr><td>Best for</td><td>Read-heavy, normal fan-out</td><td>Inactive users / huge authors</td></tr>
+  </table>
+
+  <div class="box">
+    <p><b>Why neither alone wins.</b> Push gives the latency we need but detonates on celebrities (100M writes per tweet). Pull stays cheap on writes but blows the read budget for active users (1,000-way merge per open). The follower-count distribution is bimodal — hundreds of millions of normal accounts, a tiny tail of enormous ones — so a single uniform strategy is wrong by construction.</p>
+  </div>
+
+  <h2>Deep Dive 2 — The hybrid &amp; the celebrity problem (the staff answer)</h2>
+  <p>The judgement call: <b>push for the rest, pull for the huge accounts.</b> Don't fan out a 100M-follower tweet to 100M timelines. Instead, flag high-follower accounts, skip precomputation for them, and merge their recent tweets in at read time.</p>
+  <ol style="font-family:-apple-system,sans-serif;font-size:.92rem;">
+    <li><b>On post:</b> if the author's <code>followerCount</code> is below a threshold → fan out on write (push to all follower timelines). If above → do <em>not</em> fan out; just persist the tweet and mark the author as a pull source.</li>
+    <li><b>On read:</b> load the user's precomputed timeline, look up the small set of celebrities this user follows, pull their recent tweets, and merge-sort the two streams.</li>
+  </ol>
+  <p>The merge is cheap because a single user follows only a handful of celebrities — the expensive list (their normal follows) is already materialized, and the tiny list (celebrities) is gathered live. You've moved exactly the bimodal tail to the strategy that suits it.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior says "use a hybrid." The staff candidate explains <em>why the threshold exists at all</em>: it's a knob set by the follower-count distribution, not a magic number. They say out loud, "Push is correct until write amplification exceeds the read cost it saves — which happens precisely at celebrity scale, so I move that tail to pull." They name the <b>celebrity fan-out as the real bottleneck</b>, size it (~100M writes per tweet), and design around <em>that</em> tail rather than the average case — and they admit they'd <b>measure</b> the threshold in production (and even make it per-account adaptive) rather than hard-code it.
+  </div>
+
+  <h2>Deep Dive 3 — Storing tweets &amp; the social graph</h2>
+  <h3>The tweet store</h3>
+  <p>Tweets are immutable, append-only, and read by ID or by author. A wide-column store (Cassandra) or a key-value store (DynamoDB) fits: partition by <code>authorId</code> with <code>createdAt</code> as the clustering key, so "recent tweets by author X" — exactly what celebrity pull needs — is a single efficient range scan. The timeline cache holds only IDs; bodies are hydrated from this store on read, kept hot behind a tweet-level cache.</p>
+  <h3>The social graph</h3>
+  <p>The graph is two adjacency lists per relationship: <code>following</code> (who I follow — read on timeline assembly) and <code>followers</code> (who follows me — walked during fan-out). Store both directions so each query is a cheap lookup rather than a scan. At Twitter scale this is a partitioned store with a reverse index; a dedicated graph database is usually overkill for a follow graph this shallow — name that tradeoff rather than reaching for Neo4j reflexively.</p>
+  <table>
+    <tr><th>Data</th><th>Access pattern</th><th>Store choice</th></tr>
+    <tr><td>Tweets</td><td>By id; recent-by-author range scan</td><td>Wide-column / KV, partition by author</td></tr>
+    <tr><td>Follow graph</td><td>Both directions, cheap lookups</td><td>Partitioned KV + reverse index</td></tr>
+    <tr><td>Materialized timeline</td><td>Read constantly, append on fan-out</td><td>Redis (capped list of IDs)</td></tr>
+  </table>
+
+  <h2>Deep Dive 4 — Timeline cache, hot accounts &amp; trending</h2>
+  <h3>Caching the timeline</h3>
+  <p>Hold each materialized timeline as a capped list in <b>Redis</b> (e.g. last ~800 IDs, trimmed on insert) with LRU eviction, so the common read never touches a database. Timelines are the perfect cache citizen — read constantly, written by fan-out workers, and tolerant of the few-seconds staleness we already accepted. For users who haven't logged in for months, skip materialization entirely and reconstruct on demand (pull) — there's no point burning writes on a timeline nobody reads.</p>
+
+  <h3>Hot / celebrity accounts on the read side</h3>
+  <p>A viral tweet is read by millions at once. In a <b>sharded</b> tweet cache, that single <code>tweetId</code> lives on one node, which melts while the rest sit idle — a hot key. <b>Replicate</b> the hottest tweets so every node can serve them and the load balancer spreads the read storm across all N. The one-time cost is N cold misses on first read; the steady-state win is enormous. (Same hot-key fix as <a href="0016-fb-news-feed.html">Lesson 16</a>.)</p>
+  <table>
+    <tr><th>Approach</th><th>Behavior</th><th>Verdict</th></tr>
+    <tr><td>Sharded cache</td><td>Each tweet on one node — viral tweet melts that shard.</td><td>Hot key</td></tr>
+    <tr><td><b>Replicated cache</b></td><td>Any node serves the tweet; reads spread across all N.</td><td><b>Great</b></td></tr>
+  </table>
+
+  <h3>Trending</h3>
+  <p>"What's trending" is a different problem from the timeline: it's a <b>top-K over a stream</b> of hashtags/terms in a sliding window, not per-user materialization. You don't compute it exactly over the firehose — you approximate (e.g. Count-Min Sketch for frequencies, a heap for the current top-K) per region and window. We have a whole lesson on this exact machinery — see <a href="0028-youtube-top-k.html">Lesson 28 · Top-K</a> — so in an interview you'd name it, sketch the streaming-approximation approach, and move on rather than rebuilding it inline.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Notice that <b>celebrity fan-out (write side)</b>, the <b>viral hot-key tweet (read side)</b>, and <b>trending (stream side)</b> are three faces of one phenomenon — extreme popularity skew — attacked in three places. Staff candidates connect them: pull-on-read tames skew at write time, cache replication tames it at read time, and approximate top-K tames it on the stream. Recognizing that one long-tail distribution drives all three bottlenecks — and that each is solved on its own side rather than by one grand mechanism — is the unifying insight.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why is pure fan-out on write a poor fit for celebrity accounts?</p>
+      <button class="opt">It makes the timeline reads slower as the stored lists keep growing</button>
+      <button class="opt">A single tweet triggers up to a hundred million writes to timelines</button>
+      <button class="opt">It keeps far too many tweet copies and overruns the storage budget</button>
+      <p class="fb">Storage is cheap (~2–3TB). The killer is write amplification: one celebrity tweet → ~100M timeline writes.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. What hybrid strategy do staff candidates arrive at for Twitter?</p>
+      <button class="opt">Pull for everyone at read time, then cache the merged result in Redis</button>
+      <button class="opt">Push for everyone at write time, then shard timeline cache by user id</button>
+      <button class="opt">Push for normal users, pull for huge accounts, then merge on the read</button>
+      <p class="fb">Normal authors are precomputed (push); celebrity tweets are pulled live and merged in — driven by the follower distribution.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why partition the tweet store by author with createdAt clustering?</p>
+      <button class="opt">"Recent tweets by author X" becomes one range scan, which pull needs</button>
+      <button class="opt">"Recent tweets by author X" must be fully replicated to all the nodes</button>
+      <button class="opt">"Recent tweets by author X" requires a graph database to be queried at</button>
+      <p class="fb">Celebrity pull asks for an author's recent tweets at read time — author partition + time clustering makes that a cheap range scan.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. How is "trending" fundamentally different from the home timeline?</p>
+      <button class="opt">It is a per-user materialized list assembled from each follow edge here</button>
+      <button class="opt">It is an approximate top-K over a windowed stream of hashtag mentions</button>
+      <button class="opt">It is a strongly consistent exact count maintained across each region</button>
+      <p class="fb">Trending is top-K over a sliding window of terms — solved with streaming approximation (Count-Min Sketch + heap), not per-user fan-out.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push back and go deeper:
+    <ul style="margin:.4rem 0 0; font-size:.9rem;">
+      <li>"Walk me through picking the push/pull follower threshold — what would you measure and how might it adapt per account?"</li>
+      <li>"How do retweets change fan-out — do you fan out the retweet, the original, or a reference, and why?"</li>
+      <li>"Quiz me: where do celebrity fan-out, the viral hot-key, and trending converge, and how is each solved on its own side?"</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/tweeter">Hello Interview — Design Twitter / X breakdown</a>. The cleanest end-to-end walkthrough of the timeline fan-out tradeoff, the hybrid push/pull, and the celebrity problem, with leveling expectations spelled out. Pair it with the related lessons below to see how the same fan-out spine recurs across feed products.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] Well-established system-design fundamentals (fan-out on write vs. read, hybrid push/pull, hot-key cache replication, streaming top-K). Capacity figures in this lesson are the author's own back-of-envelope estimates, not source-attributed.</p>
+    <p id="c2">Related course lessons: <a href="0016-fb-news-feed.html">16 · Facebook News Feed</a>, <a href="0027-instagram.html">27 · Instagram</a>, <a href="0028-youtube-top-k.html">28 · Top-K</a>, and the <a href="../reference/glossary.html">glossary</a> for FR/NFR/HLD/fan-out terms.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0052-web-search-engine.html">← Lesson 52</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 54 · TikTok / Short Video</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

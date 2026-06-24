@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 16 — Design Facebook News Feed</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 16 · Phase 4 — Case Study · Medium</p>
+  <h1>Design Facebook News Feed</h1>
+  <p class="sub">A read-heavy feed for two billion users — where the whole interview turns on one question: who pays the cost of fan-out, and when?</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> The News Feed is the canonical "fan-out" problem, and it separates seniors from staff with surgical clarity. A senior recites "fan-out on write vs read." A staff candidate <em>derives</em> the hybrid from the follower-count distribution, names the celebrity fan-out as the real bottleneck, and treats every choice as a tradeoff — not a memorized answer. This lesson teaches you to do the second thing.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope ruthlessly. Three capabilities cover the core; everything else (likes, comments, visibility rules) you name as out-of-scope so the interviewer knows you saw them and chose to defer.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td><b>Create a post</b> (text/media) that their followers can see.</td></tr>
+    <tr><td>2</td><td><b>Follow / friend</b> other users (a uni-directional follow edge).</td></tr>
+    <tr><td>3</td><td><b>View a feed</b> of posts from people they follow, and <b>page through</b> it.</td></tr>
+  </table>
+  <p style="font-size:.9rem;color:var(--muted)"><b>Out of scope:</b> likes, comments, visibility controls, notifications. State this explicitly.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>NFRs are where you set the targets that the design must hit. For a feed, the dominant tension is the classic one — you trade consistency for availability and latency, because nobody is harmed by seeing a post one minute late.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th></tr>
+    <tr><td>Latency</td><td>Posting and feed reads fast — <b>&lt; 500ms</b> (target &lt;200ms for the feed read path).</td></tr>
+    <tr><td>Availability</td><td><b>Highly available</b>, prioritized <em>over</em> consistency.</td></tr>
+    <tr><td>Consistency</td><td><b>Eventual</b> is fine — up to <b>~1 minute</b> of post staleness is acceptable.</td></tr>
+    <tr><td>Scale</td><td><b>~2B users</b>, unlimited follow relationships, including celebrities with <b>tens of millions</b> of followers.</td></tr>
+    <tr><td>Read/write ratio</td><td><b>Read-heavy.</b> Feeds are viewed far more often than posts are created.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute the numbers that change a decision. Here, two numbers matter: the cost of precomputing feeds (does it even fit?), and the write amplification of the worst-case poster (what breaks?).</p>
+  <div class="box">
+    <p><b>Can we precompute feeds for everyone?</b></p>
+    <ul>
+      <li>Store ~200 recent post references per user, ~2KB total per feed.</li>
+      <li>2KB × 2B users ≈ <b>4TB</b>.<a href="#c1" class="cite">[1]</a> That's trivially cheap on modern infra (a fraction of a cent per user per month). <b>Implication:</b> precomputation is affordable — the constraint is <em>write cost</em>, not storage.</li>
+    </ul>
+    <p><b>What is the write cost of a single post?</b></p>
+    <ul>
+      <li>An average user posts → fan out to a few hundred followers. Cheap.</li>
+      <li>A celebrity with <b>90M+ followers</b> posts → fan out to 90M feeds in one shot.<a href="#c1" class="cite">[1]</a> <b>Implication:</b> a single post can trigger tens of millions of writes — this is the bottleneck the whole design must answer.</li>
+    </ul>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Three entities. Note that <code>Follow</code> is a uni-directional edge — modeling it as a directed graph is what later lets you query "who follows X" cheaply.</p>
+  <table>
+    <tr><th>Entity</th><th>Shape</th></tr>
+    <tr><td><b>User</b></td><td>An individual account.</td></tr>
+    <tr><td><b>Follow</b></td><td>Directed edge: <code>(followerId → followedId)</code>.</td></tr>
+    <tr><td><b>Post</b></td><td>Author-created content with <code>id</code>, <code>authorId</code>, <code>body</code>, <code>createdAt</code>.</td></tr>
+  </table>
+  <p>Derive the acting user from the auth token, never from the body.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/posts</code></td><td>Create a post. Body: <code>{ body, media? }</code>; author from token.</td></tr>
+    <tr><td><code>POST /v1/follow</code></td><td>Follow a user. Body: <code>{ followedId }</code>.</td></tr>
+    <tr><td><code>GET /v1/feed?cursor=&amp;pageSize=</code></td><td>Read the feed. Returns <code>{ items: Post[], nextCursor }</code>.<a href="#c1" class="cite">[1]</a></td></tr>
+  </table>
+  <p>Note the feed uses a <b>cursor</b>, not an <code>offset</code>. That choice gets its own deep dive below — it's not cosmetic.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Trace each request through the boxes. Keep it simple by default; the cleverness belongs in the deep dives, not in the HLD.</p>
+  <table>
+    <tr><th>Component</th><th>Responsibility &amp; store</th></tr>
+    <tr><td><b>Post Service</b></td><td>Stateless service behind the API gateway. Writes posts to the <b>Post Store</b> (e.g. DynamoDB/Cassandra, keyed by <code>postId</code>).<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>Follow Service</b> + graph</td><td>Stores the follow edges. Partition key <code>follower</code>, sort key <code>followed</code>, plus a <b>GSI</b> on <code>followed</code> for the reverse lookup ("who follows X").<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>Feed Service</b></td><td>Serves <code>GET /feed</code>. Returns a precomputed feed (the common case) and merges in recent celebrity posts at read time (the hybrid).</td></tr>
+    <tr><td><b>Fan-out workers</b></td><td>Consume a queue (e.g. SQS/Kafka) of new-post events and append the post into each follower's precomputed feed.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>Feed cache</b></td><td>Redis holding the materialized per-user feeds for fast reads.</td></tr>
+  </table>
+  <p><b>Write path:</b> <code>POST /posts</code> → Post Store → emit event to queue → fan-out workers append <code>postId</code> to each follower's feed. <b>Read path:</b> <code>GET /feed</code> → Feed Service reads the user's precomputed feed from cache → hydrates post bodies → returns a page.</p>
+
+  <h2>Deep Dive 1 — Fan-out on write vs. fan-out on read</h2>
+  <p>This is the heart of the problem. "Fan-out" = the work of getting one post in front of N followers. The only question is <em>when</em> you do it: at write time (push) or at read time (pull).</p>
+
+  <h3>Fan-out on read (pull)</h3>
+  <p>Store nothing extra. When a user opens their feed, look up everyone they follow, gather each one's recent posts, merge, and sort by timestamp.<a href="#c1" class="cite">[1]</a> Writes are trivial — one insert. Reads are brutal: a user following 1,000 accounts fans a single read into 1,000 sub-queries, then an in-memory merge — all inside your &lt;500ms budget.</p>
+
+  <h3>Fan-out on write (push)</h3>
+  <p>When a post is created, immediately append its <code>postId</code> into every follower's precomputed feed (via the queue + workers).<a href="#c1" class="cite">[1]</a> Reads become a single lookup of an already-assembled list — blazing fast, which is exactly what a read-heavy system wants. The cost moves to write time and to storage (the 4TB we sized above — cheap).</p>
+
+  <table>
+    <tr><th>Dimension</th><th>Fan-out on write (push)</th><th>Fan-out on read (pull)</th></tr>
+    <tr><td>Read latency</td><td><b>Fast</b> — one list lookup</td><td><b>Slow</b> — N lookups + merge</td></tr>
+    <tr><td>Write cost</td><td><b>High</b> — write to N feeds</td><td><b>Cheap</b> — one insert</td></tr>
+    <tr><td>Write amplification</td><td>1 post → N writes</td><td>1 post → 1 write</td></tr>
+    <tr><td>Storage</td><td>Higher (materialized feeds)</td><td>Minimal</td></tr>
+    <tr><td>Worst case</td><td><b>Celebrity posts</b> (90M writes)</td><td><b>Heavy followers</b> (1000s of reads)</td></tr>
+    <tr><td>Best for</td><td>Read-heavy, normal fan-out</td><td>Inactive users / huge authors</td></tr>
+  </table>
+
+  <div class="box">
+    <p><b>Why neither alone wins.</b> Push gives the latency we need but detonates on celebrities. Pull stays cheap on writes but blows the read budget for active users. The distribution of follower counts is bimodal — billions of normal users, a handful of huge ones — so a single uniform strategy is wrong by construction.</p>
+  </div>
+
+  <h2>Deep Dive 2 — The hybrid (the staff answer)</h2>
+  <p>The judgement call: <b>push for normal users, pull for celebrities.</b> Don't fan out a celebrity's post to 90M feeds. Instead, flag high-follower accounts in the Follow table, skip precomputation for them, and merge their recent posts in at read time.<a href="#c1" class="cite">[1]</a></p>
+  <ol style="font-family:-apple-system,sans-serif;font-size:.92rem;">
+    <li><b>On post:</b> if the author is below a follower threshold → fan out on write (push to all follower feeds). If above → do <em>not</em> fan out; just store the post.</li>
+    <li><b>On read:</b> load the user's precomputed feed, then look up the small set of celebrities this user follows, pull their recent posts, and merge-sort the two streams.</li>
+  </ol>
+  <p>The merge is cheap because a user follows few celebrities — the expensive list (their normal follows) is already materialized, and the small list (celebrities) is gathered live.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior says "use a hybrid." The staff candidate explains <em>why the threshold exists at all</em>: it's a knob set by the follower-count distribution, not dogma. They say out loud, "Push is correct until write amplification exceeds the read cost it saves — which happens precisely at celebrity scale, so I move that tail to pull." They name the <b>celebrity fan-out as the real bottleneck</b>, size it (90M writes per post), and design the system around <em>that</em> tail rather than the average case. Treating the threshold as a tunable tradeoff — and admitting you'd measure it in production rather than hard-code it — is the move.
+  </div>
+
+  <h2>Deep Dive 3 — Ranking &amp; pagination</h2>
+  <h3>Ranking: recency, then signals</h3>
+  <p>The MVP feed is reverse-chronological — merge by <code>createdAt</code> descending. Real feeds rank by a score: <em>recency × affinity × engagement-prediction × content-type weights</em>. The interview move is to separate <b>generation</b> (which posts are candidates — the fan-out problem) from <b>ranking</b> (how to order the candidates — an ML scoring pass on a few hundred items). Keep ranking out of the hot write path; score the small candidate set at read time.</p>
+
+  <h3>Pagination: cursor, not offset</h3>
+  <p>The feed is a constantly-growing list, so <code>OFFSET</code>-based paging is wrong: new posts arriving between page loads shift every item, causing duplicates and skips, and deep offsets force the store to scan-and-discard. Use a <b>cursor</b> — an opaque token encoding the timestamp/id of the last item seen.<a href="#c1" class="cite">[1]</a> Each page says "give me items older than this cursor," which is stable under inserts and a cheap indexed range scan.</p>
+  <table>
+    <tr><th></th><th>Cursor</th><th>Offset</th></tr>
+    <tr><td>Stable under new posts</td><td><b>Yes</b></td><td>No — items shift</td></tr>
+    <tr><td>Deep-page cost</td><td>Constant (indexed seek)</td><td>Grows (scan + discard)</td></tr>
+  </table>
+
+  <h2>Deep Dive 4 — Caching feeds &amp; the hot-key celebrity</h2>
+  <h3>Caching the feeds</h3>
+  <p>Hold materialized feeds in <b>Redis</b> with a long TTL and LRU eviction, so the common read never touches the database.<a href="#c1" class="cite">[1]</a> Feeds are the perfect cache citizen — read constantly, written by the fan-out workers, and tolerant of staleness (we already accepted ~1 min).</p>
+
+  <h3>The hot-key problem</h3>
+  <p>A viral post is read by millions at once. In a <b>sharded</b> cache, every post lives on exactly one node, so a single viral <code>postId</code> hammers one shard while the rest sit idle — a hot key.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Approach</th><th>Behavior</th><th>Verdict</th></tr>
+    <tr><td>Sharded cache</td><td>Each post on one node — viral post melts that shard.</td><td>Hot key</td></tr>
+    <tr><td><b>Replicated cache</b></td><td>Every node can serve any post; load balancer spreads reads across all N.<a href="#c1" class="cite">[1]</a></td><td><b>Great</b></td></tr>
+  </table>
+  <p>With replication, a viral post's read traffic is spread across all N instances instead of one shard.<a href="#c1" class="cite">[1]</a> The tradeoff: a cold viral post can cause N initial misses (N DB reads instead of 1) — a tiny, one-time cost in exchange for massively higher steady-state throughput.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Notice that <b>celebrity fan-out (write side)</b> and the <b>hot-key viral post (read side)</b> are the same phenomenon — extreme skew — attacked from two ends. Staff candidates connect them: pull-on-read handles skew at write time; cache replication handles skew at read time. Recognizing that both bottlenecks come from the long tail of the popularity distribution, and that you solve each on its own side, is the unifying insight.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why is pure fan-out on write a poor fit for celebrity accounts?</p>
+      <button class="opt">It makes feed reads slower because lists grow longer over time</button>
+      <button class="opt">One post triggers tens of millions of writes into follower feeds</button>
+      <button class="opt">It stores too many copies of posts and overruns the storage budget</button>
+      <p class="fb">Storage is cheap (~4TB). The killer is write amplification: one celebrity post → 90M+ feed writes.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. What is the hybrid feed strategy that staff candidates arrive at?</p>
+      <button class="opt">Pull for everyone at read time, then cache the merged result in Redis</button>
+      <button class="opt">Push for everyone at write time, then shard the feed cache by user id</button>
+      <button class="opt">Push for normal users, pull for celebrities, then merge at read time</button>
+      <p class="fb">Normal authors are precomputed (push); celebrity posts are pulled live and merged in — driven by the follower distribution.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why use a cursor instead of an offset for feed pagination?</p>
+      <button class="opt">It stays stable as new posts arrive and avoids costly deep scans</button>
+      <button class="opt">It lets the client jump directly to any arbitrary page number fast</button>
+      <button class="opt">It removes the need to sort the feed posts by timestamp at all</button>
+      <p class="fb">Offsets shift when new posts arrive (duplicates/skips) and scan-and-discard at depth; cursors are stable and indexed.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. How does a replicated cache beat a sharded one for a viral post?</p>
+      <button class="opt">It keeps each viral post on a single dedicated high-memory cache node</button>
+      <button class="opt">Any node can serve the post, spreading its read traffic across all N</button>
+      <button class="opt">It writes the viral post to disk first so reads never hit the cache</button>
+      <p class="fb">Sharding pins a hot key to one node; replication lets every node serve it, so the load balancer spreads the storm.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push back and go deeper:
+    <ul style="margin:.4rem 0 0; font-size:.9rem;">
+      <li>"Walk me through choosing the celebrity follower threshold — what would you measure?"</li>
+      <li>"How would ranking change the data flow if we move from reverse-chron to ML-scored?"</li>
+      <li>"Quiz me: where do celebrity fan-out and the viral hot-key problem converge, and why?"</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/fb-news-feed">Hello Interview — Facebook News Feed breakdown</a>. The cleanest end-to-end walkthrough of the fan-out tradeoff, the hybrid, and the replicated-cache hot-key fix, with the E4/E5/E6 leveling expectations spelled out.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/fb-news-feed">Hello Interview — Facebook News Feed</a> (FRs/NFRs, 4TB precompute estimate, 90M-follower fan-out, API shape, queue-based fan-out workers, hybrid push/pull, cursor pagination, replicated-cache hot-key solution).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0015-ticketmaster.html">← Lesson 15</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 17 · Tinder</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

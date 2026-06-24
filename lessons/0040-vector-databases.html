@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 40 — Vector Databases</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 40 · Phase 2 — Key Technologies</p>
+  <h1>Vector Databases</h1>
+  <p class="sub">Storing meaning, not keywords — embeddings, approximate nearest-neighbor search, and the index that makes "find me similar things" fast at a billion vectors.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Every modern AI prompt — semantic search, recommendations, and especially <a href="0039-chatgpt.html">RAG for LLMs</a> — eventually hits "how do I retrieve the most relevant items from millions of candidates in &lt;50ms?" The senior answer is "use a vector database." The staff answer names the <em>index</em> (HNSW), explains the <b>recall-vs-latency knob</b>, knows why brute force is impossible at scale, and reaches for <code>pgvector</code> before a dedicated cluster when the scale doesn't justify it.<a href="#c1" class="cite">[1]</a></p>
+  </div>
+
+  <h2>1 · The problem: similarity, not equality</h2>
+  <p>A normal database answers <em>equality</em> queries: "give me the row where <code>id = 42</code>" or "rows where <code>city = 'Pune'</code>". But AI works in <b>embeddings</b> — an embedding model (an LLM, CLIP, sentence-transformer) turns text/image/audio into a fixed-length array of floats, say 1536 dimensions, where <em>semantic closeness becomes geometric closeness</em>.<a href="#c1" class="cite">[1]</a> "king" and "queen" land near each other; a photo of a dog lands near other dogs.</p>
+  <p>The query you now want is <b>nearest-neighbor</b>: "given this query vector, return the <em>k</em> stored vectors closest to it" by a similarity metric (cosine similarity or L2 distance). That's the one operation a vector database is built around.<a href="#c2" class="cite">[2]</a> The flow is always the same three steps: embed your corpus → store vectors (with a reference back to the source content) → embed the incoming query with the <em>same model</em> and search for nearest neighbors.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>2 · Why brute force dies — and ANN saves you</h2>
+  <p>The exact answer is easy to <em>describe</em>: compute the distance from the query to <em>every</em> stored vector and keep the top <em>k</em>. The cost is <code>O(N·D)</code>. At 100M vectors × 1536 dims that's ~153 billion multiplications <em>per query</em> — on the order of <b>seconds per query</b>, which is unusable.<a href="#c2" class="cite">[2]</a></p>
+  <p>So production systems use <b>Approximate Nearest Neighbor (ANN)</b> search: trade a sliver of accuracy for orders-of-magnitude speed. Instead of exact top-<em>k</em>, you get ~95–99% of the true neighbors in milliseconds.<a href="#c3" class="cite">[3]</a> The metric for "did we find the real neighbors" is <b>recall</b>, and the central tension of this entire topic is one tradeoff:</p>
+  <div class="box">
+    <b>The one tradeoff to internalize:</b> higher <b>recall</b> ⇄ higher <b>latency</b> (and memory). Every ANN index exposes a knob — search wider and you find more of the true neighbors but pay more time. Naming this tradeoff out loud, and the parameter that controls it, is the core signal of this topic.<a href="#c2" class="cite">[2]</a>
+  </div>
+
+  <h2>3 · The index algorithms</h2>
+  <p>An ANN index is a data structure that lets you skip almost all the vectors. Three families come up; know HNSW cold and the others by one line.<a href="#c1" class="cite">[1]</a><a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <thead><tr><th>Index</th><th>Idea</th><th>Profile</th><th>Reach for it when…</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>HNSW</b><br>(graph)</td>
+        <td>Multi-layer "navigable small world" graph. Upper layers = sparse long-range motorways; layer 0 = dense short hops. Search greedily descends toward the query.<a href="#c3" class="cite">[3]</a></td>
+        <td><code>O(log N)</code> search, 99%+ recall; memory-hungry; build is <code>O(N·log N)</code>.<a href="#c2" class="cite">[2]</a></td>
+        <td><b>The default.</b> High recall + low latency. What Pinecone, Weaviate, Qdrant, Milvus use under the hood.<a href="#c3" class="cite">[3]</a></td>
+      </tr>
+      <tr>
+        <td><b>IVF</b><br>(clustering)</td>
+        <td>k-means partitions vectors into clusters; at query time scan only the <code>nprobe</code> nearest clusters, not all N.<a href="#c2" class="cite">[2]</a></td>
+        <td>Less recall than HNSW, simpler, lower memory; needs a training step.</td>
+        <td>Very large datasets where memory matters and a little recall loss is fine.</td>
+      </tr>
+      <tr>
+        <td><b>LSH</b><br>(hashing)</td>
+        <td>Locality-sensitive hashing drops similar vectors into the same bucket with high probability.<a href="#c1" class="cite">[1]</a></td>
+        <td>Very fast, lower recall.</td>
+        <td>Rarely the production pick today — know it exists.<a href="#c2" class="cite">[2]</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>HNSW, in one breath</h3>
+  <p>Think of a road network. The top layer has a few cities connected by long highways; each layer down adds more towns and shorter roads; layer 0 contains <em>every</em> vector with dense local streets. A search starts at an entry point on the top layer, greedily hops to whichever neighbor is closer to the query, and when it can't get closer it drops a layer and repeats — until it does a fine local search on layer 0.<a href="#c3" class="cite">[3]</a> Two knobs: <code>M</code> (edges per node, set at build time) and <code>ef_search</code> (how many candidates to keep during traversal). <b>Raising <code>ef_search</code> raises recall but raises latency</b> — that's the tradeoff from §2 made concrete.<a href="#c2" class="cite">[2]</a></p>
+
+  <h3>Quantization — how you fit it in RAM</h3>
+  <p>100M × 1536 dims × 4 bytes ≈ <b>600 GB</b> of raw floats — too much for one box's memory.<a href="#c2" class="cite">[2]</a> <b>Product Quantization (PQ)</b> (and scalar quantization) compress each vector into a small code by splitting it into chunks and replacing each chunk with a codebook entry, shrinking memory ~10–30× at a small recall cost.<a href="#c1" class="cite">[1]</a> Mention quantization the moment scale enters the conversation — it's the answer to "where does all this live?"<a href="#c2" class="cite">[2]</a></p>
+
+  <h2>4 · Filtering: vectors + metadata together</h2>
+  <p>Real queries are rarely pure similarity. "Find products like this one <em>that are in stock and under ₹5000</em>" mixes an ANN search with a structured filter. The DB keeps a <b>vector index</b> and a <b>metadata index</b>, and the order you combine them matters:<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <thead><tr><th>Strategy</th><th>How</th><th>Failure mode</th></tr></thead>
+    <tbody>
+      <tr><td><b>Pre-filter</b></td><td>Apply the metadata filter first, then ANN over the survivors.</td><td>Accurate, but if the filter is narrow the graph is fragmented → slow, or you fall back to brute force.<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><b>Post-filter</b></td><td>Run ANN for top-K, then drop rows failing the filter.</td><td>Fast, but you may return <em>fewer than K</em> if most candidates get filtered out.<a href="#c2" class="cite">[2]</a></td></tr>
+    </tbody>
+  </table>
+  <p>Modern engines (Pinecone, Weaviate) blend the two with <em>filtered-graph</em> traversal so the filter guides the search itself rather than bolting on before or after.<a href="#c2" class="cite">[2]</a></p>
+
+  <h2>5 · Vector index vs. vector database vs. "just use Postgres"</h2>
+  <p>A standalone <b>vector index</b> (e.g. FAISS) is just the ANN data structure. A <b>vector database</b> wraps it with the things a real system needs: CRUD and real-time updates, metadata filtering, horizontal scaling/sharding, backups, security, and <b>multitenancy via namespaces</b>.<a href="#c1" class="cite">[1]</a> The staff-relevant nuance is the deployment choice:</p>
+  <div class="box">
+    <b>Decision reflex</b>
+    <ul>
+      <li><b>Already on Postgres, ≲ a few million vectors?</b> → <code>pgvector</code>. One datastore, transactional, no new infra.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Tens of millions+, strict latency, heavy filtering?</b> → dedicated vector DB (Pinecone/Weaviate/Qdrant/Milvus).</li>
+      <li><b>Cost control at scale</b> → separate storage from compute and add a <b>freshness layer</b> (a small in-memory tier serving brand-new vectors while the partitioned index rebuilds in the background).<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+  </div>
+
+  <h2>6 · How it shows up in an interview</h2>
+  <p>You'll meet vector search inside a bigger system — a RAG chatbot, semantic search, "similar items", or dedup. The expected pipeline for RAG: <code>chunk docs → embed → store in vector DB</code>, then per query <code>embed → ANN top-k → stuff into the LLM prompt as context</code>.<a href="#c3" class="cite">[3]</a> The depth move is <b>two-stage retrieval</b>: cheap HNSW returns ~100 candidates at ~95% recall, then a heavier <b>cross-encoder re-ranker</b> rescores those 100 with full attention and keeps the top 10 for the LLM.<a href="#c3" class="cite">[3]</a> First stage maximizes recall cheaply; second stage maximizes precision on a tiny set.</p>
+  <p>Two operational gotchas worth naming: <b>embedding drift</b> — if you change the embedding model, every stored vector must be re-embedded (use versioned namespaces);<a href="#c2" class="cite">[2]</a> and <b>sharding</b> — partition vectors by id, fan a query out to all shards, each returns local top-K, then merge to global top-K.<a href="#c2" class="cite">[2]</a> (Same scatter-gather pattern as <a href="0028-youtube-top-k.html">Lesson 28</a>.)</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior says "use a vector database." Staff says four things in one breath: (1) <b>"brute force is <code>O(N·D)</code> — seconds per query at 100M vectors — so we use an ANN index, HNSW";</b> (2) <b>"<code>ef_search</code> is our recall-vs-latency dial, and quantization is how it fits in RAM";</b> (3) <b>"at our scale this is just <code>pgvector</code> on the Postgres we already run — a dedicated cluster is unjustified complexity";</b> and (4) <b>"the vector DB is a derived index, not the source of truth — the document store is, and we re-embed on model upgrades."</b> Knowing when <em>not</em> to add a vector cluster is the simple-by-default judgement L6/L7 rewards.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="a">
+      <p class="stem">1. Why can't a brute-force scan serve similarity search at 100M vectors?</p>
+      <button class="opt">It compares the query to every vector at O(N·D) cost</button>
+      <button class="opt">It cannot compute cosine distance over float vector arrays</button>
+      <button class="opt">It requires a relational join across two separate tables</button>
+      <p class="fb">Exact search is O(N·D) — ~153B multiplications per query at 100M×1536, i.e. seconds. ANN trades a little recall for speed.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. What happens when you raise HNSW's <code>ef_search</code> parameter?</p>
+      <button class="opt">It shrinks the index memory by compressing every vector</button>
+      <button class="opt">It raises recall accuracy at the cost of higher latency</button>
+      <button class="opt">It removes the need to shard vectors across machines</button>
+      <p class="fb">A bigger candidate list finds more true neighbors (higher recall) but visits more nodes (higher latency) — the core tradeoff.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">3. Post-filtering (ANN first, filter after) risks which failure?</p>
+      <button class="opt">It encrypts the metadata index before the vectors load</button>
+      <button class="opt">It rebuilds the entire graph on each incoming user query</button>
+      <button class="opt">It can return fewer than K rows when most get filtered</button>
+      <p class="fb">Post-filter takes top-K then drops non-matches, so a strict filter can leave you with fewer than K results.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">4. What does a vector database add over a standalone FAISS index?</p>
+      <button class="opt">CRUD, metadata filtering, real-time updates, multitenancy</button>
+      <button class="opt">A guarantee of exact neighbors with absolutely zero loss</button>
+      <button class="opt">Lower-dimensional vectors that need far less memory now</button>
+      <p class="fb">A vector DB wraps the index with database features — updates, filtering, scaling, backups, namespaces — that a raw index lacks.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — drill me. Try: <em>"Walk me through wiring a vector DB into the ChatGPT/RAG design from Lesson 39 — where exactly does retrieval sit?"</em> · <em>"Size the RAM for 50M vectors at 768 dims, then show how PQ changes it."</em> · <em>"When would you defend pgvector over Pinecone in an interview, and when would that be the wrong call?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.pinecone.io/learn/vector-database/">Pinecone — What is a Vector Database?</a>. The canonical beginner-to-intermediate guide: embeddings, the ANN pipeline, the index algorithms (PQ/LSH/HNSW), metadata filtering, and the storage/compute + freshness-layer architecture. Read it once end-to-end, then use this lesson for recall.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.pinecone.io/learn/vector-database/">Pinecone — What is a Vector Database?</a> (embeddings &amp; the 3-step pipeline; vector index vs. database; PQ/LSH/HNSW; metadata filtering; storage/compute separation and freshness layer).</p>
+    <p id="c2">[2] <a href="https://www.techinterview.org/post/3233466215/system-design-vector-database/">techinterview.org — System Design: Vector Database</a> (brute-force O(N·D) math &amp; ~153B ops; HNSW/IVF/LSH comparison; ef_search recall-vs-latency; quantization for RAM; pre/post-filter; sharding &amp; embedding drift).</p>
+    <p id="c3">[3] <a href="https://systeminternals.dev/vector-database/">Systems Explained — Vector Database Architecture</a> (HNSW multi-layer graph &amp; greedy descent; ~95–99% recall; two-stage retrieval with cross-encoder re-ranking for RAG).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0039-chatgpt.html">← Lesson 39</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 41 · Data Structures for Big Data</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

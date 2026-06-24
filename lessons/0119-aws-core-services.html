@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 119 — Deep Dive: Core AWS Services for System Design</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 119 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Core AWS Services for System Design</h1>
+  <p class="sub">You don't need to memorize 200 AWS services. You need the dozen building blocks — and to know which generic component each one <em>is</em>, so you can reason from first principles.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Many interviews let you name concrete services, and doing so crisply signals you've shipped real systems. But the trap is name-dropping without understanding — saying "Lambda" without knowing the cold-start cost, or "S3" without the consistency model. This lesson maps the core AWS building blocks to the <em>generic concepts</em> you've already learned (blob store, queue, KV store, CDN) and flags the one gotcha per service interviewers probe. The goal: speak cloud fluently while reasoning from fundamentals.
+  </div>
+
+  <h2>The building blocks, mapped to concepts</h2>
+  <table>
+    <thead><tr><th>AWS service</th><th>It's really a…</th><th>One thing to know</th></tr></thead>
+    <tbody>
+      <tr><td><b>S3</b></td><td>Blob / object store (<a href="0045-blob-store-s3.html">Lesson 45</a>)</td><td>11 nines durability; strong read-after-write now; pair with <b>pre-signed URLs</b> for direct up/download and lifecycle rules for cold storage (Glacier).</td></tr>
+      <tr><td><b>DynamoDB</b></td><td>Managed KV / wide-column (<a href="0091-dynamodb.html">Lesson 91</a>)</td><td>Single-digit-ms at any scale; design for access patterns; watch the <b>hot-partition</b> problem.</td></tr>
+      <tr><td><b>RDS / Aurora</b></td><td>Managed relational DB (<a href="0097-aurora.html">Lesson 97</a>)</td><td>Aurora separates compute from a shared distributed storage layer; single writer, up to 15 readers.</td></tr>
+      <tr><td><b>ElastiCache</b></td><td>Managed Redis/Memcached cache</td><td>Use for read-through cache, sessions, rate limiting, leaderboards (<a href="0093-redis.html">Lesson 93</a>).</td></tr>
+      <tr><td><b>SQS</b></td><td>Task/work queue (<a href="0100-message-queues.html">Lesson 100</a>)</td><td>Standard = at-least-once, best-effort order; FIFO = exactly-once, ordered; <b>visibility timeout</b> + DLQ.</td></tr>
+      <tr><td><b>SNS</b></td><td>Pub/sub fanout</td><td>Push to many subscribers; the <b>SNS→SQS fanout</b> pattern is a classic.</td></tr>
+      <tr><td><b>Kinesis</b></td><td>Streaming log (Kafka-like)</td><td>Sharded ordered stream with replay; for real-time analytics/clickstreams.</td></tr>
+      <tr><td><b>Lambda</b></td><td>Serverless compute (FaaS)</td><td>Event-driven, auto-scaling, pay-per-use; the gotcha is <b>cold starts</b> and execution/time limits.</td></tr>
+      <tr><td><b>CloudFront</b></td><td>CDN (<a href="0109-cdn.html">Lesson 109</a>)</td><td>Edge caching in front of S3/origins; signed URLs for private content.</td></tr>
+      <tr><td><b>CloudWatch</b></td><td>Metrics / logs / alerting</td><td>Time-series metrics, log aggregation, alarms — the observability layer (<a href="0038-metrics-monitoring.html">Lesson 38</a>).</td></tr>
+      <tr><td><b>API Gateway + ELB</b></td><td>Load balancer / API front door</td><td>ALB (L7) routes HTTP; API Gateway adds auth, throttling, and Lambda integration.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box">
+    <b>The two gotchas interviewers love</b>
+    <ul>
+      <li><b>Lambda cold starts:</b> the first invocation after idle must spin up a runtime → added latency (tens to hundreds of ms, worse for heavy runtimes/VPC). Mitigate with provisioned concurrency or keeping functions warm. Lambda is great for spiky/event-driven work; poor for steady high-throughput low-latency paths where a warm fleet is cheaper.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>S3 is not a filesystem:</b> it's an object store — no in-place edits, no real directories (prefixes only), list operations can be slow, and it's eventually consistent for some operations historically (now strong read-after-write). Use it for blobs, not as a database or a POSIX disk.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+  </div>
+
+  <h2>A reference architecture, in AWS terms</h2>
+  <p>A typical web app maps cleanly: <b>CloudFront</b> (CDN) → <b>ALB</b> (load balancer) → app servers on <b>ECS/EKS</b> or <b>Lambda</b> (compute) → <b>Aurora</b> (relational truth) + <b>DynamoDB</b> (high-scale KV) + <b>ElastiCache</b> (cache); async work flows through <b>SQS/SNS</b> or <b>Kinesis</b>; blobs live in <b>S3</b>; metrics and alarms in <b>CloudWatch</b>; secrets in <b>Secrets Manager</b>; identity via <b>IAM</b> roles. Every box is a generic component you already know — AWS just gives it a brand name and runs it for you.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The signal isn't <em>which</em> services you name — it's that you name them as <b>generic building blocks with a reason</b>. A junior says "I'll use Lambda" everywhere. A staff candidate says "Lambda for the spiky image-processing trigger — but the always-on API stays on a warm ECS fleet because cold starts would hurt p99."<a href="#c2" class="cite">[2]</a> They map "I need a blob store → S3 with pre-signed URLs and CloudFront in front," "I need a durable task queue → SQS with a visibility timeout and DLQ," and they can fall back to the generic concept if the interviewer says "don't assume AWS." Knowing the <em>one gotcha</em> per service — cold starts, hot partitions, S3-isn't-a-filesystem — is what proves the knowledge is real.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>Lead with the generic component, then optionally the AWS name: "a blob store — say S3 — for the videos, fronted by a CDN like CloudFront." This keeps you portable (the interviewer may prefer GCP/Azure or pure concepts) while showing fluency. Reach for managed services to justify <em>not</em> building undifferentiated infrastructure ("I'll use SQS rather than running my own broker"). And when you name a service, drop its one trade-off unprompted — that's the difference between buzzword bingo and engineering judgment. With that, you've completed the deep-dive track; head back to the case studies and put these blocks to work.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What is the main performance gotcha with AWS Lambda?</p>
+      <button class="opt">It cannot scale beyond a few concurrent invocations</button>
+      <button class="opt">It charges a flat monthly fee regardless of usage</button>
+      <button class="opt">Cold starts add latency when a function spins up from idle</button>
+      <button class="opt">It can only be triggered by a single event source type</button>
+      <p class="fb">Idle functions must initialize a runtime on first call, adding latency; it's great for spiky work but weaker for steady low-latency paths.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. Which generic component is Amazon S3?</p>
+      <button class="opt">An object / blob store for large unstructured files</button>
+      <button class="opt">A relational database with full SQL transactions</button>
+      <button class="opt">An in-memory cache for sub-millisecond key reads</button>
+      <button class="opt">A POSIX filesystem supporting in-place file edits</button>
+      <p class="fb">S3 stores immutable objects under flat key prefixes with high durability — not a filesystem or a database; use pre-signed URLs for direct access.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. What's the difference between SQS and SNS?</p>
+      <button class="opt">SQS streams ordered events with replay; SNS stores blobs</button>
+      <button class="opt">SQS is a relational DB; SNS is a key-value cache layer</button>
+      <button class="opt">SQS runs serverless code; SNS load-balances HTTP traffic</button>
+      <button class="opt">SQS is a pull work queue; SNS is push pub/sub fanout</button>
+      <p class="fb">Consumers pull from an SQS queue (one consumer per message), while SNS pushes each message to many subscribers — often SNS→SQS fanout.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why lead with the generic component before the AWS name?</p>
+      <button class="opt">Because AWS service names change too often to rely on</button>
+      <button class="opt">It shows portable reasoning and survives a no-AWS rule</button>
+      <button class="opt">Because managed services are always cheaper to operate</button>
+      <button class="opt">It lets you skip explaining any trade-offs at all</button>
+      <p class="fb">Naming the concept first ("a blob store, e.g. S3") keeps the answer cloud-agnostic and proves you understand the role, not just the brand.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Map a full design for <a href="0033-youtube.html">YouTube</a> onto concrete AWS services with one trade-off each." · "When is Lambda the wrong choice, and what do I use instead?" · "Translate this AWS architecture into pure generic components for a GCP interviewer."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://docs.aws.amazon.com/whitepapers/latest/aws-overview/introduction.html">AWS — Overview of Amazon Web Services (whitepaper)</a> and the per-service documentation (S3, DynamoDB, Lambda, SQS/SNS, Kinesis, CloudFront, CloudWatch) for the canonical capabilities, consistency models, and limits referenced here.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html">Amazon S3 User Guide</a> (object-store model, durability, strong read-after-write consistency, pre-signed URLs, and storage classes / lifecycle).</p>
+    <p id="c2">[2] <a href="https://docs.aws.amazon.com/lambda/latest/dg/welcome.html">AWS Lambda Developer Guide</a> (event-driven serverless execution model, scaling, cold starts, and provisioned concurrency).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0118-distributed-locks.html">← Lesson 118</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 🏠 Back to the case studies</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

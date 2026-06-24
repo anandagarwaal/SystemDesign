@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 39 — Design ChatGPT (LLM Chat Service)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 39 · Phase 4 — Case Study · Hard</p>
+  <h1>Design ChatGPT (LLM Chat Service)</h1>
+  <p class="sub">A streaming chat product on top of an LLM, where the GPU — not the database — is the scarce resource you must engineer around.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Most case studies bottleneck on storage or QPS. This one bottlenecks on <em>compute</em>: GPUs are the scarce, expensive resource <a href="#c1" class="cite">[1]</a>. The staff move is to stop treating the model server like a normal stateless web service and instead model it as a <em>queued, batched, autoscaled fleet</em> — then layer streaming and a growing context window on top. Nail those three and you've shown L6/L7 judgement.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>The interviewer wants two core flows; everything else (editing/branching, images/audio, sharing, custom GPTs, tool calling, web browsing, full-text search) is explicitly out of scope <a href="#c1" class="cite">[1]</a> — say so early to control breadth.</p>
+  <table>
+    <thead><tr><th>#</th><th>Requirement</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>A user can send a chat message and receive an AI-generated response, <b>streamed token by token</b> as it is generated.</td></tr>
+      <tr><td>2</td><td>Conversations are <b>multi-turn</b>: prior turns are retained and the chat's context is carried into each new prompt <a href="#c1" class="cite">[1]</a>.</td></tr>
+      <tr><td>3</td><td>The system serves <b>many concurrent users</b>, each with their own independent session.</td></tr>
+    </tbody>
+  </table>
+  <p>Scope note: we treat the LLM as a black box we <em>call</em> — not something we train or whose internals we run <a href="#c1" class="cite">[1]</a>. The interesting system is the <em>serving</em> layer, not the model.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <thead><tr><th>NFR</th><th>Target / priority</th></tr></thead>
+    <tbody>
+      <tr><td>Low <b>time-to-first-token</b> (TTFT)</td><td>Latency to the first token matters more than total completion time — a blank screen feels broken even if the full answer is fast <a href="#c1" class="cite">[1]</a>.</td></tr>
+      <tr><td><b>GPU efficiency</b></td><td>GPUs are the scarce, expensive resource and need deliberate scheduling <a href="#c1" class="cite">[1]</a>. Idle GPU = burned money.</td></tr>
+      <tr><td><b>Scale</b></td><td>Target ~200M daily active users <a href="#c1" class="cite">[1]</a>, many concurrent open sessions.</td></tr>
+      <tr><td><b>High availability</b></td><td>Stateless front tier; a failed generation should be retryable. Availability over strict consistency for chat history.</td></tr>
+      <tr><td>Handle <b>long generation</b></td><td>A single response can stream for tens of seconds; the connection and the GPU slot are held the whole time.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only estimate the numbers that change the design. Here, every number points back at the GPU.</p>
+  <div class="box">
+    <b>Concurrency.</b> 200M DAU, say each sends 10 messages/day → 2B messages/day ≈ <b>~23k messages/sec</b> average, multiples higher at peak. A response can take 10–30s to stream, so an open message holds a GPU slot far longer than a normal HTTP request — <b>concurrent in-flight generations</b>, not QPS, is the load metric that matters.<br><br>
+    <b>GPU throughput is the ceiling.</b> One GPU generates on the order of tens of tokens/sec per stream. With continuous batching it can serve many streams at once, but throughput is finite. If average concurrency is, say, 1M in-flight generations and one GPU handles ~10–20 concurrent streams, you need tens of thousands of GPUs. <b>Implication:</b> the design is a capacity-management problem — queue, batch, prioritize.<br><br>
+    <b>Context/history storage is cheap by comparison.</b> A conversation is text: a few KB per turn. Even billions of turns is terabytes, not the bottleneck. <b>Implication:</b> store history in a boring, cheap, horizontally-sharded store; spend your design budget on the GPU fleet.
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>User</code> · <code>Conversation</code> (ordered list of messages, owned by a user) · <code>Message</code> (<code>role</code> = user/assistant, <code>content</code>, <code>tokens</code>, <code>createdAt</code>). User identity is derived from the auth token, never sent in the body.</p>
+  <table>
+    <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>POST /v1/chat/completions</code></td><td>Send a message in a conversation; response is an <b>SSE stream</b> of tokens (<code>Content-Type: text/event-stream</code>), terminated by a <code>[DONE]</code> event.</td></tr>
+      <tr><td><code>GET /v1/conversations</code></td><td>List the caller's conversations (paginated, most-recent first).</td></tr>
+      <tr><td><code>GET /v1/conversations/{id}</code></td><td>Fetch full message history for one conversation (to render / resume) <a href="#c1" class="cite">[1]</a>.</td></tr>
+      <tr><td><code>POST /v1/conversations</code></td><td>Create a new conversation.</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <b>Request shape for the streaming call:</b>
+    <ul>
+      <li><code>conversation_id</code> — which thread (server loads prior context from it).</li>
+      <li><code>message</code> — the new user turn.</li>
+      <li>Server replies with SSE: each event carries a token/chunk; the client appends as they arrive.</li>
+    </ul>
+  </div>
+
+  <h2>High-Level Design</h2>
+  <p>Trace one message through the boxes. Two flows: <b>generate</b> (the hard path) and <b>read history</b> (the easy path).</p>
+  <table>
+    <thead><tr><th>Component</th><th>Role on a <code>POST /v1/chat/completions</code></th></tr></thead>
+    <tbody>
+      <tr><td>API gateway / LB</td><td>Auth, rate-limit, terminate TLS. Routes to a stateless API server.</td></tr>
+      <tr><td>Chat API server</td><td>Loads conversation history from the store, assembles the prompt (history + new message), and submits a generation job to the inference queue. Holds the SSE connection open and relays tokens to the client.</td></tr>
+      <tr><td>History store</td><td>Conversation + Message rows, sharded by <code>user_id</code> (or conversation_id). Cheap, durable, horizontally scalable (e.g. Cassandra/DynamoDB).</td></tr>
+      <tr><td><b>Inference queue</b></td><td>Buffers generation requests in front of the GPU fleet so workers are never starved and bursts don't drop. The control point for prioritization.</td></tr>
+      <tr><td><b>GPU inference fleet</b></td><td>Pool of GPU workers running the model. Pull jobs, batch them, stream tokens back. Autoscaled. The scarce resource.</td></tr>
+    </tbody>
+  </table>
+  <p>Read path is trivial: <code>GET /v1/conversations/{id}</code> hits the history store directly — no GPU involved. After a generation completes, the API server persists the assistant message so the next turn can replay it.</p>
+
+  <h2>Deep Dives</h2>
+  <p>This is the 60%. Four hard parts, each mapped to an NFR.</p>
+
+  <h3>1 · Streaming responses — why SSE</h3>
+  <p>The model produces tokens one at a time over many seconds. We want the user to see them <em>as they appear</em> (low TTFT), so we cannot wait for the full response. We need a server-push channel — and the choice between <b>SSE</b> and <b>WebSocket</b> is a classic staff discrimination (see <a href="0002-networking-and-apis.html">Lesson 02</a> and <a href="0002-networking-and-apis.html">Lesson 02</a>).</p>
+  <table>
+    <thead><tr><th>Need</th><th>SSE</th><th>WebSocket</th></tr></thead>
+    <tbody>
+      <tr><td>Direction</td><td><b>One-way</b> server→client — exactly our token stream</td><td>Full-duplex — more than we need here</td></tr>
+      <tr><td>Transport</td><td>Plain HTTP; auto-reconnect built in</td><td>Separate protocol upgrade; manage reconnect yourself</td></tr>
+      <tr><td>Infra fit</td><td>Works through HTTP proxies/CDNs easily</td><td>Often needs special proxy config</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <b>Pick SSE.</b> The token stream is one-directional, the new prompt arrives in a normal <code>POST</code> body, and SSE rides ordinary HTTP with built-in reconnection. WebSocket's full-duplex channel is capability we don't use — paying its complexity tax would be over-engineering. The cost: the <b>request is held open for the whole generation</b>, so the front tier must handle many long-lived connections (lots of idle sockets, little CPU) — size for connection count, not request rate.
+  </div>
+
+  <h3>2 · Serving the model — the GPU inference fleet</h3>
+  <p>The mistake juniors make: treat the model server like a stateless API behind a round-robin LB. It isn't. A generation runs for tens of seconds, pins a GPU, and GPUs are too expensive to leave idle. Model it as a <b>queue in front of a pool of GPU workers</b> — the same producer/consumer shape as an async job system (<a href="0007-messaging-and-async.html">Lesson 07</a>) and an autoscaling fleet (<a href="0010-common-patterns.html">Lesson 10</a>).</p>
+  <div class="box">
+    <b>Batching is the whole game.</b> A GPU is most efficient processing many sequences in parallel. <b>Continuous (in-flight) batching</b> lets the worker add new requests to the running batch and evict finished ones token-by-token, instead of waiting for a fixed batch to complete. This keeps the GPU saturated and raises tokens/sec/GPU dramatically.<br><br>
+    <b>The queue</b> decouples bursty arrivals from finite workers: requests wait briefly rather than being dropped or starving a worker. It's also where you enforce priority (deep dive 4).<br><br>
+    <b>Autoscaling</b> the GPU fleet tracks queue depth / TTFT, but GPUs are slow and costly to spin up — scale on sustained signals, keep warm headroom, and accept some queueing rather than over-provisioning the most expensive box in the building.<br><br>
+    <b>Long generation</b> means a worker is committed for the duration; track per-stream progress, support cancellation when the client disconnects (free the slot immediately), and cap max output length.
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Say the words: <em>"The GPU fleet is not a stateless service — it's a queued, continuously-batched, autoscaled pool of the scarcest resource in the system."</em> Routing across GPU workers and scheduling generations is the central challenge <a href="#c1" class="cite">[1]</a>. A senior describes an LB in front of model servers; a staff candidate describes batching economics, queue-depth-driven autoscaling, and slot reclamation on disconnect — and ties each back to "idle GPU is burned money."
+  </div>
+
+  <h3>3 · Conversation context &amp; memory</h3>
+  <p>Multi-turn means each prompt carries prior turns so the model "remembers." But the model has a fixed <b>context window</b> (a token limit), and resending the whole history every turn both risks overflow and grows inference cost linearly with conversation length.</p>
+  <table>
+    <thead><tr><th>Strategy</th><th>What it does</th><th>Tradeoff</th></tr></thead>
+    <tbody>
+      <tr><td>Send full history</td><td>Replay every turn into the prompt</td><td>Simple; overflows the window and gets expensive as it grows</td></tr>
+      <tr><td><b>Truncation</b> (sliding window)</td><td>Keep the most recent N turns / tokens</td><td>Bounded cost; silently forgets older context</td></tr>
+      <tr><td><b>Summarization</b></td><td>Compress old turns into a running summary, keep recent turns verbatim</td><td>Preserves gist cheaply; summary can lose detail, costs an extra LLM call</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <b>Pick: hybrid.</b> Keep recent turns verbatim for fidelity, summarize the older tail to stay within the window and control cost — without making the assistant "feel forgetful" <a href="#c1" class="cite">[1]</a>. Persist messages in the history store and assemble the context server-side on each turn, so the client only sends the new message.
+  </div>
+
+  <h3>4 · Cost &amp; capacity management</h3>
+  <p>Because the GPU is the bottleneck, demand <em>will</em> exceed supply at peak. You manage it at the queue, not by buying infinite GPUs.</p>
+  <div class="box">
+    <ul>
+      <li><b>Rate limiting</b> per user — stops a heavy user from monopolizing GPUs <a href="#c1" class="cite">[1]</a> (token-bucket at the gateway).</li>
+      <li><b>Prioritization / tiers</b> — paid tiers get a better experience: separate or higher-priority queues so their jobs are scheduled first <a href="#c1" class="cite">[1]</a>.</li>
+      <li><b>Queue + backpressure</b> — under overload, queue (raising TTFT gracefully) rather than dropping; shed or slow lowest-priority free traffic first.</li>
+      <li><b>Cap output length &amp; context</b> — bounds the worst-case GPU time per request, making capacity predictable.</li>
+    </ul>
+  </div>
+  <p>The throughline: storage is cheap, the GPU is precious, so every lever — batching, queueing, truncation, rate limits, tiers — exists to extract more useful tokens per GPU-second.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why is SSE preferred over WebSocket for streaming the model's tokens?</p>
+      <button class="opt">WebSocket cannot carry text payloads across an ordinary proxy</button>
+      <button class="opt">The token stream is one-way, and SSE rides plain HTTP simply</button>
+      <button class="opt">SSE encrypts each token while WebSocket leaves them in plaintext</button>
+      <p class="fb">Tokens flow server→client only; SSE is purpose-built one-way push over HTTP with reconnect, so WebSocket's duplex is unused complexity.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. What makes the GPU fleet different from a normal stateless web tier?</p>
+      <button class="opt">It must keep every user's full session pinned to one chosen worker</button>
+      <button class="opt">It cannot be replicated, so only one worker may ever run a model</button>
+      <button class="opt">It is a scarce resource served via a queued, batched, autoscaled pool</button>
+      <p class="fb">GPUs are expensive and finite; long generations pin them, so you queue, continuously batch, and autoscale rather than round-robin like web servers.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. How do you keep multi-turn context within the model's window as it grows?</p>
+      <button class="opt">Summarize older turns and keep recent turns verbatim in context</button>
+      <button class="opt">Resend the entire conversation history on every single new turn</button>
+      <button class="opt">Discard the conversation and start fresh whenever it gets long</button>
+      <p class="fb">A hybrid keeps fidelity on recent turns while compressing the old tail, bounding both window overflow and per-turn inference cost.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Where do you stop one heavy user from monopolizing scarce GPUs?</p>
+      <button class="opt">By sharding the conversation history store across many more nodes</button>
+      <button class="opt">By rate limiting per user and prioritizing tiers at the queue</button>
+      <button class="opt">By caching past assistant responses inside a read-through layer</button>
+      <p class="fb">Capacity is managed at the queue: per-user rate limits plus tier-based priority decide whose generation a finite GPU runs next.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher — push on the hard parts. Try:
+    <ul>
+      <li>"Walk me through continuous batching and how it changes tokens/sec per GPU."</li>
+      <li>"Drill me on the SSE-vs-WebSocket tradeoff until I can defend it cold."</li>
+      <li>"Run a live mock: pick a number for DAU and make me size the GPU fleet."</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/chatgpt">Hello Interview — Design ChatGPT</a>. The canonical breakdown: GPUs as the scarce resource, latency-to-first-token, token streaming, GPU scheduling, fair allocation, and cost management.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/chatgpt">Hello Interview — Design ChatGPT</a> (FRs, scope, NFRs incl. latency-to-first-token, GPUs as scarce resource, ~200M DAU, the four deep dives: token streaming, GPU scheduling, fair allocation, cost management).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0038-metrics-monitoring.html">← Lesson 38</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 🎓 Curriculum complete — ask your teacher to run a live mock on any case study.</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

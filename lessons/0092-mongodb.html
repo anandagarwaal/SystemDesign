@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 92 — Deep Dive: MongoDB</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 92 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: MongoDB</h1>
+  <p class="sub">The document database — flexible schemas, embedded data, replica sets for HA, and sharding for scale. What it really is under the hood, and when the shape of your data makes it the right call.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A senior candidate says "I'll use MongoDB because it's NoSQL and scales." A staff candidate says "I'll model the post and its comments as one embedded document so the feed read is a single lookup, replicate it across a three-node replica set for HA, and shard on a hashed <code>userId</code> to spread writes." The difference is knowing the <em>internals</em> — the document model, WiredTiger, replica sets, and shard-key choice — well enough to justify every decision and name the failure modes before the interviewer does.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>What it is &amp; the data model</h2>
+  <p>MongoDB is a <b>document database</b>: instead of rows in tables, it stores <b>documents</b> — JSON-like objects — grouped into <b>collections</b>.<a href="#c1" class="cite">[1]</a> On disk and on the wire those documents are <b>BSON</b> (Binary JSON), a binary-encoded superset of JSON that adds types JSON lacks: <code>Date</code>, <code>ObjectId</code>, 64-bit ints, decimals, and binary blobs.<a href="#c2" class="cite">[2]</a> Every document carries a unique <code>_id</code> (an <code>ObjectId</code> by default) that is automatically indexed.<a href="#c1" class="cite">[1]</a></p>
+  <p>The headline property is the <b>flexible schema</b>: two documents in the same collection need not have the same fields, and you can add a field to new documents without a migration or downtime.<a href="#c3" class="cite">[3]</a> This is power and footgun in one — great for evolving products, dangerous if you let the shape drift uncontrolled. (Schema validation rules exist to put guardrails back on.)<a href="#c3" class="cite">[3]</a></p>
+  <p>The central modeling decision is <b>embedding vs. referencing</b>:</p>
+  <table>
+    <thead>
+      <tr><th>Approach</th><th>What it means</th><th>Use when…</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Embed</b></td>
+        <td>Nest related data inside the parent document (a post with its comments array)</td>
+        <td>Data is read together, has a contains/one-to-few relationship, and the document stays under the 16&nbsp;MB limit<a href="#c4" class="cite">[4]</a></td>
+      </tr>
+      <tr>
+        <td><b>Reference</b></td>
+        <td>Store the related doc separately and keep its <code>_id</code> (like a foreign key); join at read time with <code>$lookup</code></td>
+        <td>Data is large, shared across parents, or unbounded (one-to-many/many-to-many) so embedding would bloat or duplicate<a href="#c4" class="cite">[4]</a></td>
+      </tr>
+    </tbody>
+  </table>
+  <p>The guiding principle: <b>data that is accessed together should be stored together.</b><a href="#c4" class="cite">[4]</a> Embedding turns what would be a multi-table join in SQL into a single document read.</p>
+
+  <h2>Internals — the meat</h2>
+
+  <h3>The document model: when embedding wins</h3>
+  <p>In a relational DB, a user profile with addresses, payment methods, and preferences is four tables and a four-way join. In MongoDB it's <b>one document</b> — fetch it with a single key lookup, no join, no N+1.<a href="#c4" class="cite">[4]</a> That locality is the entire performance argument: you trade the relational ability to recombine data arbitrarily for the ability to read a whole aggregate in one I/O. The cost is duplication and the <b>16&nbsp;MB document size limit</b><a href="#c4" class="cite">[4]</a> — embed an unbounded array (every comment on a viral post) and you eventually blow that ceiling, which is exactly why unbounded one-to-many relationships should be referenced, not embedded.</p>
+
+  <h3>WiredTiger + B-tree indexes</h3>
+  <p>The default storage engine is <b>WiredTiger</b>.<a href="#c5" class="cite">[5]</a> Two things to know for an interview. First, it uses <b>document-level concurrency control</b> — multiple clients can modify different documents in the same collection at the same time, so writes don't serialize on a collection lock.<a href="#c5" class="cite">[5]</a> Second, it uses an internal cache plus on-disk <b>compression</b> (snappy by default), and it implements <b>multi-version concurrency control (MVCC)</b> so readers see a consistent snapshot without blocking writers.<a href="#c5" class="cite">[5]</a></p>
+  <p>Indexes are <b>B-trees</b>, just like a relational DB.<a href="#c6" class="cite">[6]</a> Without an index a query is a full collection scan; with one, MongoDB walks the tree. The same rules you learned for SQL apply: index the fields you filter and sort on, compound indexes follow the left-prefix rule, and every index you add taxes writes. MongoDB also offers multikey indexes (over array fields), and specialized geospatial and text indexes.<a href="#c6" class="cite">[6]</a> The mental model from the <a href="../lessons/0003-databases-and-indexing.html">databases &amp; indexing lesson</a> transfers directly.</p>
+
+  <h3>Replica sets — high availability</h3>
+  <p>A <b>replica set</b> is MongoDB's HA unit: a group of <code>mongod</code> processes holding the same data — one <b>primary</b> and one or more <b>secondaries</b>.<a href="#c7" class="cite">[7]</a> All writes go to the primary, which records every change in its <b>oplog</b> (operations log); secondaries tail that oplog and replay it asynchronously to stay in sync.<a href="#c7" class="cite">[7]</a> If the primary becomes unreachable, the remaining members hold an <b>election</b> and a secondary is voted in as the new primary — typically within seconds — giving automatic failover.<a href="#c7" class="cite">[7]</a></p>
+  <p>Two interview levers fall out of this. <b>Write concern</b> (<code>w</code>) controls how many members must acknowledge a write before it's confirmed — <code>w:1</code> is fast but can lose a just-written change on failover, <code>w:"majority"</code> is durable but slower.<a href="#c7" class="cite">[7]</a> <b>Read preference</b> lets you read from secondaries to offload the primary, accepting that secondaries may lag (eventual consistency on those reads).<a href="#c7" class="cite">[7]</a> Use an <b>odd</b> number of voting members (three is the canonical minimum) so elections always reach a majority.<a href="#c7" class="cite">[7]</a></p>
+
+  <h2>Scaling</h2>
+
+  <h3>Sharding by shard key</h3>
+  <p>A replica set scales reads and gives HA, but every write still lands on one primary that must fit on one machine. To scale <b>writes and storage horizontally</b>, MongoDB <b>shards</b>: it partitions a collection across multiple shards (each shard is itself a replica set), routed by a <b>shard key</b>.<a href="#c8" class="cite">[8]</a> A <code>mongos</code> router sends each query to the right shard(s) using config-server metadata.<a href="#c8" class="cite">[8]</a> This is the same partitioning idea from the <a href="../lessons/0005-sharding-and-consistent-hashing.html">sharding lesson</a>, applied inside a managed database.</p>
+  <p>There are two sharding strategies:</p>
+  <table>
+    <thead>
+      <tr><th>Strategy</th><th>How it splits</th><th>Trade-off</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>Hashed</b></td>
+        <td>Hash of the shard key decides the chunk</td>
+        <td>Even write distribution, but range queries scatter to all shards<a href="#c8" class="cite">[8]</a></td>
+      </tr>
+      <tr>
+        <td><b>Ranged</b></td>
+        <td>Contiguous ranges of the key value map to chunks</td>
+        <td>Efficient range scans, but a monotonic key (timestamp) hot-spots one shard<a href="#c8" class="cite">[8]</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Why shard-key choice is everything</h3>
+  <p>This is the deepest, most interview-relevant point. A bad shard key creates <b>hot shards</b> (one shard takes most traffic while others idle) and <b>jumbo chunks</b> (a chunk that can't be split because too many documents share one key value, so it can't be balanced away).<a href="#c8" class="cite">[8]</a> A good shard key has <b>high cardinality</b>, <b>low frequency</b> (no single value dominates), and <b>non-monotonic</b> change so writes spread instead of always hitting the newest chunk.<a href="#c8" class="cite">[8]</a> The classic mistake — sharding time-series on a raw timestamp — funnels every new write to one shard. The fix is hashing the key, or a compound key that mixes a high-cardinality field in. <b>And it's hard to undo</b>: changing the shard key on a large collection is a heavyweight operation, so this is a decision you justify carefully up front.</p>
+
+  <h3>Aggregation pipeline &amp; transactions</h3>
+  <p>For analytics-style queries MongoDB has the <b>aggregation pipeline</b>: documents flow through ordered stages — <code>$match</code> (filter), <code>$group</code> (aggregate), <code>$sort</code>, <code>$lookup</code> (join), <code>$project</code> (reshape) — each transforming the stream.<a href="#c9" class="cite">[9]</a> It's MongoDB's answer to <code>GROUP BY</code> and joins, and it runs server-side so you don't pull raw data to the app.</p>
+  <p>And yes, MongoDB has <b>multi-document ACID transactions</b>.<a href="#c10" class="cite">[10]</a> Within one document, updates are always atomic — that's free, and embedding often means you never need a multi-doc transaction.<a href="#c10" class="cite">[10]</a> When you genuinely need atomicity across documents or collections (a transfer touching two accounts), transactions are available across replica sets and sharded clusters.<a href="#c10" class="cite">[10]</a> The staff framing: reach for embedding to make the transaction <em>unnecessary</em> first; use multi-doc transactions as the deliberate exception, since they carry coordination cost.</p>
+
+  <h2>When to reach for it — and when NOT</h2>
+  <div class="box">
+    <b>Reach for MongoDB when…</b>
+    <ul>
+      <li>Your data is naturally <b>document-shaped</b> and read as an aggregate — catalogs, user profiles, content/CMS, IoT events, mobile app state.<a href="#c1" class="cite">[1]</a></li>
+      <li>The <b>schema evolves fast</b> and you want to ship fields without migrations.<a href="#c3" class="cite">[3]</a></li>
+      <li>You need <b>horizontal scale</b> for writes/storage with built-in sharding and HA replica sets, managed for you (Atlas).<a href="#c8" class="cite">[8]</a></li>
+    </ul>
+    <b>Reach for something else when…</b>
+    <ul>
+      <li>The workload is <b>heavily relational</b> with many-to-many joins and ad-hoc analytics across entities → a relational DB. See the <a href="../lessons/0003-databases-and-indexing.html">databases lesson</a> and the <a href="../lessons/0009-key-technologies-tour.html">key-technologies tour</a>.</li>
+      <li>You need <b>massive write throughput with leaderless multi-region</b> writes and tunable quorum → Cassandra.<a href="#c11" class="cite">[11]</a></li>
+      <li>You need an <b>in-memory cache, counter, or leaderboard</b> → Redis. MongoDB is durable storage, not a sub-millisecond cache.</li>
+    </ul>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior candidates pick MongoDB because "it's flexible." Staff candidates lead with the <b>access pattern</b>: "We read a post with its top comments as one screen, so I embed top comments and reference the long tail — one read serves the view, and we never hit the 16&nbsp;MB limit."<a href="#c4" class="cite">[4]</a> Then they pre-empt the failure modes <em>before</em> being asked: "I'll shard on hashed <code>userId</code>, not <code>createdAt</code>, to avoid a hot shard on recent writes,<a href="#c8" class="cite">[8]</a> use <code>w:majority</code> on the payment write for durability across failover,<a href="#c7" class="cite">[7]</a> and keep multi-doc transactions to the rare cross-account transfer because embedding handles the rest atomically."<a href="#c10" class="cite">[10]</a> Naming the trade-off you're <em>not</em> taking — and why — is the tell that you've run this in production, not just read the marketing page.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When MongoDB is the right answer, deliver it in this order: (1) <b>name the data shape</b> — "these entities are read together as an aggregate, so a document model fits." (2) <b>State your embed/reference split</b> and tie it to the 16&nbsp;MB limit and the read path.<a href="#c4" class="cite">[4]</a> (3) <b>Cover HA</b> with a replica set and the write concern you'd choose for the critical path.<a href="#c7" class="cite">[7]</a> (4) <b>Cover scale</b> by stating the shard key and <em>why</em> it avoids hot shards — this is where the depth points live.<a href="#c8" class="cite">[8]</a> (5) Mention the aggregation pipeline for any reporting requirement and transactions for the rare cross-document atomic case.<a href="#c9" class="cite">[9]</a> Don't recite all of it — go deep on the one or two that the requirements actually stress.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. When does embedding beat referencing for related data in MongoDB?</p>
+      <button class="opt">When the related data is shared across very many parent documents</button>
+      <button class="opt">When the embedded array grows without any practical upper bound</button>
+      <button class="opt">When the data is read together and the document stays under the cap</button>
+      <button class="opt">When you need to join the data against other collections at read time</button>
+      <p class="fb">Embed data accessed together that fits the 16 MB limit; reference unbounded or shared data.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Why does sharding a collection on a raw timestamp hurt?</p>
+      <button class="opt">Timestamps are random so the writes scatter evenly across all of shards</button>
+      <button class="opt">Timestamps rise monotonically so new writes hot-spot one single shard</button>
+      <button class="opt">Timestamps cannot be indexed so the router scans across every shard</button>
+      <button class="opt">Timestamps have low cardinality so the chunks cannot be split apart</button>
+      <p class="fb">A monotonic key always targets the newest chunk, creating a hot shard; hash it or compound it.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What is the oplog's role inside a MongoDB replica set?</p>
+      <button class="opt">It records primary writes so secondaries replay them to stay synced</button>
+      <button class="opt">It caches the hottest read queries so the primary returns them fast</button>
+      <button class="opt">It stores the shard key ranges so the router targets the right shard</button>
+      <button class="opt">It buffers client writes so the engine batches them onto the disk</button>
+      <p class="fb">Secondaries tail the primary's oplog and replay it; on primary loss, an election promotes one.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. Which is true of multi-document transactions in MongoDB?</p>
+      <button class="opt">They are required for every update because no write is ever atomic</button>
+      <button class="opt">They are impossible because the engine locks the whole collection</button>
+      <button class="opt">They are unsupported once a collection has been sharded at all</button>
+      <button class="opt">They are supported but embedding often makes them unnecessary</button>
+      <p class="fb">Single-document writes are always atomic; multi-doc ACID exists but embedding avoids most needs.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on it. Try: "Walk me through modeling Twitter's feed in MongoDB — what do I embed vs reference?" · "Give me a system where MongoDB is wrong, and tell me what beats it and why." · "Drill me on shard-key choice with three concrete schemas and make me spot the hot shard."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.mongodb.com/docs/manual/">MongoDB Manual</a>. The canonical reference — read the Data Modeling, Replication, and Sharding sections end-to-end once, then use this lesson for fast recall.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.mongodb.com/docs/manual/core/document/">MongoDB Manual — Documents &amp; the document model</a> (documents, collections, <code>_id</code>, document database overview).</p>
+    <p id="c2">[2] <a href="https://www.mongodb.com/docs/manual/reference/bson-types/">MongoDB Manual — BSON Types</a> (BSON as binary JSON superset with extra types).</p>
+    <p id="c3">[3] <a href="https://www.mongodb.com/docs/manual/core/schema-validation/">MongoDB Manual — Flexible schema &amp; schema validation</a> (dynamic schema, optional validation rules).</p>
+    <p id="c4">[4] <a href="https://www.mongodb.com/docs/manual/data-modeling/">MongoDB Manual — Data Modeling (embedding vs referencing)</a> (store-together principle, 16 MB document limit).</p>
+    <p id="c5">[5] <a href="https://www.mongodb.com/docs/manual/core/wiredtiger/">MongoDB Manual — WiredTiger Storage Engine</a> (document-level concurrency, compression, MVCC).</p>
+    <p id="c6">[6] <a href="https://www.mongodb.com/docs/manual/indexes/">MongoDB Manual — Indexes</a> (B-tree indexes, compound, multikey, geospatial, text).</p>
+    <p id="c7">[7] <a href="https://www.mongodb.com/docs/manual/replication/">MongoDB Manual — Replication</a> (replica sets, primary/secondary, oplog, elections, write concern, read preference).</p>
+    <p id="c8">[8] <a href="https://www.mongodb.com/docs/manual/sharding/">MongoDB Manual — Sharding</a> (shard key, hashed vs ranged, hot shards, jumbo chunks, <code>mongos</code>).</p>
+    <p id="c9">[9] <a href="https://www.mongodb.com/docs/manual/core/aggregation-pipeline/">MongoDB Manual — Aggregation Pipeline</a> (stages: <code>$match</code>, <code>$group</code>, <code>$lookup</code>, <code>$project</code>).</p>
+    <p id="c10">[10] <a href="https://www.mongodb.com/docs/manual/core/transactions/">MongoDB Manual — Transactions</a> (single-doc atomicity, multi-document ACID across replica sets and shards).</p>
+    <p id="c11">[11] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/key-technologies">Hello Interview — Key Technologies</a> (comparison anchors for when other stores fit better).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0091-dynamodb.html">← Lesson 91</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 93 · Redis</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

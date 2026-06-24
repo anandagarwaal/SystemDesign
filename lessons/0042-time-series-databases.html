@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 42 — Time Series Databases</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 42 · Phase 2 — Key Technologies</p>
+  <h1>Time Series Databases</h1>
+  <p class="sub">A store built for one shape of data — append-only, time-ordered samples — where the workload is write-dominated and the real enemy is cardinality, not QPS.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Metrics, IoT, financial ticks, app telemetry — all are write-heavy time-series workloads, and the lazy answer ("put it in Postgres") collapses under the write rate and series count. The staff move is to reach for a purpose-built TSDB, explain <em>why</em> a row store fails, and name <b>tag cardinality</b> — not raw throughput — as the central scaling problem. This generalizes the engine you built in <a href="0038-metrics-monitoring.html">Lesson 38</a>.<a href="#c1" class="cite">[1]</a></p>
+  </div>
+
+  <h2>1 · What makes time-series data special</h2>
+  <p>A time-series point is <code>metric name + tags + value + timestamp</code> — e.g. <code>http.latency{service=checkout,region=us} 142 @t</code>. The workload has a distinctive shape that a TSDB exploits:<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <thead><tr><th>Property</th><th>Consequence for the engine</th></tr></thead>
+    <tbody>
+      <tr><td><b>Write-dominated</b> — millions of samples/sec, append-only</td><td>Optimize for sequential appends, not random updates → B-trees lose.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Time-ordered &amp; immutable</b> — points rarely change once written</td><td>Partition by time; old data is read-only and compressible.</td></tr>
+      <tr><td><b>Range-scan reads</b> — "p99 latency over 2 weeks"</td><td>Columnar layout + pre-aggregation; never scan raw points.</td></tr>
+      <tr><td><b>Recent data is hot</b>, old data is cold</td><td>Tiered storage + downsampling by age.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2 · The storage engine — LSM blocks + WAL</h2>
+  <p>Almost every TSDB (Prometheus, InfluxDB's TSM) uses an <b>LSM-style block store</b>.<a href="#c1" class="cite">[1]</a> Writes hit a <b>Write-Ahead Log</b> for durability, accumulate in an in-memory <b>head</b> block, then flush to <b>immutable, time-partitioned blocks</b> on disk; background <b>compaction</b> merges small blocks into larger ones.<a href="#c1" class="cite">[1]</a> Prometheus crystallized the canonical layout: <b>2-hour head blocks</b>, 128 MB WAL segments, compacted upward (6h → 18h → 54h) up to 31 days or 10% of retention.<a href="#c4" class="cite">[4]</a></p>
+  <p>This is the LSM-tree from <a href="0003-databases-and-indexing.html">Lesson 03</a> specialized for time: append-only writes, immutable sorted blocks, and a read that touches only the blocks overlapping <code>[from, to]</code>.</p>
+
+  <h2>3 · Compression — 16 bytes → ~1.3 bytes/sample</h2>
+  <p>A naïve <code>(timestamp, value)</code> pair is 16 bytes. TSDBs crush that ~10× with two tricks borrowed from Facebook's Gorilla:<a href="#c4" class="cite">[4]</a></p>
+  <div class="box">
+    <ul>
+      <li><b>Delta-of-delta on timestamps.</b> Samples arrive at near-fixed intervals, so the <em>change in the gap</em> is usually 0 — stored in a bit or two.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>XOR on float values.</b> Consecutive values are similar; XOR them and store only the differing bits (leading/trailing zero counts).<a href="#c4" class="cite">[4]</a></li>
+    </ul>
+    Result: <b>~1.3 bytes per sample</b> on typical telemetry — the economics that make the whole system affordable.<a href="#c4" class="cite">[4]</a>
+  </div>
+
+  <h2>4 · Cardinality — the real scaling constraint</h2>
+  <p>This is the heart of the topic. A <b>series</b> = one unique <code>(metric name, label set)</code> combination; the TSDB indexes by series, so the <em>unit of cost is the number of distinct series</em>, called <b>cardinality</b>.<a href="#c5" class="cite">[5]</a> One unbounded label — <code>user_id</code>, <code>request_id</code>, raw URL — can multiply series count by a million overnight.<a href="#c2" class="cite">[2]</a></p>
+  <p>The cost is brutal: the in-memory head holds one chunk per <em>active</em> series, so a million series costs ~2–4 GiB of RAM on Prometheus, and ~10 million is the practical ceiling for a single instance.<a href="#c3" class="cite">[3]</a> Defenses: <b>drop high-cardinality labels</b> (move IDs to logs, not tags), relabel/aggregate at the source, and <b>refuse cardinality bombs at the door</b> rather than silently OOM-ing.<a href="#c2" class="cite">[2]</a> <b>This — not QPS — is what breaks the system.</b></p>
+
+  <h2>5 · Downsampling &amp; retention tiers</h2>
+  <p>Raw, high-resolution data is expensive and mostly useless after a few days — so downsampling isn't optional, it's the economic foundation of long retention.<a href="#c2" class="cite">[2]</a> A background compactor rolls raw points into pre-aggregated, coarser blocks, and old tiers expire:</p>
+  <div class="box">
+    <b>Typical tiering:</b> raw 15 days → 1-minute rollups 90 days → 1-hour rollups 2 years. A query auto-selects the cheapest resolution that still answers it. Going 5s → 1h resolution cuts row count <b>~720×</b>.<a href="#c1" class="cite">[1]</a> A two-week chart reads pre-aggregated hourly blocks, so query cost scales with <em>plotted points</em>, not raw ingest.
+  </div>
+
+  <h2>6 · The landscape — which one to name</h2>
+  <table>
+    <thead><tr><th>System</th><th>Shape</th><th>Reach for it when…</th></tr></thead>
+    <tbody>
+      <tr><td><b>Prometheus</b> (+ Thanos/Mimir)</td><td>Pull-based, local TSDB; shard for scale, Thanos/Mimir for long retention &amp; global query<a href="#c3" class="cite">[3]</a></td><td>Cloud-native metrics &amp; alerting; the default for infra monitoring.</td></tr>
+      <tr><td><b>InfluxDB / QuestDB</b></td><td>Purpose-built standalone TSDB (InfluxDB 3.0 → Arrow/Parquet lakehouse)<a href="#c2" class="cite">[2]</a></td><td>High-rate standalone metrics ingestion.</td></tr>
+      <tr><td><b>TimescaleDB</b></td><td>Postgres extension — hypertable time-chunks + columnar compression<a href="#c2" class="cite">[2]</a></td><td>You're already on Postgres and want SQL + joins with relational data (the "don't add a second system" move).</td></tr>
+      <tr><td><b>ClickHouse</b></td><td>Columnar OLAP, excellent at time-bucketed aggregation</td><td>Heavy analytical rollups over events (e.g. <a href="0036-ad-click-aggregator.html">ad-click aggregation</a>).</td></tr>
+    </tbody>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Three things separate the staff answer: (1) you <b>pick a purpose-built TSDB and explain why a row store fails</b> — append-only, time-partitioned, columnar, compressed, with rollup tiers; (2) you name <b>tag cardinality as the central scaling problem</b> and bound it at ingest rather than hoping storage absorbs it; (3) you show the <b>simple-by-default judgement</b> — "we're already on Postgres at a few million series, so TimescaleDB beats standing up Prometheus+Thanos." Senior candidates scale QPS; staff candidates scale <em>series</em> and know when <em>not</em> to add a second datastore.<a href="#c1" class="cite">[1]</a></p>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="a">
+      <p class="stem">1. Why does a B-tree relational store struggle with metrics ingest?</p>
+      <button class="opt">Random index writes per point can't sustain the write rate</button>
+      <button class="opt">Relational engines cannot store any floating-point sample value</button>
+      <button class="opt">SQL databases are simply unable to express a time-range filter</button>
+      <p class="fb">The workload is write-heavy and append-only; B-tree random index writes can't keep up — TSDBs append sequentially instead.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. How does a TSDB compress 16-byte points to ~1.3 bytes each?</p>
+      <button class="opt">Delta-of-delta on the timestamps plus XOR on the float values</button>
+      <button class="opt">Dropping every second sample just before it is flushed to disk</button>
+      <button class="opt">Storing only the daily average and discarding all raw points now</button>
+      <p class="fb">Gorilla-style encoding: near-constant intervals make timestamp delta-of-deltas tiny, and XOR of similar floats stores few bits.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">3. What is the primary scaling constraint of a time-series database?</p>
+      <button class="opt">The total bytes of raw samples written onto disk every day</button>
+      <button class="opt">Cardinality — the count of unique metric-and-label series</button>
+      <button class="opt">The number of dashboards concurrently querying during alerts</button>
+      <p class="fb">Cost scales with distinct series (name × label combos). One unbounded label can explode cardinality and OOM the head.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why does downsampling make multi-year retention affordable?</p>
+      <button class="opt">It encrypts the old blocks so that they compress far better now</button>
+      <button class="opt">It pre-aggregates raw points into coarser, much smaller rollups</button>
+      <button class="opt">It permanently deletes all data older than the retention window</button>
+      <p class="fb">Coarser rollups (raw→1m→1h) shrink old data ~720× at 5s→1h, so long-range queries read cheap pre-aggregated blocks.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — push on it. Try: <em>"Walk me through what happens when one tenant emits a runaway high-cardinality tag — where does it hurt first?"</em> · <em>"Compare Prometheus+Thanos against TimescaleDB for an app-metrics platform."</em> · <em>"Show me delta-of-delta and XOR encoding on a concrete sample stream."</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://sujeet.pro/articles/design-time-series-database">Sujeet Jaiswal — Design a Time Series Database</a>. A full staff-level system design of a TSDB: LSM block engine, Gorilla compression, cardinality control, tiered downsampling, and a fan-out query layer. Read it end-to-end, then use this lesson for recall.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://sujeet.pro/articles/design-time-series-database">Sujeet Jaiswal — Design a Time Series Database</a> (LSM block engine + WAL + head; Gorilla compression; cardinality as primary constraint; tiered retention raw→1m→1h; 720× downsampling).</p>
+    <p id="c2">[2] <a href="https://hld.handbook.academy/curriculum/data-systems/time-series-databases/">The HLD Handbook — Time-Series Databases</a> (~1.37 B/sample via delta-of-delta + XOR; cardinality &amp; unbounded-label explosion; Prometheus/InfluxDB/TimescaleDB engines; downsampling economics).</p>
+    <p id="c3">[3] <a href="https://systeminternals.dev/prometheus/">Systems Explained — Prometheus Internals</a> (series = name × labels; ~2–4 GiB RAM per million series, ~10M ceiling; 2h→54h blocks; XOR ~1.3 B/sample; shard vs Thanos/Mimir).</p>
+    <p id="c4">[4] <a href="https://www.infoq.com/articles/time-series-storage-design/">InfoQ — Time-Series Storage Design Choices</a> (downsampling 5s→1h cuts rows 720×; inverted index/TSI mapping label matchers to series; cardinality warnings on requestID/IP).</p>
+    <p id="c5">[5] <a href="https://www.tigerdata.com/learn/time-series-database-what-it-is-how-it-works-and-when-you-need-one">Tiger Data — What a Time-Series Database Is</a> (columnar storage for high-cardinality fields; downsampling 31.5M→8,760 rows; TimescaleDB hypertables vs standalone TSDBs).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0041-data-structures-for-big-data.html">← Lesson 41</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → Practice: live mock interviews &amp; spaced review</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

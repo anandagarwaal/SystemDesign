@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 98 — Deep Dive: Graph Databases (Neo4j)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 98 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Graph Databases (Neo4j)</h1>
+  <p class="sub">Why "what are this user's friends-of-friends" is one cheap query in Neo4j and a self-join nightmare in Postgres — and when that difference actually earns a graph database.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> At L6/L7 the interviewer pushes on the access pattern, not the logo. When the design hinges on <em>traversing relationships</em> — friends-of-friends, recommendations, fraud rings, knowledge graphs — a senior says "I'll add a join table." A staff candidate explains <em>why</em> repeated joins blow up exponentially with depth, names <strong>index-free adjacency</strong> as the mechanism that makes Neo4j's traversal cost depend on <em>local degree</em> not <em>total table size</em>, and then — crucially — knows when a graph database is the wrong call and you should keep your Postgres.<a href="#c1" class="cite">[1]</a></p>
+  </div>
+
+  <h2>What it is &amp; the data model</h2>
+  <p>A <b>graph database</b> stores data as a <b>property graph</b>: <b>nodes</b> (entities), <b>relationships</b> (typed, directed edges between nodes), and <b>properties</b> (key–value pairs) attached to both.<a href="#c1" class="cite">[1]</a> A node carries one or more <em>labels</em> (<code>:Person</code>, <code>:Account</code>); a relationship has exactly one <em>type</em> (<code>:FRIENDS_WITH</code>, <code>:TRANSFERRED_TO</code>) and a direction. Relationships are first-class citizens with their own properties — <code>since: 2019</code> on a friendship, <code>amount: 500</code> on a transfer.<a href="#c1" class="cite">[1]</a></p>
+
+  <p>The contrast with relational is the point. In SQL, relationships are <em>implied</em> by matching a foreign key at query time — you discover that two rows are connected by paying for a join. In a property graph, the relationship is <em>stored</em> as an object; connection is a fact already on disk, not a computation.<a href="#c2" class="cite">[2]</a></p>
+
+  <h3>Cypher — the query language</h3>
+  <p>Neo4j queries in <b>Cypher</b>, a declarative language whose ASCII-art mirrors the graph: nodes in <code>()</code>, relationships in <code>-[]-&gt;</code>.<a href="#c3" class="cite">[3]</a> "Find friends-of-friends of Alice" reads almost like the English:</p>
+  <p><code>MATCH (a:Person {name:'Alice'})-[:FRIEND]-&gt;()-[:FRIEND]-&gt;(fof) RETURN DISTINCT fof</code></p>
+  <p>Each extra hop is one more <code>-[:FRIEND]-&gt;()</code> segment — the query grows linearly with traversal depth, while the equivalent SQL grows by one more self-join per hop.</p>
+
+  <h2>Internals — index-free adjacency (the meat)</h2>
+  <p>This is the section that earns the lesson. The reason Neo4j traverses deep relationships cheaply is a storage design called <b>index-free adjacency</b>: every node stores direct pointers (physical references) to its relationship records, and each relationship record points directly to the nodes on either end.<a href="#c2" class="cite">[2]</a> Walking from a node to its neighbours is pointer-chasing — you follow a memory/disk reference — <em>not</em> a lookup in a global index.</p>
+
+  <p>Concretely, Neo4j's native store uses fixed-size records so a record's position can be computed by arithmetic (<code>id × recordSize</code>) rather than searched for.<a href="#c2" class="cite">[2]</a> A <em>node record</em> holds a pointer to its first relationship; <em>relationship records</em> form a doubly-linked list per node, each carrying the start node, end node, type, and pointers to the next/previous relationship in each node's chain.<a href="#c2" class="cite">[2]</a> Properties live in their own linked store, referenced from the node/relationship.</p>
+
+  <h3>Why this makes a hop O(degree)</h3>
+  <p>To expand one node, you read its relationship chain and follow each pointer to the neighbour. The cost is proportional to that node's <b>degree</b> (its number of relationships) — <em>not</em> the size of the database. Add a billion unrelated users and a given person's hop cost is unchanged.<a href="#c2" class="cite">[2]</a> A <em>k</em>-hop traversal costs roughly the number of relationships actually walked, i.e. <code>O(sum of degrees along the frontier)</code>.</p>
+
+  <p>Compare the relational path. Each hop is a join against a (say) friendships table; even with an index, you pay an <b>index lookup of O(log N)</b> against the <em>whole</em> table per row, and the frontier of rows can multiply hop over hop. Depth-3 over a table of hundreds of millions of edges turns into a cascade of large intermediate result sets. Index-free adjacency replaces "look it up in a structure that grows with the dataset" with "follow a pointer that's already here." That's the whole trick.<a href="#c2" class="cite">[2]</a></p>
+
+  <table>
+    <thead>
+      <tr><th>Operation</th><th>Relational (joins)</th><th>Native graph (index-free adjacency)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Find a node by id/property</td><td>Index lookup, O(log N)</td><td>Index lookup once to <em>enter</em> the graph, O(log N)<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td>Expand one hop</td><td>Join: index lookup per row, O(log N) against full table</td><td>Pointer-chase the relationship chain, O(degree of the node)<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td>k-hop traversal</td><td>k joins; intermediate sets can blow up exponentially</td><td>Walk the frontier; cost = relationships actually traversed</td></tr>
+      <tr><td>Cost driver</td><td>Total table size N</td><td>Local connectivity (degree), independent of N</td></tr>
+    </tbody>
+  </table>
+
+  <h2>When graphs win</h2>
+  <p>The pattern is always the same: the question is about <em>paths and connections</em>, the traversal is <em>deep or variable-depth</em>, and the relationships are denser than the entities.</p>
+  <ul>
+    <li><b>Friends-of-friends &amp; social graph:</b> "people you may know," mutual-connection counts, degrees of separation. Each level of separation is one more hop — see how this underpins audience scoping in <a href="0084-post-privacy-acl.html">post privacy / ACLs (FoF visibility)</a>.</li>
+    <li><b>Recommendations:</b> "users who bought X also bought Y," collaborative filtering, content similarity — bipartite user↔item graphs traversed for nearby items.</li>
+    <li><b>Fraud rings:</b> detecting that several "unrelated" accounts share a device, an address, or a payment instrument is a cycle/community-detection problem on a graph — natural in Cypher, painful in SQL. See <a href="0072-fraud-detection.html">fraud detection</a>.</li>
+    <li><b>Knowledge graphs / identity / lineage:</b> entities linked by many heterogeneous relationship types, queried with variable-length patterns (<code>-[:REL*1..5]-&gt;</code>).</li>
+  </ul>
+
+  <h3>Why these hurt in relational</h3>
+  <p>"Friends-of-friends-of-friends" is a 3-deep self-join on the friendship table. Each join multiplies the working set by the average degree; at depth <em>d</em> with average degree <em>k</em> you're materializing on the order of <em>k<sup>d</sup></em> intermediate rows before de-duplication — the <b>exponential join blow-up</b>.<a href="#c2" class="cite">[2]</a> Variable-depth queries ("shortest path," "any connection within 6 hops") are worse still: SQL can't express "repeat the join an unknown number of times" without recursive CTEs that re-scan at every level. The graph engine just keeps following pointers until the frontier is empty.</p>
+
+  <h3>Scaling &amp; clustering limits</h3>
+  <p>The flip side of index-free adjacency is that it wants the connected data <em>co-located</em>. Pointer-chasing across a network is slow, so graph databases are hard to shard: cutting a densely connected graph across machines means many traversals cross the partition boundary.<a href="#c1" class="cite">[1]</a> Neo4j's traditional clustering scales <em>reads</em> with replicas (one primary for writes, multiple secondaries for read fan-out), but the writable graph generally must fit the primary's resources; horizontal write scaling (Fabric/sharding) is possible but adds real operational complexity.<a href="#c1" class="cite">[1]</a> Translation for the whiteboard: graph DBs scale up and scale reads well, but they don't scale writes the way a leaderless wide-column store does.</p>
+
+  <h2>When NOT to use a graph database</h2>
+  <div class="box">
+    <b>Reach for something else when…</b>
+    <ul>
+      <li><b>Your access pattern is shallow.</b> If you only ever do one-hop lookups ("get this user's direct friends"), an indexed join in Postgres is fine — the graph advantage shows up at depth, not at hop 1.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>You need a transactional system of record at write scale.</b> High-throughput, write-heavy OLTP with simple relationships → Postgres or a wide-column store, not Neo4j.</li>
+      <li><b>The workload is aggregation/analytics over columns.</b> "Sum revenue by region by month" is a data-warehouse/columnar job, not a traversal.</li>
+      <li><b>You need full-text search</b> → Elasticsearch; <b>cache/counters</b> → Redis. A graph DB is a specialist, usually <em>alongside</em> your primary store, not replacing it.</li>
+    </ul>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Don't introduce Neo4j because the domain "has relationships" — everything has relationships, and Postgres models them fine.<a href="#c1" class="cite">[1]</a> The staff move is to justify it on the <em>access pattern</em>: "We need variable-depth traversal — shortest path and shared-attribute rings — at p99 under 100ms, and the relational plan blows up exponentially with depth, so I'll put the relationship-heavy queries on a native graph store fed from Postgres." Then immediately name the cost you're accepting: "It's a second store to keep in sync, and it doesn't shard writes cleanly, so it's a read-optimized side index, not the source of truth." Naming the mechanism (index-free adjacency), the boundary (one-hop doesn't need it), and the operational tax (sync + sharding) in one breath is what reads as staff.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>Graph databases almost never appear as "design Neo4j." They appear as a <em>deep dive</em> the moment your design surfaces a connection-traversal problem. The play:</p>
+  <ul>
+    <li><b>Diagnose the pattern out loud:</b> "This 'people you may know' feature is a 2–3 hop traversal over the social graph — that's a graph-shaped access pattern."</li>
+    <li><b>Reach for the relational option first and show why it breaks:</b> a self-join per hop, exponential intermediate sets, no clean variable-depth query.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Introduce the graph store with the mechanism:</b> index-free adjacency → traversal cost scales with local degree, not table size.</li>
+    <li><b>Bound it:</b> keep Postgres as the system of record, treat the graph as a derived, read-optimized store kept in sync; acknowledge write-sharding limits.</li>
+  </ul>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. What does "index-free adjacency" mean for the cost of expanding one node?</p>
+      <button class="opt">Cost grows with the total number of rows stored</button>
+      <button class="opt">Cost grows with that one node's local degree</button>
+      <button class="opt">Cost grows with the depth of the global index</button>
+      <button class="opt">Cost grows with the count of distinct labels</button>
+      <p class="fb">Neighbours are reached by chasing stored pointers, so a hop costs O(degree) and is independent of total dataset size N.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. Why does deep friends-of-friends hurt a relational database the most?</p>
+      <button class="opt">Foreign keys are not allowed across many tables</button>
+      <button class="opt">Indexes cannot be built on a friendship table</button>
+      <button class="opt">Each hop is a join whose result set blows up</button>
+      <button class="opt">Cypher syntax cannot be parsed by a planner</button>
+      <p class="fb">Each hop adds a self-join; intermediate rows multiply by average degree per level, giving exponential blow-up with depth.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Which workload is the WEAKEST reason to adopt a graph database?</p>
+      <button class="opt">One-hop lookup of a user's direct friend list</button>
+      <button class="opt">Variable-depth shortest path between two users</button>
+      <button class="opt">Fraud-ring detection over shared device links</button>
+      <button class="opt">Knowledge-graph queries across typed relations</button>
+      <p class="fb">A single hop is a cheap indexed join in Postgres; the graph advantage only appears with deep or variable-depth traversal.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. What is the main scaling limitation you should name for Neo4j?</p>
+      <button class="opt">It cannot store any properties on relationship edges</button>
+      <button class="opt">It is unable to serve more than one read replica</button>
+      <button class="opt">It forbids transactions across connected node sets</button>
+      <button class="opt">It shards writes poorly because data must co-locate</button>
+      <p class="fb">Pointer-chasing wants connected data together, so the writable graph resists horizontal sharding even though reads scale via replicas.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on it. Try: "Walk me through the exact Postgres query plan for depth-3 friends-of-friends and show where it blows up." · "Design 'people you may know' for a billion-user social graph — when do I actually need Neo4j vs a precomputed Postgres table?" · "How would I keep a Neo4j read-store in sync with a Postgres system of record via CDC?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://neo4j.com/docs/getting-started/get-started-with-neo4j/graph-database/">Neo4j — Graph Database Concepts</a>. The canonical intro to the property-graph model and native graph storage; pair it with the <em>Graph Databases</em> (O'Reilly) chapter on index-free adjacency for the internals.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://neo4j.com/docs/getting-started/get-started-with-neo4j/graph-database/">Neo4j — Graph Database Concepts &amp; the Property Graph Model</a> (nodes, relationships, properties, labels; when graphs fit; clustering for read scale). Grounded against canonical Neo4j documentation.</p>
+    <p id="c2">[2] <a href="https://neo4j.com/blog/graph-database/native-vs-non-native-graph-technology/">Neo4j — Native graph storage &amp; index-free adjacency</a> (fixed-size records, relationship pointer chains, O(degree) traversal vs index-based joins). Internals grounded in well-established graph-storage fundamentals.</p>
+    <p id="c3">[3] <a href="https://neo4j.com/docs/cypher-manual/current/introduction/">Neo4j — Cypher Query Language Manual</a> (declarative pattern-matching syntax for nodes and relationships).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0097-aurora.html">← Lesson 97</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 99 · Deep Dive: Kafka</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

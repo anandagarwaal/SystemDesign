@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 66 — Design a Code Hosting Platform (GitHub / GitLab)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 66 · Phase 4 — Case Study · Hard</p>
+  <h1>Design a Code Hosting Platform (GitHub / GitLab)</h1>
+  <p class="sub">A git repository is just a content-addressed object store — host millions of them durably, and serve clones fast.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> GitHub looks like a CRUD app with a fancy diff viewer, and a senior candidate will design it that way. The staff-level move is recognizing that the <em>repository itself is the hard data-storage problem</em>: git objects are immutable, content-addressed blobs that must be sharded across stateful storage, replicated for durability, and served over a streaming wire protocol with sub-second clone latency. Get the "repos are sharded, replicated data — not rows in a table" framing in the first five minutes, and the rest of the hour is deep dives you control.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope to the flows that define the system. A code host is two systems bolted together: a <b>git server</b> (the repo bytes) and a <b>collaboration app</b> (PRs, search, hooks).<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td><b>Host git repositories</b> and <b>push / pull / clone</b> over the git smart protocol (HTTPS &amp; SSH).</td></tr>
+    <tr><td>2</td><td><b>Open pull requests</b> and review code (diffs, comments, approvals, merge).</td></tr>
+    <tr><td>3</td><td><b>Browse &amp; search code</b> across files and across millions of repositories.</td></tr>
+    <tr><td>4</td><td><b>Fire CI hooks</b> — a push triggers webhooks / pipelines on downstream systems.</td></tr>
+  </table>
+  <p><b>Explicitly out of scope</b> (say it aloud): the issue tracker, the wiki, package registries, and the IDE/web editor. Naming deferrals shows judgement about the breadth/depth ratio.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th></tr>
+    <tr><td><b>Durability (cardinal)</b></td><td>Never lose a commit. Source code is irreplaceable; target ≥ 11 nines via N-way replication of every repo.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td><b>Availability &gt; strong consistency</b></td><td>Pushes/clones must work even during partial failures. A few seconds of replica lag on a read is fine; downtime is not.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td><b>Low clone latency</b></td><td>A clone is read-heavy and bursty; serve it from a nearby read replica, p99 in low seconds for typical repos.</td></tr>
+    <tr><td><b>Read-heavy scale</b></td><td>Clones/pulls/CI fetches dwarf pushes — roughly <b>100:1 reads:writes</b>. Scale reads horizontally.</td></tr>
+    <tr><td><b>Search freshness</b></td><td>Code search index should reflect a merge within seconds–minutes; eventual consistency is acceptable.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that <em>change a decision</em>. For a code host the load-bearing facts are repo count (sharding), read:write ratio (replicas), and the fact that a repo is a stateful blob (not a stateless row).</p>
+  <div class="box">
+    <ul>
+      <li><b>Repo count → sharding.</b> ~100M+ users, ~400M+ repos at a few MB–GB each = tens of <b>petabytes</b> of git data.<a href="#c1" class="cite">[1]</a> <b>Implication:</b> no single file server holds it; repos are <em>sharded</em> across a fleet of stateful storage nodes, located via a routing layer.</li>
+      <li><b>Read:write ≈ 100:1.</b> Every CI run, every developer pull, every browse hits the repo; pushes are comparatively rare. <b>Implication:</b> each repo has 1 primary + multiple <b>read replicas</b>; clones/fetches route to replicas, pushes to the primary.</li>
+      <li><b>Search corpus → dedicated index.</b> Billions of source files, each tokenized into trigrams/symbols. The index is many TB and grows with every merge. <b>Implication:</b> code search is a <em>separate</em> service with its own inverted index — never a <code>LIKE '%foo%'</code> scan of git data.</li>
+      <li><b>Clone bandwidth → packfiles + CDN-like caching.</b> A clone ships the whole history; without packing it is gigabytes of loose objects. <b>Implication:</b> serve compressed <b>packfiles</b> and cache common refs.</li>
+    </ul>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Note the deliberate split, exactly like Dropbox's metadata/blob divide<a href="#c3" class="cite">[3]</a>: the <b>git repository bytes</b> live on stateful storage; the <b>collaboration metadata</b> (PRs, comments, ACLs) lives in a relational DB.</p>
+  <table>
+    <tr><th>Entity</th><th>Holds</th></tr>
+    <tr><td><code>Repository</code></td><td>The git object store (commits, trees, blobs, refs) — a sharded, replicated bare repo on disk.</td></tr>
+    <tr><td><code>PullRequest</code></td><td>id, repoId, source/target ref, author, state, reviewers, comments. Relational row.</td></tr>
+    <tr><td><code>User / Org</code></td><td>Accounts, membership, and the ACLs that gate every repo operation.</td></tr>
+    <tr><td><code>Webhook</code></td><td>repoId, event mask, target URL, secret — fired on push/PR events.</td></tr>
+  </table>
+  <p>The user is derived from the auth token (OAuth/SSH key), never passed in the body. The git transport endpoints below are the standard smart-HTTP routes git itself speaks.<a href="#c4" class="cite">[4]</a></p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>GET /{repo}/info/refs?service=git-upload-pack</code></td><td>Ref advertisement — start of a <b>clone/fetch</b> (the read path).<a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td><code>POST /{repo}/git-upload-pack</code></td><td>Negotiate &amp; stream a <b>packfile</b> to the client (clone/pull).<a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td><code>POST /{repo}/git-receive-pack</code></td><td><b>Push</b>: receive a packfile, update refs on the primary.<a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td><code>POST /v1/repos/{id}/pulls</code></td><td>Open a pull request between two refs.</td></tr>
+    <tr><td><code>POST /v1/repos/{id}/pulls/{n}/merge</code></td><td>Merge an approved PR into the target branch.</td></tr>
+    <tr><td><code>GET /v1/search/code?q=...</code></td><td>Query the code-search inverted index.</td></tr>
+  </table>
+
+  <h2>High-Level Design</h2>
+  <p>The whole system hinges on splitting two paths that behave nothing alike: the <b>git data path</b> (huge, stateful, streamed, sharded) and the <b>metadata path</b> (small, relational, queried constantly). A stateless API/git-frontend tier authenticates and routes; it never <em>stores</em> a repo.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+    <tr><td>Git frontend (stateless)</td><td>Terminates SSH/HTTPS, authenticates, checks ACLs, then proxies the git protocol to the right storage node.</td><td>—</td></tr>
+    <tr><td>Repo router / locator</td><td>Maps <code>repoId → shard / primary + replicas</code>. The "which box holds this repo" service.<a href="#c1" class="cite">[1]</a></td><td>Metadata DB / config store</td></tr>
+    <tr><td>Git storage nodes</td><td>Hold bare repos on local disk; run <code>upload-pack</code>/<code>receive-pack</code>; primary + N replicas per repo.<a href="#c2" class="cite">[2]</a></td><td>Local disk (sharded)</td></tr>
+    <tr><td>Metadata service</td><td>PRs, reviews, comments, ACLs, webhooks config.</td><td>Relational DB (Postgres/MySQL)</td></tr>
+    <tr><td>Code search service</td><td>Builds &amp; serves an inverted index of file contents.</td><td>Inverted index (e.g. Zoekt-style)<a href="#c5" class="cite">[5]</a></td></tr>
+    <tr><td>Webhook / event bus</td><td>On push/merge, enqueues events and fans out to CI and search indexer.</td><td>Message queue</td></tr>
+  </table>
+  <p><b>Clone flow:</b> client → frontend authenticates &amp; ACL-checks → router picks a <em>read replica</em> of the repo → replica runs <code>git-upload-pack</code>, negotiates what the client lacks, streams a packfile back.<a href="#c4" class="cite">[4]</a> <b>Push flow:</b> client → frontend → router picks the <em>primary</em> → <code>git-receive-pack</code> writes objects and advances refs → primary replicates to followers → an event is published to the bus, fanning out to webhooks/CI and the search indexer.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The line that separates senior from staff: <em>"A repository is not a row in a database — it's a stateful, content-addressed blob store that I have to shard and replicate myself, like a mini storage system per repo."</em> A senior candidate stuffs repos into S3 or a giant table and waves at "git magic." A staff candidate knows git objects are immutable and content-addressed by SHA, so replication is append-and-fast-forward (not row updates), reads scale trivially across replicas, and the <em>only</em> coordination point is advancing a ref on the primary. Naming the routing layer (repoId → shard) and the primary/replica split, unprompted, is the proactive deep dive that earns the level.
+  </div>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1. Storing git repositories at scale — sharding &amp; replication</h3>
+  <p>A git repo is a <b>content-addressed object database</b>: every commit, tree, and blob is identified by the SHA of its contents, so objects are immutable and append-only.<a href="#c6" class="cite">[6]</a> That property is a gift for a storage designer.</p>
+  <ul>
+    <li><b>Shard by repo.</b> Repos are independent, so distribute them across a fleet of storage nodes; a <b>routing service</b> maps <code>repoId → node</code>. This is exactly the "RPC to a sharded fleet of stateful file servers" model GitHub uses with Gitaly + the routing layer.<a href="#c1" class="cite">[1]</a> Hot repos (e.g. a popular OSS project) get more replicas, not a bigger box.</li>
+    <li><b>Replicate for durability.</b> Keep <b>N copies</b> (e.g. 3) of every repo on different nodes/failure domains. Because objects are immutable and pushes only fast-forward refs, replication is "ship the new packfile + update the ref" — there are no in-place mutations to reconcile.<a href="#c2" class="cite">[2]</a> A consensus/voting layer (GitHub's Spokes/DGit, or Gitaly Cluster's Raft-based design) confirms a write landed on a quorum before acking the push.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Read replicas for clone latency.</b> Since reads are ~100× writes, send clones/fetches/CI to replicas and only pushes to the primary. This is the same primary/replica pattern you learned for databases — see <a href="../lessons/0006-replication-and-cap.html">Lesson 6 · Replication &amp; CAP</a>. We pick <b>availability over strong consistency</b>: a replica might be a few seconds behind, which for a clone is invisible.</li>
+    <li><b>Failover.</b> If a primary dies, promote a replica that has the latest acked ref. The voting layer guarantees a promotable replica exists.</li>
+  </ul>
+
+  <h3>2. The git smart protocol &amp; large-repo handling</h3>
+  <p>Don't hand-wave "git syncs the files." Git uses the <b>smart protocol</b>: a negotiation, then a single compressed stream.<a href="#c4" class="cite">[4]</a></p>
+  <div class="box">
+    <b>Clone/fetch (<code>upload-pack</code>):</b> (1) server <em>advertises</em> its refs and their tip SHAs; (2) client says "I want X, I already have Y" (<code>want</code>/<code>have</code> negotiation); (3) server computes the difference and streams a <b>packfile</b> — objects delta-compressed against each other.<a href="#c4" class="cite">[4]</a><a href="#c6" class="cite">[6]</a>
+  </div>
+  <ul>
+    <li><b>Push (<code>receive-pack</code>)</b> is the mirror: client sends a packfile of new objects + the ref update it wants; the primary validates connectivity (no missing objects), applies hooks, and fast-forwards the ref.<a href="#c4" class="cite">[4]</a></li>
+    <li><b>Big-repo problem.</b> A huge monorepo's full history is enormous, and naïvely repacking it per clone is CPU/memory death. Mitigations the interviewer wants to hear: <b>cached packfiles</b> / bitmaps so the server doesn't recompute the pack each time;<a href="#c6" class="cite">[6]</a> <b>shallow clones</b> (<code>--depth</code>) and <b>partial clones</b> (filter blobs) so clients fetch only what they need; and a <b>CDN/byte-cache</b> for the static portion of large fetches.</li>
+    <li><b>Large files.</b> Binary assets bloat history forever (objects are immutable). Push them out of git into a blob store via <b>Git LFS</b> — git tracks a small pointer, the bytes go to object storage. This is the same metadata/blob split from <a href="../lessons/0012-dropbox.html">Lesson 12 · Dropbox</a><a href="#c3" class="cite">[3]</a>.</li>
+  </ul>
+
+  <h3>3. Code search over millions of repositories</h3>
+  <p>You cannot grep petabytes of source per query. Code search is its own service with an <b>inverted index</b> — the identical machinery behind <a href="../lessons/0025-fb-post-search.html">Lesson 25 · Facebook Post Search</a> and classic web search.<a href="#c5" class="cite">[5]</a></p>
+  <ul>
+    <li><b>Index, don't scan.</b> Tokenize every file and build a map <code>token → list of (repo, file, positions)</code>. A query becomes set intersections over posting lists, not a filesystem walk.<a href="#c5" class="cite">[5]</a></li>
+    <li><b>Code-specific twist: trigram indexing.</b> Plain word tokens miss substring/regex queries like <code>handleRequest(</code>. The standard trick (Google Code Search, GitHub's Blackbird, Zoekt) is a <b>trigram index</b>: index every 3-character sequence, then a regex search becomes "find docs containing all required trigrams," then verify candidates with the real regex.<a href="#c5" class="cite">[5]</a> This is why code search feels like grep but scales.</li>
+    <li><b>Keep it fresh.</b> The indexer subscribes to the same push/merge event bus; on a merge it re-indexes the changed files. The index is <b>eventually consistent</b> — a result lagging the repo by seconds is fine.</li>
+    <li><b>Scale &amp; ACLs.</b> Shard the index by repo and fan queries out; <b>filter results by the caller's ACLs</b> so private repos never leak into another user's results.</li>
+  </ul>
+
+  <h3>4. Pull-request &amp; review metadata in a relational store</h3>
+  <p>PRs are the part that <em>is</em> a CRUD app — and that's the point: keep it in a boring, well-understood relational DB rather than contaminating the git storage layer.</p>
+  <ul>
+    <li><b>Why relational.</b> PRs, reviews, comments, approvals, and ACLs are highly relational, need transactions (an approval count must be consistent), and demand rich queries ("open PRs assigned to me, awaiting my review"). Postgres/MySQL with foreign keys fits naturally.</li>
+    <li><b>The diff is computed, not stored.</b> A PR stores only the two ref SHAs (source &amp; target); the actual diff is computed on demand by the git layer from those immutable commits and cached. Don't store rendered diffs as rows.</li>
+    <li><b>Merge is the one cross-system transaction.</b> "Merge PR" must: verify approvals/checks (DB), perform the git merge on the <em>primary</em> storage node (git), then flip PR state to <code>merged</code> (DB). Order it git-first: do the ref update, and only on success mark merged — so a crash leaves a still-open PR (safe) rather than a "merged" PR with no commit (corrupt).</li>
+    <li><b>Scale.</b> Read replicas + caching for the read-heavy PR/timeline views; partition by repo or org as the table grows.</li>
+  </ul>
+
+  <h3>5. Webhooks to trigger CI</h3>
+  <p>A push must reliably notify downstream systems (CI, deploy bots, chat). Doing this <em>synchronously inside the push</em> would couple clone/push latency to some third party's slow endpoint — never do that.</p>
+  <ul>
+    <li><b>Async fan-out.</b> On a successful <code>receive-pack</code>, the primary publishes a <code>push</code>/<code>merge</code> event to a <b>message queue</b>; webhook delivery workers consume it and POST to each subscribed URL. The push acks the instant the ref is replicated — delivery happens off the critical path.</li>
+    <li><b>At-least-once + retries.</b> Treat delivery as at-least-once with exponential backoff and a dead-letter queue; sign each payload with the webhook secret (HMAC) so the receiver can verify authenticity. Consumers must be <b>idempotent</b>.</li>
+    <li><b>This feeds CI/CD.</b> The CI system is just one webhook consumer that, on the event, schedules a pipeline against the new commit SHA — the subject of the very next lesson on CI/CD systems.</li>
+  </ul>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why is replicating a git repository simpler than replicating mutable table rows?</p>
+      <button class="opt">Git repositories are tiny so every copy fits inside one server's memory cache</button>
+      <button class="opt">Replicas can ignore writes because clone traffic vastly outweighs every push</button>
+      <button class="opt">Git objects are immutable and content-addressed, so writes only append and fast-forward</button>
+      <button class="opt">Relational replicas already store the diffs so the git layer never needs copies</button>
+      <p class="fb">Immutable SHA-addressed objects mean no in-place updates to reconcile — just ship new packs and advance the ref.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. During a clone, what does the git smart protocol actually stream to the client?</p>
+      <button class="opt">Every loose object copied one by one over a separate request per file blob</button>
+      <button class="opt">A single delta-compressed packfile of the objects the client says it lacks</button>
+      <button class="opt">A rendered HTML diff of each commit so the browser can display history fast</button>
+      <button class="opt">The raw working directory zipped together with the relational metadata rows</button>
+      <p class="fb">After want/have negotiation the server computes the difference and streams one compressed packfile.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why does code search use a trigram index instead of plain word tokens?</p>
+      <button class="opt">Trigrams let regex and substring queries hit posting lists rather than scanning files</button>
+      <button class="opt">Trigrams compress the git packfiles so clones over slow networks finish faster</button>
+      <button class="opt">Trigrams remove the need for any access-control filtering on private repository hits</button>
+      <button class="opt">Trigrams store whole commits so the index stays perfectly in sync with each push</button>
+      <p class="fb">A 3-char index turns substring/regex search into "docs with all required trigrams," then verify candidates.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Why are CI webhooks fired asynchronously through a queue rather than inside the push?</p>
+      <button class="opt">Queues are the only place allowed to store the immutable git object identifiers</button>
+      <button class="opt">A queue lets the search index skip re-indexing the files changed by the push</button>
+      <button class="opt">Synchronous delivery would couple push latency to a slow third-party endpoint</button>
+      <button class="opt">Webhooks must run on the primary so the relational merge can stay consistent</button>
+      <p class="fb">Off-critical-path fan-out with retries keeps push acks fast and tolerates slow or failing consumers.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it. Try: <em>"Walk me through exactly what happens on the primary when two engineers push to the same branch within a second of each other."</em> · <em>"Reason out how a shallow clone changes the upload-pack negotiation and what the server can skip."</em> · <em>"How would you keep private-repo results from leaking through the shared trigram search index?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://github.blog/2016-04-05-introducing-dgit/">GitHub Engineering — Introducing DGit (distributed git storage)</a> and its successor <a href="https://github.blog/2021-09-27-partitioning-githubs-relational-databases-scale/">posts on Spokes/Gitaly</a>. Pair it with the <a href="https://git-scm.com/book/en/v2/Git-Internals-Transfer-Protocols">Pro Git "Transfer Protocols"</a> chapter to nail the upload-pack/receive-pack negotiation before your interview.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] GitHub Engineering blog — repository storage served by a sharded, replicated fleet of stateful git servers (DGit / Spokes / Gitaly) behind a routing layer (sharding-by-repo, routing service).</p>
+    <p id="c2">[2] GitHub "Introducing DGit" / Gitaly Cluster design — three-way replication, quorum/voting on writes, primary-replica failover for durability and availability.</p>
+    <p id="c3">[3] <a href="../lessons/0012-dropbox.html">Lesson 12 · Dropbox</a> — the metadata/blob separation pattern reused here for Git LFS and PR-diff handling.</p>
+    <p id="c4">[4] <a href="https://git-scm.com/book/en/v2/Git-Internals-Transfer-Protocols">Pro Git — Transfer Protocols</a> (smart HTTP, ref advertisement, want/have negotiation, upload-pack / receive-pack, packfiles).</p>
+    <p id="c5">[5] <a href="../lessons/0025-fb-post-search.html">Lesson 25 · Facebook Post Search</a> + Russ Cox, "Regular Expression Matching with a Trigram Index" (Google Code Search) — inverted/trigram indexing for code search.</p>
+    <p id="c6">[6] <a href="https://git-scm.com/book/en/v2/Git-Internals-Git-Objects">Pro Git — Git Internals (objects &amp; packfiles)</a> — content-addressed, immutable objects; delta compression and packfiles.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0065-qa-forum.html">← Lesson 65</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 67 · CI/CD System</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

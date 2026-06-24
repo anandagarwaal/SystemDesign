@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 82 — Design Real-Time Collaboration (Figma)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 82 · Phase 4 — Case Study · Hard</p>
+  <h1>Design Real-Time Collaboration (Figma)</h1>
+  <p class="sub">Many designers dragging shapes on one canvas at once — and everyone seeing the same picture.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> The trap is treating this like
+    <a href="0031-google-docs.html">Google Docs</a>. A senior candidate reaches for the same OT/CRDT-for-text answer.
+    A staff candidate spots that a design tool isn't a string — it's a <b>tree of objects with typed properties</b> — and
+    that this changes everything: you can converge with simple <b>per-property last-writer-wins</b> and skip text CRDTs
+    entirely. Naming why the data model dictates the conflict-resolution strategy is the staff signal.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope to the multiplayer canvas core. This is a 2D design surface — shapes, frames, text blocks — not a document of characters.</p>
+  <table>
+    <tr><th>#</th><th>Requirement</th></tr>
+    <tr><td>1</td><td>A user can <b>open a document</b> and see its current canvas state.</td></tr>
+    <tr><td>2</td><td>Many users <b>concurrently edit objects</b> — move, resize, restyle, add, delete shapes — and all converge.</td></tr>
+    <tr><td>3</td><td>Editors see collaborators' <b>live cursors and presence</b> moving in real time.</td></tr>
+    <tr><td>4</td><td>Edits are <b>durably persisted</b>; a reopened document reflects every accepted change.</td></tr>
+    <tr><td>5</td><td>An editor can keep working <b>briefly offline</b> and reconcile on reconnect.</td></tr>
+  </table>
+  <p style="font-size:.88rem;color:var(--muted)"><b>Out of scope:</b> rich text editing inside a shape (that's the Google Docs problem), comments, permissions, version history UI, and the vector-rendering engine.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th></tr>
+    <tr><td>Low-latency real-time sync</td><td>Local edits apply instantly (optimistic); remote edits and cursors land in &lt;100&nbsp;ms. This is the headline NFR — collaboration must feel live.</td></tr>
+    <tr><td>Conflict resolution / consistency</td><td>All clients <b>converge</b> to the same canvas. Eventual convergence is enough — unlike text, a stray shape pixel isn't "corruption." <a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Availability</td><td>High for open/edit; a reconnect blip is fine. Optimistic local edits keep the canvas usable through brief drops.</td></tr>
+    <tr><td>Durability</td><td>No accepted edit is lost; the document survives any single node failure.</td></tr>
+  </table>
+  <p>The tension mirrors Google Docs — feel always-editable, yet converge — but the resolution is <em>cheaper</em> here.
+  Because a canvas is structured data (objects + properties), not a linear sequence, we don't need OT or a text CRDT;
+  a central server applying <b>last-writer-wins per property</b> converges with far less machinery <a href="#c1" class="cite">[1]</a>.</p>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only what bends the design.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Concurrent editors / doc</td><td>~10s active; tens viewing</td><td>One doc's traffic fits one process → shard <b>by document</b>, hold it in memory.</td></tr>
+    <tr><td>Objects / document</td><td>1k typical, 100k+ for big files</td><td>Whole-doc reload on every edit is impossible → sync <b>per-object deltas</b>, not the doc.</td></tr>
+    <tr><td>Cursor updates / editor</td><td>~30–60/s while dragging</td><td>Presence dwarfs edit volume → it gets its <b>own ephemeral channel</b>, never the durable log.</td></tr>
+    <tr><td>WebSocket connections</td><td>Millions concurrent system-wide</td><td>Connection fan-out, not CPU, is the scaling axis → horizontal WS tier + per-doc routing.</td></tr>
+  </table>
+  <p>The headline: <b>per-document load is tiny; system-wide connections and per-doc object counts are large.</b>
+  That asymmetry justifies sharding by <code>documentId</code>, keeping each doc's object map in RAM, and syncing
+  fine-grained property deltas rather than whole documents.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>Document</code> (id, root object id, latest version), <code>Object</code>
+  (id, parentId, type rect/text/frame/group, and a map of typed <b>properties</b> — x, y, width, fill, z-index…),
+  and <code>Presence</code> (ephemeral: userId, docId, cursor x/y, selection, color). The document is the
+  <b>map/tree of objects</b>; <code>parentId</code> is itself just a property.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/documents</code></td><td>Create a document; returns <code>documentId</code>.</td></tr>
+    <tr><td><code>GET /v1/documents/:id</code></td><td>Load the latest snapshot (full object map + version) to start editing.</td></tr>
+    <tr><td><code>WS /v1/documents/:id/sync</code></td><td>Bidirectional edit stream: client sends property changes, server broadcasts canonical changes back.</td></tr>
+    <tr><td><code>WS /v1/documents/:id/presence</code></td><td>Ephemeral cursor/presence channel, separate from durable edits.</td></tr>
+  </table>
+  <p>User identity is derived from the auth token on connect, never passed in the body. The <b>sync and presence
+  channels are deliberately separate</b> — one is durable and converges, one is throwaway (Deep Dive 3).</p>
+
+  <h2>High-Level Design</h2>
+  <p>Walk a single edit — "Alice drags a rectangle" — through the system:</p>
+  <ol style="font-family:-apple-system,sans-serif;font-size:.9rem;">
+    <li>Client opens the doc via <code>GET</code>, downloads the <b>snapshot</b> (object map + version), renders the canvas.</li>
+    <li>Client opens a <b>WebSocket</b> to the sync server that owns this document.</li>
+    <li>Alice drags the rect. The client updates the object's <code>x</code>/<code>y</code> <b>optimistically</b> (instant local feedback) and streams the property changes.</li>
+    <li>The sync server applies each change to its in-memory object map under <b>last-writer-wins per property</b>, appends it to the durable change log, and <b>fans it out</b> to every other connected client.</li>
+    <li>Peers apply the canonical change to the same object/property, reaching the same canvas. Cursors flow on the separate presence channel.</li>
+  </ol>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+    <tr><td>API gateway / LB</td><td>Auth; routes WS by <code>documentId</code> to the owning sync server.</td><td>—</td></tr>
+    <tr><td>Sync server (per-doc owner)</td><td>Authoritative state: holds object map in memory, orders + applies changes, fans out.</td><td>In-memory object map</td></tr>
+    <tr><td>Change log store</td><td>Append-only record of accepted property changes for durability + replay.</td><td>Log DB / append table</td></tr>
+    <tr><td>Snapshot store</td><td>Periodic materialized document for fast cold loads.</td><td>Object/blob + metadata DB</td></tr>
+    <tr><td>Presence service</td><td>Ephemeral cursors via pub/sub with TTLs; nothing durable.</td><td>Redis / in-memory</td></tr>
+  </table>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1. The document as a tree of objects + per-property last-writer-wins</h3>
+  <p>A Figma file is not a string — it's a <b>tree of objects</b>: a page contains frames, frames contain groups,
+  groups contain shapes. Every object has a stable id and a <b>map of typed properties</b> (<code>x</code>,
+  <code>width</code>, <code>fill</code>, <code>parentId</code>, <code>z</code>). Crucially, the parent link is just
+  another property, so reparenting a layer is a property write like any other <a href="#c1" class="cite">[1]</a>.</p>
+  <p>This structure is the whole trick. Two users editing the <em>same</em> object usually touch <b>different
+  properties</b> — Alice moves it (<code>x</code>), Bob recolors it (<code>fill</code>) — and those merge trivially,
+  each property updated independently. Only when two users write the <b>same property of the same object</b> do we
+  have a real conflict, and there <b>last-writer-wins (LWW)</b> resolves it: the server's arrival order decides, the
+  shape ends one color, and nobody's canvas is "corrupted." Compare the text case in
+  <a href="0031-google-docs.html">Lesson 31</a>: there, LWW silently <em>drops keystrokes</em> because order and
+  position carry meaning in a sequence. On a canvas, the loser of an LWW race just loses one property value — visually
+  fine. <b>The data model is what makes the cheap strategy safe.</b></p>
+  <table>
+    <tr><th>Axis</th><th>Text CRDT / OT (Google Docs)</th><th>Per-property LWW (Figma)</th></tr>
+    <tr><td>Unit of edit</td><td>Character in a sequence</td><td>Property of an identified object</td></tr>
+    <tr><td>Why conflicts hurt</td><td>Lost char = corrupted text</td><td>Lost property = one stale value</td></tr>
+    <tr><td>Convergence mechanism</td><td>Transform ops / commutative char ids</td><td>Object id + property key + LWW register</td></tr>
+    <tr><td>Engineering cost</td><td>High (OT proofs / char metadata)</td><td>Low (a map of registers)</td></tr>
+  </table>
+  <div class="box">
+    <b>Justified pick:</b> Treat the doc as a map of objects, each a map of LWW property registers, with one
+    authoritative server deciding order — <b>not</b> a text CRDT or OT. It's inspired by CRDTs (commutative,
+    convergent) but far simpler because we have a central authority and don't need offline-P2P guarantees
+    <a href="#c1" class="cite">[1]</a>. Two edge cases need explicit handling: <b>delete-vs-edit</b> (an edit to a
+    deleted object is dropped — deletion wins) and <b>tree cycles</b> (a reparent that would make A a child of its own
+    descendant is rejected by the server, which can see the whole tree). Name those two and you're at staff level.
+  </div>
+
+  <h3>2. The realtime sync server: in-memory state + fan-out</h3>
+  <p>One sync server <b>owns</b> each document, routed by <code>documentId</code> at the gateway. It loads the object
+  map into memory once, then every editor's WebSocket attaches to that single process. The server receives property
+  changes, applies LWW to its authoritative copy, appends them to the durable change log, and <b>broadcasts</b> the
+  canonical change to all other connected clients. Because every change funnels through one process, ordering is
+  trivial — there's no distributed consensus on the hot path. This is the <b>long-lived stateful connection</b> pattern
+  from <a href="0019-whatsapp.html">Lesson 19 (WhatsApp / WebSockets)</a>, and the broadcast is per-doc pub/sub.</p>
+  <p>Clients edit <b>optimistically</b>: apply locally, then send. If the server's LWW ordering disagrees, the canonical
+  change the client receives back simply overwrites the local guess — usually invisible. Scaling and failover: shard
+  documents across a fleet via consistent hashing on <code>documentId</code>, with a coordination layer (etcd/ZooKeeper)
+  tracking ownership. On reconnect a client sends its last-seen version and the server replays the missed tail of the
+  change log — so a crash costs a brief catch-up, never lost edits.</p>
+
+  <h3>3. Presence and live cursors as ephemeral, high-frequency state</h3>
+  <p>Cursors move 30–60 times a second per editor and mean nothing a moment later — if one update is lost, the next
+  corrects it; on disconnect the cursor should just vanish. So presence must <b>never</b> touch the durable change log
+  (it would drown real edits and bloat storage). Route it on the separate <code>/presence</code> channel through a
+  pub/sub layer keyed by <code>documentId</code>, with <b>TTLs</b> so a dropped client's cursor expires automatically,
+  and <b>throttle/interpolate</b> on the client so the wire carries ~10–20 updates/s while the cursor still looks smooth.
+  The staff move is the clean separation: <b>durable converging edits and throwaway presence are different systems with
+  different guarantees</b> — conflating them risks dropping real edits under cursor load.</p>
+
+  <h3>4. Persistence: snapshots + change log, and loading large documents</h3>
+  <p>The change log is the durable source of truth: an append-only sequence of accepted property changes. But a file
+  can hold 100k+ objects, and replaying every historical change to open it is far too slow — so the server periodically
+  <b>snapshots</b> the materialized object map plus its version. Loading a document = fetch the latest snapshot + replay
+  only the changes after it; then the live WebSocket takes over. For very large files, stream the snapshot and render
+  progressively rather than blocking on a full download. Snapshot cadence is a tunable knob (frequent = fast loads, more
+  storage), and once a snapshot at version <em>V</em> is durable, older log entries can be compacted away. Offline edits
+  (FR&nbsp;5) are buffered locally as property changes and replayed on reconnect — LWW then resolves them against whatever
+  changed meanwhile, which is exactly why the cheap conflict model also gives us offline almost for free.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Lead with the data model, not the diagram: "It's a tree of objects, each a map of typed properties, so I converge
+    with <b>per-property last-writer-wins</b> on one authoritative server — I don't need OT or a text CRDT like Google
+    Docs, because a lost property value is visually fine while a lost character is corruption." Then call the two edge
+    cases unprompted — <b>delete-vs-edit</b> and <b>reparent cycles</b> — keep <b>presence</b> rigorously off the durable
+    log, and explain <b>snapshots + change log</b> for fast loads of huge files. Matching the conflict strategy to the
+    data model is what separates this from a copy-pasted Google Docs answer.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why is per-property last-writer-wins safe for Figma but unsafe for Google Docs text?</p>
+      <button class="opt">Figma documents are far smaller, so conflicts almost never actually occur in practice</button>
+      <button class="opt">Google Docs lacks a central server while Figma always routes through one ordering node</button>
+      <button class="opt">A lost canvas property is just a stale value, but a lost character corrupts ordered text</button>
+      <button class="opt">Figma clients never edit optimistically, so the server sees every change in true order</button>
+      <p class="fb">Canvas objects are structured; losing a property value is visually fine. In a text sequence, order and position carry meaning, so a dropped char corrupts.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Two users edit the same rectangle: Alice moves it, Bob recolors it. What happens?</p>
+      <button class="opt">A conflict is raised and one of the two users must manually retry the edit later</button>
+      <button class="opt">Both merge cleanly because they write different properties of the same object id</button>
+      <button class="opt">Last-writer-wins discards one edit since they touch the same shared object record</button>
+      <button class="opt">The server forks the rectangle into two objects, one per editor, to avoid any loss</button>
+      <p class="fb">Different properties (x/y vs fill) of one object update independently and merge. LWW only kicks in on the same property.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why are live cursors routed on a separate channel from durable edits?</p>
+      <button class="opt">They are high-frequency and disposable, so a lost update self-corrects almost instantly</button>
+      <button class="opt">They require the strongest durability so cursor history survives a full server crash</button>
+      <button class="opt">They must be replayed on reconnect to rebuild the document object map correctly</button>
+      <button class="opt">They provide the global ordering that the property last-writer-wins logic depends on</button>
+      <p class="fb">Presence is throwaway and very frequent; logging it would bloat storage and risk crowding out real edits.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Why does Figma snapshot documents instead of always replaying the full change log?</p>
+      <button class="opt">Snapshots let the client edit offline without ever buffering changes locally first</button>
+      <button class="opt">Replaying the log is unsafe because last-writer-wins reorders changes on each load</button>
+      <button class="opt">Big files hold many objects, so replaying every change to open them is far too slow</button>
+      <button class="opt">The change log cannot be made durable, so a snapshot is the only safe source of truth</button>
+      <p class="fb">A document can have 100k+ objects; load = latest snapshot + replay only the recent tail, then go live.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic. Try:
+    "Walk me through how the server rejects a reparent that would create a cycle in the object tree."
+    "How does delete-vs-edit resolve when one user deletes a shape another is still moving?"
+    "How would this design change if we had to support hours of fully offline editing on mobile?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.figma.com/blog/how-figmas-multiplayer-technology-works/">Figma Engineering — "How Figma's multiplayer technology works"</a>.
+  The canonical first-party explanation of the object/property model, why Figma chose per-property LWW over OT and full
+  CRDTs, and how the central server and presence work. Pair it with <a href="0031-google-docs.html">Lesson 31 (Google Docs)</a>
+  for the OT-vs-CRDT contrast that explains why text needs a heavier solution.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.figma.com/blog/how-figmas-multiplayer-technology-works/">Figma Engineering — How Figma's multiplayer technology works</a> (document-as-tree-of-objects, properties as last-writer-wins registers, central server, choice against OT/CRDT; remaining depth on sync/persistence/presence from CS fundamentals and the Google Docs comparison in <a href="0031-google-docs.html">Lesson 31</a>).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0081-workflow-engine.html">← Lesson 81</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 83 · Live Score</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

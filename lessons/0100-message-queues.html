@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 100 — Deep Dive: Message Queues (RabbitMQ, SQS, SNS)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 100 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Message Queues (RabbitMQ, SQS, SNS)</h1>
+  <p class="sub">The other half of async — task queues that hand out work and delete it, not logs you replay. Knowing which one to reach for is the whole signal.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> In <a href="0099-kafka.html">Lesson 99</a> you learned the replayable log. At L6/L7 the trap is reaching for Kafka for <em>everything</em> async. A staff candidate distinguishes a <b>task/work queue</b> (decouple a producer from a worker, process each job once, then delete it) from an <b>event log</b> (durable, replayable history fanned out to many readers). Saying "RabbitMQ or SQS here, not Kafka, because I want competing consumers on transient jobs — not a retained log" is the judgement that reads as staff.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>The job: queues vs logs</h2>
+  <p>Both decouple a fast producer from a slower consumer with a durable buffer in the middle. The difference is what happens to a message after it's read.</p>
+  <p>A <b>task / work queue</b> (RabbitMQ, SQS) is <b>consume-and-delete</b>: a message is delivered to <em>one</em> worker, acknowledged, then removed.<a href="#c2" class="cite">[2]</a> Multiple workers pull from the same queue — <b>competing consumers</b> — so adding workers spreads the load and drains the backlog faster. The queue is a to-do list that empties as work gets done; there is no history to re-read.</p>
+  <p>A <b>log</b> (Kafka, Kinesis) is an <b>append-only, replayable</b> record. Messages are retained for a window regardless of who read them, each consumer group tracks its own offset, and many independent readers replay the same stream.<a href="#c1" class="cite">[1]</a> See <a href="0099-kafka.html">Lesson 99</a> for the full treatment.</p>
+  <table>
+    <thead><tr><th>Dimension</th><th>Task queue (RabbitMQ, SQS)</th><th>Log (Kafka)</th></tr></thead>
+    <tbody>
+      <tr><td>After read</td><td>Acked &amp; deleted<a href="#c2" class="cite">[2]</a></td><td>Retained for a window<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Scaling reads</td><td>Competing consumers drain faster</td><td>Many groups replay independently</td></tr>
+      <tr><td>Ordering</td><td>Best-effort (or FIFO mode)</td><td>Ordered within a partition</td></tr>
+      <tr><td>Mental model</td><td>A to-do list that empties</td><td>A durable history you re-read</td></tr>
+    </tbody>
+  </table>
+
+  <h2>RabbitMQ</h2>
+  <p>RabbitMQ is a mature broker built on <b>AMQP</b> (Advanced Message Queuing Protocol). Its defining trait is the <b>smart broker / dumb consumer</b> model: routing logic lives in the broker, and consumers just receive what's handed to them.<a href="#c3" class="cite">[3]</a> Producers never publish straight to a queue — they publish to an <b>exchange</b>, which decides which queues get the message based on <b>bindings</b> and a <b>routing key</b>.<a href="#c4" class="cite">[4]</a></p>
+  <table>
+    <thead><tr><th>Exchange type</th><th>Routing rule</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr><td><b>Direct</b></td><td>Routing key matches binding key exactly<a href="#c4" class="cite">[4]</a></td><td>Point a job at one specific queue</td></tr>
+      <tr><td><b>Topic</b></td><td>Routing key matches a wildcard pattern<a href="#c4" class="cite">[4]</a></td><td><code>orders.eu.*</code> style selective routing</td></tr>
+      <tr><td><b>Fanout</b></td><td>Copy to every bound queue, ignore key<a href="#c4" class="cite">[4]</a></td><td>Broadcast one event to all subscribers</td></tr>
+    </tbody>
+  </table>
+  <p><b>Acknowledgements</b> are how RabbitMQ guarantees a message isn't lost: a consumer sends an <code>ack</code> only after it finishes processing, and until then the broker keeps the message. If the consumer dies before acking, the message is requeued and redelivered — that's at-least-once delivery, so your handler must be idempotent.<a href="#c5" class="cite">[5]</a> A message that keeps failing (rejected, or expired) can be routed to a <b>dead-letter queue (DLQ)</b> — a separate queue for poison messages so one bad job doesn't block the line and you can inspect it later.<a href="#c6" class="cite">[6]</a></p>
+  <div class="box">
+    <b>RabbitMQ in one breath:</b> publish to an <b>exchange</b> → bindings + routing key fan it to <b>queues</b> → competing consumers pull and <b>ack</b> → failures go to a <b>DLQ</b>. The broker is smart so the consumers can be simple. Reach for it when you need rich routing, per-message TTLs, priorities, or protocols beyond plain HTTP.<a href="#c3" class="cite">[3]</a>
+  </div>
+
+  <h2>Amazon SQS &amp; SNS</h2>
+  <p><b>SQS</b> (Simple Queue Service) is AWS's fully managed task queue — no brokers to run, scales elastically. It comes in two flavours, and naming the right one is the interview signal.<a href="#c7" class="cite">[7]</a></p>
+  <table>
+    <thead><tr><th>Property</th><th>Standard queue</th><th>FIFO queue</th></tr></thead>
+    <tbody>
+      <tr><td>Delivery</td><td>At-least-once (dupes possible)<a href="#c7" class="cite">[7]</a></td><td>Exactly-once processing<a href="#c8" class="cite">[8]</a></td></tr>
+      <tr><td>Ordering</td><td>Best-effort, not guaranteed<a href="#c7" class="cite">[7]</a></td><td>Strict order per group<a href="#c8" class="cite">[8]</a></td></tr>
+      <tr><td>Throughput</td><td>Nearly unlimited<a href="#c7" class="cite">[7]</a></td><td>Lower, capped per second<a href="#c8" class="cite">[8]</a></td></tr>
+    </tbody>
+  </table>
+  <p>Two SQS mechanics earn depth. <b>Visibility timeout</b>: when a worker receives a message it isn't deleted — it becomes <em>invisible</em> to other workers for a set window. The worker must finish and explicitly delete it before the window expires, or SQS makes it visible again and redelivers it.<a href="#c9" class="cite">[9]</a> Set it too short and a slow job gets processed twice; too long and a crashed worker's message stalls. <b>Long polling</b> tells SQS to wait until a message arrives (up to 20s) before responding, instead of returning empty immediately — it cuts empty receives, cost, and latency versus short polling.<a href="#c10" class="cite">[10]</a> SQS also has a native <b>DLQ</b>: after a configurable number of failed receives, a poison message is moved aside automatically.<a href="#c11" class="cite">[11]</a></p>
+  <p><b>SNS</b> (Simple Notification Service) is the <b>pub/sub fanout</b> counterpart: a publisher sends one message to a <b>topic</b>, and SNS pushes a copy to every subscriber — other services, HTTP endpoints, email, SMS, Lambda.<a href="#c12" class="cite">[12]</a> The canonical AWS pattern is <b>SNS → SQS fanout</b>: publish once to an SNS topic, subscribe several SQS queues to it, and each downstream service drains its own queue at its own pace.<a href="#c13" class="cite">[13]</a> You get the broadcast of pub/sub <em>plus</em> the durable buffering and retry of a queue per consumer — exactly the shape behind <a href="0046-notification-service.html">Lesson 46</a>'s notification service.</p>
+
+  <h2>Choosing: RabbitMQ vs SQS vs Kafka</h2>
+  <p>This is the decision the interviewer actually wants. Lead with the requirement, then the pick.</p>
+  <table>
+    <thead><tr><th>If you need…</th><th>Reach for</th><th>Because</th></tr></thead>
+    <tbody>
+      <tr><td>Replayable history, many independent readers, high throughput streaming<a href="#c1" class="cite">[1]</a></td><td><b>Kafka</b></td><td>Retained, partitioned, ordered log</td></tr>
+      <tr><td>Rich routing, priorities, TTLs, AMQP — self/managed broker<a href="#c3" class="cite">[3]</a></td><td><b>RabbitMQ</b></td><td>Smart broker with flexible exchanges</td></tr>
+      <tr><td>Dead-simple managed task queue on AWS, zero ops<a href="#c7" class="cite">[7]</a></td><td><b>SQS</b></td><td>Elastic, no brokers, pay-per-use</td></tr>
+      <tr><td>One event delivered to many AWS services at once<a href="#c12" class="cite">[12]</a></td><td><b>SNS (+SQS)</b></td><td>Managed pub/sub fanout</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <b>The default-reach heuristic:</b>
+    <ul>
+      <li><b>On AWS, async jobs, no replay needed?</b> SQS. It's the lowest-ops choice and "good enough" is the staff answer.<a href="#c7" class="cite">[7]</a></li>
+      <li><b>Need an event broadcast to N consumers?</b> SNS→SQS fanout.<a href="#c13" class="cite">[13]</a></li>
+      <li><b>Need replay, event sourcing, or a stream many teams re-read?</b> Kafka — and only then.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Need routing rules SQS can't express (topic patterns, priorities, per-message TTL)?</b> RabbitMQ.<a href="#c3" class="cite">[3]</a></li>
+    </ul>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Seniors say "I'll add a queue." Staff candidates pick the <em>right</em> one out loud and justify the delete-vs-retain choice in one breath: "These are fire-and-forget jobs with no replay, so a task queue — SQS Standard — over Kafka; I don't want to operate a retained log for transient work." They proactively name the gotchas of whichever they pick: at-least-once means <b>idempotent handlers</b>, visibility timeout must exceed processing time, and a <b>DLQ</b> isolates poison messages so one bad job doesn't wedge the worker pool.<a href="#c9" class="cite">[9]</a> Reaching for the <em>simplest</em> tool that meets the requirement — and refusing to default to Kafka for everything — is the simple-by-default judgement the bar rewards.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When you draw a queue between two services, say in one line <em>which</em> kind and why: "SQS task queue here — decoupling checkout from the slow email/receipt work, at-least-once with idempotent workers."<a href="#c7" class="cite">[7]</a> Be ready for the predictable follow-ups: <em>"What if a worker crashes mid-job?"</em> (visibility timeout / unacked redelivery → idempotency), <em>"What about a message that always fails?"</em> (DLQ), and <em>"Why not Kafka?"</em> (no replay needed, fewer ops). If the prompt is "notify many downstream services," reach for SNS→SQS fanout, not a hand-rolled broadcast. The depth lives in the failure modes, not in re-explaining what a queue is — see <a href="0044-distributed-message-queue.html">Lesson 44</a> for designing one from scratch.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. What is the core difference between a task queue and a log?</p>
+      <button class="opt">A task queue retains messages so readers can replay them later</button>
+      <button class="opt">A task queue deletes a message once a worker acks it as done</button>
+      <button class="opt">A task queue orders every message globally across all readers</button>
+      <button class="opt">A task queue copies each message to every consumer that exists</button>
+      <p class="fb">Task queues are consume-and-delete; logs retain messages for replay by many readers.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. In RabbitMQ, where do producers publish messages?</p>
+      <button class="opt">Straight to a queue, which forwards copies to the bound topics</button>
+      <button class="opt">To a consumer, which then chooses the queue to store it inside</button>
+      <button class="opt">To an exchange, which routes to queues via bindings and a key</button>
+      <button class="opt">To a broker offset, which the consumer group reads in order from</button>
+      <p class="fb">Producers publish to an exchange; bindings plus a routing key decide which queues receive it.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What does the SQS visibility timeout do for a received message?</p>
+      <button class="opt">Hides it from other workers until deleted or the window expires</button>
+      <button class="opt">Deletes it right away so no other worker can ever receive a copy</button>
+      <button class="opt">Retains it forever so every worker may replay it again on demand</button>
+      <button class="opt">Reorders it ahead of newer messages so the oldest is always first</button>
+      <p class="fb">A received message goes invisible; if not deleted in time, SQS makes it visible and redelivers it.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. Which choice fits "deliver one event to many AWS services at once"?</p>
+      <button class="opt">A single SQS Standard queue that all of the services poll together</button>
+      <button class="opt">A Kafka topic retained so each service can replay the whole stream</button>
+      <button class="opt">A RabbitMQ direct exchange keyed to one specific downstream queue</button>
+      <button class="opt">An SNS topic fanning out to one SQS queue per subscribing service</button>
+      <p class="fb">SNS→SQS fanout broadcasts once and gives each consumer its own durable, retryable queue.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Quiz me on when I'd pick SQS over Kafka and how I'd defend it." · "Walk me through RabbitMQ exchanges, bindings, and a dead-letter queue with a concrete example." · "Give me a FAANG prompt and push me on visibility timeout, idempotency, and DLQs."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.rabbitmq.com/tutorials/amqp-concepts">RabbitMQ — AMQP Concepts</a> for the exchange/binding/routing model, paired with the <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html">Amazon SQS Developer Guide</a>. Read the SQS pages on standard-vs-FIFO, visibility timeout, and DLQs, then contrast with the log model in <a href="0099-kafka.html">Lesson 99</a> and the <a href="../reference/glossary.html">glossary</a>.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/key-technologies">Hello Interview — Key Technologies</a> (queues vs logs; Kafka as a replayable log; pick the right async tool).</p>
+    <p id="c2">[2] <a href="https://www.rabbitmq.com/tutorials/tutorial-two-python">RabbitMQ — Work Queues</a> (competing consumers; consume, ack, and remove the task).</p>
+    <p id="c3">[3] <a href="https://www.rabbitmq.com/tutorials/amqp-concepts">RabbitMQ — AMQP 0-9-1 Concepts</a> (smart broker / dumb consumer; AMQP model).</p>
+    <p id="c4">[4] <a href="https://www.rabbitmq.com/tutorials/amqp-concepts#exchanges">RabbitMQ — Exchanges, Bindings, Routing Keys</a> (direct, topic, fanout routing).</p>
+    <p id="c5">[5] <a href="https://www.rabbitmq.com/docs/confirms">RabbitMQ — Consumer Acknowledgements</a> (ack on completion; redelivery; at-least-once).</p>
+    <p id="c6">[6] <a href="https://www.rabbitmq.com/docs/dlx">RabbitMQ — Dead Letter Exchanges</a> (routing rejected/expired messages to a DLQ).</p>
+    <p id="c7">[7] <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-queue-types.html">Amazon SQS — Standard vs FIFO Queues</a> (at-least-once, best-effort order, high throughput).</p>
+    <p id="c8">[8] <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/FIFO-queues.html">Amazon SQS — FIFO Queues</a> (exactly-once processing, ordering, lower throughput).</p>
+    <p id="c9">[9] <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html">Amazon SQS — Visibility Timeout</a> (invisible window; delete before expiry or redeliver).</p>
+    <p id="c10">[10] <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-short-and-long-polling.html">Amazon SQS — Short and Long Polling</a> (long polling reduces empty receives and cost).</p>
+    <p id="c11">[11] <a href="https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-dead-letter-queues.html">Amazon SQS — Dead-Letter Queues</a> (move poison messages aside after N failures).</p>
+    <p id="c12">[12] <a href="https://docs.aws.amazon.com/sns/latest/dg/welcome.html">Amazon SNS — Developer Guide</a> (pub/sub topics; fanout to many subscribers).</p>
+    <p id="c13">[13] <a href="https://docs.aws.amazon.com/sns/latest/dg/sns-sqs-as-subscriber.html">Amazon SNS — Fanout to SQS Queues</a> (publish once, deliver to many durable queues).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0099-kafka.html">← Lesson 99</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 101 · Apache Spark</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

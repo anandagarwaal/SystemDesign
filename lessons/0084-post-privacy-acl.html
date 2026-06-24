@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 84 — Design Post Privacy / Access Control</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 84 · Phase 4 — Case Study · Hard</p>
+  <h1>Design Post Privacy / Access Control (Facebook/Instagram)</h1>
+  <p class="sub">A user picks who can see a post — Only me, Friends, Public, Friends-of-friends, a custom list — and the read path must enforce that choice perfectly, billions of times a day, with zero leaks.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> The feed (<a href="../lessons/0016-fb-news-feed.html">Lesson 16</a>) is about <em>throughput</em>. Privacy is about <em>correctness under skew</em> — the one design where a single wrong row is a headline, not a latency blip. A senior bolts a <code>visibility</code> column onto posts and filters in a <code>WHERE</code> clause. A staff candidate treats this as an <b>authorization system</b>: deny-by-default, enforced server-side on every read, with the friends-of-friends graph traversal and the "a post's audience changed after fan-out" problem named as the real bottlenecks. This lesson teaches the second posture.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Privacy is a feature that lives <em>on top of</em> posting and the feed, so scope to the access-control surface only. Four capabilities cover the core.</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td><b>Set a post's audience</b> at create/edit time: <code>ONLY_ME</code>, <code>FRIENDS</code>, <code>FRIENDS_OF_FRIENDS</code>, <code>PUBLIC</code>, or a <code>CUSTOM_LIST</code>.</td></tr>
+    <tr><td>2</td><td><b>Have that audience enforced on every read</b> — feed, profile, permalink, search, notifications. A viewer outside the audience must never see the post.</td></tr>
+    <tr><td>3</td><td><b>Manage custom lists</b> (e.g. "Close Friends", "Work") and target a post to one, plus blocklist exclusions.</td></tr>
+    <tr><td>4</td><td><b>Be reachable via friends-of-friends</b> — a viewer who shares at least one mutual friend with the author can see <code>FRIENDS_OF_FRIENDS</code> posts.</td></tr>
+  </table>
+  <p style="font-size:.9rem;color:var(--muted)"><b>Out of scope (state it):</b> ranking, comments/likes privacy, story expiry, GDPR deletion. Reuse the feed and graph from Lessons 16 &amp; 27 — we're adding the authorization layer, not rebuilding them.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>Here the usual ordering inverts. In the feed lesson we sacrificed consistency for availability. In privacy, <b>correctness is non-negotiable and ranks above availability</b> — it is better to fail closed (show nothing) than to leak one private post.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th></tr>
+    <tr><td><b>Correctness / no leaks</b></td><td><b>Highest priority — security critical.</b> Zero false-allows. Deny-by-default; fail closed on any error or timeout in the authz path.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Read latency</td><td>Authz check adds <b>&lt; ~10ms p99</b> to a feed read that already targets &lt;200ms. It runs on every item, so it must be a cache hit, not a graph crawl.</td></tr>
+    <tr><td>Scale</td><td><b>~2B users</b>, ~100B+ relationship edges, millions of feed reads/sec — each fanning into many per-post checks.</td></tr>
+    <tr><td>Consistency of permissions</td><td>An audience change or unfriend should take effect <b>quickly (seconds)</b> — stale <em>allow</em> is a leak; stale <em>deny</em> is merely annoying. Bound the staleness window explicitly.<a href="#c1" class="cite">[1]</a></td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that bend the design. Two do: how many authz checks per feed read, and whether friends-of-friends can be computed live.</p>
+  <div class="box">
+    <p><b>How many authz checks per second?</b></p>
+    <ul>
+      <li>Say 500M daily feed-openers, ~10 opens/day, ~50 items hydrated per open. That's <b>500M × 10 × 50 ≈ 250B item-checks/day ≈ ~3M checks/sec</b> average, multiples higher at peak. <b>Implication:</b> the check must be O(1) cache lookups, never a per-item DB or graph query. This is why we precompute, not crawl.</li>
+    </ul>
+    <p><b>Can friends-of-friends be computed at read time?</b></p>
+    <ul>
+      <li>A user with <b>~500 friends</b> who each have ~500 friends → a 2-hop neighborhood of up to <b>~250,000</b> users. Doing this set-membership test live, for every <code>FRIENDS_OF_FRIENDS</code> item, for millions of readers, is a graph-traversal firehose.<a href="#c3" class="cite">[3]</a> <b>Implication:</b> FoF is the expensive case — it forces the denormalize-vs-compute decision (Deep Dive 2).</li>
+    </ul>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Three entities carry the privacy model; the <code>Post.audience</code> field is the policy, and the graph plus lists are the data the policy is evaluated against.</p>
+  <table>
+    <tr><th>Entity</th><th>Shape</th></tr>
+    <tr><td><b>Post</b></td><td><code>id</code>, <code>authorId</code>, <code>body</code>, <code>createdAt</code>, and an <code>audience</code> = <code>{ type, listId?, excludedUserIds? }</code> where <code>type ∈ {ONLY_ME, FRIENDS, FOF, PUBLIC, CUSTOM_LIST}</code>.</td></tr>
+    <tr><td><b>Relationship</b></td><td>Friend edge <code>(userA ↔ userB)</code> — bidirectional, unlike the feed's follow edge. Reverse-indexed so "is X a friend of Y" is a point lookup.</td></tr>
+    <tr><td><b>AudienceList</b></td><td>A named, author-owned set: <code>{ id, ownerId, name, memberIds[] }</code> for custom lists like Close Friends.</td></tr>
+  </table>
+  <p>Always derive the viewer from the auth token, and never let the client send its own "I'm allowed" flag — the audience is evaluated server-side from trusted state.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/posts</code></td><td>Create a post. Body: <code>{ body, audience }</code>; author from token.</td></tr>
+    <tr><td><code>PATCH /v1/posts/{id}/audience</code></td><td>Change a post's audience after publish (triggers the consistency problem in DD3).</td></tr>
+    <tr><td><code>GET /v1/posts/{id}</code></td><td>Permalink read — runs the same authz check as the feed; <b>404, not 403</b>, on deny (don't confirm the post exists).</td></tr>
+    <tr><td><code>POST /v1/lists</code></td><td>Create/edit a custom audience list. Body: <code>{ name, memberIds }</code>.</td></tr>
+    <tr><td><code>GET /v1/feed?cursor=</code></td><td>Read the feed — each candidate item passes the authz filter before hydration.</td></tr>
+  </table>
+
+  <h2>High-Level Design</h2>
+  <p>Keep the boxes boring; the judgement is in <em>where</em> the check sits and what it reads. The key move: a dedicated <b>Authorization Service</b> sits on the read path, between the Feed Service and the data, so no read service ever reimplements the policy.</p>
+  <table>
+    <tr><th>Component</th><th>Responsibility &amp; store</th></tr>
+    <tr><td><b>Post Service</b></td><td>Persists posts with their <code>audience</code> field to the <b>Post Store</b> (DynamoDB/Cassandra, keyed by <code>postId</code>).</td></tr>
+    <tr><td><b>Graph / Relationship Service</b></td><td>Stores friend edges and custom lists. Optimized for "are A and B friends?" and "do A and B share a friend?" point lookups (see <a href="../lessons/0027-instagram.html">Lesson 27</a>).</td></tr>
+    <tr><td><b>Authorization Service</b></td><td>The single chokepoint. Given <code>(viewerId, post)</code> it returns allow/deny by evaluating <code>audience</code> against the graph. A relationship-based (ReBAC) check — see <a href="../lessons/0068-auth-service.html">Lesson 68</a>.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>Authz decision cache</b></td><td>Redis caching <code>(viewer,author)→relationship</code> and recent allow/deny decisions, with short TTL + explicit invalidation on unfriend/audience change.</td></tr>
+    <tr><td><b>Feed Service</b></td><td>Pulls candidate items, calls the Authorization Service to filter, then hydrates and returns the page.</td></tr>
+  </table>
+  <p><b>Read path:</b> <code>GET /feed</code> → Feed Service gathers candidate <code>postId</code>s → for each, Authorization Service checks <code>(viewer, audience)</code> against the graph/cache → only allowed posts are hydrated and returned. <b>Deny-by-default:</b> if the check errors or times out, the item is dropped, never shown.<a href="#c2" class="cite">[2]</a></p>
+
+  <h2>Deep Dive 1 — The check on the read path: deny-by-default, never trust the client</h2>
+  <p>The single most important sentence in this interview: <b>authorization is enforced on the read path, server-side, for every item, and it fails closed.</b> Privacy that lives only at write time (e.g. "we don't fan out private posts to the wrong feeds") is not enforcement — it's an optimization that breaks the moment anything reaches a feed it shouldn't, or a permalink is guessed.</p>
+  <h3>Where to enforce</h3>
+  <p>Centralize the check in one Authorization Service that every read path calls. If the Feed Service, the profile page, search, and notifications each hand-roll a <code>WHERE visibility = ...</code> clause, you have five places to leak from and five places to keep in sync. One service = one policy = one audit surface.<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <p><b>Deny-by-default, concretely (per secure-coding rules):</b></p>
+    <ul>
+      <li><b>Default deny:</b> the check returns <em>deny</em> unless an explicit rule grants access. New audience types are invisible until a rule is written — fail safe, not fail open.</li>
+      <li><b>Server-side only:</b> the viewer identity comes from the auth token; the audience is read from trusted storage. Never accept a client-supplied "canView" flag or trust client-side filtering.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Fail closed:</b> if the graph lookup times out or the cache is down, drop the item. A slow feed is acceptable; a leaked post is not.</li>
+      <li><b>404 over 403:</b> on a permalink, deny by returning "not found" so you don't confirm a private post exists.</li>
+    </ul>
+  </div>
+
+  <h2>Deep Dive 2 — Modeling visibility + the graph: why friends-of-friends is expensive</h2>
+  <p>Two pieces: the <b>audience field</b> on the post (the policy) and the <b>social graph</b> the policy is evaluated against (the data). The cheap audiences are O(1): <code>PUBLIC</code> always allows, <code>ONLY_ME</code> allows only the author, <code>CUSTOM_LIST</code> is a set-membership test, and <code>FRIENDS</code> is a single "are viewer and author friends?" edge lookup.</p>
+  <p><b>Friends-of-friends is the hard one</b> because it is a 2-hop graph reachability question: does the viewer share <em>any</em> mutual friend with the author? Answering live means intersecting two friend-sets of up to ~500 each, or crawling a neighborhood of up to ~250k users — per item, per reader.<a href="#c3" class="cite">[3]</a> At ~3M checks/sec, live traversal is a non-starter.</p>
+  <table>
+    <tr><th>Audience</th><th>Check</th><th>Cost</th></tr>
+    <tr><td>PUBLIC / ONLY_ME</td><td>Constant rule</td><td>O(1)</td></tr>
+    <tr><td>FRIENDS</td><td>One edge lookup</td><td>O(1) point read</td></tr>
+    <tr><td>CUSTOM_LIST</td><td>Set membership</td><td>O(1) hashed</td></tr>
+    <tr><td><b>FRIENDS_OF_FRIENDS</b></td><td>2-hop intersection</td><td><b>Expensive</b> — graph traversal</td></tr>
+  </table>
+  <h3>Denormalize vs. compute</h3>
+  <p>The classic staff tradeoff. <b>Compute on read</b> keeps storage minimal and is always fresh, but pays the traversal cost on the hot path — fatal at this QPS. <b>Denormalize</b> (precompute and store the answer) makes the read O(1) but costs storage and, crucially, must be invalidated when the graph changes.</p>
+  <table>
+    <tr><th>Dimension</th><th>Compute on read (traverse)</th><th>Denormalize (precompute)</th></tr>
+    <tr><td>Read latency</td><td><b>Slow</b> — 2-hop crawl</td><td><b>Fast</b> — point lookup</td></tr>
+    <tr><td>Freshness</td><td>Always current</td><td>Needs invalidation</td></tr>
+    <tr><td>Storage</td><td>Minimal</td><td>Higher (mutual-friend cache)</td></tr>
+    <tr><td>Best for</td><td>Rare / admin checks</td><td>Hot-path FoF at scale</td></tr>
+  </table>
+  <p>The pragmatic pick: don't materialize the full FoF set. Instead, on a feed read cache the viewer's friend-id set in Redis, and check FoF as a cheap <b>set intersection against the author's friends</b> — converting a graph crawl into an in-memory hash intersection, refreshed on a short TTL.</p>
+
+  <h2>Deep Dive 3 — Privacy × fan-out: when a post's audience changes</h2>
+  <p>This is the deep dive that ties back to <a href="../lessons/0016-fb-news-feed.html">Lesson 16</a>. If feeds are precomputed (fan-out on write), a post's <code>postId</code> is already sitting in thousands of materialized feeds. Now the author changes the audience from <code>PUBLIC</code> to <code>FRIENDS</code>, or unfriends someone. <b>The fanned-out entries are now stale and potentially leaking.</b></p>
+  <table>
+    <tr><th>Strategy</th><th>How privacy stays correct</th><th>Cost</th></tr>
+    <tr><td><b>Re-check on read (chosen)</b></td><td>Feed stores only <code>postId</code>s; the authz check runs at hydration, reading the post's <em>current</em> audience.</td><td>One check per item (cached)</td></tr>
+    <tr><td>Scrub fanned-out feeds</td><td>On audience change, find and remove the post from every feed it was pushed to.</td><td>Huge write amplification</td></tr>
+    <tr><td>Trust write-time placement</td><td>Assume "it was correct when fanned out."</td><td><b>Leaks</b> — never do this</td></tr>
+  </table>
+  <p>The resolution: <b>the precomputed feed is a list of candidates, not a list of permissions.</b> Fan-out decides <em>what might be relevant</em>; the read-path authz check decides <em>what's allowed right now</em>. This is exactly why Deep Dive 1's "enforce on read" rule is non-negotiable — it's what makes a stale fanned-out entry harmless. You never need to scrub feeds; the check at read time always reflects the latest audience and graph.</p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior says "filter by visibility." The staff candidate sees the <b>interaction between two subsystems</b>: precomputed fan-out makes feeds fast, but it also means permission state is <em>duplicated and goes stale</em>. They resolve it cleanly — "feeds cache candidates, not authority; the read-path check is the source of truth, so audience changes and unfriends are honored without ever rewriting a single fanned-out feed." Naming that separation (generation vs. authorization, just as the feed lesson separated generation vs. ranking) and bounding the permission-staleness window is the move that says staff.
+  </div>
+
+  <h2>Deep Dive 4 — ReBAC / Zanzibar-style checks &amp; caching authz decisions safely</h2>
+  <h3>Relationship-based access control (ReBAC)</h3>
+  <p>Post privacy is fundamentally a <b>relationship</b> question — "can <em>this viewer</em> see <em>this post</em>?" depends on the friend edge between them, not on a static role. That's ReBAC, and the canonical implementation is Google's <b>Zanzibar</b>, which stores relationships as tuples like <code>post:123#viewer@user:42</code> and answers "check" queries by walking those relations.<a href="#c1" class="cite">[1]</a> Mentioning Zanzibar (and that it backs a dedicated authorization service — <a href="../lessons/0068-auth-service.html">Lesson 68</a>) signals you know this is a solved, productized problem, not something to hand-roll per feature.</p>
+  <h3>Caching authz decisions without leaking</h3>
+  <p>To hit &lt;10ms we must cache, but a stale <em>allow</em> is a leak. The safe pattern, modeled on Zanzibar's consistency tokens:<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <ul>
+      <li><b>Cache the relationship, not the verdict, when possible:</b> caching "viewer⇄author are friends" is reusable across all their posts; invalidate it on unfriend.</li>
+      <li><b>Short TTL + explicit invalidation:</b> bound staleness (e.g. seconds), and proactively bust the cache on unfriend, block, audience change, or list edit.</li>
+      <li><b>Bias toward stale-deny, never stale-allow:</b> if unsure whether a cached allow is current, re-check. Erring closed keeps a leak from ever happening.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Consistency tokens:</b> stamp each decision with the graph version it was computed against, so you can require "at least as fresh as the unfriend event" for sensitive checks.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why must the audience check run on the read path, not only at write time?</p>
+      <button class="opt">Read-path checks are simply faster to run than write-time checks</button>
+      <button class="opt">Audience and graph can change after a post is fanned out to feeds</button>
+      <button class="opt">Write-time checks need more storage than read-path checks need</button>
+      <p class="fb">A precomputed feed holds candidate postIds; an unfriend or audience change makes those stale, so only the read-time check reflects current truth.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. Why is friends-of-friends the expensive audience type to enforce?</p>
+      <button class="opt">It needs to write the post into far more follower feeds on create</button>
+      <button class="opt">It requires storing many extra copies of every single shared post</button>
+      <button class="opt">It is a two-hop graph reachability test over huge neighborhoods</button>
+      <p class="fb">FoF asks "do viewer and author share a mutual friend" — a 2-hop intersection over up to ~250k users, far costlier than an O(1) edge lookup.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What does "deny-by-default, fail closed" mean for the authz path here?</p>
+      <button class="opt">On any error, timeout, or unknown rule the item is hidden by default</button>
+      <button class="opt">On any error the most recently cached allow decision is reused fast</button>
+      <button class="opt">On any error the client decides locally whether to render the post</button>
+      <p class="fb">Failing closed means a slow or broken check drops the item; a stale allow is a leak, so the safe default is always to deny.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. What is the safe way to cache authorization decisions for speed?</p>
+      <button class="opt">Cache every allow verdict forever so repeat reads never recheck graph</button>
+      <button class="opt">Cache the relationship with short TTL and invalidate on graph changes</button>
+      <button class="opt">Cache the verdict on the client so the server avoids the lookup cost</button>
+      <p class="fb">Caching the reusable relationship (not the per-post verdict) with bounded TTL plus explicit invalidation on unfriend/audience change avoids stale-allow leaks.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push back and go deeper:
+    <ul style="margin:.4rem 0 0; font-size:.9rem;">
+      <li>"Walk me through the exact authz check for a FRIENDS_OF_FRIENDS post on a feed read."</li>
+      <li>"How would you model post privacy as Zanzibar relation tuples, and what's the 'check' query?"</li>
+      <li>"Quiz me: where does fan-out from Lesson 16 collide with privacy, and how do we keep it correct?"</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://research.google/pubs/pub48190/">Google Zanzibar: Google's Consistent, Global Authorization System</a>. The canonical paper on relationship-based access control at scale — read it for the tuple model, the "check" API, and the consistency-token design that makes caching authz decisions safe without leaking.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://research.google/pubs/pub48190/">Pang et al., "Zanzibar: Google's Consistent, Global Authorization System" (USENIX ATC 2019)</a> (ReBAC tuple model, centralized authorization service, consistency tokens / safe caching of decisions).</p>
+    <p id="c2">[2] <a href="https://owasp.org/Top10/A01_2021-Broken_Access_Control/">OWASP Top 10 — A01:2021 Broken Access Control</a> (deny-by-default, enforce server-side, never trust the client, fail closed).</p>
+    <p id="c3">[3] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/fb-news-feed">Hello Interview — Facebook News Feed</a> (fan-out / feed mechanics this privacy layer rides on; social-graph traversal cost). Capacity numbers are this lesson's own back-of-envelope estimates.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0083-live-score.html">← Lesson 83</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 85 · Jira</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

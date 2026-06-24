@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 52 — Design a Web Search Engine (Google Search)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 52 · Phase 4 — Case Study · Hard</p>
+  <h1>Design a Web Search Engine (Google Search)</h1>
+  <p class="sub">Take tens of billions of crawled pages and answer any keyword query, ranked, with snippets, in under 200&nbsp;ms.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Web search is the hardest read-path interview there is: an enormous, sharded inverted index, a brutal latency budget, and ranking that has to be both <em>good</em> and <em>cheap</em>. The L6/L7 signal is whether you can derive the mechanics under "just use a search cluster" — the inverted index built from the crawl, why the index is partitioned by document, the scatter-gather fan-out it forces, and multi-stage retrieve-then-rerank — rather than naming a product. Crawling is its own problem; here we assume the corpus exists (<a href="0035-web-crawler.html">Lesson 35</a>) and focus on <b>indexing, serving, and ranking</b>.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>State the scope tightly, then defend the boundary. The corpus arrives from the crawler<a href="#c1" class="cite">[1]</a> — we do not crawl here.</p>
+  <table>
+    <tr><th>#</th><th>The user should be able to…</th></tr>
+    <tr><td>1</td><td>Submit a <b>keyword query</b> and get a <b>ranked list</b> of matching web pages.</td></tr>
+    <tr><td>2</td><td><b>Paginate</b> through results (next page / more results) deterministically.</td></tr>
+    <tr><td>3</td><td>See a <b>title + snippet</b> (the matching passage, terms highlighted) for each result.</td></tr>
+  </table>
+  <p><b>Out of scope</b> (name them, then drop them): crawling the web (see <a href="0035-web-crawler.html">Lesson 35</a>), spell-correction/autocomplete, ads, personalization, images/video verticals, and full anti-spam. We index a known corpus and serve ranked text results.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th></tr>
+    <tr><td><b>Low latency</b></td><td>p99 end-to-end query latency &lt; <b>200&nbsp;ms</b> — search is abandoned if it feels slow.</td></tr>
+    <tr><td><b>Huge scale (corpus)</b></td><td>Index <b>tens of billions</b> of documents; no single machine holds the index.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>Huge scale (reads)</b></td><td>Very high, read-dominated query QPS. Traffic is Zipfian, so heavily cacheable.</td></tr>
+    <tr><td><b>Freshness</b></td><td>New/updated pages searchable within minutes–hours; the corpus is never "done."</td></tr>
+    <tr><td><b>Relevance</b></td><td>Top few results must be <em>good</em>, not merely matching — ranking is a first-class NFR.</td></tr>
+    <tr><td><b>Availability</b></td><td>Favor availability + a slightly stale index over blocking on consistency.</td></tr>
+  </table>
+  <div class="box">
+    <b>The two tensions to name up front.</b>
+    <ul>
+      <li><b>Latency vs. corpus size</b> — you cannot scan tens of billions of docs per query, so everything hinges on the <b>inverted index</b> living mostly in memory.</li>
+      <li><b>Relevance vs. latency</b> — the best ranking signals are expensive, so you can only afford them on a tiny candidate set — the seed of multi-stage ranking.</li>
+    </ul>
+  </div>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that <em>change a decision</em>. (Back-of-envelope assumptions — state them aloud, don't quote them as fact.)</p>
+  <table>
+    <tr><th>Quantity</th><th>Math</th><th>Design implication</th></tr>
+    <tr><td>Corpus</td><td>~50B docs × ~10&nbsp;KB indexable text ≈ <b>~500&nbsp;TB</b> of raw text.</td><td>Way past one node — the index is <b>sharded across thousands of machines</b>.</td></tr>
+    <tr><td>Index size</td><td>Inverted index ≈ a fraction of corpus text, still <b>tens–hundreds of TB</b>.</td><td>Can't all fit in RAM cheaply → <b>tiered index</b> (hot shards in memory, tail on SSD).</td></tr>
+    <tr><td>Query QPS</td><td>Assume ~<b>100K queries/s</b> global, read-dominated.</td><td>Reads vastly outnumber writes → cache aggressively; serving fleet is the bulk of cost.</td></tr>
+    <tr><td>Latency budget</td><td>200&nbsp;ms total − network/parse ⇒ ~<b>tens of ms</b> inside the index.</td><td>No room to scan posting lists fully → top-K short-circuiting + in-memory shards.</td></tr>
+    <tr><td>Fan-out</td><td>Doc-partitioned ⇒ each query touches <b>~all shards</b> in parallel.</td><td>Latency is bounded by the <em>slowest</em> shard → a tail-latency problem (DD4).</td></tr>
+  </table>
+  <p>The punchline: read-heavy + brutal latency + a corpus too big for one node. That trio forces a sharded, mostly-in-memory inverted index served by scatter-gather, and ranking split into cheap-then-expensive stages.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>Document</code> (docId, URL, title, text, plus static signals like <code>pageRank</code>), <code>Term</code> → <code>PostingList</code> (the inverted index entry: docIds + positions + per-doc weight), and the transient <code>Query</code>.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>GET /v1/search?q=&amp;cursor=&amp;n=</code></td><td>Ranked results. <code>cursor</code> for pagination, <code>n</code> page size. User (if any) derived from auth token, never the body.</td></tr>
+    <tr><td><code>GET /v1/results/{docId}/snippet?q=</code></td><td>Generate/return the query-specific snippet for one result (often inlined in search).</td></tr>
+    <tr><td><code>POST /v1/index/documents</code></td><td>Internal: indexer ingests a crawled+parsed doc into the inverted index.</td></tr>
+    <tr><td><code>DELETE /v1/index/documents/{docId}</code></td><td>Internal: drop a dead/de-indexed URL (tombstone, compacted later).</td></tr>
+  </table>
+  <p>Note <code>cursor</code>, not <code>page</code>: with an index changing under you and ranking that varies, offset pagination double-shows or skips results. Encode the last (score, docId) seen into an opaque cursor — the staff-correct choice for a live, ranked corpus, exactly as in <a href="0025-fb-post-search.html">Lesson 25</a>.</p>
+
+  <h2>Data Flow — the indexing pipeline (doc → searchable)</h2>
+  <p>This is a data-processing system, so trace one crawled page from the corpus to being queryable. Indexing is offline/streaming and decoupled from serving.</p>
+  <ol style="font-size:.92rem;">
+    <li><b>Source:</b> the crawler (<a href="0035-web-crawler.html">Lesson 35</a>) drops raw HTML + extracted text into blob storage and emits a "doc ready" event.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Parse &amp; tokenize:</b> strip boilerplate, lowercase, split on whitespace/punctuation, drop stop-words, stem ("running"→"run") — same analysis chain as <a href="0025-fb-post-search.html">Lesson 25</a>.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Build postings:</b> for each term, append <code>docId</code> (with positions + a term weight) to that term's <b>posting list</b>; this is index construction.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Compute static signals:</b> precompute query-independent scores per doc — <b>PageRank</b> from the link graph, plus length, language, spam score.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Publish segments:</b> build immutable index <b>segments</b> and ship them to the document shards; deletes are tombstones, merged away during compaction.<a href="#c2" class="cite">[2]</a></li>
+  </ol>
+  <p>Because indexing is offline and append-mostly, the serving path never blocks on writes — fresh segments are swapped in. PageRank is computed in <em>batch</em> over the whole link graph, so it lags the crawl by design; freshness for new pages comes from the streaming indexer, not from recomputing global signals.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Map the requirements to components, separating the <b>offline indexing</b> plane from the <b>online serving</b> plane.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>Indexer fleet</td><td>Consume crawled docs, tokenize, build inverted-index segments per shard.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Inverted index (doc-sharded)</td><td>term → posting list, partitioned by document across thousands of shards. The heart of the system.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Static-signal store</td><td>Per-doc PageRank &amp; other query-independent scores, joined at rank time.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Query coordinator (root)</td><td>Parse query, scatter to all shards, gather + merge top-K, run re-rank, fetch snippets.</td></tr>
+    <tr><td>Doc/snippet store</td><td>URL, title, text by docId; serves snippets &amp; result metadata.</td></tr>
+    <tr><td>Query cache / CDN</td><td>Short-TTL cache for the Zipfian head of popular queries.</td></tr>
+  </table>
+  <p><b>Read path:</b> <code>GET /search</code> → coordinator → cache check → scatter to index shards → per-shard top-K → gather/merge → phase-2 re-rank → snippet fetch → respond. <b>Write path:</b> crawled doc → indexer → new index segment → swapped into the relevant shard.</p>
+
+  <h2>Deep Dive 1 — The inverted index, built from the crawl</h2>
+  <p>Don't say "use a search cluster" and move on — explain what it's doing. A <b>forward index</b> maps <code>document → terms</code>; searching it means scanning every doc, impossible at tens of billions. An <b>inverted index</b> flips it to <code>term → posting list</code>, the set of docIds containing that term, usually with term positions and a per-doc weight.<a href="#c2" class="cite">[2]</a> Brin &amp; Page's original Google design stored exactly this — posting lists in "barrels" plus a lexicon of terms.<a href="#c1" class="cite">[1]</a></p>
+  <pre style="font-family:'SF Mono',Menlo,monospace; font-size:.78rem; background:#f3ece1; padding:.9rem 1rem; border-radius:6px; overflow:auto;">"search"  → [(d12, tf=4, pos=[3,40,..]), (d88, tf=1), (d903, tf=7), ...]
+"engine"  → [(d12, tf=2), (d88, tf=3), (d51, tf=1), ...]
+"index"   → [(d12, tf=9), (d903, tf=2), ...]</pre>
+  <p>A single-word query is now a posting-list read, not a corpus scan. A multi-word query is an <b>intersection</b> (AND) of posting lists — and posting lists are stored sorted by docId precisely so intersection is a linear merge. Term positions enable <b>phrase queries</b> ("web search engine" as a phrase) and, at serve time, <b>snippet generation</b> — find the doc passage where the query terms cluster and highlight them. Postings are heavily compressed (delta-encode docId gaps) so the hot index fits in memory.<a href="#c2" class="cite">[2]</a> The inverted-index basics carry straight over from <a href="0025-fb-post-search.html">Lesson 25</a>; what's new here is scale and ranking.</p>
+
+  <h2>Deep Dive 2 — Sharding the index: document vs. term, and scatter-gather</h2>
+  <p>The index doesn't fit on one node, so it must be partitioned. There are exactly two ways, and naming the tradeoff is the staff signal — same fork as <a href="0025-fb-post-search.html">Lesson 25</a>, but web-scale makes the answer sharper.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th></th><th>Term-partitioned (by keyword)</th><th>Document-partitioned (by docId)</th></tr>
+    <tr><td>Layout</td><td>Each shard owns some terms; that term's <em>entire</em> posting list lives there.</td><td>Each shard owns some docs and a <em>full</em> mini-index over only those docs.</td></tr>
+    <tr><td>Query work</td><td>Route to the few shards holding the query terms — low fan-out.</td><td>Scatter to <em>every</em> shard, each searches locally — high fan-out.</td></tr>
+    <tr><td>Hot-spot risk</td><td><b>Severe</b> — a common term ("the") is one colossal list on one node.</td><td><b>Low</b> — load and storage spread evenly across all shards.</td></tr>
+    <tr><td>Multi-term queries</td><td>Cross-node posting-list shipping to intersect — network-heavy.</td><td>Intersection is local within each shard — no cross-shard traffic.</td></tr>
+    <tr><td>Indexing a new doc</td><td>One doc touches many term-shards (a write per term).</td><td>One doc → one shard. Simple, local, parallel.</td></tr>
+  </table>
+  <div class="box">
+    <b>The pick:</b> <b>document-partitioned</b>, the standard choice for web search.<a href="#c2" class="cite">[2]</a> You accept fan-out (every shard hit per query) to win even load, local intersection, simple indexing, and no catastrophic term hot-spots. The fan-out cost is paid with <b>scatter-gather</b>:
+    <ul>
+      <li><b>Scatter:</b> the coordinator sends the query to all (or a tier of) shards in parallel.</li>
+      <li><b>Local top-K:</b> each shard ranks its own docs and returns just its top <code>K</code> — tiny payloads.</li>
+      <li><b>Gather + merge:</b> the coordinator does a k-way merge into a global top-K, then re-ranks.</li>
+    </ul>
+  </div>
+  <p>Real systems add a hierarchy: a root coordinator over <em>leaf</em> shards, often grouped into intermediate aggregators so the merge itself fans out. Latency is bounded by the slowest shard — picked up in DD4.</p>
+
+  <h2>Deep Dive 3 — Ranking: multi-stage retrieve-then-rerank</h2>
+  <p>Returning matches is easy; returning the <em>best</em> matches in tens of ms is the whole game. You cannot run an expensive scorer over a million-entry posting list per query, so ranking is staged: cheap recall first, expensive precision last.</p>
+  <h3>Stage 0 — query-independent signals</h3>
+  <p>Some signals don't depend on the query and are precomputed per doc: the headline one is <b>PageRank</b>, which scores a page by the link structure of the web — a page is important if important pages link to it.<a href="#c1" class="cite">[1]</a> Stored in the static-signal store and folded in at rank time.</p>
+  <h3>Stage 1 — retrieval / first-pass scoring (cheap, per shard)</h3>
+  <p>Each shard scores its local matches with a cheap text-relevance function over the posting list. The standard is <b>BM25</b> (Okapi BM25): a refinement of <b>TF-IDF</b> that rewards term frequency with diminishing returns and normalizes for document length, so long docs don't win just by being long.<a href="#c3" class="cite">[3]</a> The point of this stage is <em>recall</em>: get a few hundred plausible candidates per shard fast, not perfect order.</p>
+  <pre style="font-family:'SF Mono',Menlo,monospace; font-size:.78rem; background:#f3ece1; padding:.9rem 1rem; border-radius:6px; overflow:auto;">score(d) ≈ Σ_terms  IDF(t) · ( tf(t,d)·(k+1) ) / ( tf(t,d) + k·(1 − b + b·|d|/avgLen) )
+            └ rarer terms count more ┘   └ TF saturates ┘   └ length-normalized ┘</pre>
+  <h3>Stage 2 — re-ranking (expensive, on the candidate set)</h3>
+  <p>The merged global candidate set (say a few hundred to a few thousand docs) is small enough to score with rich, costly signals: a blend of BM25 + PageRank + freshness + (in modern systems) a <b>learning-to-rank</b> model or neural ranker. Only the final top <code>N</code> survive.<a href="#c2" class="cite">[2]</a></p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The retrieve-then-rerank split is the lever that makes web ranking affordable: BM25 over posting lists is cheap and runs on <em>every</em> shard for recall; the expensive model runs <em>once</em>, on a few thousand merged candidates, for precision. Saying "we'd run an ML ranker" is senior; explaining <em>why it can only run on the candidate set after scatter-gather merge</em> — and that PageRank is a precomputed static signal, not a per-query cost — is staff. Naming a modern third tier (below) unprompted seals it.
+  </div>
+  <div class="box">
+    <b>Modern semantic tier (bonus depth).</b> Lexical BM25 misses synonyms ("car" vs "automobile"). Add <b>embedding retrieval</b>: encode docs and the query into vectors and do approximate nearest-neighbor search in a <a href="0040-vector-databases.html">vector database (Lesson 40)</a> as a parallel first-stage retriever, then merge its candidates with the BM25 candidates before re-ranking. This "hybrid retrieval" is how current search blends keyword and semantic matching.
+  </div>
+
+  <h2>Deep Dive 4 — Serving latency budget &amp; the tiered index</h2>
+  <p>The 200&nbsp;ms p99 budget with fan-out to thousands of shards is the real engineering problem. Three moves.</p>
+  <h3>Keep the hot index in memory; tier the rest</h3>
+  <p>RAM access is ~100× faster than SSD, so the index that serves the latency-critical path lives in memory. But tens-to-hundreds of TB in RAM is brutally expensive, so use a <b>tiered index</b>: a small <b>hot tier</b> (high-PageRank / frequently-matched docs) fully in memory answers most queries; a larger <b>cold tier</b> on SSD is consulted only when the hot tier lacks enough good results.<a href="#c2" class="cite">[2]</a> Most queries terminate in the hot tier, so average latency tracks RAM, not disk.</p>
+  <h3>Tame the tail (slowest-shard problem)</h3>
+  <p>With high fan-out, the query is as slow as its slowest shard — a tail-latency trap. Mitigations: <b>hedged/backup requests</b> (re-issue to a replica if a shard is slow and take the first reply), and <b>return-after-N-of-M</b> (respond once enough shards have answered, tolerating a tiny completeness loss for a big p99 win).</p>
+  <h3>Cache the Zipfian head</h3>
+  <p>Query traffic is heavily skewed — a small set of queries repeats constantly. A distributed <b>query-result cache</b> (and CDN/edge layer) with a short TTL matched to the freshness budget deduplicates the popular head, dropping their latency to a few ms and shielding the shards from most QPS.</p>
+  <table>
+    <tr><th>Technique</th><th>What it buys</th></tr>
+    <tr><td>Tiered index (hot RAM / cold SSD)</td><td>Most queries answered at memory speed without paying to keep all of it in RAM.</td></tr>
+    <tr><td>Hedged requests / N-of-M</td><td>p99 decoupled from the single slowest shard.</td></tr>
+    <tr><td>Query-result cache + CDN</td><td>Popular-query latency in ms; massive QPS relief on the index fleet.</td></tr>
+  </table>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. What is an inverted index in a web search engine?</p>
+      <button class="opt">Mapping each document to the set of terms inside of it</button>
+      <button class="opt">Mapping each term to the set of documents holding it</button>
+      <button class="opt">Mapping each query to the set of cached pages for it</button>
+      <p class="fb">Inverted = term → posting list of docIds, turning a corpus scan into a posting-list read and intersection.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. Why shard the web index by document rather than by term?</p>
+      <button class="opt">It avoids one huge posting list becoming a hot shard</button>
+      <button class="opt">It lets a query hit just one shard and skip fan-out</button>
+      <button class="opt">It removes the need to score any documents on read</button>
+      <p class="fb">Doc-partitioning spreads load evenly and keeps intersection local; the cost it accepts is scatter-gather fan-out.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">3. How does multi-stage ranking keep top-result quality affordable?</p>
+      <button class="opt">It scores the entire posting list with the model each time</button>
+      <button class="opt">It re-ranks only a small candidate set with costly signals</button>
+      <button class="opt">It sorts all of the matching docs by PageRank before reading</button>
+      <p class="fb">Stage 1 BM25 gives cheap recall per shard; stage 2 runs the expensive ranker once on the merged candidates.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why keep hot index shards in RAM and cache popular queries?</p>
+      <button class="opt">Because the query traffic spreads evenly across all the terms</button>
+      <button class="opt">Because the query traffic is Zipfian and a head repeats a lot</button>
+      <button class="opt">Because each search must scan the entire corpus from cold disk</button>
+      <p class="fb">A skewed (Zipfian) head means caching + a hot in-memory tier serve most traffic at memory/ms speed, taming p99.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — try: <em>"Walk me through how BM25 differs from plain TF-IDF and why length normalization matters."</em> · <em>"How would hybrid lexical + vector retrieval merge candidates before re-ranking?"</em> · <em>"Size the index: how many doc-shards for 50B docs and what fan-out does that imply?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://nlp.stanford.edu/IR-book/">Manning, Raghavan &amp; Schütze — <em>Introduction to Information Retrieval</em></a> (free online). The canonical walkthrough of inverted-index construction, term-vs-document partitioning, tiered indexes, and ranking (TF-IDF/BM25). Pair it with Brin &amp; Page's original Google paper for the architecture and PageRank.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="http://infolab.stanford.edu/~backrub/google.html">Brin &amp; Page — "The Anatomy of a Large-Scale Hypertextual Web Search Engine"</a> (Google's inverted index / barrels + lexicon, PageRank as a static link-based signal, corpus from the crawl).</p>
+    <p id="c2"><a href="https://nlp.stanford.edu/IR-book/">[2] Manning, Raghavan &amp; Schütze — <em>Introduction to Information Retrieval</em>, Cambridge University Press</a> (inverted index construction, term vs. document partitioning, distributed scatter-gather, tiered indexes, ranking pipeline).</p>
+    <p id="c3"><a href="https://www.staff.city.ac.uk/~sbrp622/papers/foundations_bm25_review.pdf">[3] Robertson &amp; Zaragoza — "The Probabilistic Relevance Framework: BM25 and Beyond"</a> (BM25 ranking function: TF saturation and document-length normalization).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0051-google-maps.html">← Lesson 51</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 53 · Twitter / X</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

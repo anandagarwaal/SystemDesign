@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 104 — Deep Dive: Kubernetes</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 104 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Kubernetes</h1>
+  <p class="sub">Declare the state you want; let a reconciliation loop fight entropy on your behalf — and know when that machinery is worth its operational tax.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> At L6/L7 you rarely have to <em>configure</em> Kubernetes on a whiteboard — but you must reason about it like a platform. The interviewer wants to hear that you understand the one idea that makes K8s tick (declarative desired state driven by reconciliation loops), where the single source of truth lives (<code>etcd</code>), how self-healing and rolling deploys fall out of that loop for free, and — the staff move — when the operational complexity is <em>not</em> worth it versus serverless or a managed PaaS.<a href="#c1" class="cite">[1]</a></p>
+  </div>
+
+  <h2>What it is</h2>
+  <p>Kubernetes (K8s) is an open-source <b>container orchestrator</b>: it runs and manages containerized workloads across a fleet of machines so you treat the cluster as one pool of compute rather than naming individual servers.<a href="#c1" class="cite">[1]</a> It descends directly from Google's internal cluster manager, <b>Borg</b>, whose central lessons — pack many workloads densely onto shared machines, give every task a stable identity, and let a controller keep things running — are baked into its design.<a href="#c2" class="cite">[2]</a> If you haven't met the unit it schedules, read <a href="../lessons/0105-docker-containers.html">Lesson 105 · Docker &amp; Containers</a> first; K8s assumes you already have images.</p>
+  <p>The defining idea is <b>declarative, desired-state management</b>. You don't issue imperative commands ("start three copies, now start a fourth"). You submit a manifest that says <em>"I want 3 replicas of this image, reachable on port 80,"</em> and Kubernetes continuously works to make reality match that declaration.<a href="#c3" class="cite">[3]</a> You describe the destination; the system figures out the steps and re-derives them whenever something drifts.</p>
+
+  <h2>Internals — the part that earns depth</h2>
+
+  <h3>The control plane: brains of the cluster</h3>
+  <p>Every cluster splits into a <b>control plane</b> (makes global decisions) and a set of <b>worker nodes</b> (run the workloads).<a href="#c4" class="cite">[4]</a> Four control-plane components matter:</p>
+  <table>
+    <thead><tr><th>Component</th><th>Job</th></tr></thead>
+    <tbody>
+      <tr><td><b>API server</b></td><td>The single front door. All reads/writes go through its REST API; it validates and persists every object.<a href="#c4" class="cite">[4]</a></td></tr>
+      <tr><td><b>etcd</b></td><td>The consistent key-value store that holds <em>all</em> cluster state — the single source of truth.<a href="#c5" class="cite">[5]</a></td></tr>
+      <tr><td><b>Scheduler</b></td><td>Watches for Pods with no node assigned and picks the best node based on resources and constraints.<a href="#c4" class="cite">[4]</a></td></tr>
+      <tr><td><b>Controller manager</b></td><td>Runs the controllers — the loops that drive actual state toward desired state.<a href="#c4" class="cite">[4]</a></td></tr>
+    </tbody>
+  </table>
+  <p><b>etcd is the centre of gravity.</b> It is a distributed key-value store that uses the Raft consensus algorithm for strong consistency, so a majority quorum agrees on every write.<a href="#c5" class="cite">[5]</a> Lose etcd and you lose the cluster's memory; this is why it's run as an odd-sized replicated cluster and backed up. (The consensus machinery underneath is the same family covered in <a href="../lessons/0106-zookeeper-etcd.html">Lesson 106 · ZooKeeper &amp; etcd</a>.) Crucially, components don't talk to etcd directly — only the API server does.<a href="#c4" class="cite">[4]</a></p>
+
+  <h3>The reconciliation loop: the one pattern to remember</h3>
+  <p>A <b>controller</b> is a non-terminating loop that watches a resource through the API server and nudges the cluster toward the recorded desired state.<a href="#c6" class="cite">[6]</a> The cycle is always the same: <em>observe</em> actual state → <em>compare</em> to desired state → <em>act</em> to close the gap → repeat.<a href="#c6" class="cite">[6]</a> The ReplicaSet controller is the canonical example: you declared 3 replicas, it observes 2 running (a node died), so it creates 1 more — without anyone issuing a command.</p>
+  <p>This single pattern is why Kubernetes <b>self-heals</b>. There is no special "recovery mode"; the steady-state loop that creates Pods is the exact same loop that replaces crashed ones. Understanding that desired-vs-actual reconciliation is the whole engine — not a grab-bag of features — is the conceptual unlock that reads as depth.</p>
+
+  <h3>Nodes: where workloads actually run</h3>
+  <p>Each worker node runs three things that turn scheduling decisions into running processes:<a href="#c7" class="cite">[7]</a></p>
+  <ul>
+    <li><b>kubelet</b> — the node agent. It reads the Pods assigned to its node and tells the container runtime to start them, then reports health back.<a href="#c7" class="cite">[7]</a></li>
+    <li><b>kube-proxy</b> — programs the node's network rules so traffic to a Service is routed to the right Pods.<a href="#c7" class="cite">[7]</a></li>
+    <li><b>container runtime</b> — the software that actually runs containers (e.g. containerd), via the CRI interface.<a href="#c7" class="cite">[7]</a></li>
+  </ul>
+
+  <h3>Core objects: the vocabulary</h3>
+  <table>
+    <thead><tr><th>Object</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td><b>Pod</b></td><td>Smallest deployable unit: one or more co-located containers sharing network and storage.<a href="#c8" class="cite">[8]</a></td></tr>
+      <tr><td><b>ReplicaSet</b></td><td>Keeps a stable set of N identical Pods running at all times.<a href="#c9" class="cite">[9]</a></td></tr>
+      <tr><td><b>Deployment</b></td><td>Manages ReplicaSets to give you declarative rolling updates and rollbacks.<a href="#c10" class="cite">[10]</a></td></tr>
+      <tr><td><b>Service</b></td><td>Stable virtual IP / DNS name fronting a changing set of Pods (load balancing + discovery).<a href="#c11" class="cite">[11]</a></td></tr>
+      <tr><td><b>Ingress</b></td><td>HTTP(S) routing rules that expose Services to the outside world by host/path.<a href="#c12" class="cite">[12]</a></td></tr>
+      <tr><td><b>ConfigMap / Secret</b></td><td>Decouple config and sensitive values from images, injected at runtime.<a href="#c13" class="cite">[13]</a></td></tr>
+    </tbody>
+  </table>
+  <p>The mental hierarchy to recall: a <b>Deployment</b> owns a <b>ReplicaSet</b>, which owns <b>Pods</b>; a <b>Service</b> gives those ephemeral Pods one stable address. Pods are cattle, not pets — they die and get recreated with new IPs, which is exactly why Services exist.</p>
+
+  <h2>Scaling &amp; networking</h2>
+  <p>Because everything is a reconciliation loop over declared state, the operationally hard things become configuration, not scripts:</p>
+  <ul>
+    <li><b>Horizontal Pod Autoscaler (HPA)</b> — watches metrics (e.g. CPU) and adjusts the Deployment's replica count up or down to hold a target.<a href="#c14" class="cite">[14]</a> It is itself just another controller closing a gap.</li>
+    <li><b>Rolling updates &amp; rollbacks</b> — a Deployment swaps Pods to a new version incrementally, keeping the app available; if the new version fails it can roll back to the previous ReplicaSet.<a href="#c10" class="cite">[10]</a> This is your zero-downtime deploy primitive — pairs naturally with a <a href="../lessons/0067-cicd-system.html">CI/CD pipeline (Lesson 67)</a>.</li>
+    <li><b>Self-healing</b> — failed Pods are recreated, unhealthy ones (failing liveness probes) are restarted, all by the same loop.<a href="#c6" class="cite">[6]</a></li>
+  </ul>
+  <p><b>Service discovery &amp; the network model.</b> Kubernetes mandates a <b>flat network</b>: every Pod gets its own cluster-wide IP, and any Pod can reach any other Pod directly without NAT.<a href="#c15" class="cite">[15]</a> That keeps the model simple — Pods look like VMs on one big network. A <b>Service</b> sits on top with a stable virtual IP and a DNS name; kube-proxy load-balances requests across the current healthy Pods, so callers never track individual Pod IPs.<a href="#c11" class="cite">[11]</a></p>
+
+  <h2>When you need it / when NOT</h2>
+  <table>
+    <thead><tr><th>Reach for Kubernetes when…</th><th>Reach elsewhere when…</th></tr></thead>
+    <tbody>
+      <tr><td>Many services, polyglot, needing portable orchestration<a href="#c1" class="cite">[1]</a></td><td>One or two simple apps → a PaaS or managed container service</td></tr>
+      <tr><td>You need self-healing, autoscaling, rolling deploys as defaults<a href="#c6" class="cite">[6]</a></td><td>Spiky / event-driven workloads → serverless (Lambda, Cloud Run)</td></tr>
+      <tr><td>You have platform engineers to run it (or use managed EKS/GKE)<a href="#c1" class="cite">[1]</a></td><td>A tiny team with no ops bandwidth → avoid the YAML &amp; etcd tax</td></tr>
+      <tr><td>Multi-cloud / on-prem portability is a real requirement</td><td>Single cloud, want least ops → that cloud's native primitives</td></tr>
+    </tbody>
+  </table>
+  <p>The honest framing: Kubernetes buys you a uniform, self-healing control plane at the cost of <b>real operational complexity</b> — etcd to back up, networking and RBAC to reason about, upgrades to manage. For a small app, <b>serverless</b> (no servers to manage, scales to zero, pay-per-use) or a managed PaaS gives you most of the resilience with a fraction of the burden. K8s earns its keep at scale and breadth, not on day one.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Seniors say "we'll run it on Kubernetes." Staff candidates collapse the whole system into one sentence — <em>"K8s is a reconciliation loop: I declare desired state in etcd via the API server, and controllers continuously drive actual state to match, which is why self-healing, rolling updates, and HPA are all the same mechanism."</em> Then they show judgement on the alternative: <em>"but for this workload I wouldn't introduce a cluster — it's three services with bursty traffic, so serverless avoids the etcd-and-YAML operational tax until we actually need multi-service orchestration."</em><a href="#c1" class="cite">[1]</a> Naming the operational cost and declining to over-engineer is the simple-by-default bar.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>If your design has a fleet of microservices, it's fair to put "deployed on Kubernetes (managed EKS/GKE)" on the board — then justify it in one line ("self-healing + rolling deploys across N services") and expect two follow-ups.<a href="#c1" class="cite">[1]</a> <em>"How does it stay up when a node dies?"</em> → the ReplicaSet controller's reconciliation loop recreates the Pods; the Service re-routes once they're healthy.<a href="#c6" class="cite">[6]</a> <em>"How do services find each other?"</em> → stable Service IP/DNS over the flat Pod network, load-balanced by kube-proxy.<a href="#c11" class="cite">[11]</a> Don't narrate every object type; name the loop, name etcd as the source of truth, and — if the workload is small — proactively say you'd skip K8s for serverless. That restraint is the signal.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What is the core operating model of Kubernetes?</p>
+      <button class="opt">You issue step-by-step imperative commands to each node</button>
+      <button class="opt">A central queue dispatches one-off jobs to idle servers</button>
+      <button class="opt">You declare desired state; loops reconcile actual to it</button>
+      <button class="opt">Each container schedules itself onto whichever node fits</button>
+      <p class="fb">You declare desired state; controllers continuously drive actual state toward it — the reconciliation loop.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Where does Kubernetes keep the cluster's source of truth?</p>
+      <button class="opt">On each kubelet's local disk, gathered on demand later</button>
+      <button class="opt">In etcd, a consistent key-value store behind the API</button>
+      <button class="opt">In the scheduler's in-memory cache of pending Pods</button>
+      <button class="opt">In the container runtime managing the running images</button>
+      <p class="fb">etcd is the consistent key-value store of all cluster state; only the API server reads/writes it.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why does a crashed Pod get replaced without any command?</p>
+      <button class="opt">A controller loop sees actual below desired and acts</button>
+      <button class="opt">A backup daemon restores the node from a saved image</button>
+      <button class="opt">The container runtime retries the failed process forever</button>
+      <button class="opt">The ingress reroutes the request to a brand-new cluster</button>
+      <p class="fb">Self-healing is the same reconciliation loop: observe fewer replicas than desired, create more.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. When is Kubernetes most likely the WRONG choice?</p>
+      <button class="opt">A large fleet of many microservices needing portability</button>
+      <button class="opt">A platform team that already runs managed EKS at scale</button>
+      <button class="opt">A multi-cloud system requiring uniform orchestration</button>
+      <button class="opt">A tiny bursty app with no ops staff to run a cluster</button>
+      <p class="fb">For a small, bursty app with no ops bandwidth, serverless avoids K8s's heavy operational tax.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Walk me through exactly what happens, component by component, when I <code>kubectl apply</code> a Deployment." · "Quiz me on the difference between a ReplicaSet, a Deployment, and a Service." · "Give me a FAANG design prompt and push me on whether I should use Kubernetes or serverless."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://kubernetes.io/docs/concepts/">Kubernetes Documentation — Concepts</a>. Start with "Kubernetes Components" and "Controllers / Reconciliation," then Workloads (Pod, Deployment) and Services &amp; Networking. Pair it with the <a href="https://research.google/pubs/large-scale-cluster-management-at-google-with-borg/">Borg paper</a> for the design lineage and the <a href="../reference/glossary.html">glossary</a>.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://kubernetes.io/docs/concepts/overview/">Kubernetes Docs — Overview (What is Kubernetes)</a> (container orchestration; portability; managed offerings).</p>
+    <p id="c2">[2] <a href="https://research.google/pubs/large-scale-cluster-management-at-google-with-borg/">Verma et al., "Large-scale cluster management at Google with Borg" (EuroSys 2015)</a> (Borg lineage: dense packing, task identity, controllers).</p>
+    <p id="c3">[3] <a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/">Kubernetes Docs — Objects &amp; Desired State</a> (declarative desired-state model).</p>
+    <p id="c4">[4] <a href="https://kubernetes.io/docs/concepts/overview/components/">Kubernetes Docs — Cluster Components</a> (API server, scheduler, controller manager; API server is the front door).</p>
+    <p id="c5">[5] <a href="https://kubernetes.io/docs/concepts/overview/components/#etcd">Kubernetes Docs — etcd</a> (consistent key-value store; source of truth).</p>
+    <p id="c6">[6] <a href="https://kubernetes.io/docs/concepts/architecture/controller/">Kubernetes Docs — Controllers</a> (observe→compare→act reconciliation loop; self-healing).</p>
+    <p id="c7">[7] <a href="https://kubernetes.io/docs/concepts/architecture/nodes/">Kubernetes Docs — Nodes (kubelet, kube-proxy, runtime)</a> (node agents and CRI runtime).</p>
+    <p id="c8">[8] <a href="https://kubernetes.io/docs/concepts/workloads/pods/">Kubernetes Docs — Pods</a> (smallest deployable unit; shared network/storage).</p>
+    <p id="c9">[9] <a href="https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/">Kubernetes Docs — ReplicaSet</a> (maintains a stable set of N Pods).</p>
+    <p id="c10">[10] <a href="https://kubernetes.io/docs/concepts/workloads/controllers/deployment/">Kubernetes Docs — Deployment</a> (rolling updates and rollbacks over ReplicaSets).</p>
+    <p id="c11">[11] <a href="https://kubernetes.io/docs/concepts/services-networking/service/">Kubernetes Docs — Service</a> (stable virtual IP/DNS; load balancing &amp; discovery).</p>
+    <p id="c12">[12] <a href="https://kubernetes.io/docs/concepts/services-networking/ingress/">Kubernetes Docs — Ingress</a> (HTTP routing by host/path to Services).</p>
+    <p id="c13">[13] <a href="https://kubernetes.io/docs/concepts/configuration/configmap/">Kubernetes Docs — ConfigMap &amp; Secret</a> (decoupling config and secrets from images).</p>
+    <p id="c14">[14] <a href="https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/">Kubernetes Docs — Horizontal Pod Autoscaler</a> (metric-driven replica scaling).</p>
+    <p id="c15">[15] <a href="https://kubernetes.io/docs/concepts/services-networking/">Kubernetes Docs — Cluster Networking</a> (flat per-Pod IP model; no NAT between Pods).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0103-mapreduce-hadoop.html">← Lesson 103</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 105 · Docker &amp; Containers</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

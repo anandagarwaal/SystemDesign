@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 58 — Design Slack (Team Messaging)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 58 · Phase 4 — Case Study · Medium</p>
+  <h1>Design Slack (Team Messaging)</h1>
+  <p class="sub">WhatsApp routes a message to one person; Slack routes it to a channel whose membership and read-state you must model explicitly — the channel <em>is</em> the design.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Slack looks like "WhatsApp again" but the interview pivot is the <b>workspace → channel → member</b> model. At L6/L7 the bar is to recognize that delivery is now <em>fan-out to a channel's members</em>, that per-channel ordering and per-member unread state are first-class problems, and that one cheap thing (presence) and one expensive thing (full-text search) need separate subsystems. Reuse the WhatsApp connection layer <a href="#c1" class="cite">[1]</a>, then spend your depth on what 1:1 chat never forced you to solve.
+
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope to the team-messaging core and defer the suite (huddles, calls, apps/bots, file collaboration).</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td>Create and join <b>channels</b> within a workspace (public and private).</td></tr>
+    <tr><td>2</td><td><b>Send and receive messages in real time</b> in a channel, and reply in <b>threads</b>.</td></tr>
+    <tr><td>3</td><td>See <b>presence</b> (who is online) and per-channel <b>unread counts</b>.</td></tr>
+    <tr><td>4</td><td><b>Search</b> message history across the channels they belong to.</td></tr>
+  </table>
+  <p style="font-size:.9rem;color:var(--muted);">Out of scope (say so out loud): audio/video huddles, the app/bot platform and slash commands, file editing, and cross-workspace Connect/federation.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>The "-ilities" drive every choice below. Lead with latency and per-channel ordering — those are the Slack-specific bars.</p>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th><th>Why it shapes the design</th></tr>
+    <tr><td>Low latency</td><td>Message visible to online members in &lt;200ms</td><td>Forces <b>persistent WebSockets</b> + push, never polling.</td></tr>
+    <tr><td>Ordering</td><td>Strict order <i>within a channel</i></td><td>Forces a single sequencing point <b>per channel</b> (monotonic seq).</td></tr>
+    <tr><td>Availability</td><td>≥99.9%; degrade, don't drop</td><td>Forces durable history; presence may be best-effort.</td></tr>
+    <tr><td>Read-your-writes</td><td>Your own send appears instantly</td><td>Forces an idempotent client-message-id + echo on the socket.</td></tr>
+    <tr><td>Search freshness</td><td>New messages searchable in seconds</td><td>Forces an <b>async</b> index pipeline, off the write hot path.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only what changes the design. For Slack the load-bearing numbers are <b>concurrent connections</b> and <b>channel fan-out</b>, not raw storage. (Numbers below are my own order-of-magnitude estimates for sizing, not Slack figures.)</p>
+  <div class="box">
+    <ul>
+      <li><b>Concurrent connections:</b> assume ~30M concurrent users, each holding one WebSocket. Even at ~500K sockets/host that is ~60+ connection servers — so you again need a <b>connection registry</b> to find a user's socket <a href="#c1" class="cite">[1]</a>.</li>
+      <li><b>Messages:</b> ~5B messages/day ≈ <b>~60K msg/s</b> average, several × at peak. Tiny payloads; the cost is in fan-out, not bytes.</li>
+      <li><b>Fan-out amplification (the big one):</b> a message to a 50-member channel becomes up to 50 deliveries; a few large channels with <b>50K+ members</b> turn one write into tens of thousands of pushes. This single fact forces a different delivery model than 1:1 chat.</li>
+      <li><b>Storage:</b> 5B msgs/day × ~300 bytes ≈ <b>~1.5 TB/day</b> of message text, retained for years — bounded and cheap on a partitioned store; the search index roughly doubles it.</li>
+    </ul>
+    <p style="margin:.6rem 0 0;"><b>Implication:</b> the design's difficulty lives in <i>channel fan-out</i>, <i>per-member read-state</i>, and <i>search</i> — three things 1:1 messaging never made you build.</p>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>Workspace</code>, <code>Channel</code>, <code>ChannelMember</code> (user ↔ channel, plus <code>last_read_seq</code>), <code>Message</code> (with <code>channel_id</code>, <code>seq</code>, optional <code>thread_id</code>), and <code>User</code>. The reusable WhatsApp pieces — connection registry, inbox — still apply <a href="#c1" class="cite">[1]</a>, but membership and read-state are the new first-class tables.</p>
+  <p>The hot path is a <b>persistent WebSocket</b> (latency-sensitive, bidirectional). REST handles things fine to pull on demand: history, channel management, search. User is always derived from the auth token.</p>
+
+  <h3>WebSocket (the real-time path)</h3>
+  <table>
+    <tr><th>Direction</th><th>Frame</th><th>Meaning</th></tr>
+    <tr><td>C → S</td><td><code>sendMessage { channelId, clientMsgId, body, threadId? }</code></td><td>Send; <code>clientMsgId</code> is the idempotency key.</td></tr>
+    <tr><td>S → C</td><td><code>newMessage { channelId, seq, messageId, body }</code></td><td>Server pushes to each online member's socket.</td></tr>
+    <tr><td>C → S</td><td><code>markRead { channelId, seq }</code></td><td>Advances the member's <code>last_read_seq</code> (clears unread).</td></tr>
+    <tr><td>S → C</td><td><code>presence { userId, state }</code></td><td>Presence change for someone the client is viewing.</td></tr>
+  </table>
+
+  <h3>REST (the cold path)</h3>
+  <p><code>POST /v1/channels</code> · <code>POST /v1/channels/{id}/members</code> · <code>GET /v1/channels/{id}/messages?before={seq}&amp;limit=50</code> (paginated history) · <code>GET /v1/search?q=...&amp;workspace={id}</code>. Attachments go through <code>POST /v1/files</code> returning a pre-signed blob URL so media never traverses the chat server.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Keep the WhatsApp split — a <b>stateful connection layer</b> (who's online, on which socket) vs. a <b>durable message store</b> — and add the channel-shaped pieces around it.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>State</th></tr>
+    <tr><td>L4 Load Balancer</td><td>Spreads long-lived WebSockets across connection servers.</td><td>Stateless</td></tr>
+    <tr><td>Connection servers</td><td>Hold the sockets; keep an in-memory map of locally-connected users <a href="#c1" class="cite">[1]</a>.</td><td><b>Stateful</b></td></tr>
+    <tr><td>Connection registry</td><td>Maps <code>userId → server</code> for routing pushes to the right socket.</td><td>Coordination</td></tr>
+    <tr><td>Channel/Message service</td><td>Assigns per-channel <code>seq</code>, persists, resolves membership, fans out.</td><td>Logic</td></tr>
+    <tr><td>Pub/sub backplane</td><td>One <b>channel topic</b>; connection servers subscribe for the members they hold.</td><td>Transient</td></tr>
+    <tr><td>Message store</td><td>Partitioned by <code>channel_id</code>, clustered/sorted by <code>seq</code> (durable history).</td><td>Durable</td></tr>
+    <tr><td>Presence service</td><td>Heartbeat-driven online set in memory (e.g. Redis), best-effort.</td><td>Volatile</td></tr>
+    <tr><td>Search index</td><td>Inverted index built async from a message change-stream.</td><td>Durable</td></tr>
+  </table>
+  <p><b>Send-message flow:</b> client → WebSocket → Channel service assigns the next <b>per-channel <code>seq</code></b> and persists the message → publishes once to the <b>channel's pub/sub topic</b> → every connection server holding a member of that channel receives it and pushes <code>newMessage</code> to its local sockets → offline members' unread counts update lazily from <code>last_read_seq</code> on next open. The key contrast with WhatsApp: you publish <b>once per channel</b> and let subscribers do the local fan-out, instead of writing one inbox row per recipient.</p>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1. Real-time delivery: channel fan-out, not per-recipient inbox</h3>
+  <p>In WhatsApp, a send becomes one inbox write <i>per recipient client</i> — fine for chats bounded at ~100 <a href="#c1" class="cite">[1]</a>. In Slack a message targets a <b>channel</b>, and channels range from 3 people to tens of thousands. Doing a row-per-member write on the hot path would couple send latency to channel size — unacceptable.</p>
+  <p>The better primitive is <b>topic-based fan-out</b>: each channel is a pub/sub topic. The Channel service persists the message once and publishes once to <code>channel:{id}</code>. Connection servers <b>subscribe to the topics for whichever members they currently hold</b>, so a publish lands only on the servers that actually have an online member, each of which pushes to its local sockets. Send latency is now O(1) in channel size for the writer; the fan-out cost is paid in parallel across subscribers. Offline members aren't pushed at all — they reconcile via history + unread on reconnect (deep dive 4), so there is no per-offline-member write.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The move that separates senior from staff: explicitly say <b>"the unit of delivery changed from a user to a channel, so I move fan-out off the write path and onto the subscription path."</b> A senior reuses WhatsApp's per-recipient inbox and quietly accepts O(members) writes per send; a staff engineer notices that unbounded channel size breaks that model and picks publish-once-per-channel + subscribe-by-membership — then names the one case where it breaks (huge channels, deep dive 5) <em>before</em> being asked.
+  </div>
+
+  <h3>2. Message storage &amp; ordering per channel</h3>
+  <p>The ordering NFR is <b>strict order within a channel</b> — not globally. That scopes the hard part: you need exactly one sequencing authority <em>per channel</em>, not one for the whole system.</p>
+  <ul style="font-size:.92rem;">
+    <li><b>Sequence:</b> the Channel service assigns a <b>monotonic per-channel <code>seq</code></b> (e.g. an atomic counter per <code>channel_id</code>) on accept. Clients render strictly by <code>seq</code>, so wall-clock skew never reorders a channel.</li>
+    <li><b>Storage layout:</b> partition by <code>channel_id</code>, sort key <code>seq</code>. Reading a channel page is a single contiguous range scan; pagination is just <code>seq &lt; cursor</code>.</li>
+    <li><b>Threads:</b> a reply carries a <code>thread_id</code> (the root message's id) but still takes the channel's next <code>seq</code>. The thread view filters by <code>thread_id</code>; the channel view shows the root plus a reply count. Threads are a query concern, not a second ordering system.</li>
+    <li><b>Read-your-writes:</b> the server echoes the accepted message (with its <code>seq</code>) back over the sender's socket, matched on <code>clientMsgId</code>, so the optimistic local copy is confirmed without a refetch.</li>
+  </ul>
+
+  <h3>3. Presence at scale</h3>
+  <p>Presence is the trap: it looks trivial and silently becomes your heaviest write source. With 30M online users and naive "write online/offline to the DB on every change," plus typing and tab focus events, you generate millions of pointless writes per second.</p>
+  <table>
+    <tr><th>Approach</th><th>Verdict</th></tr>
+    <tr><td>Persist every presence change to the primary DB</td><td><b>Bad</b> — write storm; presence is the cheapest data but would dominate write load.</td></tr>
+    <tr><td>Poll a presence endpoint every few seconds per client</td><td><b>Bad</b> — N² chatter; latency-laggy and wasteful at scale.</td></tr>
+    <tr><td>In-memory online set in Redis, TTL refreshed by socket heartbeat</td><td><b>Good</b> — online = "has a key"; auto-expires on disconnect; cheap reads.</td></tr>
+    <tr><td>Subscribe only to presence of users currently on screen</td><td><b>Great</b> — Slack's "Flannel" idea: fan out presence for the visible roster only <a href="#c2" class="cite">[2]</a>.</td></tr>
+  </table>
+  <p>Treat presence as <b>volatile and best-effort</b>: a momentarily-stale dot is acceptable, so it never touches the durable store. Heartbeats refresh a TTL'd key; on disconnect the key expires and a <code>presence</code> event is pushed only to clients viewing that user. This is the same heartbeat machinery WhatsApp uses for liveness <a href="#c1" class="cite">[1]</a>, repurposed as a presence signal.</p>
+
+  <h3>4. Unread counts &amp; notifications</h3>
+  <p>Unreads are not stored as a number — that would mean incrementing a counter for every member on every send (the same fan-out-on-write trap). Instead derive them from two values you already have:</p>
+  <div class="box">
+    <ul>
+      <li>Per channel, you know the latest <code>seq</code> (a single value).</li>
+      <li>Per member, you store <code>last_read_seq</code> in <code>ChannelMember</code>, advanced by <code>markRead</code>.</li>
+      <li><b>Unread = latest_seq − last_read_seq</b>, computed at read time. One write per <i>read</i> (which is rare), zero extra writes per <i>send</i>.</li>
+    </ul>
+  </div>
+  <p>Mentions and badge counts are the exception: <code>@you</code> / DMs need a small per-user counter or notification row, because they drive a push notification and must survive offline. Route those through a separate <b>notification service</b> (mobile push / email) keyed by user, fed from the same message change-stream — keeping the high-volume "channel got a message" path counter-free while the low-volume "you were mentioned" path is durable.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The unifying staff insight across deep dives 1, 3, and 4: <b>compute per-member state at read time instead of writing it per-member at send time.</b> Unread = latest_seq − last_read_seq, presence = a TTL key, delivery = subscribe-by-membership. Each one refuses to multiply a single write by channel size. A senior reaches for a counter or an inbox row per member; a staff engineer keeps the write path O(1) and pushes the cost to the (cheaper, cacheable) read.
+  </div>
+
+  <h3>5. Huge-channel fan-out</h3>
+  <p>The model in deep dive 1 strains for an <code>#all-company</code> channel with 50K+ members. Even subscribe-by-membership means one publish lands on most connection servers and triggers tens of thousands of near-simultaneous pushes — a thundering herd on every announcement.</p>
+  <table>
+    <tr><th>Tactic</th><th>Why it helps</th></tr>
+    <tr><td>Subscribe by membership, not per-user topics</td><td>Publish lands only on servers holding a member, and once per server — not per user.</td></tr>
+    <tr><td>Coalesce + batch pushes per connection server</td><td>One server with 5K members of the channel pushes a single batched frame loop, not 5K independent lookups.</td></tr>
+    <tr><td>Lazy pull for very large / low-interaction channels</td><td>For mega-channels, skip live push; clients pull new <code>seq</code> on focus — fan-out-on-read like a celebrity feed.</td></tr>
+    <tr><td>Rate-limit and prioritize</td><td>Protect the connection tier; DMs/mentions jump the queue ahead of a noisy mega-channel.</td></tr>
+  </table>
+  <p>This is the same fan-out-on-write vs. fan-out-on-read judgement as the news-feed "celebrity problem": bounded channels push eagerly; a few giant channels flip to read-time pull. Naming that threshold — and that it's <em>per channel</em>, not global — is the staff-level call.</p>
+
+  <h3>6. Full-text search over messages</h3>
+  <p>Search is a separate subsystem, never the message DB doing <code>LIKE '%term%'</code>. Build an <b>inverted index</b> (Elasticsearch-style) fed <b>asynchronously</b> from the message change-stream (CDC), so indexing never slows the send path — satisfying the "searchable within seconds" NFR without blocking writes. This is the same pattern as the post-search lesson; reuse it rather than re-deriving it (see <a href="0025-fb-post-search.html">Lesson 25 · FB Post Search</a> for tokenization, sharding the index, and ranking).</p>
+  <p>The Slack-specific twist is <b>authorization</b>: search results must be filtered to channels the querying user belongs to. Don't post-filter after ranking (you'd leak result counts and waste work) — encode the user's accessible <code>channel_id</code> set as a filter clause in the query so private channels never enter the candidate set. ACL-as-a-filter inside the search engine is the correct place for the check, and contrasts with the live-comments problem (see <a href="0024-fb-live-comments.html">Lesson 24 · FB Live Comments</a>) where ordering, not access scoping, dominates.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. How does Slack's delivery model differ from WhatsApp's per-recipient inbox?</p>
+      <button class="opt">It writes one durable inbox row for each member of the channel on every send</button>
+      <button class="opt">It polls each connected client on a short timer to pull any brand new messages</button>
+      <button class="opt">It publishes once per channel topic and subscribers fan out to local sockets</button>
+      <button class="opt">It encrypts each channel message end to end before any server can store the text</button>
+      <p class="fb">Channels can be huge, so fan-out moves off the write path: publish once per channel, subscribe by membership.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. How are per-channel unread counts kept cheap on the write path?</p>
+      <button class="opt">A counter for every member is incremented on each new message the channel gets</button>
+      <button class="opt">Unread is latest_seq minus the member's last_read_seq, computed at read time</button>
+      <button class="opt">Each unread total is cached inside the search index and refreshed on every send</button>
+      <button class="opt">The server blocks each send until all members acknowledge they have read it</button>
+      <p class="fb">Deriving unread from two values you already store means zero extra writes per send, one write per read.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why is presence treated as volatile, best-effort state?</p>
+      <button class="opt">Persisting every change would create a write storm for the cheapest data we hold</button>
+      <button class="opt">Presence must be perfectly accurate so it requires a strongly consistent quorum</button>
+      <button class="opt">Online status is large in bytes so it cannot fit inside any in-memory key store</button>
+      <button class="opt">Presence events must outlive a crash so they belong in the durable message log</button>
+      <p class="fb">A TTL'd Redis key refreshed by heartbeat gives cheap presence; a stale dot for a moment is acceptable.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. How does message search avoid leaking private channels to a user?</p>
+      <button class="opt">It ranks every match first and then hides the rows the user may not actually see</button>
+      <button class="opt">It runs a slow LIKE scan over the primary message table filtered by the user id</button>
+      <button class="opt">It encodes the user's accessible channel set as a filter clause in the index query</button>
+      <button class="opt">It builds one separate physical search index per individual user in the workspace</button>
+      <p class="fb">ACL-as-a-filter inside the engine keeps private channels out of the candidate set, not post-filtered after ranking.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it:
+    <ul style="margin:.4rem 0 0;">
+      <li>"Walk me through the exact moment fan-out-on-write should flip to fan-on-read for a channel."</li>
+      <li>"How would per-channel <code>seq</code> assignment stay correct if the channel's shard fails over?"</li>
+      <li>"Contrast Slack's channel fan-out with WhatsApp's inbox — when would you actually keep the inbox?"</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/whatsapp">Hello Interview — Chat/Messaging System Design</a>. The cleanest walkthrough of the connection layer, registry, and inbox split that Slack builds on; pair it with Slack Engineering's <a href="https://slack.engineering/flannel-an-application-level-edge-cache-to-make-slack-scale/">Flannel</a> post for the presence/edge-cache angle.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/whatsapp">Hello Interview — WhatsApp / Chat System Design Breakdown</a> (persistent WebSockets, connection registry, inbox + ACK, heartbeats, fan-out tradeoffs — the reusable real-time messaging core; see also <a href="0019-whatsapp.html">Lesson 19</a>).</p>
+    <p id="c2">[2] <a href="https://slack.engineering/flannel-an-application-level-edge-cache-to-make-slack-scale/">Slack Engineering — Flannel: an edge cache to make Slack scale</a> (workspace/channel client state and presence at the edge; supports the presence and subscribe-to-visible-roster design).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0057-video-conferencing-zoom.html">← Lesson 57</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 59 · Food Delivery</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

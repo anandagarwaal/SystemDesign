@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 21 — Design Strava (Activity Tracking)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 21 · Phase 4 — Case Study · Medium</p>
+  <h1>Design Strava (Activity Tracking)</h1>
+  <p class="sub">A write-heavy GPS ingestion problem wearing a social-app costume — get the time-series store right, treat the feed as secondary.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Strava looks like "another social feed," but the staff move is to name what it really is — a <em>high-frequency time-series ingestion</em> system. A run emits a GPS point every second or two; the feed is read-light by comparison. L6/L7 interviewers watch whether you anchor the design on the write path (batching, write-optimized store, offline durability) and downsample for reads, instead of burning your time on fan-out you've already solved elsewhere.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Strava's value is recording a workout, viewing it richly, and seeing what your friends did. Lock these three and explicitly punt the rest.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td><b>Record an activity</b> — start, pause, stop, and save a run or ride, capturing the GPS route as they move.</td></tr>
+    <tr><td>2</td><td><b>View an activity</b> with stats — distance, pace, elevation, time, and the route drawn on a map.</td></tr>
+    <tr><td>3</td><td><b>See an activity feed</b> of the people they follow, newest first.</td></tr>
+  </table>
+  <p><b>Out of scope (say it out loud):</b> auth, follow/friend management, likes &amp; comments, segments and leaderboards.<a href="#c1" class="cite">[1]</a> Naming the cut is itself a signal.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th></tr>
+    <tr><td><b>Durability of capture</b></td><td>Never lose GPS points. The phone records even offline (a tunnel, a remote trail) and syncs later — the device is the source of truth mid-activity.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>Availability &gt; consistency</b></td><td>The recording path must always accept writes. Eventual consistency on the feed and stats is fine.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>Low-latency reads</b></td><td>Opening an activity or the feed should feel instant (&lt;200ms), even though the route holds thousands of points.</td></tr>
+    <tr><td><b>Write scalability</b></td><td>Support ~10M concurrent activities, each streaming points.<a href="#c1" class="cite">[1]</a> The ingest path is the scaling pressure.</td></tr>
+    <tr><td><b>Accurate aggregate stats</b></td><td>Distance/elevation/pace must match what the device computed locally — no drift between phone and server.<a href="#c1" class="cite">[1]</a></td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only estimate the numbers that change the design. Here, one number dominates: <b>write volume during an activity.</b></p>
+  <div class="box">
+    <b>GPS write firehose</b>
+    <ul>
+      <li>One point ≈ every <b>1–2 seconds</b>. A 1-hour ride ≈ <b>2,000–3,600 points</b>.</li>
+      <li>10M concurrent activities × ~1 point/sec ⇒ <b>~10M point-writes/sec</b> at peak.<a href="#c1" class="cite">[1]</a></li>
+      <li>Each point ≈ lat, lng, timestamp, elevation ≈ <b>~30–40 bytes</b> raw.</li>
+    </ul>
+    <b>Per-activity storage</b>
+    <ul>
+      <li>3,000 points × ~36 B ≈ <b>~100 KB raw</b> per activity track before compression.</li>
+      <li>Delta-encode + gzip the stream and that drops by <b>60–80%</b><a href="#c4" class="cite">[4]</a> ⇒ tens of KB stored.</li>
+    </ul>
+    <b>Reads</b>
+    <ul>
+      <li>Feed + activity views are orders of magnitude lighter than the write firehose — a few reads per user per session.</li>
+    </ul>
+  </div>
+  <p><b>Design implication:</b> 10M writes/sec is the whole problem. You cannot send one HTTP request per point and you cannot do one row-insert per point through a relational primary. You need device-side <b>batching</b> + a <b>write-optimized store</b>. Everything downstream is comparatively easy.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Three entities. Note the deliberate split: lightweight activity <em>metadata</em> versus the bulky <em>track</em> (the ordered point stream).</p>
+  <table>
+    <tr><th>Entity</th><th>Holds</th></tr>
+    <tr><td><b>Activity</b></td><td>id, userId, type (run/ride), status (in_progress/complete), startTime, and rolled-up stats (distance, pace, elevation, duration).</td></tr>
+    <tr><td><b>TrackPoint(s)</b></td><td>The time-series: (activityId, ts, lat, lng, elevation, …) — millions of rows, write-heavy, append-only.</td></tr>
+    <tr><td><b>Follow</b></td><td>followerId → followeeId edges, used to build the feed.</td></tr>
+  </table>
+  <p>User is derived from the auth token, never sent in the body.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/activities</code></td><td>Start an activity; returns an <code>activityId</code>.</td></tr>
+    <tr><td><code>POST /v1/activities/{id}/points</code></td><td><b>Batch</b> upload of buffered GPS points (the hot path).</td></tr>
+    <tr><td><code>POST /v1/activities/{id}/complete</code></td><td>Stop &amp; finalize; triggers stats roll-up and polyline build.</td></tr>
+    <tr><td><code>GET /v1/activities/{id}</code></td><td>Fetch one activity: stats + a downsampled route for the map.</td></tr>
+    <tr><td><code>GET /v1/feed?cursor=…</code></td><td>Paginated feed of followed users' activities.</td></tr>
+  </table>
+
+  <h2>Data Flow — the recording pipeline</h2>
+  <p>Strava is a data-processing system, so the flow is worth tracing explicitly:</p>
+  <ol style="font-family:-apple-system,sans-serif; font-size:.9rem;">
+    <li><b>Device</b> samples GPS once/sec into a local buffer, computing live stats on-device (so the user sees pace even with no signal).</li>
+    <li>Every N seconds (or on reconnect) it flushes a <b>batch</b> to <code>POST /points</code>. Offline batches queue durably on the phone.</li>
+    <li>The <b>ingest service</b> validates and appends to a <b>write-optimized point store</b>, partitioned by <code>activityId</code>.</li>
+    <li>On <code>/complete</code>, a finalizer reads the full track, computes authoritative <b>aggregate stats</b>, builds an <b>encoded polyline</b>, and writes the immutable raw track to <b>object storage</b>.</li>
+    <li>A feed worker fans the completed activity to followers.</li>
+  </ol>
+
+  <h2>High-Level Design</h2>
+  <p>Boxes and arrows, mapped to the APIs above:</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td><b>API gateway / LB</b></td><td>Auth, rate-limit, route. Absorbs the write firehose across many ingest nodes.</td></tr>
+    <tr><td><b>Ingest service</b></td><td>Stateless; accepts point batches, appends to the point store. Scales horizontally with the write rate.</td></tr>
+    <tr><td><b>Point store (write-optimized)</b></td><td><b>Cassandra</b> / time-series DB, partitioned by <code>activityId</code>, clustered by <code>ts</code>. LSM-tree writes buffer in memory and flush sequentially.<a href="#c1" class="cite">[1]</a><a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td><b>Activity metadata DB</b></td><td>Relational/document store for small Activity + Follow rows. Easy to query, index, and join for the feed.</td></tr>
+    <tr><td><b>Finalizer / stats worker</b></td><td>On completion: aggregates stats, encodes the polyline, archives the raw track.</td></tr>
+    <tr><td><b>Object storage (S3)</b></td><td>Immutable raw tracks &amp; rich streams — cheap, durable, rarely re-read at full resolution.<a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td><b>Feed service + cache</b></td><td>Builds and serves the followed-users feed; backed by a cache.</td></tr>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior answer reaches for "feed = fan-out, use a graph/social DB." The staff answer reframes: <b>this is a time-series ingestion problem first.</b> Lead with the write path — batch on device, append to an LSM-tree store, never one row-per-point through a relational primary — and treat the feed as a familiar, secondary concern you can resolve in two minutes. Knowing <em>which</em> hard part deserves your 60% is the whole game.
+  </div>
+
+  <h2>Deep Dive 1 — Ingesting the GPS firehose</h2>
+  <p>The naïve design — <code>POST</code> one point per second per user — melts at 10M writes/sec: HTTP overhead dwarfs the 36-byte payload, and a relational primary fsyncing every insert chokes on write amplification. Two moves fix it:</p>
+  <h3>Batch on the device</h3>
+  <p>The phone is already the source of truth (it computes live stats offline). Let it <b>buffer points and upload in batches</b> every few seconds or on reconnect. This collapses 10M req/sec into a manageable batch rate, and makes offline-then-sync free — the buffer just drains when signal returns.<a href="#c1" class="cite">[1]</a> Tag each batch with an idempotency key so retries after a flaky connection don't duplicate points.</p>
+  <h3>Write-optimized store, not a relational primary</h3>
+  <p>Append-heavy, time-ordered, rarely-updated data is the textbook case for an <b>LSM-tree store like Cassandra</b>. Writes land in an in-memory memtable and flush to disk sequentially, so disk access is infrequent and throughput is high — the opposite of MySQL flushing every write.<a href="#c4" class="cite">[4]</a> Partition by <code>activityId</code> so one activity's points colocate and a fetch is a single-partition range scan by timestamp.</p>
+  <table>
+    <tr><th>Approach</th><th>Verdict</th></tr>
+    <tr><td>Point-per-request → relational</td><td>✗ HTTP + fsync overhead; doesn't scale to 10M/s.</td></tr>
+    <tr><td>Batch → Kafka → store</td><td>✓ Great for buffering/backpressure; adds a hop &amp; ops cost. Justify if you need a stream for other consumers.</td></tr>
+    <tr><td><b>Batch → ingest → Cassandra/TSDB</b></td><td>✓✓ Simplest design that meets the bar. Pick this; add Kafka only if pressed.</td></tr>
+  </table>
+
+  <h2>Deep Dive 2 — Computing route stats</h2>
+  <p>Distance, elevation gain, and pace are derived from the point stream. Two timing choices:</p>
+  <ul>
+    <li><b>On completion (batch):</b> <code>/complete</code> kicks a finalizer that scans the full track once and writes authoritative stats onto the Activity row. Simple, accurate, and runs off the hot path.</li>
+    <li><b>Streaming (incremental):</b> update running totals as each batch arrives, so a half-finished ride still shows server-side stats. More moving parts.</li>
+  </ul>
+  <p><b>Pick on-completion as the default</b> — the device already shows live stats locally, so the server doesn't need streaming aggregation to give the user real-time numbers. The server's job is to compute the <em>canonical</em> figures once, so they match the phone's. Store the route as a <b>Google-encoded polyline</b><a href="#c2" class="cite">[2]</a> on the activity for cheap map rendering, and keep the full-resolution raw track in object storage for anything that needs every point later (re-analysis, segment matching).<a href="#c4" class="cite">[4]</a></p>
+
+  <h2>Deep Dive 3 — The activity feed (lighter touch)</h2>
+  <p>This is the fan-out tradeoff you already worked in Lesson 16, so resolve it briskly:</p>
+  <table>
+    <tr><th>Strategy</th><th>When</th></tr>
+    <tr><td><b>Fan-out on write</b> (push to followers' feeds)</td><td>Fast reads; great for the common case. Activity volume is modest vs. point volume, so write amplification is tolerable.</td></tr>
+    <tr><td><b>Fan-out on read</b> (query followees at read time)</td><td>Avoids huge write blow-up for users with very many followers.</td></tr>
+  </table>
+  <p><b>Hybrid:</b> push for most users; for the rare high-follower account, pull at read time. Crucially, a feed entry carries only <b>activity metadata + the polyline</b> — never the raw point stream — so feed reads stay tiny. Don't over-build this; one paragraph in the interview is enough.</p>
+
+  <h2>Deep Dive 4 — Serving the map efficiently</h2>
+  <p>A 3-hour ride is ~10,000 points — far more than a phone-sized map can draw, and wasteful to ship. The fix is <b>downsampling</b>: serve a reduced point set (e.g. via Ramer–Douglas–Peucker) sized to the requested zoom, while the <b>full-resolution track lives in object storage</b> for detailed analysis.<a href="#c4" class="cite">[4]</a></p>
+  <div class="box">
+    <b>Read-efficiency stack</b>
+    <ul>
+      <li><b>Encoded polyline</b> on the activity row — compact string, decodes straight into a map overlay.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Delta-encode + gzip</b> the stored stream — 60–80% smaller on the wire and at rest.<a href="#c4" class="cite">[4]</a></li>
+      <li><b>Zoom-aware downsampling</b> — never send more points than the viewport can resolve.</li>
+      <li><b>CDN / object storage</b> for the immutable raw track and tiles.</li>
+    </ul>
+  </div>
+  <p>The principle generalizes: the resolution you <em>capture</em> (every second) is not the resolution you <em>serve</em> (whatever the screen needs).</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What single number most shapes the Strava design?</p>
+      <button class="opt">The total count of registered users on the platform</button>
+      <button class="opt">The number of likes and comments per activity feed</button>
+      <button class="opt">The peak GPS point write rate during active sessions</button>
+      <button class="opt">The average size of one uploaded profile photo file</button>
+      <p class="fb">~10M concurrent activities each streaming a point/sec ⇒ ~10M writes/sec. The write firehose is the design.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Why batch GPS points on the device before uploading?</p>
+      <button class="opt">Because the server cannot encode any polyline string itself</button>
+      <button class="opt">To cut request overhead and sync offline buffers on reconnect</button>
+      <button class="opt">Because relational databases reject any small row inserts</button>
+      <button class="opt">To let the feed fan out activities to followers faster</button>
+      <p class="fb">Batching collapses millions of tiny requests and makes offline-then-sync free — the buffer drains when signal returns.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why Cassandra over a relational primary for the point store?</p>
+      <button class="opt">LSM-tree writes buffer in memory and flush sequentially</button>
+      <button class="opt">It enforces strong cross-row transactions on each write</button>
+      <button class="opt">It renders the activity map tiles directly from disk</button>
+      <button class="opt">It removes the need to ever downsample the route data</button>
+      <p class="fb">Append-heavy, time-ordered data suits an LSM-tree: infrequent sequential disk flushes give high write throughput.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. How do you render a 10,000-point route on a phone map?</p>
+      <button class="opt">Stream every raw point to the device on each request</button>
+      <button class="opt">Recompute the entire route from scratch on the server</button>
+      <button class="opt">Downsample to a zoom-appropriate subset of the points</button>
+      <button class="opt">Store the route only inside the relational metadata row</button>
+      <p class="fb">Capture resolution ≠ serve resolution. Downsample (e.g. Douglas–Peucker) to what the viewport can resolve; keep full track in S3.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this one. Try: <em>"Walk me through the schema and partition key for the Cassandra point store."</em> · <em>"How would adding segment leaderboards change the design?"</em> · <em>"Compare the Kafka-buffered ingest path vs. writing straight to Cassandra — when is Kafka worth it?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/strava">Hello Interview — Design Strava</a>. The canonical breakdown: requirements, the 10M-concurrent-activity scale target, and the deep dives on offline tracking, scaling writes, and real-time sharing.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/strava">Hello Interview — Design Strava</a> (FRs, NFRs, 10M concurrent activities, scope cuts, write-scaling/offline deep dives).</p>
+    <p id="c2">[2] <a href="https://hexdocs.pm/strava/Strava.Map.html">Strava encoded-polyline format</a> (Google encoded-polyline algorithm for storing/serving routes).</p>
+    <p id="c3">[3] <a href="https://medium.com/strava-engineering/rebuilding-the-segment-leaderboards-infrastructure-part-3-design-of-the-new-system-39fdcf0d5eb4">Strava Engineering — Leaderboards infra</a> (Strava's real use of Cassandra for high-write workloads).</p>
+    <p id="c4">[4] <a href="https://www.systemdesignhandbook.com/guides/design-strava/">System Design Handbook — Design Strava</a> (delta-encode + gzip 60–80% reduction, LSM write throughput, downsampling for display, object storage for raw tracks).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0020-yelp.html">← Lesson 20</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 22 · Rate Limiter</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

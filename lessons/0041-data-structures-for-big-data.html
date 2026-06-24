@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 41 — Data Structures for Big Data</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 41 · Phase 2 — Key Technologies</p>
+  <h1>Data Structures for Big Data</h1>
+  <p class="sub">Probabilistic structures — Bloom filter, HyperLogLog, Count-Min Sketch — that answer set, cardinality, and frequency questions in kilobytes when the exact answer would cost gigabytes.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> At scale, "just store it in a set / hash map" silently becomes a multi-gigabyte memory bomb. The staff move is to recognize when <em>exact is unaffordable and approximate is fine</em>, then name the right probabilistic structure and its error profile in one breath. This is the single most reusable deep-dive lever across the case studies — it shows up in the crawler, Tinder, YouTube, and dedup pipelines.<a href="#c1" class="cite">[1]</a></p>
+  </div>
+
+  <h2>1 · The big idea: trade a little accuracy for 1000× memory</h2>
+  <p>Probabilistic data structures (PDS) use <b>hash functions</b> to represent a huge set in a tiny, fixed footprint, returning an approximate answer with a <em>bounded, predictable error</em>.<a href="#c4" class="cite">[4]</a> When data grows to billions of items, exact counting and membership become prohibitively expensive; PDS deliver ~1000× memory reduction with a configurable error rate.<a href="#c2" class="cite">[2]</a> The decision rule:</p>
+  <div class="box">
+    <b>Reach for a probabilistic structure when</b> the dataset is huge, you can tolerate a small bounded error, and the exact structure (a set, a hash map of counters) won't fit in memory. <b>Stay exact when</b> the data is small or an error has real consequences (money, auth, correctness).<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>2 · The cheat table — question → structure</h2>
+  <p>You pick the structure by the <em>question</em> you're asking, not the data. Memorize this row-by-row.<a href="#c1" class="cite">[1]</a><a href="#c5" class="cite">[5]</a></p>
+  <table>
+    <thead><tr><th>Question you're asking</th><th>Structure</th><th>Error type</th><th>Memory</th></tr></thead>
+    <tbody>
+      <tr><td>Is X in the set?</td><td><b>Bloom filter</b></td><td>False positives only — never false negatives</td><td>~bits per item</td></tr>
+      <tr><td>How many <em>unique</em> X?</td><td><b>HyperLogLog</b></td><td>±0.81% symmetric</td><td>~12 KB fixed<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td>How often does X appear?</td><td><b>Count-Min Sketch</b></td><td>Over-counts only — never under</td><td>fixed matrix</td></tr>
+      <tr><td>What's the p99 latency?</td><td>t-digest</td><td>±1% at the tails</td><td>~10 KB</td></tr>
+      <tr><td>How similar are A and B?</td><td>MinHash / SimHash</td><td>±Jaccard estimate</td><td>small signature</td></tr>
+    </tbody>
+  </table>
+
+  <h2>3 · Bloom filter — set membership</h2>
+  <p>A bit array plus <em>k</em> hash functions. To add an item, hash it <em>k</em> ways and set those bits. To test membership, hash it <em>k</em> ways and check those bits: if <em>any</em> bit is 0 the item is <b>definitely absent</b>; if all are 1 it's <b>probably present</b>.<a href="#c5" class="cite">[5]</a> The asymmetry is the whole point — <b>zero false negatives, only false positives</b>. You tune the false-positive rate <code>p</code> with the bit-array size: <code>m = -n·ln(p) / (ln2)²</code>.<a href="#c1" class="cite">[1]</a></p>
+  <p>Classic uses: a web crawler's "have I seen this URL?" gate (a maybe-hit falls through to the authoritative DB), Tinder's "already swiped?" set, and <a href="0004-caching.html">cache penetration</a> defense. You met it in <a href="0035-web-crawler.html">Lesson 35</a> and <a href="0017-tinder.html">Lesson 17</a> — this is the same tool, generalized.</p>
+
+  <h2>4 · HyperLogLog — cardinality (count distinct)</h2>
+  <p>Counting 1 billion <em>unique</em> user IDs in an exact set costs ~12 <b>GB</b> of RAM. HyperLogLog (HLL) does it in ~12 <b>KB</b> — a million-to-one reduction — with ~0.81% standard error, regardless of how many items you add.<a href="#c2" class="cite">[2]</a> The trick: hash each element, count the <b>leading zeros</b> in the hash, and track the maximum seen across a set of registers. Seeing many leading zeros is statistically rare, so the max observed is a logarithmic proxy for cardinality; the estimate is the harmonic mean across registers.<a href="#c4" class="cite">[4]</a></p>
+  <p>Uses: unique visitors, distinct search terms, "how many unique videos were watched" — exactly the unique-view counting noted in <a href="0033-youtube.html">Lesson 33</a>. HLLs also <b>merge</b> (union two sketches by taking per-register maxima), which makes them perfect for distributed roll-ups.<a href="#c4" class="cite">[4]</a></p>
+
+  <h2>5 · Count-Min Sketch — frequency / heavy hitters</h2>
+  <p>A <code>d × w</code> matrix of counters with <em>d</em> hash functions, one per row. Insert: hash the item with each row and increment that cell. Query: hash with each row, read the <em>d</em> cells, return the <b>minimum</b>.<a href="#c4" class="cite">[4]</a> Collisions can only push counts <em>up</em>, so the minimum is an upper bound — <b>it over-counts but never under-counts</b>.<a href="#c5" class="cite">[5]</a> Fixed memory regardless of how many distinct keys stream through, O(1) per update.</p>
+  <p>Pair it with a min-heap to track the <b>top-K</b> heaviest items — the exact recipe from <a href="0028-youtube-top-k.html">Lesson 28</a> (trending videos), and the standard tool for network-traffic monitoring and abuse detection.<a href="#c3" class="cite">[3]</a></p>
+
+  <h2>6 · The honorable mentions</h2>
+  <table>
+    <thead><tr><th>Structure</th><th>One-line role</th></tr></thead>
+    <tbody>
+      <tr><td><b>t-digest</b></td><td>Streaming percentiles (p50/p99) in ~10 KB — the right answer for latency SLOs.<a href="#c5" class="cite">[5]</a></td></tr>
+      <tr><td><b>MinHash / SimHash</b></td><td>Near-duplicate detection by similarity fingerprint (deduping articles, pages) — see <a href="0014-news-aggregator.html">Lesson 14</a>.</td></tr>
+      <tr><td><b>LSM-tree + SSTables</b></td><td>Not probabilistic, but <em>the</em> big-data <em>storage</em> structure: buffer writes in memory, flush as immutable sorted files. Backs Cassandra/RocksDB and uses Bloom filters internally. See <a href="0003-databases-and-indexing.html">Lesson 03</a>.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Naming "Bloom filter" isn't the signal — <em>justifying it with its error direction</em> is. The staff sentence connects the NFR, the bottleneck, and the structure: <em>"exact dedup is 1.6 GB and we don't need certainty, so a Bloom filter gives O(1) membership with no false negatives — the only failure is occasionally re-skipping a novel item, invisible at this scale."</em> The deepest tell is choosing the structure by the <b>direction of acceptable error</b>: Bloom never says "no" wrongly; Count-Min never under-counts; HLL is symmetric ±0.81%. A senior builds exact-first and struggles to scale; staff negotiates the relaxed accuracy NFR up front and designs straight to kilobytes.<a href="#c3" class="cite">[3]</a></p>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="a">
+      <p class="stem">1. Which structure answers "have I seen this key?" with zero false negatives?</p>
+      <button class="opt">A Bloom filter over the set of previously seen keys</button>
+      <button class="opt">A HyperLogLog register array counting the seen keys</button>
+      <button class="opt">A Count-Min Sketch matrix tracking each key count</button>
+      <p class="fb">A Bloom filter never gives a false negative: "no" means definitely absent, "yes" means probably present.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. You must count ~1B unique visitors in about 12 KB. Reach for…</p>
+      <button class="opt">A Count-Min Sketch with a wide counter matrix grid</button>
+      <button class="opt">A HyperLogLog with leading-zero register buckets set</button>
+      <button class="opt">A Bloom filter sized to hold one billion entries in</button>
+      <p class="fb">HyperLogLog estimates cardinality in ~12 KB fixed with ±0.81% error, regardless of set size.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. A Count-Min Sketch's frequency estimate errs in which direction?</p>
+      <button class="opt">It may over-count an item but it never under-counts</button>
+      <button class="opt">It may under-count an item but it never over-counts</button>
+      <button class="opt">It may drift in either direction quite unpredictably</button>
+      <p class="fb">Hash collisions only increase counters, so the minimum across rows is an upper bound — it never underestimates.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. What actually justifies the accuracy loss of these structures?</p>
+      <button class="opt">They return fully exact answers using far less memory</button>
+      <button class="opt">They remove the need to ever shard the dataset at all</button>
+      <button class="opt">They use tiny fixed memory with a bounded error rate</button>
+      <p class="fb">PDS trade a small, bounded error for ~1000× memory savings and O(1) speed — worth it only when error is tolerable.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — drill me. Try: <em>"Walk me through sizing a Bloom filter for 10B URLs at a 1% false-positive rate."</em> · <em>"Why can HyperLogLogs be merged but Bloom filters only unioned if sized identically?"</em> · <em>"Give me three FAANG prompts and quiz me on which structure I'd reach for and its error direction."</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.abstractalgorithms.dev/probabilistic-data-structures-explained">Probabilistic Data Structures: A Practical Guide</a>. The cleanest single walkthrough of Bloom filters, HyperLogLog, and Count-Min Sketch — the mechanics, the error profiles, and the math, all in one place. Read it once, then use this lesson for recall.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://softiu.com/system-design/probabilistic-data-structures">softiu — Probabilistic Data Structures for System Design</a> (question→structure mapping, error-type table, sizing formulas including Bloom <code>m = -n·ln(p)/(ln2)²</code>).</p>
+    <p id="c2">[2] <a href="https://redis.antirez.com/fundamental/probabilistic-data-structures.html">Redis — Probabilistic Data Structures</a> (1000× memory reduction; HLL ~12 KB / ±0.81% vs ~12 GB exact set for 1B IDs; Bloom &amp; CMS mechanics).</p>
+    <p id="c3">[3] <a href="https://aerospike.com/blog/taking-advantage-of-probabilistic-data-structures/">Aerospike — Taking Advantage of Probabilistic Data Structures</a> (Count-Min Sketch for stream frequency/heavy hitters; HLL for distinct counts in big-data settings).</p>
+    <p id="c4">[4] <a href="https://www.abstractalgorithms.dev/probabilistic-data-structures-explained">Abstract Algorithms — Practical Guide to PDS</a> (HLL harmonic-mean of leading zeros, 4096 registers in 12 KB; CMS minimum-across-rows upper bound).</p>
+    <p id="c5">[5] <a href="https://dl.acm.org/doi/10.1016/j.knosys.2019.104987">Knowledge-Based Systems — Probabilistic Data Structures for Big Data Analytics (review)</a> (PDS as compact stream accumulators with error bounds; t-digest, MinHash families).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0040-vector-databases.html">← Lesson 40</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 42 · Time Series Databases</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

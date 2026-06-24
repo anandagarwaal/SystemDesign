@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Design — Glossary</title>
+<style>
+  :root{--ink:#1a1a1a;--paper:#fffefb;--muted:#6b6356;--rule:#e3ddd0;--accent:#7a2e1d;--accent-soft:#f3ece1;}
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:Georgia,"Iowan Old Style",serif;line-height:1.5;margin:0;}
+  .wrap{max-width:720px;margin:0 auto;padding:3.5rem 1.5rem 5rem;}
+  .kicker{font-family:-apple-system,sans-serif;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 .5rem;}
+  h1{font-size:2.1rem;margin:0 0 .3rem;}
+  .sub{color:var(--muted);font-style:italic;margin:0 0 1.5rem;}
+  h2{font-size:1.15rem;font-family:-apple-system,sans-serif;margin:2.2rem 0 .5rem;border-bottom:1px solid var(--rule);padding-bottom:.3rem;color:var(--accent);}
+  dt{font-weight:700;margin:1.1rem 0 .15rem;font-size:1.02rem;}
+  dd{margin:0 0 .2rem;font-size:.95rem;}
+  .avoid{font-size:.82rem;color:var(--muted);font-style:italic;}
+  a{color:var(--accent);}
+  .note{background:var(--accent-soft);border-left:3px solid var(--accent);padding:.8rem 1rem;font-size:.88rem;margin:1.2rem 0;}
+  @media print{body{font-size:11pt}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">System Design · Reference</p>
+  <h1>Glossary</h1>
+  <p class="sub">The canonical language for this workspace. Grows as you master terms — not a dictionary to read cold.</p>
+
+  <div class="note">
+    This glossary starts with the <strong>delivery-framework vocabulary</strong> from
+    Lesson 01. As you demonstrate understanding of new concepts (caching, sharding,
+    CAP…), we promote them here with tight, opinionated definitions you can lean on
+    in every future design.
+  </div>
+
+  <h2>Delivery Framework</h2>
+  <dl>
+    <dt>Functional Requirement (FR)</dt>
+    <dd>A capability the system must give users, phrased "users should be able to…".
+      Aim for 3 core ones. <span class="avoid">Avoid: feature, user story</span></dd>
+
+    <dt>Non-Functional Requirement (NFR)</dt>
+    <dd>A quality the system must have rather than a feature it must do — latency,
+      availability, consistency, durability, scalability. The "-ilities". Aim for 3–5.
+      <span class="avoid">Avoid: constraints, the -ilities (informally)</span></dd>
+
+    <dt>Core Entity</dt>
+    <dd>A primary noun the system stores and reasons about (User, Ride, Paste). The
+      seed of your data model. <span class="avoid">Avoid: object, model, table</span></dd>
+
+    <dt>High-Level Design (HLD)</dt>
+    <dd>The boxes-and-arrows architecture: components and how a request flows between
+      them, kept deliberately shallow on the first pass.
+      <span class="avoid">Avoid: architecture diagram, the design</span></dd>
+
+    <dt>Deep Dive</dt>
+    <dd>Focused exploration of one hard part of the design to meet an NFR or kill a
+      bottleneck. Where the L6/L7 hour is mostly spent.
+      <span class="avoid">Avoid: detail, follow-up</span></dd>
+
+    <dt>Capacity Estimation</dt>
+    <dd>Back-of-envelope math (QPS, storage, bandwidth) done <em>only</em> when the
+      number changes a design decision. <span class="avoid">Avoid: sizing, the math</span></dd>
+  </dl>
+
+  <h2>Interview Calibration</h2>
+  <dl>
+    <dt>Breadth / Depth ratio</dt>
+    <dd>How interview time is split between covering the whole system vs. drilling
+      into parts. Mid 80/20, Senior 60/40, Staff (L6/L7) 40/60.</dd>
+
+    <dt>Staff signal</dt>
+    <dd>Behaviors that read as staff+, not senior: simple-by-default designs,
+      proactive deep dives, clear judgement on alternatives, and not over-explaining
+      basic concepts.</dd>
+  </dl>
+
+  <h2>Vector Search (Lesson 40)</h2>
+  <dl>
+    <dt>Embedding</dt>
+    <dd>A fixed-length array of floats produced by a model (LLM, CLIP, sentence-transformer)
+      where semantic closeness becomes geometric closeness. The unit a vector DB stores.
+      <span class="avoid">Avoid: vector (loosely), feature array</span></dd>
+
+    <dt>Approximate Nearest Neighbor (ANN)</dt>
+    <dd>Search that returns <em>most</em> of the true <em>k</em> closest vectors quickly,
+      trading a little accuracy for orders-of-magnitude speed over the O(N·D) exact scan.
+      <span class="avoid">Avoid: similarity search (too vague)</span></dd>
+
+    <dt>HNSW</dt>
+    <dd>Hierarchical Navigable Small World — the dominant ANN index: a multi-layer graph
+      searched by greedy descent. O(log N) search, 99%+ recall. <code>ef_search</code> is
+      its recall-vs-latency knob. <span class="avoid">Avoid: "the graph index"</span></dd>
+
+    <dt>Recall</dt>
+    <dd>The fraction of the true nearest neighbors an ANN query actually returned. The
+      accuracy axis traded against latency. <span class="avoid">Avoid: accuracy (imprecise)</span></dd>
+
+    <dt>Quantization (PQ)</dt>
+    <dd>Lossy compression of vectors into compact codes (Product/Scalar Quantization) to
+      fit billions of them in RAM, at a small recall cost. <span class="avoid">Avoid: compression (generic)</span></dd>
+  </dl>
+
+  <h2>Big-Data Structures (Lesson 41)</h2>
+  <dl>
+    <dt>Probabilistic Data Structure (PDS)</dt>
+    <dd>A hash-based structure that answers a question approximately with a bounded,
+      predictable error in tiny fixed memory. Pick it by the <em>question</em> and the
+      acceptable <em>error direction</em>. <span class="avoid">Avoid: sketch (only some are)</span></dd>
+
+    <dt>Bloom filter</dt>
+    <dd>Set-membership test with <strong>zero false negatives</strong>, only false
+      positives. "No" = definitely absent; "yes" = probably present.
+      <span class="avoid">Avoid: hash set, dedup cache</span></dd>
+
+    <dt>HyperLogLog (HLL)</dt>
+    <dd>Cardinality (count-distinct) estimator: ~12 KB fixed, ±0.81% error, for billions
+      of items; mergeable across shards. <span class="avoid">Avoid: unique counter</span></dd>
+
+    <dt>Count-Min Sketch (CMS)</dt>
+    <dd>Frequency / heavy-hitter estimator on a counter matrix; <strong>over-counts but
+      never under-counts</strong>. Pair with a min-heap for top-K.
+      <span class="avoid">Avoid: frequency table</span></dd>
+  </dl>
+
+  <h2>Time-Series (Lesson 42)</h2>
+  <dl>
+    <dt>Cardinality</dt>
+    <dd>The number of unique <code>(metric name, label set)</code> series — the primary
+      scaling constraint of a TSDB. One unbounded label (user_id, request_id) explodes it.
+      <span class="avoid">Avoid: volume, row count</span></dd>
+
+    <dt>Downsampling</dt>
+    <dd>Rolling raw points into coarser pre-aggregated tiers (raw → 1m → 1h) so long-range
+      queries stay cheap. The economic foundation of long retention.
+      <span class="avoid">Avoid: aggregation (generic), sampling</span></dd>
+
+    <dt>Gorilla compression</dt>
+    <dd>Delta-of-delta on timestamps + XOR on float values → ~1.3 bytes/sample from a
+      naïve 16. What makes TSDB storage affordable. <span class="avoid">Avoid: "compression"</span></dd>
+  </dl>
+
+  <h2>Storage Engines &amp; Datastores (Lessons 88–98, 114)</h2>
+  <dl>
+    <dt>B-tree</dt>
+    <dd>Read-optimized storage engine: sorted pages, in-place updates, ~3–4 seeks per
+      lookup. Powers Postgres/MySQL. <span class="avoid">Avoid: just "index"</span></dd>
+
+    <dt>LSM-tree</dt>
+    <dd>Write-optimized engine: appends to an in-memory memtable, flushed sequentially to
+      immutable SSTables, merged by compaction. Powers Cassandra/RocksDB.
+      <span class="avoid">Avoid: log</span></dd>
+
+    <dt>Write/read amplification</dt>
+    <dd>The core engine trade-off: B-trees minimize read amplification (random-I/O writes),
+      LSM-trees minimize write amplification at ingest (multi-file reads + compaction).</dd>
+
+    <dt>MVCC</dt>
+    <dd>Multi-version concurrency control: keep row versions so readers see a consistent
+      snapshot and don't block writers (or vice versa). <span class="avoid">Avoid: locking</span></dd>
+
+    <dt>Write-ahead log (WAL)</dt>
+    <dd>Append the change to a sequential log (and fsync) before touching data pages;
+      replay on recovery gives durability + crash safety.</dd>
+
+    <dt>Index-free adjacency</dt>
+    <dd>Graph-DB property where relationships are direct pointers, making each traversal hop
+      O(degree) instead of an index join. Why Neo4j beats SQL for deep traversals.</dd>
+  </dl>
+
+  <h2>Messaging, Streaming &amp; Coordination (Lessons 99–108)</h2>
+  <dl>
+    <dt>Partition (Kafka)</dt>
+    <dd>The unit of parallelism and ordering in a log; order is guaranteed only within a
+      partition, and the key chooses the partition. <span class="avoid">Avoid: shard</span></dd>
+
+    <dt>Watermark</dt>
+    <dd>A stream-processing marker asserting "no more events older than time T," letting
+      windows close despite out-of-order/late events (Flink). <span class="avoid">Avoid: timestamp</span></dd>
+
+    <dt>Shuffle</dt>
+    <dd>The expensive cross-network repartition between stages in Spark/MapReduce (a wide
+      dependency); minimizing it is the main tuning lever.</dd>
+
+    <dt>Consensus</dt>
+    <dd>Getting N nodes to agree on one value/log order despite crashes, via a majority
+      quorum (Raft, Paxos). Underpins etcd/ZK, Spanner. <span class="avoid">Avoid: 2PC</span></dd>
+
+    <dt>Gossip protocol</dt>
+    <dd>Epidemic dissemination: each node periodically swaps state with random peers;
+      converges in O(log N) rounds. Used for membership/failure detection (Cassandra).</dd>
+
+    <dt>Reconciliation loop</dt>
+    <dd>Kubernetes' core pattern: controllers continuously drive actual state toward the
+      declared desired state stored in etcd. <span class="avoid">Avoid: orchestration</span></dd>
+  </dl>
+
+  <h2>Cross-Cutting (Lessons 109–119)</h2>
+  <dl>
+    <dt>Idempotency key</dt>
+    <dd>A client-supplied unique id on a write so a retried request returns the original
+      result instead of repeating the effect. Essential for payments.</dd>
+
+    <dt>Cursor pagination</dt>
+    <dd>Keyset paging anchored to the last item seen (<code>WHERE id &lt; cursor</code>);
+      stable under writes and index-friendly at any depth, unlike offset.</dd>
+
+    <dt>Saga</dt>
+    <dd>A sequence of local transactions with compensating actions, trading isolation for
+      availability across services. Default for distributed transactions.
+      <span class="avoid">Avoid: 2PC</span></dd>
+
+    <dt>Change Data Capture (CDC)</dt>
+    <dd>Streaming row-level DB changes (usually off the WAL) to keep derived stores in sync;
+      cures the dual-write bug. <span class="avoid">Avoid: replication (generic)</span></dd>
+
+    <dt>Fencing token</dt>
+    <dd>A monotonically increasing number issued with a distributed lock; the resource
+      rejects writes carrying a stale token, making locks safe under pauses.</dd>
+
+    <dt>Geohash</dt>
+    <dd>Encoding of lat/lng into a base-32 string where a longer shared prefix means closer
+      points, turning proximity into an indexable prefix query. Query the 8 neighbors too.</dd>
+
+    <dt>JWT</dt>
+    <dd>Signed, self-contained token (<code>header.payload.signature</code>) verified
+      locally without a DB lookup; stateless but hard to revoke (use short TTL + refresh).</dd>
+  </dl>
+
+  <h2>Real-Time, Networking &amp; Reliability (Lessons 120–122)</h2>
+  <dl>
+    <dt>WebSocket</dt>
+    <dd>A persistent, full-duplex TCP connection over a single upgraded HTTP request; both
+      sides push anytime. The default for chat/collab. <span class="avoid">Avoid: socket</span></dd>
+
+    <dt>Server-Sent Events (SSE)</dt>
+    <dd>A one-way server→client stream over a long-lived HTTP response; simpler than
+      WebSockets and ideal for feeds/notifications that don't need client→server push.</dd>
+
+    <dt>Long polling</dt>
+    <dd>The client holds a request open until the server has data, then immediately
+      re-requests; emulates push over plain HTTP at the cost of overhead and latency.</dd>
+
+    <dt>Backplane (pub/sub fan-out)</dt>
+    <dd>A shared bus (often Redis pub/sub) that routes a message to whichever server holds
+      the target user's live connection, so real-time delivery scales past one node.</dd>
+
+    <dt>L4 vs L7 load balancing</dt>
+    <dd>L4 routes by IP/port (fast, content-blind); L7 routes by URL/header/cookie and can
+      terminate TLS (smarter, costlier). WebSockets typically need L4 + stickiness.</dd>
+
+    <dt>Delivery semantics</dt>
+    <dd>At-most-once (may drop), at-least-once (may duplicate), exactly-once (neither).
+      True exactly-once <em>delivery</em> is impossible; aim for "effectively-once" =
+      at-least-once delivery + idempotent processing. <span class="avoid">Avoid: exactly-once (loosely)</span></dd>
+  </dl>
+
+  <p style="margin-top:2.5rem;font-size:.85rem;">
+    <a href="../lessons/0001-the-delivery-framework.html">← Back to Lesson 01</a> ·
+    <a href="capacity-cheatsheet.html">🔢 Capacity cheat sheet</a> ·
+    <a href="decision-guides.html">🧭 Decision guides</a> ·
+    <a href="drill.html">🎯 Drill</a></p>
+</div>
+</body>
+</html>

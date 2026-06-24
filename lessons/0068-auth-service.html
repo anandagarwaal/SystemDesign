@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 68 — Design an Authentication / Authorization Service (Auth0 / Okta)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 68 · Phase 4 — Case Study · Hard</p>
+  <h1>Design an Authentication / Authorization Service (Auth0 / Okta)</h1>
+  <p class="sub">An identity provider offering authn + authz as a service — social login, SSO, and centralized fine-grained authorization at global scale.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Auth is the system every other system depends on, so an L6/L7 interviewer is testing whether you can hold <em>security</em> and <em>low latency</em> in tension and not blink. The depth lives in three places: do you understand why a stateless JWT trades revocation for scale, can you reason about OAuth2/OIDC without hand-waving, and do you know how Google's Zanzibar makes a fine-grained authorization check return in single-digit milliseconds globally. Get those right and you signal you can own a foundational platform.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>This is two products fused: an <b>authentication</b> service (prove who you are) and an <b>authorization</b> service (decide what you may do). Keep the core to five capabilities; name advanced flows (device code, SAML legacy, account linking) as explicitly out of scope.</p>
+  <table>
+    <thead><tr><th>#</th><th>The system should…</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>Sign up &amp; log in</b> users via password and via <b>social/federated login</b> (Google, GitHub), then store credentials and profiles per tenant.</td></tr>
+      <tr><td>2</td><td><b>Issue tokens</b> on successful login — a short-lived <b>access token</b> and a long-lived <b>refresh token</b> — and let clients exchange or revoke them.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>3</td><td>Support <b>SSO / federation</b>: one login grants access to many relying-party apps using standard <b>OAuth2 / OIDC</b> flows.<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td>4</td><td><b>Authorize a resource access</b>: given a subject, action, and object, return allow/deny — including <b>fine-grained</b> checks ("can user U view doc D?").<a href="#c3" class="cite">[3]</a></td></tr>
+      <tr><td>5</td><td><b>Manage users, roles, and relationships</b> — admins assign roles/permissions; the model supports both RBAC and relationship-based (ReBAC) authorization.<a href="#c3" class="cite">[3]</a></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>Auth NFRs are unusually sharp because everything else is downstream. Lead with security, then latency, then availability — and say the priority order out loud.</p>
+  <table>
+    <thead><tr><th>Property</th><th>Target &amp; priority</th></tr></thead>
+    <tbody>
+      <tr><td>Security first</td><td><b>Top priority.</b> Credentials hashed with a slow KDF (<b>bcrypt/argon2</b>)<a href="#c4" class="cite">[4]</a>, tokens signed (asymmetric), TLS everywhere, no secret in a log. A breach here compromises every tenant.</td></tr>
+      <tr><td>Low-latency authz</td><td>Authorization checks sit on the hot path of every protected request — target <b>p99 &lt; 10 ms</b>. This forces aggressive caching and a stateless access-token verify.</td></tr>
+      <tr><td>Very high availability</td><td><b>~99.99%+.</b> If auth is down, every dependent app is down. Multi-region, no single point of failure, graceful degradation.</td></tr>
+      <tr><td>Scale &amp; multi-tenancy</td><td>Billions of token verifications/day across thousands of isolated tenants; tenant data and signing keys must not leak across boundaries.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that change the design. Logins are rare; <b>token verifications and authz checks</b> dominate, and that ratio is the whole story.</p>
+  <div class="box">
+    <ul>
+      <li><b>Logins vs verifies:</b> say 100M DAU logging in ~once/day ≈ <b>~1.2K logins/sec</b>, but each then makes hundreds of API calls → <b>~1M+ token verifications/sec</b>. <em>Implication:</em> the verify path must be local and crypto-only (no DB hit) — this is the core argument for <b>stateless JWTs</b>.</li>
+      <li><b>Authz checks:</b> a UI page can fan out to dozens of "can I see this?" checks → easily <b>millions/sec</b>. <em>Implication:</em> a per-check database round trip is impossible; you need a purpose-built, cached authorization store (deep dive 4).</li>
+      <li><b>User/credential storage:</b> 1B users × ~1 KB profile + hash ≈ <b>~1 TB</b>. <em>Implication:</em> trivially fits a sharded relational store; storage is not the constraint — read latency and security are.</li>
+    </ul>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Core entities: <b>User</b> (identity + hashed credential, scoped to a tenant), <b>Tenant</b> (isolation boundary + its signing keys + identity-provider config), <b>Token</b> (access + refresh), and a <b>Relation/Grant</b> tuple <code>(object, relation, subject)</code> powering authorization.<a href="#c3" class="cite">[3]</a></p>
+  <div class="box">
+    <p><b>Auth plane</b> (derives caller from the bearer token, never a body field):</p>
+    <ul>
+      <li><code>POST /v1/signup</code> — create user <code>{ email, password, tenant }</code></li>
+      <li><code>POST /v1/oauth/token</code> — exchange a credential or auth code for <code>{ access_token, refresh_token }</code><a href="#c1" class="cite">[1]</a></li>
+      <li><code>POST /v1/oauth/token</code> (grant_type=refresh_token) — rotate a refresh token for a fresh access token</li>
+      <li><code>POST /v1/oauth/revoke</code> — revoke a refresh token (logout / compromise)</li>
+      <li><code>GET /v1/.well-known/jwks.json</code> — public signing keys so anyone can verify tokens<a href="#c2" class="cite">[2]</a></li>
+    </ul>
+    <p style="margin-top:1rem"><b>Authz plane</b> (the hot check + relation writes):</p>
+    <ul>
+      <li><code>POST /v1/check</code> — <code>{ subject, action, object } → { allowed: bool }</code><a href="#c3" class="cite">[3]</a></li>
+      <li><code>POST /v1/relations</code> — write a tuple <code>(doc:42, viewer, user:7)</code> or a role grant</li>
+    </ul>
+  </div>
+
+  <h2>High-Level Design</h2>
+  <p>Two request shapes flow through the system. A <b>login</b> hits the Auth service, which validates the credential (or completes an OAuth2 redirect with an external IdP), then signs and returns tokens. Every <b>subsequent API call</b> carries the access token; the resource server verifies the signature <em>locally</em> using cached public keys, then calls the <b>Authz service</b> for a permission decision.</p>
+  <table>
+    <thead><tr><th>Component</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>Auth service</td><td>Handles signup/login, password verification, OAuth2/OIDC flows with external IdPs, and <b>token issuance</b> (signs JWTs with the tenant's private key).<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td>Token verification</td><td>Done <b>at the resource server / gateway</b>, not centrally — verify signature + expiry + claims using public keys from JWKS, no network call to auth.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Authz service</td><td>Stores relation tuples / roles, answers <code>check()</code>. Modeled on <b>Zanzibar</b>: a global, low-latency, strongly-consistent permission system.<a href="#c3" class="cite">[3]</a></td></tr>
+      <tr><td>User &amp; key stores</td><td>Sharded relational DB for users/credentials; a hardened <b>KMS/HSM</b> holds signing keys; Redis caches sessions, JWKS, and hot authz decisions.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Deep Dives</h2>
+  <p>Where the interview is decided. Four hard parts: the token strategy, the OAuth2/OIDC flow, credential security, and the fine-grained authz check at scale.</p>
+
+  <h3>1. Token strategy — sessions vs JWT, and the revocation problem</h3>
+  <p>The central tradeoff of the whole design. A <b>server-side session</b> stores a random opaque ID; every request looks it up in a shared store. A <b>JWT</b> is a self-contained, signed token whose claims the resource server verifies with crypto alone — no lookup.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <thead><tr><th>Dimension</th><th>Server session</th><th>JWT (stateless)</th></tr></thead>
+    <tbody>
+      <tr><td>Verify cost</td><td>Network hop to session store per request</td><td>Local signature check, <b>no I/O</b></td></tr>
+      <tr><td>Revocation</td><td><b>Instant</b> — delete the row</td><td><b>Hard</b> — valid until it expires<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Scale</td><td>Store is a bottleneck/SPOF</td><td>Scales horizontally, easily</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <p><b>The pick:</b> a <b>hybrid</b> — short-lived (5–15 min) <b>stateless access token</b> for the hot verify path, plus a long-lived (days) <b>refresh token</b> that <em>is</em> tracked server-side. The access token gets the scale benefit; the refresh token gets the revocation benefit.</p>
+    <p style="margin-top:.6rem"><b>The revocation problem, stated plainly:</b> you cannot un-issue a JWT.<a href="#c1" class="cite">[1]</a> Three mitigations: (1) keep access-token TTL short so a leaked token expires fast; (2) revoke at the <b>refresh</b> layer — delete the refresh token so no new access tokens are minted; (3) for emergencies, a small <b>deny-list</b> of revoked token IDs (jti) checked on verify, accepting a tiny lookup to regain instant revocation.</p>
+  </div>
+  <p><b>Refresh-token rotation:</b> issue a new refresh token on every use and invalidate the old one; if an already-used refresh token reappears, treat it as theft and revoke the whole chain.</p>
+
+  <h3>2. OAuth2 / OIDC at a high level</h3>
+  <p>This is how SSO and social login actually work, and interviewers expect you to narrate the <b>Authorization Code flow</b> without confusing the two specs. <b>OAuth2 is for authorization</b> (delegated access via an access token); <b>OIDC is a thin layer on top for authentication</b> that adds an <b>ID token</b> (a JWT proving who the user is).<a href="#c2" class="cite">[2]</a></p>
+  <div class="box">
+    <p><b>Authorization Code flow (with PKCE for public clients):</b></p>
+    <ul>
+      <li>App redirects the user to the IdP's <code>/authorize</code> with its client ID, scopes, and a redirect URI.</li>
+      <li>User authenticates and consents at the IdP; the IdP redirects back with a one-time <b>authorization code</b>.<a href="#c2" class="cite">[2]</a></li>
+      <li>App's <b>backend</b> exchanges the code (+ client secret / PKCE verifier) at <code>/token</code> for an access token and an ID token.</li>
+      <li>App verifies the ID token's signature against JWKS and trusts the identity. SSO falls out naturally: a second app reuses the IdP session.</li>
+    </ul>
+  </div>
+  <p><b>Why the code, not the token, rides the browser redirect:</b> the short-lived code is useless without the backend's secret, so a leaked redirect URL doesn't leak a usable token. Saying that distinguishes you from someone who memorized the diagram.</p>
+
+  <h3>3. Password storage and MFA</h3>
+  <p>The security NFR is most visible here. <b>Never store plaintext, never use a fast hash (MD5/SHA-256) for passwords.</b> Use a deliberately slow, salted KDF — <b>bcrypt</b> or <b>argon2id</b> — so brute-forcing a stolen dump is economically infeasible.<a href="#c4" class="cite">[4]</a></p>
+  <table>
+    <thead><tr><th>Control</th><th>Why it matters</th></tr></thead>
+    <tbody>
+      <tr><td>Salted slow KDF</td><td>Per-user salt defeats rainbow tables; the work factor makes each guess expensive.<a href="#c4" class="cite">[4]</a></td></tr>
+      <tr><td>Constant-time compare</td><td>Avoid timing side channels when comparing hashes/tokens.</td></tr>
+      <tr><td>MFA (TOTP / WebAuthn)</td><td>A second factor blocks attackers who already have the password; WebAuthn/passkeys are phishing-resistant.</td></tr>
+      <tr><td>Rate limit + lockout</td><td>Throttle login attempts to stop credential stuffing (see <a href="0022-rate-limiter.html">Lesson 22</a>).</td></tr>
+    </tbody>
+  </table>
+
+  <h3>4. Fine-grained authorization at scale — RBAC vs ReBAC (Zanzibar)</h3>
+  <p>The deepest part. <b>RBAC</b> assigns users to roles and roles to permissions — simple, but it can't express "users who can see <em>this specific document because it was shared with them</em>." That per-object, relationship question is <b>ReBAC</b>, and Google's <b>Zanzibar</b> is the canonical design for answering it globally in milliseconds.<a href="#c3" class="cite">[3]</a></p>
+  <table>
+    <thead><tr><th>Model</th><th>Expresses</th><th>Limitation</th></tr></thead>
+    <tbody>
+      <tr><td>RBAC</td><td>"Editors can edit." Coarse, role → permission mapping.</td><td>Can't do per-resource sharing or inheritance.</td></tr>
+      <tr><td>ReBAC / Zanzibar</td><td>Relation tuples <code>(doc:42, viewer, user:7)</code>; permissions <b>inherit</b> through relationships (group → folder → doc).<a href="#c3" class="cite">[3]</a></td><td>More moving parts; needs a purpose-built engine.</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <p><b>How Zanzibar hits low latency:</b></p>
+    <ul>
+      <li><b>Relation tuples</b> as the universal primitive: a <code>check()</code> walks the tuple graph (is user:7 a viewer of doc:42, directly or via a group/folder it belongs to).<a href="#c3" class="cite">[3]</a></li>
+      <li><b>Leopard index</b> + heavy <b>caching</b> of denormalized group membership so deep graph walks don't happen per request.<a href="#c3" class="cite">[3]</a></li>
+      <li><b>Zookies (consistency tokens):</b> a snapshot token that prevents the "new enemy" bug — you must not enforce a stale ACL after a permission was revoked. This gives <b>external consistency</b> without paying global-sync latency on every read.<a href="#c3" class="cite">[3]</a></li>
+    </ul>
+    <p>Result: Zanzibar serves millions of authorization checks/sec at p99 in single-digit ms across data centers.<a href="#c3" class="cite">[3]</a> For the interview, pick <b>ReBAC for fine-grained needs</b>, fall back to <b>RBAC when role-level is enough</b>, and cache decisions hard (see <a href="0004-caching.html">Lesson 4</a>) — flagging that cache invalidation on revocation is the dangerous edge.</p>
+  </div>
+
+  <h3>5. Multi-tenancy and key rotation</h3>
+  <p>One bonus deep dive worth banking. Each tenant gets <b>isolated data</b> (row-level tenant ID or separate schema) and its <b>own signing keys</b>. Tokens are signed with a private key (asymmetric, e.g. RS256) so resource servers verify with the <b>public</b> key from the JWKS endpoint and the private key never leaves the KMS.<a href="#c2" class="cite">[2]</a> <b>Key rotation</b>: publish multiple keys in JWKS, each tagged with a <code>kid</code>; sign new tokens with the new key while old keys stay published until outstanding tokens expire, then retire them — zero-downtime rotation.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior candidates describe JWTs and OAuth diagrams. Staff candidates do three things on top: (1) name the <b>JWT revocation problem</b> out loud and resolve it with short TTL + refresh-token rotation + an optional jti deny-list, rather than pretending stateless tokens are free; (2) distinguish <b>OAuth2 (authz) from OIDC (authn)</b> and explain <em>why</em> the auth code, not the token, traverses the browser; (3) reach for <b>Zanzibar-style relation tuples + zookies</b> for fine-grained authz and articulate the <b>"new enemy" consistency bug</b> caching introduces — security correctness under caching is the line between senior and staff here.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. What is the core downside of a stateless JWT access token?</p>
+      <button class="opt">It needs a database lookup on each request to verify the bearer holder</button>
+      <button class="opt">It cannot be revoked early and stays valid until its expiry time passes</button>
+      <button class="opt">It cannot be scaled horizontally across many stateless resource servers</button>
+      <p class="fb">You can't un-issue a signed token; mitigate with short TTLs, refresh rotation, and an optional jti deny-list.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. In the OAuth2 / OIDC split, what does OIDC add on top of OAuth2?</p>
+      <button class="opt">A slow salted hashing step that protects stored user passwords from theft</button>
+      <button class="opt">A shared session store so all the relying-party apps can revoke instantly</button>
+      <button class="opt">An ID token, a signed JWT that proves the authenticated user's identity</button>
+      <p class="fb">OAuth2 handles delegated authorization; OIDC layers authentication via the ID token.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why is bcrypt or argon2 chosen over SHA-256 for password storage?</p>
+      <button class="opt">It is deliberately slow and salted, making brute-force on a dump costly</button>
+      <button class="opt">It produces a much shorter digest that saves storage across all tenants</button>
+      <button class="opt">It signs the password so resource servers can verify it without any state</button>
+      <p class="fb">Fast hashes let attackers test billions of guesses; a slow salted KDF makes each guess expensive.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. What problem do Zanzibar "zookies" (consistency tokens) primarily solve?</p>
+      <button class="opt">They compress relation tuples so the global tuple graph fits into memory</button>
+      <button class="opt">They rotate signing keys so old tokens verify during a zero-downtime swap</button>
+      <button class="opt">They stop a stale cache from honoring access after a permission was revoked</button>
+      <p class="fb">The "new enemy" bug: enforcing a stale ACL after revocation; zookies pin a fresh-enough snapshot.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — push on it. Try: "Walk me through refresh-token rotation and how to detect a stolen refresh token." · "Draw the exact OAuth2 authorization-code-with-PKCE sequence for a mobile app." · "How would Zanzibar evaluate <code>check(user:7, view, doc:42)</code> when access is inherited through a group and a folder?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://research.google/pubs/pub48190/">Google Zanzibar: Google's Consistent, Global Authorization System</a>. The definitive paper on planet-scale fine-grained authorization — relation tuples, the Leopard index, and zookies. Pair it with the OAuth2 (RFC 6749) and OIDC specs for the token side before your next mock.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://datatracker.ietf.org/doc/html/rfc6749">RFC 6749 — The OAuth 2.0 Authorization Framework</a> (access/refresh tokens, token issuance &amp; revocation, stateless bearer-token verification and its revocation tradeoff).</p>
+    <p id="c2">[2] <a href="https://openid.net/specs/openid-connect-core-1_0.html">OpenID Connect Core 1.0</a> (OIDC ID token, authorization-code flow, JWKS public-key verification, asymmetric signing — backs the OAuth2/OIDC, SSO, and key-rotation sections).</p>
+    <p id="c3">[3] <a href="https://research.google/pubs/pub48190/">Zanzibar: Google's Consistent, Global Authorization System (USENIX ATC 2019)</a> (relation tuples, ReBAC, Leopard index, zookies / external consistency &amp; the "new enemy" problem, ms-latency global checks).</p>
+    <p id="c4">[4] <a href="https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html">OWASP Password Storage Cheat Sheet</a> (salted slow KDFs — bcrypt/argon2id — for credential storage).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0067-cicd-system.html">← Lesson 67</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 69 · Online Chess</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

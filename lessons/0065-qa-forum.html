@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 65 — Design a Q&amp;A / Forum (StackOverflow / Reddit)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 65 · Phase 4 — Case Study · Medium</p>
+  <h1>Design a Q&amp;A / Forum (StackOverflow / Reddit)</h1>
+  <p class="sub">A massively read-heavy content platform where the design lives or dies on three things: caching the hot tail, counting votes at scale, and ranking feeds that change every second.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A Q&amp;A/forum looks deceptively simple — it's "just CRUD with upvotes." That framing is the trap. The staff move is to recognize this as a <em>read-heavy serving</em> problem where 99% of traffic hits a small hot set, votes are a high-contention distributed-counter problem, and "sort by hot" is a ranking system in disguise. A senior builds the CRUD; a staff candidate names the three bottlenecks up front, sizes them, and spends the interview on the deep dives — not the API.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope ruthlessly, then say out loud what you're deferring so the interviewer knows you saw it. The core loop of every forum is: ask, answer, vote, browse.</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td><b>Post a question and answers</b> (and <b>comment</b> on either).</td></tr>
+    <tr><td>2</td><td><b>Vote</b> (upvote/downvote) on questions and answers.</td></tr>
+    <tr><td>3</td><td><b>Browse feeds</b> sorted by <em>hot / top / new</em>, and page through them.</td></tr>
+    <tr><td>4</td><td><b>Search</b> existing content by keyword, and earn <b>reputation</b> from votes.</td></tr>
+  </table>
+  <p style="font-size:.9rem;color:var(--muted)"><b>Out of scope (state it):</b> moderation tooling, private subforums, badges/gamification details, real-time notifications, edit history.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>This is where you commit to the priorities that shape every later decision. A forum is overwhelmingly a <em>reading</em> product — the design must optimize the read path and accept eventual consistency on the write path.</p>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th></tr>
+    <tr><td>Read/write ratio</td><td><b>Heavily read-heavy</b> — roughly <b>100:1</b> reads to writes. This is the dominant fact.</td></tr>
+    <tr><td>Latency</td><td>Reads (question page, feed) <b>&lt; 200ms</b> p99; search a bit looser.</td></tr>
+    <tr><td>Availability</td><td><b>Highly available</b>, prioritized over strong consistency for votes/counts.</td></tr>
+    <tr><td>Consistency</td><td><b>Eventual</b> is fine — a vote count being off by a few for a second harms nobody.</td></tr>
+    <tr><td>Scale</td><td><b>~100M DAU</b>, billions of stored questions/answers, a small viral hot set.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute numbers that <em>change</em> a decision. Three matter here: how skewed reads are (does caching pay off?), the vote write rate (does a single counter survive?), and total corpus size (does search need its own store?).</p>
+  <div class="box">
+    <p><b>How skewed are the reads?</b></p>
+    <ul>
+      <li>100M DAU, say ~30 page views each → <b>~3B reads/day ≈ 35K reads/sec</b> average, multiples higher at peak.</li>
+      <li>Classic long-tail: the front page + a few thousand trending questions absorb the vast majority of traffic. <b>Implication:</b> a cache over a tiny hot set serves most reads — caching isn't an optimization, it's the architecture.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+    <p><b>What is the vote write rate, and can one row hold it?</b></p>
+    <ul>
+      <li>Writes are ~1% of traffic → low thousands/sec globally — but they <em>concentrate</em>. A front-page post can take <b>thousands of votes/sec onto one counter</b>.</li>
+      <li><b>Implication:</b> a single hot row becomes a write-contention hotspot — this is a distributed-counter problem, not a <code>SET count = count + 1</code>.<a href="#c3" class="cite">[3]</a></li>
+    </ul>
+    <p><b>How big is the corpus?</b></p>
+    <ul>
+      <li>Billions of posts × a few KB of text ≈ <b>tens of TB</b> of content. <b>Implication:</b> the primary store can hold it cheaply, but full-text search over it needs a dedicated inverted index, not <code>LIKE '%...%'</code>.<a href="#c2" class="cite">[2]</a></li>
+    </ul>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Four entities. The key modeling choice is that comments form a <b>tree</b> (a comment replies to a comment), while answers are a flat list under a question — get this right and the read query stays cheap.</p>
+  <table>
+    <tr><th>Entity</th><th>Shape</th></tr>
+    <tr><td><b>Question</b></td><td><code>id</code>, <code>authorId</code>, <code>title</code>, <code>body</code>, <code>tags</code>, <code>score</code>, <code>createdAt</code>.</td></tr>
+    <tr><td><b>Answer</b></td><td><code>id</code>, <code>questionId</code>, <code>authorId</code>, <code>body</code>, <code>score</code>, <code>createdAt</code>.</td></tr>
+    <tr><td><b>Comment</b></td><td><code>id</code>, <code>parentId</code>, <code>parentType</code>, <code>authorId</code>, <code>body</code> — a node in a tree.</td></tr>
+    <tr><td><b>Vote</b></td><td><code>(userId, targetId)</code> → <code>+1 / -1</code>. The pair is unique — one vote per user per target.</td></tr>
+  </table>
+  <p>Derive the acting user from the auth token, never from the request body.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/questions</code></td><td>Create a question. Body: <code>{ title, body, tags }</code>.</td></tr>
+    <tr><td><code>POST /v1/questions/:id/answers</code></td><td>Post an answer to a question. Body: <code>{ body }</code>.</td></tr>
+    <tr><td><code>POST /v1/posts/:id/votes</code></td><td>Vote. Body: <code>{ value: +1 | -1 }</code>; idempotent per user.</td></tr>
+    <tr><td><code>GET /v1/feed?sort=hot&amp;cursor=</code></td><td>Read a feed. <code>sort ∈ {hot, top, new}</code>; returns <code>{ items, nextCursor }</code>.</td></tr>
+    <tr><td><code>GET /v1/questions/:id</code></td><td>Full question page: body + answers + comment tree.</td></tr>
+    <tr><td><code>GET /v1/search?q=&amp;tags=</code></td><td>Full-text search over questions/answers.</td></tr>
+  </table>
+  <p>Note <code>GET /feed</code> uses a <b>cursor</b>, not an offset — feeds shift constantly, so offset paging causes duplicates and skips.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Keep the HLD boringly simple; the cleverness belongs in the deep dives. Trace each request through stateless services in front of a primary store, with a cache, a counter system, and a search index hanging off the side.</p>
+  <table>
+    <tr><th>Component</th><th>Responsibility &amp; store</th></tr>
+    <tr><td><b>Post Service</b></td><td>CRUD for questions/answers/comments. Writes to the <b>Post Store</b> (relational or wide-column, keyed by <code>id</code>).</td></tr>
+    <tr><td><b>Vote Service</b></td><td>Records the unique <code>(user,target)</code> vote and increments the target's score via the counter system.<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td><b>Feed Service</b></td><td>Serves <code>GET /feed</code> for hot/top/new from precomputed, cached ranked lists.</td></tr>
+    <tr><td><b>Cache (Redis)</b></td><td>Holds hot question pages and the materialized feed lists. Absorbs the bulk of reads.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>Search Service + index</b></td><td>Elasticsearch/inverted index, fed asynchronously from the Post Store via CDC.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td><b>Reputation worker</b></td><td>Consumes vote events and updates each author's reputation asynchronously.</td></tr>
+  </table>
+  <p><b>Read path:</b> <code>GET /questions/:id</code> → check cache → on miss, read Post Store, assemble answers + comment tree, populate cache. <b>Write path:</b> <code>POST /votes</code> → Vote Service records vote → increments counter → emits an event consumed by the reputation worker and the feed re-ranker.</p>
+
+  <h2>Deep Dive 1 — Read-heavy serving: caching the hot tail</h2>
+  <p>With a 100:1 read ratio and a brutal long-tail distribution, caching <em>is</em> the design. The whole goal is to make the common read never touch the database. Two things to cache: <b>rendered question pages</b> and <b>feed lists</b>.</p>
+  <p>Use Redis as a look-aside cache in front of the Post Store. A question page (body + top answers + counts) is read-mostly and tolerant of brief staleness, so it caches beautifully with a modest TTL. See <a href="../lessons/0004-caching.html">Lesson 4 · Caching</a> for the eviction and invalidation patterns.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Decision</th><th>Choice &amp; reason</th></tr>
+    <tr><td>Strategy</td><td><b>Look-aside (cache-aside)</b> — app checks cache, falls back to DB, writes back on miss.</td></tr>
+    <tr><td>Invalidation</td><td><b>TTL + write-through on edit.</b> A new answer/vote bumps the cached page or lets TTL expire it.</td></tr>
+    <tr><td>Hot key</td><td>A viral question is one key on one shard — <b>replicate</b> it so all nodes can serve it.<a href="#c1" class="cite">[1]</a></td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior says "add a cache." The staff candidate quantifies <em>why it works here specifically</em>: the read distribution is power-law, so a cache holding a few thousand hot items achieves a &gt;95% hit rate and collapses DB load by ~20×. They name the <b>hot-key problem</b> proactively — a single viral post melting one cache shard — and reach for <b>replication of hot keys</b> plus a tiny per-node local cache to absorb the storm, exactly the read-side mirror of the celebrity write-skew from the News Feed lesson.
+  </div>
+
+  <h2>Deep Dive 2 — Vote counting at scale (the hot counter)</h2>
+  <p>Voting looks trivial until a post hits the front page and takes thousands of votes per second. Naively, every vote is <code>UPDATE posts SET score = score + 1 WHERE id = ?</code> — and that one row becomes a write-contention hotspot, serializing on a single lock.<a href="#c3" class="cite">[3]</a> This is a <a href="../lessons/0048-distributed-counter.html">distributed counter</a> problem.</p>
+  <table>
+    <tr><th>Approach</th><th>Behavior</th><th>Verdict</th></tr>
+    <tr><td>One row, <code>+1</code> per vote</td><td>All writes serialize on a single hot row.</td><td>Melts at scale</td></tr>
+    <tr><td><b>Sharded counters</b></td><td>Split into N sub-counters; sum on read. Spreads contention N-way.<a href="#c3" class="cite">[3]</a></td><td><b>Good</b></td></tr>
+    <tr><td><b>Batched / async</b></td><td>Buffer increments in Redis, flush aggregates to DB periodically.</td><td><b>Great for hot</b></td></tr>
+  </table>
+  <p>The practical answer combines both: accumulate votes in an in-memory counter (Redis <code>INCR</code>, naturally atomic and fast), and asynchronously flush the running total to the durable store. The displayed count is served from Redis — eventually consistent, which the NFRs already permit. The unique <code>(user, target)</code> record (preventing double-voting) is written separately and durably.</p>
+  <div class="box">
+    <p><b>Idempotency matters.</b> A vote must be <em>idempotent per user per target</em>: voting twice doesn't add two. Store the <code>(userId, targetId)</code> pair with a uniqueness constraint; the counter only moves on a state <em>transition</em> (none→up, up→down), not on every click. This is the correctness backbone under the fast eventual-consistency front.</p>
+  </div>
+
+  <h2>Deep Dive 3 — Ranking feeds: hot / top / new</h2>
+  <p>"Sort by new" is trivial (order by <code>createdAt</code>). "Top" is an aggregate over a window (order by <code>score</code> within last day/week). <b>"Hot" is the interesting one</b> — it must blend score <em>and</em> recency so fresh-but-good content outranks old-but-high-score content, and it must <em>decay</em> over time.</p>
+  <p>Reddit's classic hot formula is essentially <code>log10(score) + age/45000</code> — a time term that grows steadily so newer posts get a standing bonus, plus a logarithmic score term so the first 10 votes matter far more than votes 1000–1010.<a href="#c4" class="cite">[4]</a> The key insight: because the time component increases monotonically, you don't have to constantly re-sort the whole corpus — a post's hot score is computable from <code>(score, createdAt)</code> at write/vote time.</p>
+  <table>
+    <tr><th>Feed</th><th>Order by</th><th>How it's served</th></tr>
+    <tr><td><b>New</b></td><td><code>createdAt</code> desc</td><td>Indexed range scan; trivial.</td></tr>
+    <tr><td><b>Top</b></td><td><code>score</code> desc, windowed</td><td>Precomputed per time window, cached.</td></tr>
+    <tr><td><b>Hot</b></td><td><code>hotScore(score, age)</code></td><td>Recompute on vote; keep a cached ranked list.</td></tr>
+  </table>
+  <p>Don't rank on the read path. <b>Precompute</b> the hot/top lists into a cached, materialized ranking (e.g. a Redis sorted set keyed by hot score) and update it as votes arrive. Reads become a cheap range read off the sorted set; the expensive scoring happens once per vote, not once per page view — separating <em>generation</em> from <em>serving</em>, the same move as feed ranking.</p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Staff candidates connect the dots between deep dives: the <b>hot counter</b> (DD2) feeds the <b>hot ranking</b> (DD3) feeds the <b>cached feed list</b> (DD1). They note the vote event is the single trigger that fans out to three subsystems — counter, re-ranker, reputation — and argue for an <b>event-driven</b> design (one vote → emit event → consumers) instead of synchronous writes to four places. They also flag that exact global ranking is unnecessary: approximate, eventually-consistent ordering is perfectly acceptable for a feed, and that relaxation is what makes precomputation cheap.
+  </div>
+
+  <h2>Deep Dive 4 — Full-text search &amp; comment-tree storage</h2>
+  <h3>Search: an inverted index, fed asynchronously</h3>
+  <p>You cannot serve keyword search from the transactional store — <code>LIKE '%term%'</code> is a full scan and ignores relevance. You need a dedicated <b>inverted index</b> (Elasticsearch), kept in sync with the Post Store via <b>change data capture</b> so writes don't block on indexing.<a href="#c2" class="cite">[2]</a> Search is read-heavy and tolerant of seconds of indexing lag — the perfect candidate for an async, separate store. The full treatment is in <a href="../lessons/0025-fb-post-search.html">Lesson 25 · Post Search</a>.</p>
+
+  <h3>Comment trees: adjacency list vs. materialized path</h3>
+  <p>Comments are a tree (replies to replies). The storage choice determines how cheaply you can load a whole thread.</p>
+  <table>
+    <tr><th>Model</th><th>How it works</th><th>Tradeoff</th></tr>
+    <tr><td><b>Adjacency list</b></td><td>Each comment stores its <code>parentId</code>.</td><td>Simple writes; reading a deep tree needs N recursive queries.</td></tr>
+    <tr><td><b>Materialized path</b></td><td>Each comment stores its full ancestor path (e.g. <code>1/4/9</code>).</td><td>One indexed prefix query loads the whole subtree; paths cost on move.</td></tr>
+  </table>
+  <p>For a forum, reads dominate and comments rarely move, so <b>materialized path</b> (or a closure table) wins: a single prefix range query fetches an entire thread, which you then assemble into a tree in memory. Most real systems cap nesting depth, which keeps trees shallow and cacheable as part of the question page.</p>
+
+  <h3>Reputation: derived, asynchronous, idempotent</h3>
+  <p>Reputation is a <em>derived aggregate</em> of vote events (+10 for an answer upvote, −2 for a downvote, etc.). Never compute it on the read path. A <b>reputation worker</b> consumes the same vote-event stream that feeds the counter, applies the rules, and updates a per-user reputation total. Because it replays events, it must be idempotent — each vote event applied exactly once — so reputation stays correct even if events are redelivered.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why is caching the central architecture of a Q&amp;A site, not an add-on?</p>
+      <button class="opt">Because votes must always be written into the cache before the DB</button>
+      <button class="opt">Because search results change too fast for a database to keep up</button>
+      <button class="opt">Because reads dwarf writes and a tiny hot set absorbs most traffic</button>
+      <button class="opt">Because comment trees are too deep to load from disk on each read</button>
+      <p class="fb">A ~100:1 read ratio plus a power-law hot set means a small cache serves the vast majority of reads — that's the design, not a tweak.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. What breaks when a front-page post takes thousands of votes per second?</p>
+      <button class="opt">The search index falls behind and returns stale ranking results</button>
+      <button class="opt">A single counter row becomes a serialized write-contention hotspot</button>
+      <button class="opt">The comment tree grows unbounded and exceeds the page size limit</button>
+      <button class="opt">The cache evicts the post because its key is updated far too often</button>
+      <p class="fb">Naive <code>count = count + 1</code> serializes on one hot row. Shard the counter and batch increments in Redis, flushing async.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What makes a "hot" feed harder to serve than "new" or "top"?</p>
+      <button class="opt">It blends score with a time-decay term, so ordering shifts over time</button>
+      <button class="opt">It must read every single post in the corpus on each page request</button>
+      <button class="opt">It requires a strongly consistent global lock across all the shards</button>
+      <button class="opt">It cannot be cached because each user sees a personalized result</button>
+      <p class="fb">Hot mixes score and recency with decay. Precompute it into a cached sorted set on each vote — don't rank on the read path.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why store a comment thread using a materialized path on a forum?</p>
+      <button class="opt">It guarantees votes on comments stay strongly consistent with answers</button>
+      <button class="opt">One indexed prefix query loads an entire subtree in a single read</button>
+      <button class="opt">It removes the need to keep any parent pointer on each comment row</button>
+      <button class="opt">It lets comments be moved between questions without any path update</button>
+      <p class="fb">Reads dominate and comments rarely move, so a path prefix query fetches the whole thread at once — far cheaper than recursive lookups.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push back and go deeper:
+    <ul style="margin:.4rem 0 0; font-size:.9rem;">
+      <li>"Derive the hot-ranking formula with me — why is the score term logarithmic and the time term linear?"</li>
+      <li>"Walk through the single vote event fanning out to counter, ranking, and reputation — where can it fail?"</li>
+      <li>"Quiz me: how is the viral-question hot key the read-side mirror of celebrity write fan-out?"</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/reddit">Hello Interview — Reddit / Q&amp;A breakdown</a>. The cleanest walkthrough of the read-heavy serving model, vote counting, and hot/top/new ranking, with leveling expectations called out. Pair it with <a href="../reference/glossary.html">the glossary</a> for FR/NFR/HLD terminology.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="../lessons/0004-caching.html">Lesson 4 — Caching</a> (look-aside strategy, TTL/invalidation, hot-key replication for read-heavy serving).</p>
+    <p id="c2">[2] <a href="../lessons/0025-fb-post-search.html">Lesson 25 — Post Search</a> (inverted index, CDC-fed async indexing, why <code>LIKE</code> scans don't scale).</p>
+    <p id="c3">[3] <a href="../lessons/0048-distributed-counter.html">Lesson 48 — Distributed Counter</a> (sharded counters, batched/async increments, hot-row contention).</p>
+    <p id="c4">[4] Reddit hot-ranking algorithm — <code>log10(score) + sign·seconds/45000</code> (time-decay blend of score and recency); widely documented; figures are illustrative estimates.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0064-google-photos.html">← Lesson 64</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 66 · Version Control (GitHub)</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

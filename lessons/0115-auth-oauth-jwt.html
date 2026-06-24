@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 115 — Deep Dive: Authentication &amp; Authorization (OAuth2, OIDC, JWT, Sessions)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 115 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Authentication &amp; Authorization</h1>
+  <p class="sub">OAuth2, OIDC, JWT, and sessions — four words people use interchangeably and almost always confuse. Here's the clean mental model.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Nearly every system has a user and a "who can do what" boundary, and security questions are where senior candidates quietly lose points by hand-waving. At L6/L7 the interviewer wants you to distinguish <em>authentication</em> from <em>authorization</em>, choose sessions vs JWTs <em>with the revocation trade-off named</em>, and sketch an OAuth flow without garbling it. This lesson gives you the vocabulary and the two or three failure modes (token revocation, where to store a JWT, <code>alg=none</code>) that prove you've actually built auth, not just read about it.
+  </div>
+
+  <h2>AuthN vs AuthZ</h2>
+  <p>Two different questions, often jammed together:</p>
+  <ul>
+    <li><b>Authentication (AuthN):</b> <em>who are you?</em> Proving identity — password, passkey, OAuth login.</li>
+    <li><b>Authorization (AuthZ):</b> <em>what are you allowed to do?</em> Checking permissions on a resource — can this user delete that post?</li>
+  </ul>
+  <p>You authenticate <b>once</b> (login) and authorize on <b>every</b> request. Conflating them is the classic interview slip; keep them separate.</p>
+
+  <h2>Sessions vs tokens — the central choice</h2>
+  <p>After login, the server needs to remember the user across stateless HTTP requests. Two strategies, and the difference is <b>where the state lives</b>.</p>
+  <table>
+    <thead><tr><th></th><th>Server-side session</th><th>JWT (stateless token)</th></tr></thead>
+    <tbody>
+      <tr><td><b>What the client holds</b></td><td>An opaque session id (in a cookie)</td><td>A signed token containing the claims</td></tr>
+      <tr><td><b>Where state lives</b></td><td>Server store (Redis/DB) keyed by id</td><td>Nowhere server-side — it's in the token</td></tr>
+      <tr><td><b>Validate a request</b></td><td>Look up the id in the store</td><td>Verify the signature locally — no DB hit</td></tr>
+      <tr><td><b>Revoke instantly</b></td><td>Easy — delete the session row</td><td>Hard — token is valid until it expires</td></tr>
+      <tr><td><b>Scales by</b></td><td>Sharing/replicating the session store</td><td>Just distributing the signing key</td></tr>
+    </tbody>
+  </table>
+  <p>A <b>JWT</b> (JSON Web Token) is three base64url parts: <code>header.payload.signature</code>.<a href="#c2" class="cite">[2]</a> The header names the algorithm, the payload carries claims (<code>sub</code>=user, <code>exp</code>=expiry, roles, etc.), and the signature is an HMAC or asymmetric signature over the first two parts. Any service holding the key can verify the token <em>without a database lookup</em> — that statelessness is the whole appeal, and also its curse.</p>
+
+  <div class="box">
+    <b>The JWT revocation problem &amp; how to live with it</b>
+    <ul>
+      <li>Because validation is local, a stolen or no-longer-valid JWT keeps working <b>until it expires</b> — you can't "delete" it server-side.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Standard fix:</b> short-lived <b>access tokens</b> (5–15 min) + a long-lived <b>refresh token</b>. The access token does the work; when it expires the client trades the refresh token for a new one. To revoke, you invalidate the refresh token (which <em>is</em> tracked server-side) and the access token dies within minutes.</li>
+      <li><b>HS256 vs RS256:</b> HS256 is symmetric (one shared secret — every verifier can also forge); RS256 is asymmetric (sign with a private key, verify with the public key) and is the right choice when many services verify but only the auth server should mint.</li>
+      <li><b>Where to store it in a browser:</b> <code>localStorage</code> is readable by any injected script → <b>XSS</b> steals it. An <code>HttpOnly</code> cookie is not script-readable but is auto-sent → <b>CSRF</b> risk, mitigated with <code>SameSite</code> + CSRF tokens. There's no free lunch; pick the threat you can defend.</li>
+      <li><b>Classic vuln — <code>alg=none</code>:</b> early libraries accepted a token whose header said "no signature." Always pin the expected algorithm server-side.</li>
+    </ul>
+  </div>
+  <p><b>Rule of thumb:</b> sessions for a single web app where instant revoke matters; JWTs for stateless APIs, microservices, and mobile where you want verification without a shared session store — accepting the short-TTL/refresh dance to regain revocation.</p>
+
+  <h2>OAuth2 &amp; OIDC</h2>
+  <p><b>OAuth 2.0</b> is a <em>delegated authorization</em> framework: it lets a user grant a third-party app limited access to their resources <em>without sharing their password</em> ("Sign in with Google", "let this app read your calendar").<a href="#c1" class="cite">[1]</a> The headline flow is <b>authorization code + PKCE</b>:</p>
+  <ol>
+    <li>The app redirects the user to the <b>authorization server</b> (e.g. Google) with the scopes it wants.</li>
+    <li>The user authenticates there and consents; the server redirects back with a one-time <b>authorization code</b>.</li>
+    <li>The app exchanges that code (plus a <b>PKCE</b> verifier, which proves the same client that started the flow is finishing it — essential for mobile/SPA) for an <b>access token</b> (and refresh token).</li>
+    <li>The app calls the resource API with the access token; <b>scopes</b> limit what it can touch.</li>
+  </ol>
+  <p>OAuth2 alone answers AuthZ (delegated access), not "who is this user." <b>OpenID Connect (OIDC)</b> is a thin identity layer on top of OAuth2 that adds an <b>ID token</b> (a JWT describing the authenticated user) and a <code>/userinfo</code> endpoint — that's what actually powers "Sign in with…" as a <em>login</em>.<a href="#c1" class="cite">[1]</a> One line to remember: <b>OAuth2 = authorization; OIDC = authentication built on it.</b></p>
+
+  <h2>Authorization models</h2>
+  <ul>
+    <li><b>RBAC (role-based):</b> permissions attach to roles (<code>admin</code>, <code>editor</code>), users get roles. Simple, ubiquitous, coarse-grained.</li>
+    <li><b>ABAC (attribute-based):</b> policies evaluate attributes of user, resource, and context ("editors in the same org, during business hours"). Flexible, more complex.</li>
+    <li><b>ReBAC (relationship-based):</b> permissions follow the graph of relationships ("can view a doc if you're in a folder shared with your team"). Google's <b>Zanzibar</b> is the canonical planet-scale implementation and the model behind fine-grained sharing.<a href="#c3" class="cite">[3]</a> See <a href="0084-post-privacy-acl.html">Post Privacy / ACL (Lesson 84)</a>.</li>
+  </ul>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The tell is precision under the obvious follow-ups. A junior says "I'll use JWTs" and stops. A staff candidate says "JWTs for the stateless API so services verify with the public key (RS256) and no shared session store — but JWTs can't be revoked, so I'll keep access tokens at ~10 minutes and revoke via the tracked refresh token."<a href="#c2" class="cite">[2]</a> They keep <b>AuthN and AuthZ separate</b>, correctly call "Sign in with Google" <b>OIDC, not bare OAuth2</b>,<a href="#c1" class="cite">[1]</a> and when fine-grained sharing comes up they name <b>ReBAC/Zanzibar</b> rather than hand-waving "we'll check permissions."<a href="#c3" class="cite">[3]</a> Knowing the failure modes — revocation, token storage XSS/CSRF, <code>alg=none</code> — is what separates having used auth from having read about it.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When auth comes up: (1) split <b>AuthN vs AuthZ</b> explicitly; (2) pick sessions or JWTs <em>and state the trade-off</em> ("JWT for the mobile API, accepting short TTL + refresh for revocation"); (3) if third-party login or delegated access is in scope, sketch the <b>authorization-code + PKCE</b> flow and call the login part <b>OIDC</b>; (4) for "who can do what," name <b>RBAC</b> by default and <b>ReBAC/Zanzibar</b> if sharing is graph-shaped. Drop one security failure mode unprompted (revocation or token storage) and you've signaled depth. Don't reinvent crypto — use an IdP (Okta/Auth0/Cognito) and a vetted library.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What is the main downside of stateless JWTs?</p>
+      <button class="opt">They require a database lookup on every single request</button>
+      <button class="opt">They cannot carry any user claims inside the payload</button>
+      <button class="opt">They cannot be revoked instantly before they expire</button>
+      <button class="opt">They only work for a single web app on one server</button>
+      <p class="fb">Validation is local with no server state, so a token stays valid until expiry; the fix is short TTLs plus a tracked, revocable refresh token.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. How do OAuth2 and OIDC differ?</p>
+      <button class="opt">OAuth2 grants delegated access; OIDC adds user identity</button>
+      <button class="opt">OAuth2 handles login; OIDC only issues refresh tokens</button>
+      <button class="opt">OAuth2 is symmetric crypto; OIDC is asymmetric crypto</button>
+      <button class="opt">OAuth2 stores sessions; OIDC stores tokens in cookies</button>
+      <p class="fb">OAuth2 is delegated authorization; OIDC layers an ID token on top to actually authenticate the user ("Sign in with…").</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. Why store a session token in an HttpOnly cookie?</p>
+      <button class="opt">So the token never needs to be sent back to the server</button>
+      <button class="opt">So it can be read and refreshed by client-side scripts</button>
+      <button class="opt">So it can be larger than the browser cookie size limit</button>
+      <button class="opt">So injected scripts (XSS) cannot read and steal it</button>
+      <p class="fb">HttpOnly hides the cookie from JavaScript, blocking XSS theft; the residual CSRF risk is handled with SameSite and CSRF tokens.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Which model fits graph-shaped sharing permissions best?</p>
+      <button class="opt">RBAC — fixed roles like admin and editor per user</button>
+      <button class="opt">ReBAC — permissions follow relationships, like Zanzibar</button>
+      <button class="opt">HS256 — a single shared secret signs every token</button>
+      <button class="opt">PKCE — a verifier proving the client started the flow</button>
+      <p class="fb">Relationship-based access control (Zanzibar) expresses "can view if shared via a folder/team," which RBAC's flat roles can't capture cleanly.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Walk the full authorization-code + PKCE flow for a mobile app, step by step." · "Design token revocation for a system that must log users out within 60 seconds." · "Compare RBAC vs ReBAC for the <a href="0084-post-privacy-acl.html">post-privacy</a> design."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://datatracker.ietf.org/doc/html/rfc6749">RFC 6749 — The OAuth 2.0 Authorization Framework</a> and <a href="https://datatracker.ietf.org/doc/html/rfc7519">RFC 7519 — JSON Web Token</a>, plus the OpenID Connect Core spec, are the canonical sources; the Google Zanzibar paper covers planet-scale ReBAC.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://datatracker.ietf.org/doc/html/rfc6749">RFC 6749 — OAuth 2.0 Authorization Framework</a> and <a href="https://openid.net/specs/openid-connect-core-1_0.html">OpenID Connect Core 1.0</a> (delegated authorization, the authorization-code flow, scopes; OIDC's ID token for authentication).</p>
+    <p id="c2">[2] <a href="https://datatracker.ietf.org/doc/html/rfc7519">RFC 7519 — JSON Web Token (JWT)</a> (token structure header.payload.signature, claims, signing; the basis for stateless verification and its revocation limitation).</p>
+    <p id="c3">[3] <a href="https://research.google/pubs/pub48190/">Pang et al., "Zanzibar: Google's Consistent, Global Authorization System" (USENIX ATC 2019)</a> (relationship-based access control at planet scale).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0114-database-internals.html">← Lesson 114</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 116 · Geohashing &amp; Quadtrees</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

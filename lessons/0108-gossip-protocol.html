@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 108 — Deep Dive: Gossip Protocol</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 108 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Gossip Protocol</h1>
+  <p class="sub">How thousands of nodes agree on who is alive — with no leader, no central registry, and a message bill that grows only logarithmically.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> At L6/L7 the interviewer rarely asks "what is gossip?" — they ask "how does your 500-node cluster know a node died, and what happens when the network partitions?" A senior says "they gossip." A staff candidate explains <em>why</em> epidemic dissemination converges in <code>O(log N)</code> rounds, contrasts a phi-accrual failure detector with a naïve timeout, and then draws the sharp line: gossip for membership and metadata, consensus for anything that must be linearizable. This lesson hands you that machinery so you reason from first principles instead of waving at a buzzword.
+  </div>
+
+  <h2>What it is</h2>
+  <p>A <b>gossip protocol</b> (a.k.a. <b>epidemic protocol</b>) is a way for nodes in a distributed system to spread information the way a rumor — or an infection — spreads through a population: every node, on a fixed period (say once per second), picks a <em>few random peers</em> and exchanges state with them.<a href="#c1" class="cite">[1]</a> No node talks to everyone; no node is in charge. Yet because each "infected" node infects others every round, a fact injected anywhere reaches the entire cluster quickly and reliably, even as nodes join, leave, or crash.</p>
+
+  <p>This is the same decentralized membership and replication machinery you already met in <a href="0090-cassandra.html">Cassandra (Lesson 90)</a> and <a href="0091-dynamodb.html">DynamoDB (Lesson 91)</a>: the ring has no leader, so nodes must discover each other's liveness peer-to-peer.<a href="#c2" class="cite">[2]</a> Two distinct jobs ride on the same gossip channel:</p>
+  <table>
+    <thead><tr><th>Job</th><th>What gets gossiped</th><th>Why gossip fits</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Membership &amp; failure detection</b></td>
+        <td>Who is in the cluster, and whether each peer is alive/suspect/dead.<a href="#c1" class="cite">[1]</a></td>
+        <td>Fast, robust, no single point of failure to ask.</td>
+      </tr>
+      <tr>
+        <td><b>Anti-entropy</b></td>
+        <td>Replica data digests, so divergent copies can be reconciled.<a href="#c2" class="cite">[2]</a></td>
+        <td>Cheap background convergence without a coordinator.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>The key mental shift: gossip does not <em>guarantee</em> that everyone knows something at any instant. It guarantees that, absent permanent partition, everyone <b>eventually converges</b> — and it does so with overwhelming probability in a small, bounded number of rounds. That "eventually, cheaply, with no coordinator" is exactly the trade an AP system wants for its control plane.</p>
+
+  <h2>Internals — where the speed and robustness come from</h2>
+
+  <h3>Three styles: push, pull, and push-pull</h3>
+  <p>When node A contacts a random peer B, the exchange comes in three flavors, and the choice drives how fast a rumor spreads:<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <thead><tr><th>Style</th><th>Mechanism</th><th>Behavior</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Push</b></td>
+        <td>A sends its updates to B.</td>
+        <td>Spreads fast early (few are infected, each infects more) but slow to finish — a late push often hits an already-infected peer.</td>
+      </tr>
+      <tr>
+        <td><b>Pull</b></td>
+        <td>A asks B for B's updates.</td>
+        <td>Slow to start but fast to finish — once most nodes are infected, an uninfected node almost always pulls from an infected one.</td>
+      </tr>
+      <tr>
+        <td><b>Push-pull</b></td>
+        <td>A and B exchange both directions in one round.</td>
+        <td>Best of both: the fastest convergence, the form most real systems use.<a href="#c1" class="cite">[1]</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Why it converges in O(log N) rounds</h3>
+  <p>Picture an infection where every infected node infects (roughly) one more each round: the infected count doubles per round, so reaching <code>N</code> nodes takes about <code>log&#8322;(N)</code> rounds.<a href="#c1" class="cite">[1]</a> Even a million nodes converge in roughly twenty rounds. Two properties fall out of this exponential growth and matter enormously at staff level:</p>
+  <div class="box">
+    <b>The two scaling wins</b>
+    <ul>
+      <li><b>Logarithmic latency.</b> Time-to-converge grows as <code>O(log N)</code> in cluster size, so the protocol scales to thousands of nodes without the propagation delay exploding.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Constant per-node load.</b> Each node contacts a fixed small <em>fanout</em> of peers per round regardless of cluster size, so no node is a hotspot and there is no central server to overload — the load is spread evenly across the whole cluster.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Fault tolerance for free.</b> Because peers are chosen randomly and redundantly, the loss of any node, or of individual messages, barely dents propagation. There is nothing whose failure stops the protocol.</li>
+    </ul>
+  </div>
+
+  <h3>Failure detection: heartbeat counters and phi-accrual</h3>
+  <p>Detecting that a peer has <em>died</em> is the hard part, because "I haven't heard from you" is ambiguous — it could mean you crashed, or it could mean the network is slow. Two layers are worth naming in an interview:</p>
+  <p><b>Heartbeat counters.</b> Each node keeps a monotonically increasing heartbeat for itself and gossips a vector of <em>(node, heartbeat, version)</em> entries; a peer adopts whichever entry has the higher counter.<a href="#c1" class="cite">[1]</a> If a node's heartbeat stops advancing in the data you receive (directly or relayed), it is a candidate for "failed." This is essentially a version-stamped, last-write-wins merge of membership state, conceptually like the version reconciliation in <a href="0091-dynamodb.html">Dynamo-style stores (Lesson 91)</a>.<a href="#c2" class="cite">[2]</a></p>
+  <p><b>Phi-accrual detection.</b> Rather than a hard timeout ("dead if silent for 5 s"), a phi-accrual detector outputs a <em>continuous suspicion level</em> &phi; computed from the statistical distribution of recent inter-arrival times.<a href="#c3" class="cite">[3]</a> &phi; rises smoothly as silence grows, and the application picks a threshold to act on. The win: it <b>adapts to network conditions automatically</b> — on a flaky or loaded link it tolerates longer gaps before crying wolf, cutting false positives, which is exactly why Cassandra and Akka adopted it.<a href="#c3" class="cite">[3]</a> The SWIM protocol adds another robustness trick — <em>indirect probing</em>: if A can't reach B directly, it asks <code>k</code> other peers to ping B before declaring it dead, so one bad link doesn't evict a healthy node.<a href="#c4" class="cite">[4]</a></p>
+
+  <h3>Anti-entropy with Merkle trees</h3>
+  <p>Gossiping membership is cheap because the state is small. Reconciling <em>replica data</em> is not — comparing two replicas key-by-key would be enormous. The fix, used by both Dynamo and Cassandra, is <b>anti-entropy via Merkle trees</b>.<a href="#c2" class="cite">[2]</a> A Merkle tree is a hash tree: leaves hash individual key ranges, and each parent hashes its children up to a single root hash.<a href="#c2" class="cite">[2]</a></p>
+  <div class="box">
+    <b>Why a Merkle tree makes repair cheap</b>
+    <ul>
+      <li>Two replicas first compare only their <b>root hashes</b>. Equal roots → the replicas are identical; <em>zero</em> further data moves.<a href="#c2" class="cite">[2]</a></li>
+      <li>If roots differ, they descend only the branches whose hashes differ, halving the search space each level — so they pinpoint the divergent keys in <code>O(log)</code> comparisons and transfer <em>only</em> the rows that actually differ.<a href="#c2" class="cite">[2]</a></li>
+      <li>The result: replicas reconcile with bandwidth proportional to the <em>amount of divergence</em>, not the size of the dataset — the same idea behind Cassandra's repair and read-repair.</li>
+    </ul>
+  </div>
+  <p>So the full picture: gossip carries lightweight liveness and version metadata continuously, while Merkle-tree anti-entropy runs in the background to heal replica drift cheaply. Together they let a leaderless cluster stay coherent without ever electing a coordinator.<a href="#c2" class="cite">[2]</a></p>
+
+  <h2>Trade-offs</h2>
+  <p>Gossip is not free lunch — it is a deliberate exchange of <em>strong, instant agreement</em> for <em>scalability and robustness</em>. Name both sides:</p>
+  <table>
+    <thead><tr><th>What you gain</th><th>What you pay</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>No single point of failure, no central coordinator — any node can die and the protocol continues.<a href="#c1" class="cite">[1]</a></td>
+        <td>State is only <b>eventually consistent</b>; at any instant two nodes may hold different views of membership.</td>
+      </tr>
+      <tr>
+        <td>Scales to thousands of nodes — <code>O(log N)</code> convergence, constant per-node cost.<a href="#c1" class="cite">[1]</a></td>
+        <td><b>Redundant messages</b>: the same update is delivered to already-informed peers, wasting some bandwidth.</td>
+      </tr>
+      <tr>
+        <td>Robust to message loss and transient partitions — randomness routes around failures.</td>
+        <td>Detection is probabilistic; tuning fanout/period/threshold trades convergence speed against chatter and false positives.<a href="#c3" class="cite">[3]</a></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="box">
+    <b>Gossip vs. consensus — the line you must draw</b>
+    <ul>
+      <li><b>Use gossip</b> for membership, failure detection, config/metadata propagation, and replica anti-entropy — anything where "everyone agrees <em>eventually</em>" is acceptable and you need to scale to many nodes cheaply.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Use consensus</b> (<a href="0107-consensus-raft-paxos.html">Raft/Paxos, Lesson 107</a>) for a single source of truth that must be <em>linearizable</em>: leader election, a lock, a sequence/commit log, or any value where two nodes disagreeing — even for a moment — is a correctness bug.</li>
+      <li>The staff-level insight: they are complementary, not competing. Consensus gives strong agreement but costs a quorum round-trip per decision and scales poorly past a handful of voters; gossip gives weak agreement but scales to thousands. Big systems run consensus on a <em>small</em> control group and gossip across the <em>large</em> fleet.</li>
+    </ul>
+  </div>
+
+  <h2>Where it shows up</h2>
+  <table>
+    <thead><tr><th>System</th><th>How it uses gossip</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Cassandra</b></td>
+        <td>Gossip spreads ring membership and node state every second; uses a phi-accrual failure detector and Merkle-tree anti-entropy repair.<a href="#c3" class="cite">[3]</a> See <a href="0090-cassandra.html">Lesson 90</a>.</td>
+      </tr>
+      <tr>
+        <td><b>DynamoDB / Dynamo</b></td>
+        <td>The original gossip + Merkle-tree anti-entropy design for leaderless membership and replica reconciliation.<a href="#c2" class="cite">[2]</a> See <a href="0091-dynamodb.html">Lesson 91</a>.</td>
+      </tr>
+      <tr>
+        <td><b>Consul</b></td>
+        <td>Uses the <b>SWIM</b>-based Serf library for gossip membership and failure detection across agents.<a href="#c4" class="cite">[4]</a></td>
+      </tr>
+      <tr>
+        <td><b>Redis Cluster</b></td>
+        <td>Nodes exchange a binary cluster bus gossip to share slot ownership and mark nodes <code>PFAIL</code>/<code>FAIL</code> by agreement.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior candidates say "the nodes gossip to find failures." Staff candidates say it <em>with the cost and the boundary in the same breath</em>: "Membership rides a push-pull gossip — converges in <code>O(log N)</code> rounds at constant per-node cost, so it scales to the whole fleet with no coordinator. I'll use a phi-accrual detector, not a fixed timeout, so a slow link doesn't trigger false evictions, and indirect probing so one bad path can't kill a healthy node.<a href="#c3" class="cite">[3]</a><a href="#c4" class="cite">[4]</a> But I will <em>not</em> put the leader election or the commit log on gossip — that's eventually consistent, and those need linearizability, so they go on Raft." Naming <em>which plane is gossip and which is consensus</em>, and why, is the move that reads as staff. Don't over-explain what an infection is; spend the words on the threshold tuning and the gossip/consensus split.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When a design needs decentralized membership — a leaderless datastore, a service mesh, a large cache fleet — deliver it in this arc: (1) <b>name the need</b> — "with no leader, nodes must learn liveness peer-to-peer, so I'll gossip membership." (2) <b>State the property that earns the choice</b> — "<code>O(log N)</code> convergence, constant per-node load, no SPOF." (3) <b>Go one level deep on detection</b> — phi-accrual over a hard timeout, plus indirect probing, to keep false positives low on flaky networks.<a href="#c3" class="cite">[3]</a><a href="#c4" class="cite">[4]</a> (4) <b>Add anti-entropy</b> — Merkle trees to reconcile replica data with bandwidth proportional to divergence.<a href="#c2" class="cite">[2]</a> (5) <b>Draw the boundary out loud</b> — "membership and metadata on gossip; anything linearizable on consensus." That breadth-then-depth shape — quick justification, then 60% depth on detection and the gossip/consensus split — is what separates the levels.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why does a rumor reach all N nodes in only O(log N) gossip rounds?</p>
+      <button class="opt">Because one elected leader node broadcasts to all of the peers</button>
+      <button class="opt">Because every node contacts each other node once every single round</button>
+      <button class="opt">Because the count of informed nodes roughly doubles every single round</button>
+      <button class="opt">Because each message is routed along the shortest network path found</button>
+      <p class="fb">Each informed node informs more peers per round, so the informed count grows exponentially — reaching N takes ~log N rounds.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. What is the main advantage of phi-accrual detection over a fixed timeout?</p>
+      <button class="opt">It guarantees that every node is detected as dead within one round</button>
+      <button class="opt">It adapts the suspicion level to the network so false positives drop</button>
+      <button class="opt">It removes the need to ever send any heartbeat messages between peers</button>
+      <button class="opt">It elects a coordinator node that decides which peers are alive or not</button>
+      <p class="fb">Phi-accrual outputs a continuous suspicion value from observed inter-arrival times, so a slow link is tolerated instead of falsely flagged dead.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. How do Merkle trees make replica anti-entropy cheap?</p>
+      <button class="opt">Equal root hashes prove a match, so only differing branches transfer</button>
+      <button class="opt">Every single key is hashed and then compared on each gossip exchange</button>
+      <button class="opt">A leader node holds the only copy and streams it to every replica</button>
+      <button class="opt">All rows are resent on each repair so the replicas always stay synced</button>
+      <p class="fb">Replicas compare root hashes first; only when they differ do they descend the differing branches, moving bandwidth proportional to divergence.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. Which job should run on consensus (Raft) rather than on gossip?</p>
+      <button class="opt">Spreading which nodes are alive or dead across a large node fleet</button>
+      <button class="opt">Reconciling divergent replica data quietly in the cluster background</button>
+      <button class="opt">Propagating cluster membership changes to thousands of peer nodes</button>
+      <button class="opt">Electing one leader whose decision must be linearizable and unique</button>
+      <p class="fb">Leader election needs strong, linearizable agreement — gossip is only eventually consistent, so that belongs on consensus.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Walk me through, round by round, how push-pull gossip infects a 1000-node cluster and why pull finishes faster than push." · "Derive how I'd tune the gossip period, fanout, and phi threshold for a flaky cross-region link." · "Design the control plane for a leaderless store and tell me exactly which parts are gossip and which are Raft, and why."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.amazon.science/publications/dynamo-amazons-highly-available-key-value-store">DeCandia et al., "Dynamo: Amazon's Highly Available Key-value Store" (SOSP 2007)</a>. The canonical treatment of gossip-based membership and Merkle-tree anti-entropy in a production leaderless store; pair it with the SWIM paper for the failure-detection mechanics.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] Demers et al., "Epidemic Algorithms for Replicated Database Maintenance" (PODC 1987) &amp; gossip fundamentals (push/pull/push-pull dissemination, O(log N) convergence, constant per-node fanout, eventual convergence).</p>
+    <p id="c2">[2] <a href="https://www.amazon.science/publications/dynamo-amazons-highly-available-key-value-store">DeCandia et al., "Dynamo: Amazon's Highly Available Key-value Store" (SOSP 2007)</a> (gossip-based membership, version reconciliation, and Merkle-tree anti-entropy for replica synchronization).</p>
+    <p id="c3">[3] Hayashibara et al., "The φ Accrual Failure Detector" (SRDS 2004) (continuous suspicion level adapting to network inter-arrival times; adopted by Cassandra and Akka).</p>
+    <p id="c4">[4] Das, Gupta &amp; Motivala, "SWIM: Scalable Weakly-consistent Infection-style Process Group Membership Protocol" (DSN 2002) (randomized probing, indirect ping, and infection-style dissemination; basis for Serf/Consul).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0107-consensus-raft-paxos.html">← Lesson 107</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 109 · Deep Dive: CDN</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

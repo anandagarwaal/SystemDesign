@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 31 — Design Google Docs (Collaborative Editing)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 31 · Phase 4 — Case Study · Hard</p>
+  <h1>Design Google Docs (Collaborative Editing)</h1>
+  <p class="sub">Many people typing into one document at once — and everyone converging on the same text.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> This is the canonical "concurrency convergence"
+    problem. A senior candidate hand-waves "we merge the edits." A staff candidate names the actual mechanism —
+    Operational Transformation or CRDTs — states why naive last-write-wins corrupts the text, and defends a
+    per-document authoritative server that orders operations. The interview is won in the deep dive, not the box diagram.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope to the collaboration core. A simple text editor is enough <a href="#c1" class="cite">[1]</a> —
+  rich formatting, comments, and permissions are explicitly out of scope so we can spend our depth budget on convergence.</p>
+  <table>
+    <tr><th>#</th><th>Requirement</th></tr>
+    <tr><td>1</td><td>Multiple users can edit one document <b>concurrently</b>.</td></tr>
+    <tr><td>2</td><td>Every editor sees others' changes in <b>near real time</b>.</td></tr>
+    <tr><td>3</td><td>All editors <b>converge to the same final text</b>, regardless of edit order.</td></tr>
+    <tr><td>4</td><td>Editors see collaborators' <b>presence and cursor positions</b> <a href="#c1" class="cite">[1]</a>.</td></tr>
+  </table>
+  <p style="font-size:.88rem;color:var(--muted)"><b>Out of scope:</b> sophisticated document structure, permissions/sharing, and version history <a href="#c1" class="cite">[1]</a>.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th></tr>
+    <tr><td>Low latency</td><td>Local keystroke applies instantly (optimistic); remote edits land in &lt;100&ndash;200&nbsp;ms.</td></tr>
+    <tr><td>Convergence / consistency</td><td>Strong guarantee: all replicas <em>must</em> reach byte-identical state. This is the hard NFR.</td></tr>
+    <tr><td>Availability</td><td>High for read/edit; a brief reconnect blip is tolerable, silent text corruption is not.</td></tr>
+    <tr><td>Durability</td><td>No accepted edit is ever lost — the document survives any single node failure.</td></tr>
+  </table>
+  <p>Note the deliberate tension: we want a document to feel always-editable (availability) yet provably converge
+  (consistency). We resolve it by making one component — a per-document server — the authority that orders edits,
+  while clients stay optimistically responsive.</p>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only what shapes the design.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Concurrent editors / doc</td><td>~10s active; cap ~100 (Docs caps near 100)</td><td>One doc's traffic fits on a single server — we can shard <b>by document</b>.</td></tr>
+    <tr><td>Edits / sec / active editor</td><td>~5&ndash;10 ops/s (keystrokes, batched)</td><td>100 editors ≈ 1k ops/s per doc — trivial CPU, but ordering must be tight.</td></tr>
+    <tr><td>Total documents</td><td>~1B docs, billions of ops over time</td><td>Op log grows unbounded → we <b>need snapshots + compaction</b> (Deep Dive 3).</td></tr>
+    <tr><td>WebSocket connections</td><td>10s of millions concurrent <a href="#c1" class="cite">[1]</a></td><td>Connection fan-out, not compute, is the scaling axis → connection-layer + pub/sub.</td></tr>
+  </table>
+  <p>The headline: <b>per-document load is small; the system-wide connection count is enormous.</b>
+  That asymmetry justifies sharding by <code>documentId</code> and a horizontally scalable WebSocket tier.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>Document</code> (id, current snapshot, latest version number), <code>Operation</code>
+  (docId, authorId, type insert/delete, position, char(s), version it was based on), and <code>Presence</code>
+  (ephemeral: userId, docId, cursor offset, selection range, color).</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/documents</code></td><td>Create a document; returns <code>documentId</code>.</td></tr>
+    <tr><td><code>GET /v1/documents/:id</code></td><td>Load the latest snapshot + version number to start editing.</td></tr>
+    <tr><td><code>WS /v1/documents/:id/stream</code></td><td>Bidirectional edit stream: client sends ops, server broadcasts ordered ops back.</td></tr>
+    <tr><td><code>WS /v1/documents/:id/presence</code></td><td>Ephemeral presence/cursor channel (separate from durable edits).</td></tr>
+  </table>
+  <p>User identity is derived from the auth token on connect, never passed in the body. The <b>edit stream and
+  presence are separate channels</b> on purpose — one is durable, one is throwaway (Deep Dive 4).</p>
+
+  <h2>High-Level Design</h2>
+  <p>Walk a single edit through the system:</p>
+  <ol style="font-family:-apple-system,sans-serif;font-size:.9rem;">
+    <li>Client opens the doc via <code>GET</code>, receives <b>snapshot + version</b>, renders it.</li>
+    <li>Client opens a <b>WebSocket</b> to the collaboration server that owns this doc.</li>
+    <li>User types. Client applies the edit <b>optimistically</b> (instant local feedback) and sends the op with the version it was based on.</li>
+    <li>The collaboration server <b>sequences</b> the op (assigns the next version), transforms/integrates it against any concurrent ops, appends it to the durable <b>op log</b>, and <b>broadcasts</b> the canonical op to all other connected clients.</li>
+    <li>Each peer applies the canonical op, reaching the same state. Presence flows on the separate channel.</li>
+  </ol>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+    <tr><td>API gateway / LB</td><td>Auth, routes WS by <code>documentId</code> to the owning server.</td><td>—</td></tr>
+    <tr><td>Collaboration server (per-doc owner)</td><td>The <b>central sequencer</b>: orders ops, transforms, broadcasts.</td><td>In-memory doc state</td></tr>
+    <tr><td>Op log store</td><td>Append-only durable record of every accepted op.</td><td>Log DB (e.g. Kafka/append-only table)</td></tr>
+    <tr><td>Snapshot store</td><td>Periodic materialized document state for fast load.</td><td>Object/blob + metadata DB</td></tr>
+    <tr><td>Presence service</td><td>Ephemeral cursors via pub/sub; nothing durable.</td><td>Redis / in-memory</td></tr>
+  </table>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1. The core problem: concurrent conflicting edits — OT vs CRDT</h3>
+  <p>Two users edit <code>"cat"</code> at the same time. Alice inserts <code>"s"</code> at position 3 → <code>"cats"</code>.
+  Bob simultaneously inserts <code>"!"</code> at position 0 → <code>"!cat"</code>. Each op was computed against the
+  <em>original</em> text. If the server naively replays both by their literal positions, Bob's later op shifts Alice's
+  index and you get garbage like <code>"!ctas"</code>. Last-write-wins is worse: it silently drops one keystroke.
+  This is why "we just merge" fails — <b>concurrent ops are expressed against stale positions.</b> Two real families solve it.</p>
+
+  <p><b>Operational Transformation (OT).</b> Keep operations, but <em>transform</em> a new op against the ops that were
+  applied since the version it was based on. <code>transform(opA, opB)</code> adjusts opA's position so it produces the
+  same intent after opB already ran. With a central server doing the transforming, you never need every pairwise rule
+  to commute — the server linearizes everything. This is what <b>Google Docs and the old Google Wave / Apache Wave</b>
+  used; OT is famously fiddly to prove correct, which is exactly why a central sequencer is preferred over true P2P OT.</p>
+
+  <p><b>CRDTs (Conflict-free Replicated Data Types).</b> Don't transform — give every character a globally unique,
+  densely-orderable identity (a fractional/position identifier between its neighbors). Inserts and deletes (tombstones)
+  then <b>commute</b>: apply them in any order and all replicas converge automatically, no central transform needed.
+  Sequence CRDTs like <b>RGA, Logoot, and Yjs/Automerge</b> power Figma-style and offline-first collaborative editors.
+  The cost: per-character metadata bloat and tombstone accumulation that needs garbage collection.</p>
+  <table>
+    <tr><th>Axis</th><th>OT</th><th>CRDT</th></tr>
+    <tr><td>Convergence mechanism</td><td>Transform ops against concurrent ops</td><td>Commutative ops via unique position IDs</td></tr>
+    <tr><td>Needs central server?</td><td>Strongly preferred (linearizes)</td><td>No — works P2P / offline</td></tr>
+    <tr><td>Metadata cost</td><td>Low (plain index ops)</td><td>High (id per char + tombstones)</td></tr>
+    <tr><td>Correctness difficulty</td><td>Hard to prove; many edge cases</td><td>Clean math; heavier engineering</td></tr>
+    <tr><td>Used by</td><td>Google Docs, Wave</td><td>Figma, Yjs, Automerge</td></tr>
+  </table>
+  <div class="box">
+    <b>Justified pick:</b> With one authoritative per-document server (which we already have for ordering), <b>OT</b> is
+    the pragmatic choice — the server linearizes ops so we sidestep OT's hardest P2P proofs, and we avoid CRDT's
+    per-char metadata. Choose CRDT if the requirement adds <b>offline editing or true peer-to-peer</b> with no
+    central authority. State the pick <em>and</em> the trigger that would flip it.
+  </div>
+
+  <h3>2. Real-time propagation: a per-doc collaboration server as central sequencer</h3>
+  <p>One server <b>owns</b> each document (routed by <code>documentId</code> at the gateway). It holds the doc in memory,
+  receives ops over WebSocket, assigns each a monotonically increasing version, transforms it (OT), and broadcasts the
+  canonical result to every other connected client. Because all ops funnel through one ordering point, we get a single
+  global order "for free" — the property OT depends on. This is the <b>long-lived stateful connection</b> pattern from
+  <a href="../lessons/0002-networking-and-apis.html">Lesson 2 (WebSockets)</a>, and the routing/fan-out is the
+  <a href="../lessons/0007-messaging-and-async.html">Lesson 7 (Pub/Sub)</a> pattern: the server publishes ordered ops to a per-doc topic.</p>
+  <p>Scaling and failover: shard documents across a fleet via consistent hashing on <code>documentId</code>; a coordination
+  layer (e.g. ZooKeeper/etcd) tracks which server owns which doc. Clients reconnect with their last-known version, and the
+  server replays the missed tail of the op log to catch them up — so a server crash or reconnect costs a brief replay,
+  not lost edits. With tens of millions of sockets <a href="#c1" class="cite">[1]</a>, the connection tier scales out
+  independently of the (cheap) per-doc ordering work.</p>
+
+  <h3>3. Persistence: op log + periodic snapshots + compaction</h3>
+  <p>The op log is the source of truth: an <b>append-only sequence</b> of every accepted op, in server-assigned order.
+  Append-only writes are fast and give durability and a natural audit/version trail. But replaying millions of ops to
+  open a document is unacceptable, so we periodically <b>snapshot</b> the materialized text + its version number.</p>
+  <p>Loading a doc = latest snapshot + replay only the ops after it. <b>Compaction</b> then prunes the op log: once a
+  snapshot at version <em>V</em> is durably stored, ops older than <em>V</em> can be archived or deleted (subject to any
+  version-history retention, which we scoped out). This bounds storage even though total ops grow forever — directly
+  answering "how do we keep storage under control" <a href="#c1" class="cite">[1]</a>. Snapshot cadence is a tunable
+  knob: more frequent = faster loads + more storage; less frequent = cheaper + slower cold loads.</p>
+
+  <h3>4. Presence and cursors as ephemeral state</h3>
+  <p>Cursor positions, selections, and "who's here" are <b>high-frequency and disposable</b> — if a cursor update is lost,
+  the next one corrects it within milliseconds, and on disconnect the state should simply vanish. So presence must <b>not</b>
+  touch the durable op log. Route it on a separate channel through a pub/sub layer (e.g. Redis) keyed by <code>documentId</code>,
+  with TTLs so a dropped client's cursor expires automatically. Updates are throttled/debounced (~10/s) to avoid drowning
+  the edit path. The staff move is the clean separation: <b>durable edits and throwaway presence are different systems with
+  different guarantees</b> — conflating them either bloats your log with noise or risks dropping real edits under presence load.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Name the real mechanism. Say "Operational Transformation, with a central per-document server that linearizes ops, so we
+    avoid OT's hardest peer-to-peer proofs — I'd switch to a CRDT only if we needed offline or P2P editing." Then keep the
+    <b>durable op log</b> rigorously separate from <b>ephemeral presence</b>, and explain snapshots + compaction so storage
+    stays bounded. That trio — honest OT-vs-CRDT tradeoff, an authoritative ordering point, and durable/ephemeral separation —
+    is what separates a staff answer from "we merge the changes somehow."
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why does naive last-write-wins corrupt a collaboratively edited document?</p>
+      <button class="opt">Servers cannot store more than one operation per second per user</button>
+      <button class="opt">Concurrent ops reference stale positions, so replaying drops or misplaces edits</button>
+      <button class="opt">WebSocket connections deliver every operation in a randomized order</button>
+      <button class="opt">Snapshots overwrite the op log before the client acknowledges receipt</button>
+      <p class="fb">Each op was computed against an older version; applied literally, indices conflict and edits are lost.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. What lets CRDT operations converge without a central transform step?</p>
+      <button class="opt">A leader server assigns every operation a strictly increasing version</button>
+      <button class="opt">Clients debounce keystrokes and send only one operation per second</button>
+      <button class="opt">Each character gets a unique orderable id, so insert and delete commute</button>
+      <button class="opt">The op log is compacted into snapshots after every single edit</button>
+      <p class="fb">Unique densely-orderable ids make ops commutative — any apply order converges. OT instead transforms.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why keep presence and cursor data off the durable op log?</p>
+      <button class="opt">It is high-frequency and disposable, so a lost update self-corrects instantly</button>
+      <button class="opt">It must be replayed on reconnect to rebuild the document text fully</button>
+      <button class="opt">It needs the strongest durability so cursors survive a server crash</button>
+      <button class="opt">It guarantees the global ordering that operational transform depends on</button>
+      <p class="fb">Presence is throwaway; logging it bloats the log with noise and risks crowding out real edits.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Why does a per-document central sequencer make Operational Transformation easier?</p>
+      <button class="opt">It removes the need to ever store any operation history on disk</button>
+      <button class="opt">It lets clients edit fully offline and merge later without conflicts</button>
+      <button class="opt">It linearizes all ops into one order, avoiding hard peer-to-peer transform proofs</button>
+      <button class="opt">It shards a single document across many servers for parallel transforms</button>
+      <p class="fb">One ordering point gives a global order, so OT only transforms against a known linear history.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic. Try:
+    "Walk me through transforming Alice's insert against Bob's concurrent insert in OT, step by step."
+    "Sketch how a CRDT generates a position id between two existing characters."
+    "How would the design change if we had to support fully offline editing on mobile?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/google-docs">Hello Interview — Google Docs system design breakdown</a>.
+  The best structured walkthrough of this problem; the deep-dive videos on scaling WebSockets and storage are premium.
+  Pair it with reading on OT (Google Wave's "operational-transform" docs) and CRDTs (the Yjs / Automerge docs).</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/google-docs">Hello Interview — Design Google Docs</a> (functional requirements, out-of-scope items, deep-dive prompts on WebSocket scale and storage; remaining technical depth from CS fundamentals on OT and CRDTs as the page body is premium-gated).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0030-robinhood.html">← Lesson 30</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 32 · Distributed Cache</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

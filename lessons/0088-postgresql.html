@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 88 — Deep Dive: PostgreSQL</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 88 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: PostgreSQL</h1>
+  <p class="sub">The relational default that scales further than people think — and the one ceiling you must name before they make you.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> At L6/L7 it is not enough to say "I'll use Postgres." The interviewer wants to know that you understand <em>why</em> it stays correct under concurrency (MVCC), what that costs you (bloat, VACUUM), how you read fast (the right index), how you survive a crash (the WAL), and exactly where the single-primary write path runs out of road. Naming that ceiling <em>before</em> you're cornered is the move that reads as staff.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>What it is &amp; the data model</h2>
+  <p>PostgreSQL is an open-source object-relational database: data lives in tables of typed rows, you query it with SQL, and it gives you the full relational toolkit — joins, foreign keys, constraints, and transactions.<a href="#c1" class="cite">[1]</a> Its defining promise is <b>ACID</b>: every transaction is Atomic (all-or-nothing), Consistent (constraints always hold), Isolated (concurrent transactions don't corrupt each other), and Durable (a committed write survives a crash).<a href="#c2" class="cite">[2]</a> That is why it is the safe default for anything where correctness matters — orders, payments, balances, inventory.</p>
+  <p>What lifts it above a plain SQL store is the richness of its type system and extensibility. Beyond numbers and text it ships native <code>JSONB</code> (binary, indexable JSON), arrays, ranges, full-text search vectors, and first-class geospatial types via PostGIS.<a href="#c3" class="cite">[3]</a> So the lazy "I need flexible documents, so NoSQL" reflex is often wrong — <code>JSONB</code> lets one engine hold both your relational core and a semi-structured blob, indexed and transactional. See <a href="../lessons/0003-databases-and-indexing.html">Lesson 03</a> for the relational-vs-document framing this builds on.</p>
+
+  <h2>Internals — the part that earns depth</h2>
+
+  <h3>MVCC: how concurrency stays correct</h3>
+  <p>Postgres uses <b>Multi-Version Concurrency Control</b>. A write never overwrites a row in place — it writes a <em>new version</em> of the row and marks the old one as still-visible-to-older-transactions.<a href="#c4" class="cite">[4]</a> Each transaction sees a consistent snapshot of the data as of the moment it started, so <b>readers never block writers and writers never block readers</b>.<a href="#c4" class="cite">[4]</a> That is the property that makes Postgres feel fast and safe under concurrent load: a long analytics read doesn't freeze the checkout path.</p>
+  <p><b>The consequence you must name:</b> those old row versions ("dead tuples") don't vanish on commit. They pile up until <b>VACUUM</b> reclaims them; <code>autovacuum</code> runs this in the background.<a href="#c5" class="cite">[5]</a> If a table churns faster than VACUUM keeps up — or a long-running transaction holds an old snapshot open — you get <b>table and index bloat</b>: wasted disk, slower scans, and in the worst case transaction-ID wraparound pressure. Knowing that MVCC's elegance is paid for by VACUUM is exactly the cause-and-cost reasoning interviewers probe for.</p>
+
+  <h3>Indexes: B-tree and its specialized cousins</h3>
+  <p>The default index is a <b>B-tree</b>: balanced, ordered, ideal for equality and range lookups (<code>=</code>, <code>&lt;</code>, <code>&gt;</code>, <code>BETWEEN</code>, <code>ORDER BY</code>).<a href="#c6" class="cite">[6]</a> But the staff-level vocabulary is the specialized index types Postgres offers when a B-tree is the wrong shape:</p>
+  <table>
+    <thead><tr><th>Index</th><th>Built for</th><th>Typical use</th></tr></thead>
+    <tbody>
+      <tr><td><b>B-tree</b></td><td>Ordered scalar values</td><td>Equality &amp; range; the default<a href="#c6" class="cite">[6]</a></td></tr>
+      <tr><td><b>Partial</b></td><td>A filtered subset of rows</td><td>Index only <code>WHERE status='active'</code> to keep it tiny<a href="#c6" class="cite">[6]</a></td></tr>
+      <tr><td><b>GIN</b></td><td>Values containing many items</td><td><code>JSONB</code>, arrays, full-text search<a href="#c7" class="cite">[7]</a></td></tr>
+      <tr><td><b>GiST</b></td><td>Geometric / nearest-neighbour</td><td>Geospatial, ranges, similarity<a href="#c7" class="cite">[7]</a></td></tr>
+    </tbody>
+  </table>
+  <p>The reflex to show: a <b>partial index</b> on a hot subset (e.g. unshipped orders) is smaller, fits in cache, and is faster than indexing the whole table — a cheap, high-signal optimization.<a href="#c6" class="cite">[6]</a></p>
+
+  <h3>The WAL: durability and crash recovery</h3>
+  <p>Before any change touches the actual data files, Postgres first appends a record describing it to the <b>Write-Ahead Log</b> and flushes that to disk.<a href="#c8" class="cite">[8]</a> The rule is simple: <em>log first, then apply</em>. If the server crashes mid-write, recovery replays the WAL to bring the data files back to a consistent committed state — that is the "D" in ACID made concrete.<a href="#c8" class="cite">[8]</a> The same WAL stream is what feeds replication (below), so one mechanism delivers both crash safety and replicas.</p>
+
+  <h3>Isolation levels</h3>
+  <p>SQL defines a ladder of isolation, trading strictness for concurrency. Postgres's default is <b>Read Committed</b>; you can opt up to <b>Repeatable Read</b> or <b>Serializable</b> when an operation must behave as if it ran alone.<a href="#c9" class="cite">[9]</a></p>
+  <table>
+    <thead><tr><th>Level</th><th>Prevents</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td><b>Read Committed</b></td><td>Dirty reads</td><td>The default; each statement sees latest commits<a href="#c9" class="cite">[9]</a></td></tr>
+      <tr><td><b>Repeatable Read</b></td><td>+ non-repeatable reads</td><td>Snapshot fixed at first read<a href="#c9" class="cite">[9]</a></td></tr>
+      <tr><td><b>Serializable</b></td><td>+ phantoms / write skew</td><td>Strictest; may abort with a serialization error<a href="#c9" class="cite">[9]</a></td></tr>
+    </tbody>
+  </table>
+  <p>Staff signal: know that Serializable doesn't lock everything — it detects conflicts and asks the loser to retry, so your app must handle serialization-failure retries.<a href="#c9" class="cite">[9]</a></p>
+
+  <h2>Scaling &amp; replication</h2>
+  <p>Postgres replicates by shipping its WAL. Two flavours matter:</p>
+  <ul>
+    <li><b>Streaming (physical) replication</b> — a standby replays the primary's WAL byte-for-byte, producing an identical copy. Great for read replicas and failover; it copies the whole cluster and both sides must run the same major version.<a href="#c10" class="cite">[10]</a></li>
+    <li><b>Logical replication</b> — decodes the WAL into row-level changes published per-table. It can replicate a subset of tables across major versions, which makes it the tool for zero-downtime upgrades, partial replication, and feeding downstream systems / CDC.<a href="#c11" class="cite">[11]</a></li>
+  </ul>
+  <p><b>Read replicas</b> let you fan out read traffic to standbys, which is how a single Postgres serves enormous read volume — but replication is asynchronous by default, so replicas lag and a read-after-write may see stale data. This is the same consistency tradeoff covered in <a href="../lessons/0006-replication-and-cap.html">Lesson 06</a>. <b>Partitioning</b> splits one big logical table into smaller physical child tables (by range or hash), so queries and VACUUM touch less data and old partitions drop cheaply.<a href="#c12" class="cite">[12]</a></p>
+
+  <div class="box">
+    <b>The write-scaling ceiling — name this before they make you</b>
+    <ul>
+      <li>Vanilla Postgres has <b>one primary that accepts all writes</b>. Read replicas scale reads; they do <em>not</em> scale writes.<a href="#c10" class="cite">[10]</a></li>
+      <li>You climb a long way first: bigger box (vertical scale), partitioning, connection pooling, offloading reads to replicas.</li>
+      <li>You outgrow it when sustained <em>write</em> throughput or dataset size exceeds one primary. Then you shard — app-level, or with Citus — or move that workload to a write-optimized store (Cassandra/Dynamo, see <a href="../lessons/0009-key-technologies-tour.html">Lesson 09</a>).</li>
+      <li><b>Honest framing:</b> "Postgres isn't the bottleneck until billions of rows or sustained high write QPS" — don't shard prematurely.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+  </div>
+
+  <h2>When to reach for it / when NOT to</h2>
+  <table>
+    <thead><tr><th>Reach for Postgres when…</th><th>Reach elsewhere when…</th></tr></thead>
+    <tbody>
+      <tr><td>Transactional data with relationships &amp; constraints<a href="#c1" class="cite">[1]</a></td><td>Firehose of writes beyond one primary → Cassandra/Dynamo</td></tr>
+      <tr><td>Strong consistency / ACID across multiple writes<a href="#c2" class="cite">[2]</a></td><td>Microsecond reads / counters / leaderboards → Redis</td></tr>
+      <tr><td>Ad-hoc queries &amp; flexible joins you can't predict</td><td>Full-text search at scale → Elasticsearch (derived index)</td></tr>
+      <tr><td>Mixed relational + JSONB documents in one engine<a href="#c3" class="cite">[3]</a></td><td>Large media blobs → object storage (S3), keep refs in PG</td></tr>
+    </tbody>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Seniors say "use Postgres." Staff candidates reason about the <em>internals and their costs</em> in one breath: "MVCC lets the analytics read run without blocking checkout, but it generates dead tuples, so I'd watch autovacuum and add a partial index on the hot subset." And they <b>name the ceiling proactively</b>: "this stays on a single primary; reads fan out to replicas, and the day sustained write QPS outgrows one box I'd partition first and shard only if forced — I wouldn't shard on day one."<a href="#c1" class="cite">[1]</a> Reaching for Postgres by default, knowing precisely why and when it breaks, and refusing to over-engineer is the simple-by-default judgement the bar looks for.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When you put a relational box on the whiteboard, justify it in one line ("ACID across the payment and inventory writes"), then be ready for the two predictable follow-ups: <em>"How does it stay consistent under load?"</em> (MVCC + isolation level) and <em>"How does this scale?"</em> (replicas for reads, partitioning, then the single-primary write ceiling and your sharding plan).<a href="#c1" class="cite">[1]</a> Mentioning a partial or GIN index, or that you stream the WAL to replicas, signals hands-on depth without you over-explaining the basics. Don't volunteer a SQL-vs-NoSQL essay — pick the tool for the requirement and move on.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Under MVCC, what happens when a transaction updates a row?</p>
+      <button class="opt">The row is overwritten in place and old data is gone now</button>
+      <button class="opt">A new row version is written and old versions are retained</button>
+      <button class="opt">The whole table is locked until the writing commit lands</button>
+      <button class="opt">The change is applied only inside the read replica copies</button>
+      <p class="fb">MVCC writes a new version and keeps old ones for older snapshots — so readers never block writers.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. Why does a heavily-updated Postgres table accumulate bloat?</p>
+      <button class="opt">B-tree indexes duplicate every column value across the table</button>
+      <button class="opt">The write-ahead log keeps a copy of all committed records</button>
+      <button class="opt">Dead row versions linger until VACUUM reclaims that space</button>
+      <button class="opt">Streaming replicas push their changes back onto the primary</button>
+      <p class="fb">MVCC leaves dead tuples behind; if churn outpaces autovacuum, table and index bloat grows.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What is the single-primary write ceiling of vanilla Postgres?</p>
+      <button class="opt">Only one primary takes writes; replicas scale reads alone</button>
+      <button class="opt">Only one client may connect to the primary at any moment</button>
+      <button class="opt">Only one index per table is allowed on the write primary</button>
+      <button class="opt">Only one region can run a primary across the whole fleet</button>
+      <p class="fb">Read replicas fan out reads but not writes; past one primary's write capacity you partition or shard.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. Which index type best fits querying inside a JSONB column?</p>
+      <button class="opt">A B-tree index across the whole serialized JSONB value</button>
+      <button class="opt">A GiST index built for geometric nearest-neighbour scans</button>
+      <button class="opt">A partial index limited to the active subset of the rows</button>
+      <button class="opt">A GIN index built for values that contain many elements</button>
+      <p class="fb">GIN indexes target composite values — JSONB, arrays, full-text — making containment lookups fast.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Quiz me on what MVCC costs and how VACUUM and autovacuum fix it." · "Walk me through exactly when I'd choose logical over streaming replication." · "Give me a FAANG prompt and push me on when Postgres stops being the right default."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.postgresql.org/docs/current/">PostgreSQL Documentation (current)</a>. The canonical reference — read the chapters on Concurrency Control (MVCC), Indexes, Write-Ahead Logging, and Replication. Pair it with the relational framing in <a href="../lessons/0009-key-technologies-tour.html">Lesson 09</a> and the <a href="../reference/glossary.html">glossary</a>.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/key-technologies">Hello Interview — Key Technologies for System Design Interviews</a> (Postgres as the strong relational default; scales further than assumed; pick the tool for the requirement).</p>
+    <p id="c2">[2] <a href="https://www.postgresql.org/docs/current/tutorial-transactions.html">PostgreSQL Docs — Transactions</a> (ACID transaction semantics).</p>
+    <p id="c3">[3] <a href="https://www.postgresql.org/docs/current/datatype-json.html">PostgreSQL Docs — JSON Types (JSONB)</a> (binary, indexable JSON and rich types).</p>
+    <p id="c4">[4] <a href="https://www.postgresql.org/docs/current/mvcc-intro.html">PostgreSQL Docs — Concurrency Control / MVCC</a> (snapshots; readers don't block writers).</p>
+    <p id="c5">[5] <a href="https://www.postgresql.org/docs/current/routine-vacuuming.html">PostgreSQL Docs — Routine Vacuuming</a> (dead tuples, VACUUM, autovacuum, wraparound).</p>
+    <p id="c6">[6] <a href="https://www.postgresql.org/docs/current/indexes-types.html">PostgreSQL Docs — Index Types &amp; Partial Indexes</a> (B-tree default; partial indexes).</p>
+    <p id="c7">[7] <a href="https://www.postgresql.org/docs/current/textsearch-indexes.html">PostgreSQL Docs — GIN and GiST Index Types</a> (composite-value and geometric indexing).</p>
+    <p id="c8">[8] <a href="https://www.postgresql.org/docs/current/wal-intro.html">PostgreSQL Docs — Write-Ahead Logging (WAL)</a> (log-first durability and crash recovery).</p>
+    <p id="c9">[9] <a href="https://www.postgresql.org/docs/current/transaction-iso.html">PostgreSQL Docs — Transaction Isolation</a> (Read Committed default; Repeatable Read; Serializable).</p>
+    <p id="c10">[10] <a href="https://www.postgresql.org/docs/current/warm-standby.html">PostgreSQL Docs — Streaming Replication</a> (physical WAL streaming; standbys and read scaling).</p>
+    <p id="c11">[11] <a href="https://www.postgresql.org/docs/current/logical-replication.html">PostgreSQL Docs — Logical Replication</a> (row-level, per-table, cross-version, CDC).</p>
+    <p id="c12">[12] <a href="https://www.postgresql.org/docs/current/ddl-partitioning.html">PostgreSQL Docs — Table Partitioning</a> (range/hash partitions for large tables).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0087-snapchat.html">← Lesson 87</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 89 · MySQL</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

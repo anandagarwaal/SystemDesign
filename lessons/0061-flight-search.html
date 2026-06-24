@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 61 — Design Flight Search / Aggregator (Skyscanner / Google Flights)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 61 · Phase 4 — Case Study · Medium</p>
+  <h1>Design Flight Search / Aggregator (Skyscanner / Google Flights)</h1>
+  <p class="sub">You don't own the inventory. You fan out to dozens of slow, flaky airline and GDS providers and still have to answer in under a second.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A flight aggregator is the canonical
+    <em>scatter-gather over untrusted upstreams</em> problem. The L6/L7 signal isn't drawing a search index —
+    it's naming up front that you control none of the data sources, that they're slow and unreliable, and that
+    the entire design is a negotiation between <b>freshness</b> (real prices that won't get rejected at booking),
+    <b>latency</b> (sub-second results), and <b>cost</b> (every upstream call is money). Get the timeout/partial-results
+    posture and the cache-TTL tradeoff right and you've shown the judgement that separates senior from staff.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Three capabilities define the product. Everything else is deferred out loud.</p>
+  <table>
+    <tr><th>#</th><th>A user should be able to…</th></tr>
+    <tr><td>1</td><td><b>Search flights</b> by origin, destination, and date(s) — one-way, round-trip, and multi-leg.</td></tr>
+    <tr><td>2</td><td><b>Filter and sort</b> results by price, airline, stops, and total duration.</td></tr>
+    <tr><td>3</td><td>See <b>fresh, bookable prices</b> and then <b>redirect to the airline/OTA</b> to complete the booking.</td></tr>
+  </table>
+  <p><b>Out of scope</b> (say it): we are a <em>metasearch</em> engine — we do not hold inventory, take payment,
+  issue tickets, or own the booking transaction. We aggregate and route the user out. That single sentence reframes
+  the whole problem away from a transactional booking system.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>Each "-ility" gets a concrete target and the design lever it pulls.</p>
+  <table>
+    <tr><th>NFR</th><th>Target</th><th>Why it shapes the design</th></tr>
+    <tr><td>Low search latency</td><td>p95 &lt; ~1s for results<a href="#c1" class="cite">[1]</a></td><td>Can't block on the slowest upstream → scatter-gather with hard timeouts and partial results.</td></tr>
+    <tr><td>Freshness vs cost</td><td>Prices accurate to ~minutes</td><td>Live-querying every provider per search is too slow/expensive → cached fares with a tuned TTL.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Availability</td><td>≥ 99.9%; degrade, don't fail</td><td>One dead provider must not fail the search — isolate with circuit breakers and serve what returned.</td></tr>
+    <tr><td>Read-heavy scale</td><td>Reads ≫ writes; bursty</td><td>Search is a fan-out read; the system is a caching + aggregation tier, not a write-path problem.</td></tr>
+    <tr><td>Result correctness</td><td>Low "price rejected" rate</td><td>A stale fare that fails at the airline erodes trust → bound staleness and re-validate hot routes.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that change a decision. These are my own back-of-envelope estimates.</p>
+  <div class="box">
+    <ul>
+      <li><b>Searches:</b> ~100M searches/day ≈ <b>~1,200 QPS</b> average, ~5–10k QPS at peak. This is the read load the cache+aggregation tier must absorb.</li>
+      <li><b>Upstream fan-out:</b> each search hits ~30–50 providers. A naive cache miss = <b>~50 outbound calls × 1,200 QPS = ~60k upstream calls/sec</b> — economically impossible. <b>The cache hit rate is the whole design.</b></li>
+      <li><b>Route × date space:</b> ~10k airports → millions of O&amp;D pairs × ~330 future dates. Far too large to pre-compute fully → cache popular routes, query the long tail live.</li>
+      <li><b>Fare cache size:</b> say 1M hot route-date keys × a few KB of priced itineraries ≈ low tens of GB — fits comfortably in a Redis tier; this is not a storage problem, it's a freshness problem.</li>
+    </ul>
+    <b>Takeaways:</b> the two scaling problems are the <em>fan-out</em> (latency + cost of slow upstreams) and the <em>cache</em> (hit rate vs staleness). User reads are otherwise cheap.
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>A handful of entities. Derive the user from the auth token — never trust an id in the body.</p>
+  <table>
+    <tr><th>Entity</th><th>Key fields</th></tr>
+    <tr><td>Flight (segment)</td><td><code>flightNo</code>, <code>carrier</code>, <code>origin</code>, <code>dest</code>, <code>departTs</code>, <code>arriveTs</code>.</td></tr>
+    <tr><td>Itinerary</td><td><code>id</code>, ordered <code>segments[]</code>, total <code>duration</code>, <code>stops</code>, <code>deepLink</code>.</td></tr>
+    <tr><td>FareOffer</td><td><code>itineraryId</code>, <code>provider</code>, <code>price</code>, <code>currency</code>, <code>fetchedAt</code>, <code>ttl</code>.</td></tr>
+  </table>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/searches</code></td><td><code>{origin, dest, dates, pax, cabin}</code> → kicks off a search, returns a <code>searchId</code>.</td></tr>
+    <tr><td><code>GET /v1/searches/{id}/results?sort=&amp;filter=</code></td><td>Poll for results; streams in partials as providers return.</td></tr>
+    <tr><td><code>GET /v1/itineraries/{id}</code></td><td>Fetch one itinerary with its current fare offers.</td></tr>
+    <tr><td><code>POST /v1/itineraries/{id}/redirect</code></td><td>Re-validate the fare, then return a deep link to the airline/OTA.</td></tr>
+  </table>
+  <p>Search is intentionally <b>async</b>: the client opens a search, then polls (or holds an SSE/WebSocket) while
+  results trickle in — because you literally cannot wait for the slowest provider.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>Data Flow</h2>
+  <p>This is an aggregation system, so trace one search end to end before drawing boxes:</p>
+  <div class="box">
+    <ol style="margin:.2rem 0 .2rem 1.1rem; padding:0;">
+      <li><b>Search request</b> — API normalizes the query (canonical O&amp;D + date + pax) into a cache key.</li>
+      <li><b>Cache lookup</b> — return any fresh cached fares for that key <em>immediately</em> as the first partial.</li>
+      <li><b>Scatter</b> — for misses / stale keys, fan out async requests to all relevant providers in parallel.</li>
+      <li><b>Gather with timeout</b> — collect responses until a hard deadline (~1–2s); whatever arrives is used.</li>
+      <li><b>Normalize &amp; merge</b> — map each provider's schema to your itinerary model, dedupe, rank, cache with TTL.</li>
+      <li><b>Serve + refresh</b> — return ranked results; async pipeline keeps popular routes warm in the background.</li>
+    </ol>
+  </div>
+  <p>Step 3–4 are the <b>scatter-gather</b> problem; step 2/5 are the <b>caching/freshness</b> problem; step 6 is the
+  <b>async refresh</b> problem; building multi-leg itineraries from segments is the <b>graph</b> problem. Each is a deep dive.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Boxes-and-arrows, mapped to the two paths — the <em>search path</em> (fan out, merge, rank) and the
+  <em>freshness path</em> (background refresh keeps the cache hot).</p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+    <tr><td>API / search service</td><td>Normalizes query, orchestrates the search, streams partials.</td><td>—</td></tr>
+    <tr><td>Fare cache</td><td>Fresh priced itineraries keyed by route+date+pax; the latency saver.</td><td>Redis (TTL'd).<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Aggregator / fan-out</td><td>Scatter to providers in parallel, gather under a deadline, partial results.</td><td>—</td></tr>
+    <tr><td>Provider adapters</td><td>Per-provider client: auth, rate limits, schema mapping, circuit breaker.</td><td>—</td></tr>
+    <tr><td>Itinerary/graph builder</td><td>Stitches segments into one-stop / multi-leg itineraries; ranks.</td><td>Segment graph (in-mem / Neo4j-style).</td></tr>
+    <tr><td>Refresh pipeline</td><td>Recomputes hot route fares on a cadence so searches hit warm cache.</td><td>Queue + workers.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Schedule store</td><td>Relatively static flight schedules/segments (changes daily, not per-second).</td><td>Postgres / search index.</td></tr>
+  </table>
+  <p>Search path: <code>POST /searches</code> → cache → (on miss) aggregator → adapters → merge/rank → cache → stream.
+  Freshness path: refresh pipeline → adapters → re-price hot keys → cache. Note the split: <b>schedules are slow-changing
+  and indexable; fares are volatile and cached with TTL.</b> Treating them as one store is the classic mistake.</p>
+
+  <h2>Deep Dive 1 — Scatter-gather over slow, unreliable upstreams</h2>
+  <p>You query 30–50 providers; some answer in 80ms, some in 4s, some time out, one is down. The naive design
+  awaits all of them and is held hostage by the slowest (or the dead) one. <b>The pattern is scatter-gather with a
+  hard deadline and partial results.</b><a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <b>Fan out in parallel, gather until a deadline, return what you have</b>
+    <ul>
+      <li><b>Per-provider timeout</b> (e.g. 1.5s) <em>and</em> an overall request deadline. When the deadline hits, you ship whatever returned — a search with 45/50 providers is still a great search.</li>
+      <li><b>Circuit breakers</b> per provider: after N consecutive failures, trip open and stop calling it for a cooldown. A dead upstream costs you nothing instead of eating a timeout every search.</li>
+      <li><b>Bulkheads:</b> isolate each provider's thread/connection pool so one slow upstream can't exhaust resources and stall calls to the healthy ones.</li>
+      <li><b>Hedging &amp; retries</b> only where safe (idempotent reads); back off and never retry a tripped provider.</li>
+    </ul>
+  </div>
+  <p>Combine this with the cache: the cache answers instantly as the first partial, then live provider responses
+  patch in fresher prices as they arrive — so the user sees something in &lt;100ms and the page sharpens over the next second.</p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Stating "I don't control these upstreams, so I design for <em>partial results under a deadline</em>, not for
+    completeness" within the first two minutes is the whole interview. Adding circuit breakers + bulkheads shows you
+    treat a failing dependency as the <em>expected</em> case. The senior answer waits for everyone; the staff answer
+    decides what "good enough, on time" means and engineers the timeout budget to hit it.
+  </div>
+
+  <h2>Deep Dive 2 — Caching fares: TTL and the freshness-vs-cost tradeoff</h2>
+  <p>Live-querying every provider per search would be both too slow and ruinously expensive (~60k upstream calls/sec
+  at peak). So you cache priced itineraries. But fares are <b>volatile</b> — seats sell, prices move minute-to-minute —
+  and a stale fare that gets <em>rejected at the airline</em> is the worst user experience. This is a pure freshness-vs-cost dial.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Lever</th><th>What it buys / costs</th></tr>
+    <tr><td><b>Route-aware TTL</b></td><td>Hot routes (busy O&amp;D, near-term dates) get short TTLs (~minutes); cold long-tail routes get longer TTLs. Spends freshness where it matters.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td><b>Stale-while-revalidate</b></td><td>Serve the cached fare instantly, kick an async refresh; next searcher gets the fresh one. Hides latency without paying it inline.</td></tr>
+    <tr><td><b>Re-validate on intent</b></td><td>On <code>redirect</code>, re-price that one itinerary live before handing off — cheap (one call) and kills most "price changed" rejections.</td></tr>
+    <tr><td><b>Mark staleness in UI</b></td><td>"Price last checked 3 min ago" sets expectations and lets you run longer TTLs safely.</td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The naive answer is "cache fares for 5 minutes." The staff answer is "TTL is <em>not</em> a constant — it's a
+    function of route volatility and search volume, and I re-validate the single chosen fare at redirect time so I get
+    cheap caching everywhere <em>and</em> a correct price at the moment of truth." Naming the failure mode (a rejected
+    fare destroys trust) and dialing TTL to it is the judgement being tested.
+  </div>
+
+  <h2>Deep Dive 3 — Multi-leg itinerary search (the flight graph)</h2>
+  <p>Most cheap itineraries aren't single non-stops — they're stitched from segments across airlines ("self-transfer"),
+  e.g. AMS→DXB→SIN. Model flights as a <b>graph</b>: nodes are airport-time states, edges are segments, and a valid
+  itinerary is a path that respects <em>connection constraints</em>.</p>
+  <div class="box">
+    <b>Constrained graph search, not naive shortest path</b>
+    <ul>
+      <li><b>Time-expanded graph:</b> a node is (airport, time); an edge connects an arrival to a later departure only if the layover is ≥ minimum connection time and within a max.</li>
+      <li><b>Bound the explosion:</b> cap stops (usually ≤2), cap total duration, prune by a max layover window. Combinatorics explode fast — pruning aggressively is mandatory.</li>
+      <li><b>Multi-objective:</b> users sort by price <em>or</em> duration <em>or</em> stops — so you keep a Pareto frontier of itineraries, not a single "best" path.</li>
+      <li><b>Pre-compute schedules, price late:</b> build candidate itineraries from the (slow-changing) schedule graph, then price only the survivors via the fare cache / providers.</li>
+    </ul>
+  </div>
+  <p>The key separation again: <b>schedules</b> are stable and live in an indexable graph you can search cheaply;
+  <b>fares</b> are volatile and fetched only for the handful of candidate itineraries you actually surface. Searching the
+  graph on priced data per request would be both slow and wasteful.</p>
+
+  <h2>Deep Dive 4 — Async price-refresh pipeline</h2>
+  <p>To keep cache hit rates high <em>and</em> fresh, you don't wait for user searches to populate the cache — you
+  proactively refresh popular keys in the background, just like the price-tracker's polling pipeline.<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <b>Scheduler → Queue → Refresh workers</b>
+    <ul>
+      <li>A <b>scheduler</b> enqueues "re-price route R on date D" jobs, prioritized by <em>search popularity</em> and <em>volatility</em> — busy near-term routes refresh every few minutes; the long tail rarely or never.<a href="#c2" class="cite">[2]</a></li>
+      <li>A <b>queue</b> decouples scheduling from execution, absorbs bursts, and provides backpressure when providers are slow or rate-limited.</li>
+      <li><b>Workers</b> call provider adapters (respecting per-provider rate limits + circuit breakers), normalize, and write fresh fares into the cache with a TTL.</li>
+      <li>Failed refreshes back off and dead-letter; a route whose refresh fails simply falls back to live fan-out on the next user search.</li>
+    </ul>
+  </div>
+  <p>This turns most user searches into pure cache hits answered in milliseconds, while the expensive upstream traffic
+  happens off the critical path — the same "move work out of the request path" judgement L6/L7 rewards across every
+  read-heavy system.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Providers are slow and some are down. How should a search behave?</p>
+      <button class="opt">Block on every single provider so the result set is fully complete</button>
+      <button class="opt">Fan out, gather until a hard deadline, return the partial results</button>
+      <button class="opt">Query one provider at a time and stop once the budget is fully gone</button>
+      <p class="fb">Scatter-gather with a deadline plus circuit breakers gives sub-second, resilient searches.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. Why is the fare cache hit rate the heart of the design?</p>
+      <button class="opt">Because cached fares are always guaranteed to be perfectly fresh data</button>
+      <button class="opt">Because storing the fares on disk is the main scaling bottleneck here</button>
+      <button class="opt">Because a miss fans out ~50 upstream calls that are slow and costly</button>
+      <p class="fb">Misses multiply into tens of thousands of upstream calls/sec — hit rate controls latency and cost.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. How do you keep cheap caching yet a correct price at booking time?</p>
+      <button class="opt">Re-validate the one chosen itinerary live at the redirect moment</button>
+      <button class="opt">Use one global fixed cache TTL of five minutes for all routes</button>
+      <button class="opt">Disable the fare cache entirely and query providers per search</button>
+      <p class="fb">Route-aware TTL caches everywhere; a single live re-price at redirect kills most rejections.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Why separate flight schedules from fares into different stores?</p>
+      <button class="opt">Because schedules change every second and fares stay static for years</button>
+      <button class="opt">Because relational stores cannot index any flight schedule data at all</button>
+      <button class="opt">Because schedules are slow-changing/indexable while fares are volatile</button>
+      <p class="fb">Search the stable schedule graph cheaply; fetch volatile fares only for surviving candidates.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher here — push on the hard parts. Try:
+    "Walk me through the timeout budget and circuit-breaker config for a 50-provider fan-out."
+    · "How would you set TTL as a function of route volatility and search volume?"
+    · "Sketch the time-expanded graph and pruning for a max-two-stop multi-leg search."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction">Hello Interview — System Design in a Hurry</a>.
+  The delivery framework (FR → NFR → estimation → entities/API → HLD → deep dives) and the scatter-gather, caching, and
+  resilience patterns this aggregator is built from. Pair it with the flight/booking problem breakdowns when available.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction">Hello Interview — System Design in a Hurry</a> (delivery framework, scatter-gather over external dependencies, partial results, async search pattern; capacity figures are the author's own estimates).</p>
+    <p id="c2">[2] <a href="../lessons/0004-caching.html">Course Lesson 4 — Caching</a> (TTL, stale-while-revalidate, hit-rate economics) and <a href="../lessons/0026-price-tracking.html">Lesson 26 — Price Tracking</a> (scheduler + queue + worker refresh pipeline) applied to volatile fare data.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0060-hotel-booking.html">← Lesson 60</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 62 · E-Commerce / Flash Sale</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

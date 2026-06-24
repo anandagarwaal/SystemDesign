@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 86 — Design a Weather App</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 86 · Phase 4 — Case Study · Medium</p>
+  <h1>Design a Weather App</h1>
+  <p class="sub">A billion reads a day, sourced from one slow government API. The whole interview is admitting you don't need fresh data.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> This problem hands you the staff signal on a plate, and most
+    candidates miss it: weather is <em>extremely</em> read-heavy and <em>tolerant of staleness</em>. The L6/L7 move is
+    naming that within the first minute and letting it collapse the design — decouple reads from the slow upstream
+    provider, serve everything from cache and a CDN keyed by a coarse <em>location cell</em>, and let stale-while-revalidate
+    keep you up when the source goes down. If you instead reach for real-time freshness, you've over-built the easy
+    part and skipped the interesting one.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Three capabilities define the product. Everything else (radar tiles, alerts, maps) is out of scope — say so.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>A user should be able to…</th></tr>
+    <tr><td>1</td><td>Get the <b>current weather</b> for a location (lat/lng or city), with slightly stale values acceptable.</td></tr>
+    <tr><td>2</td><td>Get a short <b>hourly forecast</b> for that location.</td></tr>
+    <tr><td>3</td><td>Have the system <b>periodically refresh</b> weather from an upstream source (e.g. NWS) into our store.<a href="#c2" class="cite">[2]</a></td></tr>
+  </table>
+  <p><b>Out of scope</b> (defer explicitly): severe-weather push alerts, animated radar/precipitation map tiles,
+  historical climate queries, and user accounts. We are a read API in front of a refreshed cache of provider data.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>For each "-ility", attach a concrete target and the design lever it pulls. The first two are the whole game.</p>
+  <table>
+    <tr><th>NFR</th><th>Target</th><th>Why it shapes the design</th></tr>
+    <tr><td>Read-heavy</td><td>~1000:1 reads-to-writes<a href="#c1" class="cite">[1]</a></td><td>Optimize entirely for the read path; the write (ingestion) path is tiny by comparison → cache and CDN everything.</td></tr>
+    <tr><td>Low latency</td><td>p99 &lt; 100ms<a href="#c3" class="cite">[3]</a></td><td>Serve from edge/cache, not from the origin DB and never from the upstream provider on the request path.</td></tr>
+    <tr><td>Staleness tolerance</td><td>Data &lt; ~10 min old is fine<a href="#c1" class="cite">[1]</a></td><td>The single most powerful constraint: long TTLs, async refresh, and stale-while-revalidate all become legal.</td></tr>
+    <tr><td>Availability &gt; consistency</td><td>99.99%, AP-leaning<a href="#c3" class="cite">[3]</a></td><td>Serving a 9-minute-old temperature beats erroring. Survive provider/origin outages by serving stale.</td></tr>
+    <tr><td>Cost-efficient</td><td>Minimize origin + upstream calls</td><td>A high cache hit ratio is also a cost lever, not just a latency one — fewer origin and provider requests.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that change a decision. These are my own back-of-envelope estimates.</p>
+  <div class="box">
+    <ul>
+      <li><b>Read QPS:</b> ~100M DAU × ~5 lookups/day ≈ 500M reads/day ≈ <b>~6k QPS average</b>, ~30k QPS peak. Tiny for an edge cache, fatal for an unprotected origin → CDN does the heavy lifting.</li>
+      <li><b>Distinct locations:</b> the globe at a ~5&nbsp;km grid is ~10M land cells; cut to populated areas and you have <b>~1–2M hot cells</b>. The entire current-conditions dataset is small enough to fit in memory.</li>
+      <li><b>Write (ingestion) rate:</b> refresh ~1M cells every ~10&nbsp;min = <b>~1.7k writes/sec</b> — and that's the <em>only</em> traffic that touches the provider, not the user QPS. This is the core decoupling.</li>
+      <li><b>Storage:</b> ~2M cells × ~2&nbsp;KB (current + hourly) ≈ <b>~4&nbsp;GB</b> of hot state. Trivial — one Redis cluster holds the working set; durability lives in a modest origin store.</li>
+    </ul>
+    <b>Takeaways:</b> reads dwarf writes by ~1000×, the hot dataset is small, and staleness tolerance means almost
+    every read should be a cache hit. The design is a caching problem, not a storage problem.
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Two entities. The read endpoints are public and cacheable; derive any user from the auth token, never the body.</p>
+  <table>
+    <tr><th>Entity</th><th>Key fields</th></tr>
+    <tr><td>Location cell</td><td><code>cellId</code> (geohash / grid index), <code>lat</code>, <code>lng</code>, <code>provider gridpoint</code>.</td></tr>
+    <tr><td>WeatherSnapshot</td><td><code>cellId</code>, <code>fetchedAt</code>, <code>current</code> (temp, conditions), <code>hourly[]</code>.</td></tr>
+  </table>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>GET /v1/weather/current?lat=&amp;lng=</code></td><td>Resolve to a cell, return its latest current conditions (cacheable).</td></tr>
+    <tr><td><code>GET /v1/weather/hourly?lat=&amp;lng=</code></td><td>Return the hourly forecast for the resolved cell (cacheable).</td></tr>
+    <tr><td><code>GET /v1/weather/current?cellId=</code></td><td>Direct cell fetch — the normalized cache key the CDN actually stores.</td></tr>
+    <tr><td><code>POST /v1/admin/refresh</code></td><td>Internal: trigger/observe an ingestion run for a cell or region.</td></tr>
+  </table>
+  <p>Note the responses carry <code>Cache-Control: max-age=600, stale-while-revalidate=3600</code> so the edge and
+  browsers can serve and refresh correctly without app logic.<a href="#c3" class="cite">[3]</a></p>
+
+  <h2>Data Flow</h2>
+  <p>This is a data-processing system (ingestion + serving), so trace the two independent lifecycles before drawing boxes:</p>
+  <div class="box">
+    <b>Ingestion (write path, ~1.7k/s):</b>
+    <ol style="margin:.2rem 0 .6rem 1.1rem; padding:0;">
+      <li><b>Scheduler</b> enqueues "refresh cell X" jobs on a cadence (e.g. every 10 min for hot cells).</li>
+      <li><b>Ingest workers</b> call the upstream provider (NWS gridpoint API), normalize the payload.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Persist</b> the snapshot to the origin store and warm it into the cache, keyed by <code>cellId</code>.</li>
+    </ol>
+    <b>Serving (read path, ~6k–30k/s):</b>
+    <ol style="margin:.2rem 0 .2rem 1.1rem; padding:0;">
+      <li>Request → <b>CDN edge</b>: normalize lat/lng to <code>cellId</code>, check edge cache (hit → done).</li>
+      <li>Miss → <b>app + Redis</b>: return the latest snapshot for the cell; never call the provider inline.</li>
+    </ol>
+  </div>
+  <p>The two paths never block each other. Users read pre-fetched data; the provider is only ever touched by the
+  scheduler-driven ingestion workers. Each path gets its own deep dive.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Boxes-and-arrows, split into the <em>serving</em> layer (reads) and the <em>ingestion</em> pipeline (writes from the source).</p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+    <tr><td>CDN / edge cache</td><td>Absorbs ~95%+ of read QPS; keyed by normalized <code>cellId</code>.</td><td>Edge POPs.<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>Read API service</td><td>Resolves lat/lng → cell, serves snapshot, sets cache headers.</td><td>—</td></tr>
+    <tr><td>Cache</td><td>Hot current+hourly snapshots; the working set fits in memory.</td><td>Redis (key = <code>cellId</code>).<a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td>Origin store</td><td>Durable latest snapshot per cell (cache rebuild source).</td><td>KV / Cassandra / DynamoDB.</td></tr>
+    <tr><td>Scheduler</td><td>Enqueues refresh jobs per cell on a cadence.</td><td>—</td></tr>
+    <tr><td>Job queue</td><td>Decouples scheduling from fetching; absorbs bursts.</td><td>Kafka / SQS.</td></tr>
+    <tr><td>Ingest workers</td><td>Pull from the upstream provider, normalize, write store + cache.</td><td>—</td></tr>
+    <tr><td>Upstream provider</td><td>Source of truth (NWS / api.weather.gov); slow + rate-limited.</td><td>External.<a href="#c2" class="cite">[2]</a></td></tr>
+  </table>
+  <p>Read path: <code>GET /current</code> → CDN → API → Redis → (rebuild from origin on miss). Write path:
+  scheduler → queue → ingest worker → provider → origin store + cache. The provider sits only on the write side.</p>
+
+  <h2>Deep Dive 1 — The read path: aggressive caching + CDN</h2>
+  <p>With a ~1000:1 read ratio and a small hot dataset, the entire design rests on a high cache hit ratio. Staleness
+  tolerance is what makes this <em>easy</em>: because a 9-minute-old value is acceptable, you can set genuinely long
+  TTLs instead of fighting invalidation. (See <a href="../lessons/0004-caching.html">Lesson 4 — Caching</a> for the
+  fundamentals this builds on.)</p>
+  <div class="box">
+    <b>Layered cache, edge-first</b>
+    <ul>
+      <li><b>CDN edge</b> serves the vast majority of reads near the user — low latency and it shields the origin. Key on the normalized <code>cellId</code>, not raw lat/lng, so nearby users collapse onto one entry.<a href="#c3" class="cite">[3]</a></li>
+      <li><b>Redis</b> behind the API holds the same snapshots for edge misses; the ~4&nbsp;GB working set fits in memory.<a href="#c4" class="cite">[4]</a></li>
+      <li><b>TTL:</b> <code>max-age=600</code> matches the &lt;10-min staleness budget; the read path <em>never</em> calls the provider synchronously.</li>
+    </ul>
+  </div>
+  <p>Why this works: a TTL-based cache only goes stale by at most one TTL, which the requirement explicitly permits.
+  You trade a small, bounded staleness for a massive drop in origin/provider load and p99 latency.</p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The highest-leverage sentence here is "staleness tolerance lets me set a long TTL, so I never need cache
+    invalidation on the read path." Cache invalidation is one of the hard problems in CS; recognizing that the
+    requirement <em>removes</em> it — rather than dutifully building a pub/sub invalidation mesh — is exactly the
+    judgement that separates senior from staff. Don't over-engineer the easy part.
+  </div>
+
+  <h2>Deep Dive 2 — Geospatial keying so neighbors share cache entries</h2>
+  <p>If you cache on raw <code>lat=37.7749,lng=-122.4194</code>, every user gets a unique key and your hit ratio
+  collapses — the classic high-cardinality cache-key mistake. <b>Quantize the coordinate into a coarse cell</b> so
+  everyone in a neighborhood hits the same entry. (This is the same grid/geohash trick used for proximity in
+  <a href="../lessons/0020-yelp.html">Lesson 20 — Yelp</a>.)</p>
+  <table>
+    <tr><th>Scheme</th><th>What it gives you</th><th>Tradeoff</th></tr>
+    <tr><td>Geohash prefix</td><td>Trim precision (e.g. 5 chars ≈ ~5&nbsp;km cell) to set granularity.</td><td>Edge cells split nearby points across keys; fine for weather.</td></tr>
+    <tr><td>Fixed grid (lat/lng buckets)</td><td>Simple integer math, uniform cell size in degrees.</td><td>Cells distort near the poles; usually irrelevant for population.</td></tr>
+    <tr><td>Provider gridpoint</td><td>NWS already exposes a <code>/points</code> → gridpoint mapping.<a href="#c2" class="cite">[2]</a></td><td>Couples your key to one provider's grid.</td></tr>
+  </table>
+  <p>The cell size is a dial: coarser cells = fewer keys = higher hit ratio + fewer provider fetches, but lower
+  spatial accuracy. For consumer weather, a few-km cell is plenty accurate and dramatically improves sharing — the
+  number of distinct keys (and provider calls) drops from "per user" to "per populated cell."</p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Framing cell size as an explicit accuracy-vs-cache-efficiency tradeoff — and tying it to both hit ratio
+    <em>and</em> upstream cost — shows you see the cache key as a design parameter, not an afterthought. Bonus
+    points for noting it also bounds how many cells the ingestion pipeline must refresh.
+  </div>
+
+  <h2>Deep Dive 3 — The ingestion pipeline (decoupling from a slow source)</h2>
+  <p>The upstream provider is slow and rate-limited, and the user QPS is ~1000× the data's change rate. Calling the
+  provider on the read path would be insane. So a scheduler-driven pipeline pulls data <em>asynchronously</em> and
+  the read path only ever touches our cache. (This mirrors the poll-via-queue pattern in
+  <a href="../lessons/0026-price-tracking.html">Lesson 26 — Price Tracking</a>.)</p>
+  <div class="box">
+    <b>Scheduler → Queue → Ingest workers</b>
+    <ul>
+      <li><b>Scheduler</b> enqueues refresh jobs per cell on a cadence, varied by demand: hot cities every ~10 min, sparse regions much less often. This concentrates provider budget where users actually are.</li>
+      <li><b>Queue</b> decouples scheduling from fetching and absorbs bursts; <b>workers</b> scale horizontally and self-pace against the provider's rate limit.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Politeness:</b> per-provider rate limiting, exponential backoff + retries, and a dead-letter queue for cells that repeatedly fail to refresh.</li>
+      <li><b>Write-through:</b> each successful fetch updates the origin store <em>and</em> warms the cache, so reads are already hot — no cold-start stampede.</li>
+    </ul>
+  </div>
+  <p>Why a queue rather than the scheduler calling the provider directly? Backpressure and replay. If the provider
+  slows, jobs buffer instead of piling up; after an outage you replay the backlog. The number of provider calls is
+  bounded by <em>cells × cadence</em>, completely independent of user traffic — that's the decoupling that makes
+  the whole system cheap and resilient.</p>
+
+  <h2>Deep Dive 4 — Surviving provider outages with stale-while-revalidate</h2>
+  <p>The source of truth is an external API you don't control; it <em>will</em> have outages and rate-limit
+  rejections. Because staleness is tolerable, an outage should degrade gracefully, not error.</p>
+  <table>
+    <tr><th>Technique</th><th>What it buys you</th></tr>
+    <tr><td><b>stale-while-revalidate</b></td><td>Serve the expired snapshot instantly while a background refresh runs; users never see an error during a refresh.<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td><b>stale-if-error</b></td><td>If the provider/origin is down, keep serving the last good snapshot well past its TTL instead of failing.<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>Bounded staleness signal</td><td>Return <code>fetchedAt</code>/age so clients (and you) can show "as of 9:42am" and detect drift.</td></tr>
+    <tr><td>Retry + backoff + DLQ</td><td>Failed refreshes retry without hammering the source; persistent failures are visible, not silent.</td></tr>
+    <tr><td>Last-known-good in origin</td><td>The durable store always has <em>a</em> value to rebuild the cache from after a flush or restart.</td></tr>
+  </table>
+  <p>The mental model: the cache is the contract with users, the provider is a best-effort feeder. As long as the
+  cache has a recent-ish value, a provider outage is invisible. You only have a user-facing incident if data goes
+  stale past what's <em>useful</em> (hours, not minutes) — and even then you serve data plus an age, not a 500.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Which requirement most shapes a weather app's design?</p>
+      <button class="opt">Strong consistency between every regional data replica node</button>
+      <button class="opt">Exactly-once delivery of each weather reading to a client</button>
+      <button class="opt">Heavy reads plus tolerance for slightly stale weather values</button>
+      <p class="fb">Read-heavy + staleness-tolerant is what unlocks long TTLs, CDN caching, and async refresh.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. Why key the cache on a coarse location cell, not raw lat/lng?</p>
+      <button class="opt">Nearby users collapse onto one entry, raising the hit ratio</button>
+      <button class="opt">Raw coordinates cannot be stored as keys inside Redis ever</button>
+      <button class="opt">Cells make the upstream provider return stronger consistency</button>
+      <p class="fb">Quantizing coordinates removes per-user key cardinality so neighbors share one cache entry.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">3. Why pull from the provider via a scheduler instead of on each read?</p>
+      <button class="opt">It makes the provider data strongly consistent across regions</button>
+      <button class="opt">It decouples reads from a slow, rate-limited upstream source</button>
+      <button class="opt">It removes any need to ever cache the weather data at all</button>
+      <p class="fb">Provider calls are bounded by cells×cadence, independent of the much larger user QPS.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. The provider goes down mid-refresh. What is the right behavior?</p>
+      <button class="opt">Return an error so clients know the data could not refresh</button>
+      <button class="opt">Block the request until the upstream provider recovers fully</button>
+      <button class="opt">Serve the last good snapshot and refresh quietly in the background</button>
+      <p class="fb">stale-while-revalidate / stale-if-error keep you up; staleness tolerance makes this acceptable.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher here — push on the hard parts. Try:
+    "Walk me through choosing a geohash precision for a target cache hit ratio."
+    · "How would you set per-cell refresh cadence from request volume?"
+    · "Compare stale-while-revalidate vs a pub/sub cache-invalidation mesh for this system."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.weather.gov/documentation/services-web-api">NWS / api.weather.gov — Weather API documentation</a>.
+  The canonical free upstream: the <code>/points</code> → gridpoint mapping, forecast and current-conditions
+  endpoints, and the rate-limit guidance that motivates the whole decoupled-ingestion design.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] System design fundamentals — read-heavy, staleness-tolerant workloads (caching, CDN, TTL bounds). Capacity figures are the author's own back-of-envelope estimates.</p>
+    <p id="c2">[2] <a href="https://www.weather.gov/documentation/services-web-api">National Weather Service Web API (api.weather.gov)</a> (gridpoint/points model, forecast + current endpoints, rate limits → motivates async ingestion).</p>
+    <p id="c3">[3] <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control">MDN — Cache-Control</a> (<code>max-age</code>, <code>stale-while-revalidate</code>, <code>stale-if-error</code> for CDN/edge caching and graceful degradation).</p>
+    <p id="c4">[4] <a href="../lessons/0004-caching.html">Lesson 4 — Caching</a> (cache-aside/write-through, TTL vs invalidation, hot working set in memory).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0085-jira.html">← Lesson 85</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 87 · Snapchat</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

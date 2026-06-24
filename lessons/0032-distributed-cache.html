@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 32 — Design a Distributed Cache</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 32 · Phase 4 — Case Study · Hard</p>
+  <h1>Design a Distributed Cache</h1>
+  <p class="sub">Build Redis/Memcached at scale: a key-value store that lives in RAM across hundreds of nodes and answers in single-digit milliseconds.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A cache is the system every other system leans on, so this question really probes whether you understand <em>partitioning</em> and <em>replication</em> as first principles. The staff signal is owning the three pillars — consistent hashing to spread keys, an O(1) eviction structure inside a node, and an explicit consistency/availability tradeoff — without being told to.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>This is a building-block question: you are designing the cache itself, not using one. Keep the surface tiny and get to the hard parts fast.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Requirement</th></tr>
+    <tr><td>1</td><td><code>GET(key)</code> returns the value, or a miss if absent or expired.</td></tr>
+    <tr><td>2</td><td><code>PUT(key, value, ttl)</code> stores a value with an optional time-to-live.</td></tr>
+    <tr><td>3</td><td>The cache spans many nodes — data is <b>partitioned</b> across the cluster, not held on one machine.</td></tr>
+    <tr><td>4</td><td>Entries are <b>evicted</b> when their TTL expires or the node hits its memory limit.</td></tr>
+  </table>
+  <p><b>Out of scope</b> (say so explicitly): durability to disk, strong consistency, secondary indexes / querying, and transactions.<a href="#c1" class="cite">[1]</a> Naming these is itself a signal — you know what a cache deliberately gives up.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>The "-ilities" are where a cache earns its keep. State a target for each.</p>
+  <table>
+    <tr><th>NFR</th><th>Target & implication</th></tr>
+    <tr><td>Low latency</td><td><code>&lt;10ms</code> p99 for GET and PUT.<a href="#c1" class="cite">[1]</a> Forces in-memory storage and at most one network hop to the right node.</td></tr>
+    <tr><td>High throughput</td><td>~100k+ requests/sec.<a href="#c1" class="cite">[1]</a> No single coordinator on the hot path; clients reach nodes directly.</td></tr>
+    <tr><td>Horizontal scalability</td><td>Grow to 1TB+ by adding nodes.<a href="#c1" class="cite">[1]</a> Adding a node must reshuffle only a small slice of keys.</td></tr>
+    <tr><td>Availability</td><td>A node loss must not take down the cache. Pushes us toward replication and eventual consistency.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Tunable consistency</td><td>Staleness is tolerable — a cache is a copy of truth. We can pick eventual consistency to buy latency and availability.<a href="#c1" class="cite">[1]</a></td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only the numbers that shape the design.</p>
+  <div class="box">
+    <ul>
+      <li><b>Data:</b> ~1TB total.<a href="#c1" class="cite">[1]</a> Average entry ~1KB (key + value + metadata) → ~1 billion keys.</li>
+      <li><b>Memory per node:</b> a commodity box holds ~64GB usable for cache. 1TB / 64GB ≈ <b>16 nodes</b> for data; round up for headroom and replicas.</li>
+      <li><b>QPS:</b> 100k rps / 16 ≈ <b>~6k rps per node</b> — trivial for an in-memory store (Redis does 100k+ on one core), so RAM size, not CPU, is the binding constraint.</li>
+      <li><b>Bandwidth:</b> 100k × 1KB ≈ <b>100MB/s</b> across the fleet — comfortable. Replication multiplies write traffic by the replica factor N.</li>
+    </ul>
+  </div>
+  <p>The takeaway that drives the design: we need <b>many nodes</b>, so the entire problem becomes "how do we split keys across them and survive one dying?"</p>
+
+  <h2>Core Entities & API</h2>
+  <p>One entity — the <b>Entry</b> (<code>key</code>, <code>value</code>, <code>expiresAt</code>, <code>lastAccessed</code>) — and a tiny API. A cache speaks a binary protocol in practice, but the shape is REST-like:</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>GET /v1/cache/:key</code></td><td>Return value or 404/miss.</td></tr>
+    <tr><td><code>PUT /v1/cache/:key</code></td><td>Body <code>{value, ttl}</code>. Upsert with expiry.</td></tr>
+    <tr><td><code>DELETE /v1/cache/:key</code></td><td>Remove a key immediately.</td></tr>
+  </table>
+  <p>No auth/user derivation here — a cache is an internal infra component called by trusted services, so we skip the token dance and spend the budget on the deep dives.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Three logical pieces: the <b>client/router</b> that decides which node owns a key, a fleet of <b>cache nodes</b> each holding a partition in RAM, and a lightweight <b>membership/coordination</b> service tracking which nodes are alive.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>Smart client (or proxy)</td><td>Hashes the key, looks up the owning node from the ring, sends the request directly — one hop.</td></tr>
+    <tr><td>Cache node</td><td>In-memory hashmap + eviction structure; serves GET/PUT/DELETE for its key range; replicates writes to followers.</td></tr>
+    <tr><td>Coordination service</td><td>e.g. ZooKeeper/etcd or a gossip protocol — holds the authoritative ring and membership, detects node failures via heartbeats.</td></tr>
+  </table>
+  <p><b>Request flow:</b> client hashes <code>key</code> → resolves owner node from the ring → node reads/writes its local map → on a PUT, the owner asynchronously copies to N−1 replicas → returns. The whole path is one network hop plus a memory lookup, which is how we keep p99 under 10ms.</p>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1 · Partitioning keys with consistent hashing</h3>
+  <p>The naive approach is <code>node = hash(key) % N</code>. It works until N changes. Add or remove one node and <b>nearly every key</b> remaps to a different node, because the modulus shifts — the cache effectively flushes itself, and the cold cache stampedes the origin database. Unacceptable when nodes join and leave routinely.</p>
+  <p><b>Consistent hashing</b> fixes this (see Lesson 05). Map both keys and nodes onto a circular hash ring (0…2³²−1). A key is owned by the first node clockwise from its position. When a node leaves, only the keys between it and its predecessor move — to a single neighbor — so on average just <code>1/N</code> of keys reshuffle, not all of them.</p>
+  <div class="box">
+    <b>Why virtual nodes (vnodes)?</b>
+    <ul>
+      <li>With one ring position per node, the ring is lumpy — a few nodes own huge arcs and become hot, and removing a node dumps its <em>entire</em> load on one neighbor.</li>
+      <li>Give each physical node <b>100–200 virtual positions</b> scattered around the ring. Load smooths out toward uniform, and a departing node's keys spread across <em>many</em> neighbors instead of crushing one.</li>
+      <li>Vnodes also let you weight heterogeneous hardware — a bigger box simply gets more vnodes.</li>
+    </ul>
+  </div>
+
+  <h3>2 · Eviction within a node — O(1) LRU</h3>
+  <p>Each node has finite RAM, so when it fills up it must evict. The default policy is <b>Least Recently Used</b>.<a href="#c1" class="cite">[1]</a> The interview test is implementing LRU at <b>O(1)</b> for both lookup and recency update — naively scanning for the oldest entry would be O(n) and blow the latency budget (see Lesson 04).</p>
+  <div class="box">
+    <b>The classic structure: hashmap + doubly linked list.</b>
+    <ul>
+      <li><b>HashMap</b> <code>key → node</code> gives O(1) lookup.</li>
+      <li><b>Doubly linked list</b> orders entries by recency: most-recently-used at the head, least at the tail.</li>
+      <li><b>On GET/PUT:</b> unlink the node and move it to the head — O(1) because the map hands you the node directly, no traversal.</li>
+      <li><b>On evict:</b> drop the tail node and delete its key from the map — O(1).</li>
+    </ul>
+  </div>
+  <table>
+    <tr><th>Policy</th><th>When to prefer it</th></tr>
+    <tr><td>LRU</td><td>Default. Good for recency-skewed access (recent items likely re-read).</td></tr>
+    <tr><td>LFU</td><td>Keep <em>frequently</em> used items even if not recent; better for stable popular keys. Costs a frequency counter per entry, often with a small min-heap or counter buckets.</td></tr>
+    <tr><td>TTL expiry</td><td>Orthogonal to both. <b>Lazy</b> (check <code>expiresAt</code> on read) plus a <b>background sweeper</b> sampling random keys avoids scanning the whole keyspace.</td></tr>
+  </table>
+
+  <h3>3 · Replication & availability</h3>
+  <p>If a node dies, its slice of the cache is gone — every key it owned now misses and hammers the origin. To survive a node loss, replicate each key to <b>N nodes</b> (commonly N=2 or 3): the owner plus the next N−1 nodes clockwise on the ring. When the owner fails, membership detects it via heartbeat and the next replica takes over reads.<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <b>The async-replication staleness tradeoff.</b>
+    <ul>
+      <li><b>Synchronous replication</b> (write acked only after all replicas confirm) gives stronger consistency but adds a round trip — straight against our &lt;10ms target.</li>
+      <li><b>Asynchronous replication</b> acks the write immediately and copies to replicas in the background. Fast and available, but a reader hitting a lagging replica can see a stale value.</li>
+      <li>For a cache, <b>async wins</b> — staleness is acceptable<a href="#c1" class="cite">[1]</a> because the cache is just a copy of an authoritative store, and TTLs bound how long any staleness can last. This is the CAP/PACELC choice made concrete: we pick availability + low latency over strong consistency.</li>
+    </ul>
+  </div>
+
+  <h3>4 · The hot-key problem & locating the node</h3>
+  <p>Consistent hashing spreads keys evenly, but it can't help one <em>single</em> wildly popular key (a celebrity's profile, a flash-sale item). All traffic for that key lands on one node and melts it, regardless of how balanced the ring is.</p>
+  <table>
+    <tr><th>Mitigation</th><th>How it helps</th></tr>
+    <tr><td>Replicate hot keys</td><td>Detect high-traffic keys and copy them to extra nodes; clients fan reads across replicas, splitting the load.</td></tr>
+    <tr><td>Client-side caching</td><td>Cache the hottest keys in the requesting service's local memory for a few seconds, so most reads never hit the cluster at all.</td></tr>
+    <tr><td>Key splitting</td><td>For a hot <em>write</em> counter, shard it as <code>key#1…key#K</code> across nodes and sum on read, removing the single contended owner.</td></tr>
+  </table>
+  <p><b>How does a client find the right node?</b> Two architectures:</p>
+  <div class="box">
+    <ul>
+      <li><b>Client-side hashing (smart client):</b> the client library holds the ring and routes directly — zero extra hops, lowest latency. Cost: every client must learn ring changes (via the coordination service), and the logic lives in many languages.</li>
+      <li><b>Routing/proxy layer:</b> a thin proxy (e.g. Twemproxy, Envoy) owns the ring; clients are dumb and just call the proxy. Simpler clients and centralized ring management, at the cost of one extra network hop and a component to scale. Memcached leans client-side; many managed Redis fleets put a proxy in front.</li>
+    </ul>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Lead with <b>consistent hashing + virtual nodes</b> as the partitioning backbone and explain why plain modulo causes a full flush — that single insight separates senior from staff. Then show you can write the <b>O(1) LRU</b> (hashmap + doubly linked list) on the whiteboard, and name the <b>async-replication staleness tradeoff</b> as a deliberate CAP choice you're allowed to make <em>because a cache tolerates staleness</em>. Don't burn time re-explaining what a cache is — model the judgement, not the basics.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why is <code>hash(key) % N</code> a poor way to partition keys across cache nodes?</p>
+      <button class="opt">It cannot hash string keys, only fixed integer keys properly</button>
+      <button class="opt">Changing N remaps almost every key, flushing the entire cache</button>
+      <button class="opt">It always sends every request through one central proxy node</button>
+      <p class="fb">A changed modulus shifts nearly all keys to new nodes, causing a mass miss and origin stampede. Consistent hashing moves only ~1/N.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. What data structures give an O(1) LRU eviction inside a node?</p>
+      <button class="opt">A balanced binary search tree keyed strictly on the last-access timestamp</button>
+      <button class="opt">A single sorted array of entries re-sorted by recency on each access</button>
+      <button class="opt">A hashmap for lookup plus a doubly linked list ordered by recency</button>
+      <p class="fb">The map gives O(1) lookup; the linked list lets you move-to-head and drop-the-tail in O(1) without any scan.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why do virtual nodes improve a consistent-hashing ring?</p>
+      <button class="opt">They smooth load and spread a failed node's keys across many neighbors</button>
+      <button class="opt">They remove the need to replicate any key to more than one node</button>
+      <button class="opt">They let the cache store values on disk instead of only within memory</button>
+      <p class="fb">Many ring positions per physical node even out arc sizes and stop one neighbor from absorbing all of a departed node's load.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why is asynchronous replication an acceptable choice for a cache?</p>
+      <button class="opt">It guarantees every replica returns the exact same value at all times</button>
+      <button class="opt">Staleness is tolerable since the cache is a bounded copy of the truth</button>
+      <button class="opt">It removes the need for any membership or failure-detection mechanism</button>
+      <p class="fb">A cache mirrors an authoritative store and TTLs bound staleness, so we trade strong consistency for the latency and availability async buys.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — push on it:
+    <ul>
+      <li>"Walk me through exactly what happens on the ring when node 7 of 16 dies and a key it owned is read."</li>
+      <li>"Code the O(1) LRU with me — what does the doubly linked list node hold, and what breaks if I use a singly linked list?"</li>
+      <li>"Compare a smart-client vs proxy architecture for a 500-node fleet with frequent membership changes."</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/distributed-cache">Hello Interview — Distributed Cache</a>. The reference breakdown for this exact question: requirements, the 1TB / 100k-rps targets, LRU eviction, and the partitioning / hot-key / availability deep dives.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/distributed-cache">Hello Interview — Distributed Cache breakdown</a> (functional/non-functional requirements, &lt;10ms latency and 1TB/100k-rps targets, LRU eviction policy, eventual-consistency/availability stance, and the hot-key & partitioning deep-dive framing).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0031-google-docs.html">← Lesson 31</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 33 · YouTube</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

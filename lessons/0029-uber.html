@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 29 — Design Uber (Ride-Sharing)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 29 · Phase 4 — Case Study · Hard</p>
+  <h1>Design Uber (Ride-Sharing)</h1>
+  <p class="sub">Match a rider to a nearby driver in under a minute, never double-book a car, and survive a firehose of GPS pings.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Uber is the canonical geospatial-plus-matching interview. The breadth (fare → request → match → trip) is easy to sketch; the L6/L7 signal is entirely in three deep dives — a geospatial index that answers "nearest drivers" in milliseconds, a matching step modeled as an <em>atomic claim</em> so two riders never grab the same car, and a write firehose you keep <em>out</em> of your durable database. Get those three right and the rest is plumbing.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope ruthlessly. Three flows carry the whole interview <a href="#c1" class="cite">[1]</a>; payments, ratings, and pooling are explicit non-goals you name and defer.</p>
+  <table>
+    <tr><th>#</th><th>Riders / drivers should be able to…</th></tr>
+    <tr><td>1</td><td>Enter pickup + destination and get a <b>fare estimate</b> (price, ETA), then request a ride at that fare.</td></tr>
+    <tr><td>2</td><td>Be <b>matched to a nearby available driver</b>, who can accept or decline the offer.</td></tr>
+    <tr><td>3</td><td>See each other's <b>live location</b> on a map from match through pickup and drop-off.</td></tr>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>These are the constraints you will keep returning to in the deep dives. State a target for each — vague "scalable" answers read as junior.</p>
+  <table>
+    <tr><th>NFR</th><th>Target &amp; why it shapes the design</th></tr>
+    <tr><td><b>Low-latency matching</b></td><td>Request → driver assigned in <b>&lt; 1 minute</b> <a href="#c1" class="cite">[1]</a>. Forces an in-memory geo index — you can't table-scan a database per request.</td></tr>
+    <tr><td><b>Consistency on a match</b></td><td><b>One driver ↔ one rider.</b> No double-assignment, ever. This is the strong-consistency island in an otherwise availability-first system.</td></tr>
+    <tr><td><b>High availability</b></td><td>The app is a utility; partial degradation (stale ETAs) beats downtime. Everything except the claim favors availability.</td></tr>
+    <tr><td><b>High write throughput</b></td><td>Location pings dominate load — millions/sec at peak. Drives a separate ingestion path from the request path.</td></tr>
+    <tr><td><b>Per-city scalability</b></td><td>A ride is intrinsically local. Geo-shard by city/region so a NYC spike never touches São Paulo.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute the numbers that change a decision. The one that matters here is the location-write rate.</p>
+  <div class="box">
+    <ul>
+      <li><b>Active drivers:</b> ~10M globally, each pinging every ~4–5s → on the order of <b>2M location writes/sec</b> at peak <a href="#c1" class="cite">[1]</a>. <i>Implication:</i> this is the firehose. At DynamoDB write prices it would cost six figures <em>per day</em> — so it cannot hit a durable, indexed table. It belongs in memory (Deep Dive 4).</li>
+      <li><b>Ride requests:</b> far smaller — tens of thousands/sec at global peak. <i>Implication:</i> the request/match path can afford richer logic, queues, and orchestration.</li>
+      <li><b>Concurrent connections:</b> riders + drivers in active trips hold long-lived WebSockets, ~hundreds of millions of sockets globally. <i>Implication:</i> a dedicated connection tier you can scale independently.</li>
+      <li><b>Location storage:</b> if you never persist raw pings, durable storage stays modest — only rides and entity records. Reinforces "keep the firehose out of the DB."</li>
+    </ul>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Five entities; user identity comes from the auth token, never the body.</p>
+  <table>
+    <tr><th>Entity</th><th>Key fields</th></tr>
+    <tr><td><b>Rider</b></td><td>id, profile, payment methods.</td></tr>
+    <tr><td><b>Driver</b></td><td>id, vehicle, <code>status</code> (available / offered / on_trip / offline).</td></tr>
+    <tr><td><b>Fare</b></td><td>id, pickup, destination, price estimate, ETA, route.</td></tr>
+    <tr><td><b>Ride</b></td><td>id, riderId, driverId, status, timestamps.</td></tr>
+    <tr><td><b>Location</b></td><td>driverId, lat, lng, timestamp (ephemeral — lives in the geo index, not the DB).</td></tr>
+  </table>
+  <p>Endpoints (user derived from token) <a href="#c1" class="cite">[1]</a>:</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/fare</code></td><td>Body <code>{pickup, destination}</code> → returns a Fare (price + ETA) via the mapping provider.</td></tr>
+    <tr><td><code>POST /v1/rides</code></td><td>Body <code>{fareId}</code> → creates a Ride, kicks off matching.</td></tr>
+    <tr><td><code>POST /v1/drivers/location</code></td><td>Body <code>{lat, lng}</code> → high-frequency ping; updates the geo index. (Often UDP/lightweight, not a full REST round-trip.)</td></tr>
+    <tr><td><code>PATCH /v1/rides/{id}</code></td><td>Body <code>{accept | decline}</code> → driver responds to an offer; on accept, returns pickup coordinates.</td></tr>
+    <tr><td><code>WS /v1/trips/{id}/track</code></td><td>WebSocket — pushes the counterpart's live location during the trip.</td></tr>
+  </table>
+
+  <h2>High-Level Design</h2>
+  <p>Split the system along its two load profiles: a <b>request/match path</b> (low volume, needs correctness) and a <b>location path</b> (firehose, needs throughput). They meet only at the geo index.</p>
+  <table>
+    <tr><th>Component</th><th>Responsibility</th></tr>
+    <tr><td>API Gateway</td><td>Auth, rate limiting, routing. Terminates client REST/WS.</td></tr>
+    <tr><td>Ride Service</td><td>Fare estimation (calls mapping API), creates Rides, owns the durable Ride/entity DB.</td></tr>
+    <tr><td>Location Service</td><td>Ingests driver pings; writes them to the in-memory geo index. No durable write per ping.</td></tr>
+    <tr><td>Geo Index (Redis GEO)</td><td>In-memory store of <em>available</em> driver positions; answers "drivers near (lat,lng)" in ms.</td></tr>
+    <tr><td>Matching Service</td><td>Queries the geo index, offers the ride, places the atomic claim, handles timeout/fallback.</td></tr>
+    <tr><td>Connection Service</td><td>Holds rider/driver WebSockets; relays live trip locations and offers.</td></tr>
+    <tr><td>Notification Service</td><td>APNs/FCM push to wake a backgrounded driver app for an offer.</td></tr>
+  </table>
+  <p><b>Request flow:</b> client → <code>POST /fare</code> → Ride Service returns estimate → <code>POST /rides</code> creates the Ride and enqueues a match request → Matching Service asks the Geo Index for nearby available drivers → offers to the best candidate (claim + push) → driver <code>PATCH</code> accept → Ride moves to <code>on_trip</code>, both sides open a tracking WebSocket. Data stores: durable Rides/entities in a SQL/NoSQL store; live positions in Redis with TTL.</p>
+
+  <h2>Deep Dive 1 — Tracking &amp; querying driver locations</h2>
+  <p>"Find the nearest available drivers" is a 2-D range query. A B-tree index on <code>lat</code> and <code>lng</code> separately is useless — it can't prune in two dimensions at once, so you fall back to scanning a bounding box. The fix is a spatial index that maps 2-D into a sortable 1-D key. (See <a href="../lessons/0116-geohashing-quadtrees.html">Lesson 116 — Geospatial Indexes</a> for the mechanics.)</p>
+  <table>
+    <tr><th>Approach</th><th>Idea</th><th>Verdict</th></tr>
+    <tr><td>Naive DB + B-tree</td><td>Store every ping in a table, query a lat/lng box.</td><td>✗ No true 2-D pruning; firehose writes are ruinously expensive <a href="#c1" class="cite">[1]</a>.</td></tr>
+    <tr><td>PostGIS / quadtree</td><td>Spatial DB with quadtree partitioning; batch pings before persisting.</td><td>~ Real 2-D queries, but batching = stale positions; still durable-write load.</td></tr>
+    <tr><td><b>Redis GEO (in-memory)</b></td><td><code>GEOADD</code> encodes lat/lng as a <b>geohash</b> stored as a sorted-set score; <code>GEOSEARCH</code> returns drivers within radius.</td><td>✓ Sub-ms queries, handles the write rate, TTL auto-expires stale drivers <a href="#c1" class="cite">[1]</a>.</td></tr>
+  </table>
+  <p><b>How the encoding works:</b> a geohash interleaves the bits of latitude and longitude so that points close in 2-D space share a long common prefix — turning a 2-D range search into a 1-D prefix/range scan over a sorted set. Quadtrees and Google's <b>S2</b> cells solve the same problem with adaptive cell sizes (better for wildly uneven density, e.g. Manhattan vs. a rural highway). For an interview, geohash-via-Redis is the clean default; mention S2/quadtree as the alternative when density is skewed.</p>
+  <p><b>Only index available drivers.</b> On match, you remove the driver from the index; on trip-end you re-add. The index stays small and every result is actually offerable.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Don't reach for a geo <em>database</em> by reflex. The staff move is recognizing that the query is "k nearest available drivers right now," that positions are disposable, and that an in-memory geohash index satisfies both the latency NFR and the write rate — while a durable spatial DB satisfies neither cheaply. Naming the geohash↔sorted-set mapping (and S2 as the skewed-density alternative) shows you understand <em>why</em> it's fast, not just that Redis has a GEO command.
+  </div>
+
+  <h2>Deep Dive 2 — Matching as an atomic claim (no double-assignment)</h2>
+  <p>This is the consistency NFR, and the single most common place candidates leak race conditions. Multiple Matching Service instances may pull overlapping nearby-driver sets and offer the <em>same</em> driver to two riders. You must model the offer as an <b>atomic claim</b>, not a read-then-write. (This is the contention/locking pattern from <a href="../lessons/0010-common-patterns.html">Lesson 10</a> and <a href="../lessons/0118-distributed-locks.html">Lesson 118</a>.)</p>
+  <table>
+    <tr><th>Approach</th><th>Mechanism</th><th>Verdict</th></tr>
+    <tr><td>In-process lock</td><td>Lock the driverId inside one service instance.</td><td>✗ No coordination across instances; lock lost on crash <a href="#c1" class="cite">[1]</a>.</td></tr>
+    <tr><td>DB status column</td><td>Set driver <code>status = offered</code>; a cron releases stale ones.</td><td>~ Works, but timeouts ride on a cleanup job; couples matching to the DB.</td></tr>
+    <tr><td><b>Redis lock + TTL</b></td><td>Atomic <code>SET driver:{id} rideId NX EX 10</code> — only one offer wins; key auto-expires in 10s.</td><td>✓ Single winner, self-healing timeout, no cron <a href="#c1" class="cite">[1]</a>.</td></tr>
+  </table>
+  <p><b>The flow:</b> Matching Service picks the best nearby driver and attempts an atomic <code>SET ... NX EX 10</code>. The <code>NX</code> (set-if-not-exists) makes the claim a compare-and-set — exactly one instance can acquire it, so a driver is offered to at most one ride at a time. Then push the offer.</p>
+  <p><b>Offer timeout &amp; fallback:</b> the 10-second TTL <em>is</em> the offer window. If the driver accepts, write <code>driverId</code> onto the Ride durably and confirm. If they decline or the TTL expires, the lock vanishes and the Matching Service moves to the next candidate. Because the lock is ephemeral, a crashed instance can't strand a driver — the worst case is a 10-second wait.</p>
+  <p><b>Sequencing offers durably.</b> "Offer driver 1, wait 10s, fall to driver 2, …" is a small state machine that must survive crashes. A naive in-memory loop or a pile of delay-queue messages gets fragile fast (hard to cancel when the driver accepts mid-window). A <b>durable workflow engine (Temporal / Step Functions)</b> models the whole matching attempt as a persistent workflow with built-in timeouts and resume-after-crash <a href="#c1" class="cite">[1]</a> — the staff-grade answer when dropped matches mean lost revenue.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior candidates say "use a lock." Staff candidates frame the requirement precisely: a match is a <em>compare-and-set on driver availability</em> with a self-expiring lease, where the lease TTL <em>is</em> the offer timeout — collapsing two problems (mutual exclusion and timeout/fallback) into one primitive. Knowing the lock should be ephemeral (so a crash degrades to a short delay, not a stuck driver) is the judgment that separates a robust design from one that wedges under failure.
+  </div>
+
+  <h2>Deep Dive 3 — Live trip location streaming</h2>
+  <p>Once matched, both phones need each other's position updating every few seconds — a server-push problem. Polling wastes battery and adds latency; the right primitive is a persistent connection. (See <a href="../lessons/0002-networking-and-apis.html">Lesson 2 — Networking</a> and <a href="../lessons/0002-networking-and-apis.html">Lesson 2 — Real-Time Delivery</a>.)</p>
+  <table>
+    <tr><th>Option</th><th>Fit for live trip tracking</th></tr>
+    <tr><td>Short polling</td><td>✗ Per-request overhead, laggy, drains battery at a few-second cadence.</td></tr>
+    <tr><td>SSE (server→client only)</td><td>~ Push works, but a trip is bidirectional (both sides move and send).</td></tr>
+    <tr><td><b>WebSocket</b></td><td>✓ Full-duplex, low overhead, long-lived — ideal for both parties streaming positions.</td></tr>
+  </table>
+  <p>The Connection Service holds the rider and driver sockets keyed by rideId. The driver's location ping enters via the Location Service; for an active trip it's also relayed to the rider's socket (and vice-versa for the rider's position to the driver). Scale the connection tier independently — it's a fan-out/relay layer, stateless apart from the socket map (which can live in Redis so any node can route). On disconnect, the client reconnects and resumes; brief gaps are acceptable, so this path favors availability over perfect ordering.</p>
+
+  <h2>Deep Dive 4 — Taming the location-write firehose</h2>
+  <p>Two million writes per second is the number that breaks naive designs. The discipline: <b>never let a raw ping touch a durable, indexed database</b> — it's expensive, it's pointless (a position is stale in seconds), and it would bottleneck the very store your rides depend on.</p>
+  <div class="box">
+    <b>Layered defenses against the firehose:</b>
+    <ul>
+      <li><b>Adaptive client cadence.</b> A parked driver pings rarely; a fast-moving one pings often. Pushing this logic to the app cuts the write rate at the source <a href="#c1" class="cite">[1]</a> — the cheapest write is the one never sent.</li>
+      <li><b>In-memory landing zone.</b> Pings update Redis GEO directly (overwrite, not append) with a short TTL. The "current position" is just the latest value; history isn't kept.</li>
+      <li><b>Lightweight transport.</b> A position update doesn't need a full TLS REST round-trip; a slim binary/UDP-style channel reduces per-ping cost.</li>
+      <li><b>Geo-sharded ingestion.</b> Shard the Location Service and geo index by region so each shard absorbs only its city's writes — a per-city spike stays local <a href="#c1" class="cite">[1]</a>.</li>
+      <li><b>Async analytics tap (optional).</b> If you <em>do</em> want trip history for billing/ML, fork a copy to Kafka and batch it to cold storage — off the hot path, never blocking the index.</li>
+    </ul>
+  </div>
+  <p><b>Durability of the index.</b> "But Redis is in-memory!" — yes, and that's fine here. Positions are reconstructed within seconds: every driver re-pings on the next cadence. Back it with RDB/AOF persistence and Sentinel/replica failover for fast recovery, and accept that a few seconds of lost positions self-heal. Contrast with the Ride record, which <em>is</em> durable and consistent. Knowing which data deserves durability (rides) and which doesn't (positions) is the whole game.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The firehose answer is a data-classification argument, not a technology list. State it as a principle — "ephemeral, regenerable data stays in memory; durable, queryable facts go to the DB" — then show you'd shed load at every layer (client cadence → transport → in-memory overwrite → geo-shard) before scaling any store. Pairing that with "I'd tap a copy to Kafka only if billing/ML needs history" shows you separate the hot path from analytics instead of overbuilding.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why is a plain B-tree index on latitude and longitude a poor fit for "nearest driver" queries?</p>
+      <button class="opt">It cannot store floating-point coordinate values with enough decimal precision</button>
+      <button class="opt">It writes far too slowly to absorb the millions of driver pings per second</button>
+      <button class="opt">It cannot prune in two dimensions at once, so a radius search scans a box</button>
+      <button class="opt">It requires a separate replica per city to answer any regional radius query</button>
+      <p class="fb">A 1-D B-tree can't co-prune lat and lng; geohash/quadtree/S2 map 2-D into one sortable key.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. How does an atomic <code>SET driver:{id} NX EX 10</code> claim solve two problems at once?</p>
+      <button class="opt">The NX ensures one winner; the 10s TTL is both the offer window and a crash-safe release</button>
+      <button class="opt">The EX persists the driver to the durable database while NX validates the rider token</button>
+      <button class="opt">The NX shards the driver by region while the EX replicates the lock to every node</button>
+      <button class="opt">The SET batches nearby driver pings so the matcher reads a consistent box snapshot</button>
+      <p class="fb">NX gives mutual exclusion (single offer); the TTL doubles as the offer timeout and self-heals on crash.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">3. Why is it acceptable to keep live driver positions only in an in-memory store?</p>
+      <button class="opt">Because positions are encrypted and legally cannot be written to any durable disk</button>
+      <button class="opt">Because positions are regenerable — every driver re-pings within seconds, so loss self-heals</button>
+      <button class="opt">Because the ride record already stores the full position history for each driver</button>
+      <button class="opt">Because in-memory stores offer stronger consistency than disk-backed databases do</button>
+      <p class="fb">Positions are ephemeral and regenerable; durable consistency is reserved for the Ride record.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. Which technique reduces the location-write firehose at its cheapest point?</p>
+      <button class="opt">Appending every ping to a partitioned Kafka topic for durable replay on restart</button>
+      <button class="opt">Persisting each ping to a PostGIS table and batching the writes every minute</button>
+      <button class="opt">Opening a dedicated WebSocket per driver to push positions on a fixed cadence</button>
+      <button class="opt">Adaptive client cadence — a parked driver pings rarely, cutting writes at the source</button>
+      <p class="fb">The cheapest write is one never sent; client-side adaptive cadence shrinks the firehose first.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on the hard parts. Try: <em>"Walk me through the exact sequence when two riders request a ride near the same lone driver."</em> · <em>"When would S2 cells beat a flat geohash, and how would I handle dense-city hotspots?"</em> · <em>"Sketch the Temporal workflow for offer → timeout → fallback to driver 2, and what it saves over a delay queue."</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/uber">Hello Interview — Uber / Ride-Sharing System Design</a>. The reference breakdown this lesson is built on; read it for the bad/good/great progression on each deep dive and the per-seniority expectations.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/uber">Hello Interview — Uber System Design Breakdown</a> (FRs/NFRs, API, the 2M writes/sec estimate, Redis GEO geohash index, Redis NX+TTL claim, adaptive cadence, Temporal/Kafka fallback, geo-sharding).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0028-youtube-top-k.html">← Lesson 28</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 30 · Robinhood</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

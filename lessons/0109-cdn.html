@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 109 — Deep Dive: CDN (Content Delivery Networks)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 109 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: CDN (Content Delivery Networks)</h1>
+  <p class="sub">A planet-spanning cache that puts your bytes a few milliseconds from every user — and the invalidation problem you must respect before you lean on it.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> At L6/L7 "I'll put a CDN in front of it" is table stakes. The interviewer wants to hear that you know <em>what</em> actually gets cached, <em>how</em> a request finds the nearest edge (anycast + DNS), <em>why</em> the cache key and <code>Cache-Control</code> headers decide your hit ratio, and the one genuinely hard problem — <em>invalidation</em> — that you must design around rather than wish away. Naming the origin-shield and signed-URL moves before you're asked is the breadth-then-depth signal that reads as staff.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>What it is</h2>
+  <p>A <b>Content Delivery Network</b> is a globally distributed fleet of caching servers ("edge" servers) placed in data centers close to end users.<a href="#c1" class="cite">[1]</a> When a user requests a file, the CDN serves it from the nearest edge instead of forcing the request to travel all the way back to your <b>origin</b> server.<a href="#c2" class="cite">[2]</a> The wins are direct: lower latency (fewer network hops, shorter physical distance), less load on your origin (the edge absorbs most traffic), and lower bandwidth cost (origin egress is reduced to cache fills).<a href="#c1" class="cite">[1]</a></p>
+  <p>The mental model: a CDN is a <b>read-through cache for the internet</b>, sitting between users and your origin, replicated to dozens or hundreds of locations. It pairs naturally with object storage — your origin is often an <a href="../lessons/0045-blob-store-s3.html">S3 bucket (Lesson 45)</a>, and the CDN fans those objects out worldwide. It is one of the standard boxes from the <a href="../lessons/0009-key-technologies-tour.html">key-technologies tour (Lesson 09)</a>.</p>
+
+  <h2>Internals — the part that earns depth</h2>
+
+  <h3>Edge PoPs, cache hit/miss, and the origin pull</h3>
+  <p>CDN servers live in <b>Points of Presence (PoPs)</b> — edge locations spread across the globe.<a href="#c2" class="cite">[2]</a> The request lifecycle is the thing to know cold:</p>
+  <ul>
+    <li><b>Cache hit:</b> the edge already holds a fresh copy of the object and serves it immediately. No origin contact. This is the happy path you optimize for.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Cache miss:</b> the edge has no fresh copy, so it does an <b>origin pull</b> — fetches the object from your origin, stores it locally per the caching rules, then serves it. The next user in that region gets a hit.<a href="#c2" class="cite">[2]</a></li>
+  </ul>
+  <p>Your single most important metric is the <b>cache hit ratio</b>: the fraction of requests served from the edge. A high ratio means the CDN is doing its job; a low ratio means you're paying for the CDN <em>and</em> still hammering your origin.</p>
+
+  <h3>Cache keys: what counts as "the same object"</h3>
+  <p>The edge decides whether two requests are for the same cached object using a <b>cache key</b> — by default the URL (host + path), but it can include query strings, specific headers, or cookies.<a href="#c3" class="cite">[3]</a> This is a quiet source of bugs: if you key on the full query string, then <code>?utm_source=x</code> and <code>?utm_source=y</code> become two cache entries for one identical image, fragmenting your cache and tanking the hit ratio. The staff move is to <b>normalize the cache key</b> — strip irrelevant query params and cookies so identical content collapses to one entry.<a href="#c3" class="cite">[3]</a></p>
+
+  <h3>TTL, Cache-Control, and ETag: how freshness is decided</h3>
+  <p>How long an edge keeps an object is governed by HTTP caching headers from your origin, not magic:</p>
+  <table>
+    <thead><tr><th>Header</th><th>Role</th><th>Interview-relevant detail</th></tr></thead>
+    <tbody>
+      <tr><td><b>Cache-Control</b></td><td>Sets the TTL / cacheability</td><td><code>max-age=N</code> sets freshness seconds; <code>no-store</code> forbids caching; <code>private</code> blocks shared edge caching<a href="#c4" class="cite">[4]</a></td></tr>
+      <tr><td><b>TTL</b></td><td>Time-to-live for the entry</td><td>After it expires the entry is "stale" and must be revalidated or refetched<a href="#c4" class="cite">[4]</a></td></tr>
+      <tr><td><b>ETag</b></td><td>Version fingerprint of the object</td><td>On a stale entry the edge sends <code>If-None-Match</code>; origin replies <code>304 Not Modified</code> if unchanged — saves the body transfer<a href="#c5" class="cite">[5]</a></td></tr>
+    </tbody>
+  </table>
+  <p>The pattern to articulate: long TTLs maximize hit ratio but make content stale; short TTLs keep things fresh but increase origin pulls. <b>Revalidation with ETags</b> is the middle ground — it confirms freshness cheaply (a 304 with no body) instead of re-downloading the whole object.<a href="#c5" class="cite">[5]</a></p>
+
+  <h3>Push vs pull CDNs</h3>
+  <table>
+    <thead><tr><th>Model</th><th>How content arrives</th><th>Best for</th></tr></thead>
+    <tbody>
+      <tr><td><b>Pull (lazy)</b></td><td>Edge fetches from origin on the first miss, then caches it<a href="#c2" class="cite">[2]</a></td><td>Large, frequently-updated catalogs; the default and simplest to operate</td></tr>
+      <tr><td><b>Push (eager)</b></td><td>You upload content to the CDN ahead of demand</td><td>Large files / big launches where you can't afford the first-request miss penalty</td></tr>
+    </tbody>
+  </table>
+  <p>Most designs use <b>pull</b> — you point the CDN at your origin and let it fill on demand. Reach for push when a small set of large assets must be warm before a traffic spike (a game patch, a video premiere).</p>
+
+  <h3>How a request finds the nearest edge: anycast + DNS routing</h3>
+  <p>The routing magic happens before your bytes move. Two mechanisms dominate:</p>
+  <ul>
+    <li><b>DNS-based routing:</b> when the client resolves your CDN hostname, the CDN's authoritative DNS returns the IP of an edge close to the user (inferred from the resolver's location).<a href="#c2" class="cite">[2]</a> This is how Akamai-style networks steer you to a nearby PoP.</li>
+    <li><b>Anycast:</b> many PoPs announce the <em>same</em> IP address via BGP; the internet's routing naturally delivers the packet to the topologically nearest PoP.<a href="#c6" class="cite">[6]</a> Cloudflare leans heavily on anycast, which also makes it resilient — if one PoP fails, BGP reroutes to the next.</li>
+  </ul>
+
+  <h3>Cache invalidation and purge — the genuinely hard part</h3>
+  <p>"There are only two hard things in computer science: cache invalidation and naming things." A CDN is cache invalidation at planetary scale. You have a few levers:</p>
+  <ul>
+    <li><b>TTL expiry</b> — simplest: just let entries go stale and refetch. No active purge, but you tolerate up to <code>max-age</code> seconds of staleness.<a href="#c4" class="cite">[4]</a></li>
+    <li><b>Explicit purge / invalidation</b> — you tell the CDN to evict an object (or path prefix) now. It is <em>eventually</em> consistent across hundreds of PoPs and can be slow / rate-limited, which is why you don't rely on it for every write.<a href="#c7" class="cite">[7]</a></li>
+    <li><b>Versioned URLs (cache busting)</b> — the pro move: bake a content hash into the filename (<code>app.3f9c2.js</code>). New content = new URL = guaranteed fresh, and you set an effectively infinite TTL on the immutable asset. You never purge; you just stop referencing the old URL.<a href="#c4" class="cite">[4]</a></li>
+  </ul>
+
+  <h3>Origin shield</h3>
+  <p>With hundreds of PoPs, a cold cache or a purge can trigger a <b>thundering herd</b> — many edges pulling the same object from your origin at once. An <b>origin shield</b> is a designated intermediate caching layer that all PoPs pull through, so the origin sees at most one request per object and your hit ratio stays high.<a href="#c8" class="cite">[8]</a> Naming this collapses-the-herd mechanism is a strong depth signal.</p>
+
+  <h3>Static vs dynamic content, and signed URLs for private content</h3>
+  <p>CDNs shine for <b>static</b>, cacheable content (images, CSS/JS, video segments). Truly <b>dynamic</b>, per-user responses can't be cached the same way, but modern CDNs still help by terminating TLS at the edge, keeping warm connections to origin, and routing over their optimized backbone.<a href="#c1" class="cite">[1]</a> For private content you don't want world-readable, use <b>signed URLs / signed cookies</b> (a.k.a. pre-signed URLs): a time-limited, cryptographically signed link that the edge validates before serving — so a paywalled video or a private upload is cacheable yet access-controlled.<a href="#c9" class="cite">[9]</a></p>
+
+  <h2>Where it shows up &amp; patterns</h2>
+  <table>
+    <thead><tr><th>Pattern</th><th>How the CDN earns its place</th></tr></thead>
+    <tbody>
+      <tr><td><b>Static assets</b></td><td>Images, CSS, JS bundles served from edge with versioned URLs and long TTLs — the bread-and-butter use<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Video streaming</b></td><td><b>HLS/DASH</b> chop video into small segments (e.g. <code>.ts</code>/<code>.m4s</code>) + a manifest; each segment is a cacheable static file, so the CDN scales millions of viewers off a few origin fills<a href="#c10" class="cite">[10]</a></td></tr>
+      <tr><td><b>DDoS absorption</b></td><td>The distributed edge soaks up volumetric floods far from origin; anycast spreads attack traffic across many PoPs<a href="#c6" class="cite">[6]</a></td></tr>
+    </tbody>
+  </table>
+  <p>The video case is why a CDN is non-negotiable in a <a href="../lessons/0033-youtube.html">design-YouTube interview (Lesson 33)</a>: you transcode once, segment with HLS/DASH, store segments in object storage, and let the CDN deliver them globally. Origin bandwidth stays flat while viewers scale.</p>
+
+  <h2>When NOT / limits</h2>
+  <table>
+    <thead><tr><th>Reach for a CDN when…</th><th>It buys you little / hurts when…</th></tr></thead>
+    <tbody>
+      <tr><td>Static, cacheable, read-heavy content at global scale<a href="#c1" class="cite">[1]</a></td><td>Highly personalized, per-user dynamic responses with near-zero reuse</td></tr>
+      <tr><td>Latency matters and users are geographically spread</td><td>All your users sit in one region next to your origin already</td></tr>
+      <tr><td>Large media / video segments hit by many viewers<a href="#c10" class="cite">[10]</a></td><td>Strong read-after-write needs — purge is eventually consistent, not instant<a href="#c7" class="cite">[7]</a></td></tr>
+      <tr><td>You want edge DDoS absorption and origin offload<a href="#c6" class="cite">[6]</a></td><td>Rapidly mutating data where staleness is unacceptable and TTLs would be near-zero</td></tr>
+    </tbody>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Seniors say "add a CDN." Staff candidates reason about the <em>hit ratio and its enemies</em> in one breath: "I'll normalize the cache key so tracking params don't fragment the cache, set long TTLs with versioned URLs so I never purge for static assets, and add an origin shield to stop a thundering herd on cold start."<a href="#c8" class="cite">[8]</a> And they <b>name invalidation as the hard problem proactively</b>: "purge is eventually consistent across PoPs, so for anything that must be instantly fresh I bust the cache with a new URL rather than relying on purge."<a href="#c7" class="cite">[7]</a> Knowing that a CDN is just a read-through cache — with the same staleness/consistency tradeoffs you'd reason about anywhere — and not over-explaining what a cache is, is the simple-by-default judgement the bar looks for.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When you put a CDN on the whiteboard, justify it in one line ("serve static assets and video segments from the edge to cut latency and offload origin"), then be ready for the predictable follow-ups: <em>"How does a request reach the nearest edge?"</em> (anycast and/or DNS routing), <em>"How do you keep content fresh?"</em> (TTL + Cache-Control, ETag revalidation, versioned URLs for instant updates), and <em>"How do you serve private content?"</em> (signed URLs).<a href="#c9" class="cite">[9]</a> Volunteering the origin-shield and cache-key normalization shows hands-on depth. Don't deliver a lecture on what caching is — pick it for the static/read-heavy parts of the design and move on.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. What happens on a CDN cache miss at an edge PoP?</p>
+      <button class="opt">The edge returns an error until the origin pushes content out</button>
+      <button class="opt">The edge pulls the object from origin, caches it, then serves</button>
+      <button class="opt">The edge blocks the user request until the TTL window resets</button>
+      <button class="opt">The edge forwards the user onward to a different region's PoP</button>
+      <p class="fb">A miss triggers an origin pull: fetch, store per caching rules, serve — so the next nearby user gets a hit.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. Why can an over-inclusive cache key wreck your hit ratio?</p>
+      <button class="opt">It forces every edge PoP to revalidate objects on each request</button>
+      <button class="opt">It makes the origin shield drop its connection pool to origin</button>
+      <button class="opt">Identical content under varied query params becomes many entries</button>
+      <button class="opt">It changes the TTL so cached objects always expire immediately</button>
+      <p class="fb">Keying on irrelevant params (e.g. utm tags) splits one object into many entries, fragmenting the cache.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Which approach guarantees users get updated content instantly?</p>
+      <button class="opt">Bust the cache with a versioned URL that holds a content hash</button>
+      <button class="opt">Lower the TTL to a few seconds across every static asset path</button>
+      <button class="opt">Issue an explicit purge to evict the object from all PoPs now</button>
+      <button class="opt">Switch the network from a pull model over to a push model</button>
+      <p class="fb">A new content-hashed URL is a guaranteed-fresh fetch; purge is only eventually consistent across PoPs.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. How do HLS/DASH let a CDN scale a video to millions?</p>
+      <button class="opt">They keep one long origin stream open per active viewer session</button>
+      <button class="opt">They route every viewer to the origin via anycast for low delay</button>
+      <button class="opt">They mark the whole video private so signed URLs gate each play</button>
+      <button class="opt">They split video into small segments, each a cacheable static file</button>
+      <p class="fb">Segmenting turns video into many cacheable static files, so the CDN serves viewers off a few origin fills.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Quiz me on cache-key normalization and why it kills hit ratio." · "Walk me through anycast vs DNS-based request routing with a concrete failure case." · "Give me a design-YouTube prompt and push me on how HLS segments flow through the CDN and when I'd use signed URLs."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching">MDN — HTTP Caching</a> for the header mechanics every CDN obeys, paired with the <a href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html">Amazon CloudFront Developer Guide</a> and <a href="https://developers.cloudflare.com/cache/">Cloudflare Cache docs</a> for real-world edge behavior. Connect it to the <a href="../lessons/0009-key-technologies-tour.html">key-technologies tour (Lesson 09)</a> and the <a href="../reference/glossary.html">glossary</a>.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.cloudflare.com/learning/cdn/what-is-a-cdn/">Cloudflare — What is a CDN?</a> (distributed edge caches; latency, origin offload, bandwidth savings; static vs dynamic).</p>
+    <p id="c2">[2] <a href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Introduction.html">Amazon CloudFront — How CloudFront delivers content</a> (edge locations/PoPs, cache hit/miss, origin pull, DNS routing).</p>
+    <p id="c3">[3] <a href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cache-key-understand-cache-policy.html">Amazon CloudFront — Understanding the cache key</a> (URL/query/header/cookie keying and normalization).</p>
+    <p id="c4">[4] <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching">MDN — HTTP Caching (Cache-Control, max-age, TTL, immutable)</a> (freshness, no-store/private, versioned URLs).</p>
+    <p id="c5">[5] <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag">MDN — ETag</a> (revalidation with If-None-Match and 304 Not Modified).</p>
+    <p id="c6">[6] <a href="https://www.cloudflare.com/learning/cdn/glossary/anycast-network/">Cloudflare — What is Anycast?</a> (same IP across PoPs via BGP; nearest-PoP routing and DDoS resilience).</p>
+    <p id="c7">[7] <a href="https://developers.cloudflare.com/cache/how-to/purge-cache/">Cloudflare — Purge cache</a> (explicit invalidation; eventual propagation across the network).</p>
+    <p id="c8">[8] <a href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/origin-shield.html">Amazon CloudFront — Origin Shield</a> (centralized caching layer that collapses requests to origin).</p>
+    <p id="c9">[9] <a href="https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/PrivateContent.html">Amazon CloudFront — Serving private content with signed URLs and cookies</a> (time-limited signed access).</p>
+    <p id="c10">[10] <a href="https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Streaming">MDN — Streaming media (HLS/DASH adaptive segments)</a> (segmenting video into cacheable files + manifests).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0108-gossip-protocol.html">← Lesson 108</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 110 · gRPC</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

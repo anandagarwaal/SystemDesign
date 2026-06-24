@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 71 — Design a Webhook Delivery System</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 71 · Phase 4 — Case Study · Medium</p>
+  <h1>Design a Webhook Delivery System</h1>
+  <p class="sub">Customers register URLs; when events happen, you reliably POST the payload to them — at scale, without one slow customer poisoning the rest.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A webhook system is the canonical test of
+    <em>reliable delivery to endpoints you do not control</em>. Seniors say "POST the event when it fires."
+    Staff candidates make delivery <em>async</em> behind a durable queue, isolate slow/failing customers so they
+    can't head-of-line block everyone, sign payloads and block SSRF so a registered URL can't be turned into an
+    attack, and lean on at-least-once + idempotency. Those four moves are the interview.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope to what a webhook product must do; everything else is out of scope.</p>
+  <table>
+    <tr><th>The user should be able to…</th><th>Detail</th></tr>
+    <tr><td>Register &amp; manage endpoints</td><td>Create, update, disable, and delete webhook endpoints (a URL + which event types it subscribes to).</td></tr>
+    <tr><td>Receive events on trigger</td><td>When a subscribed event occurs internally, the system POSTs the event payload to every matching endpoint.</td></tr>
+    <tr><td>Get retries on failure</td><td>If an endpoint is down or returns a non-2xx, the system retries with backoff until it succeeds or is exhausted.</td></tr>
+    <tr><td>Inspect delivery logs</td><td>View each attempt: status code, response, timestamps, attempt count — and replay a failed delivery.</td></tr>
+  </table>
+  <p><b>Out of scope</b> (say it aloud): the business logic that <em>produces</em> events, a customer-facing
+  dashboard's UI, and guaranteed ordering across <em>different</em> endpoints. We deliver events; the customer's
+  receiver does the work.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th></tr>
+    <tr><td>At-least-once delivery</td><td>Every event reaches a healthy endpoint <b>at least once</b>; we never silently drop. Duplicates are possible, so consumers must dedupe (idempotency).<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Reliability &amp; durability</td><td>An accepted event survives crashes — it lives in a durable queue/store, never only in memory, and is retried across worker failures.</td></tr>
+    <tr><td>Isolation between customers</td><td>One slow or failing endpoint must not delay deliveries to others — <b>no head-of-line blocking</b> across tenants.</td></tr>
+    <tr><td>Security</td><td>Payloads are <b>signed</b> so receivers can verify origin; registered URLs cannot be used for <b>SSRF</b> against internal hosts.<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>Scale</td><td>Millions of endpoints; design toward ~<b>10k events/sec</b> fanning out to many deliveries each.</td></tr>
+  </table>
+  <p>The central tension is <em>reliability vs. isolation</em>: retrying hard for one dead endpoint must not
+  consume the capacity other customers need. The resolution is async delivery with per-endpoint concurrency,
+  developed below.</p>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only numbers that change the design.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Event ingest</td><td>~10k events/sec at peak</td><td>Trivial for a queue, but each event may fan out to many endpoints, so <em>deliveries ≫ events</em>.</td></tr>
+    <tr><td>Fan-out factor</td><td>avg ~3 endpoints/event → ~30k deliveries/sec</td><td>The delivery tier, not ingest, is the thing we scale; size the worker pool to deliveries/sec.</td></tr>
+    <tr><td>Delivery latency</td><td>customer endpoints take 100ms–30s</td><td>A worker blocked 30s on one slow endpoint is the core risk → concurrency must be per-endpoint, not global.</td></tr>
+    <tr><td>Delivery logs</td><td>30k/s × ~1&nbsp;KB × N retries → TB/month</td><td>Logs dwarf the live data; push to cheap append-only storage with TTL, not the hot DB.</td></tr>
+  </table>
+  <p><b>The math that matters:</b> 10k events/sec is easy; the killer is that a single slow endpoint at 30s
+  ties up a worker for 30s. Multiply by a customer with thousands of queued events and you've starved everyone
+  else unless deliveries are isolated per endpoint.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Endpoint</b> — a customer's registered URL, secret, and subscribed event types.
+  <b>Event</b> — something that happened internally (type + payload + id), produced once.
+  <b>Delivery</b> — one attempt to POST a specific event to a specific endpoint (status, attempt #, response) — the log row.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/endpoints</code></td><td>Register a webhook: <code>{ url, event_types }</code>. Returns <code>endpointId</code> and a generated signing <code>secret</code>.</td></tr>
+    <tr><td><code>PATCH /v1/endpoints/{id}</code></td><td>Update URL/subscriptions or disable the endpoint.</td></tr>
+    <tr><td><code>DELETE /v1/endpoints/{id}</code></td><td>Remove an endpoint (soft-delete so in-flight deliveries settle).</td></tr>
+    <tr><td><code>GET /v1/endpoints/{id}/deliveries</code></td><td>List delivery attempts with status, response code, and timestamps.</td></tr>
+    <tr><td><code>POST /v1/deliveries/{id}/replay</code></td><td>Manually re-enqueue a failed (or dead-lettered) delivery.</td></tr>
+  </table>
+  <p>The owning customer is derived from the auth token, never sent in the body. Event production is internal
+  (a service emits an event); customers don't call us to send — we call them.</p>
+
+  <h2>Data Flow</h2>
+  <p>A webhook system is a fan-out delivery pipeline, so it's worth tracing one event end to end:</p>
+  <div class="box">
+    <ul>
+      <li><b>1. Emit</b> — an internal service produces an event with a stable <code>event_id</code> and writes it durably (outbox or event log).</li>
+      <li><b>2. Fan-out</b> — a dispatcher looks up endpoints subscribed to that event type and creates one <b>Delivery</b> task per endpoint.</li>
+      <li><b>3. Enqueue</b> — each delivery task is pushed onto a durable queue, partitioned by endpoint.</li>
+      <li><b>4. Deliver</b> — a worker leases a task, signs and POSTs the payload, and waits for a 2xx.</li>
+      <li><b>5. Record / retry</b> — on success it ACKs and writes a log row; on failure it schedules a backoff retry, and after N attempts moves it to the dead-letter queue.</li>
+    </ul>
+  </div>
+
+  <h2>High-Level Design</h2>
+  <p>Six components, with a hard split between <em>accepting an event</em> and <em>delivering it</em>:</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>API / registration service</td><td>CRUD on endpoints; validates URLs (incl. SSRF checks) and issues signing secrets.</td></tr>
+    <tr><td>Event ingest + outbox</td><td>Durably records produced events so an accepted event is never lost before fan-out.</td></tr>
+    <tr><td>Dispatcher (fan-out)</td><td>Matches an event to subscribed endpoints and creates a Delivery task per endpoint.</td></tr>
+    <tr><td>Delivery queue</td><td>Durable broker (Kafka/SQS) buffering delivery tasks, <b>partitioned by endpoint</b>.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Delivery workers</td><td>Lease a task, sign + POST to the customer URL, ACK on 2xx, schedule retries / DLQ on failure.</td></tr>
+    <tr><td>Log store + DLQ</td><td>Append-only delivery logs (TTL'd) and a dead-letter queue for exhausted deliveries.</td></tr>
+  </table>
+  <p><b>Flow:</b> register endpoint → event emitted to durable outbox → dispatcher fans out one delivery per
+  subscribed endpoint into the queue → a worker leases it, signs, POSTs, and on 2xx ACKs + logs success; on
+  failure it re-enqueues with exponential backoff, and after the cap it dead-letters. Splitting ingest from
+  delivery lets the cheap ingest path stay fast while the elastic worker tier absorbs fan-out and slow endpoints.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The interview turns on <b>making delivery async and isolated</b>. Accept the event durably, then deliver from
+    a queue so a customer outage can't block ingest. Partition by endpoint and cap per-endpoint concurrency so one
+    slow tenant can't starve the rest. And treat registered URLs as <b>untrusted input</b> — sign payloads, and
+    validate URLs against an allow-list so a webhook can't become an SSRF into your VPC. Everything below refines
+    those points.
+  </div>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1 · Reliable async delivery — queue, workers, retries, DLQ</h3>
+  <p>Delivering synchronously inside the event-producing request is the trap: a customer endpoint that takes 30s
+  (or is down) would block the producer and lose the event on crash. Decouple with a durable queue — the same
+  async pattern as <a href="0007-messaging-and-async.html">Lesson 07 (Messaging &amp; Async)</a> and the
+  lease + ACK execution model from <a href="0034-job-scheduler.html">Lesson 34 (Job Scheduler)</a>.</p>
+  <div class="box">
+    <b>Lease + ACK for at-least-once:</b>
+    <ul>
+      <li>A worker leases a delivery (it becomes invisible for a visibility timeout); it isn't deleted yet.</li>
+      <li>On a 2xx the worker <b>ACKs</b> → the task is removed and a success log row written.</li>
+      <li>If the worker crashes or the endpoint fails, no ACK → the lease expires and the delivery is retried.<a href="#c2" class="cite">[2]</a></li>
+    </ul>
+  </div>
+  <table>
+    <tr><th>Failure handling</th><th>How</th></tr>
+    <tr><td>Exponential backoff + jitter</td><td>Retry after growing delays (e.g. 10s, 1m, 10m, 1h) so a recovering endpoint isn't hammered; jitter avoids synchronized retry storms.</td></tr>
+    <tr><td>Max attempts → DLQ</td><td>After N attempts (often spanning ~24h), move the delivery to a <b>dead-letter queue</b> instead of looping forever and starving healthy work.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Manual replay</td><td>Customers (or ops) re-enqueue from the DLQ once their endpoint is fixed, via the replay API.</td></tr>
+  </table>
+  <p>At-least-once means duplicates happen (a worker can deliver, then crash before ACKing). That's fine here —
+  the cure lives on the consumer side (deep dive 4), not in chasing impossible exactly-once over the network.</p>
+
+  <h3>2 · Slow / failing endpoints — no head-of-line blocking</h3>
+  <p>The defining webhook problem: customers' endpoints are arbitrarily slow or broken, and you don't control
+  them. A single shared FIFO queue means one customer's 30s endpoint (or thousands of queued retries) blocks
+  everyone behind it. Isolation is the whole game.</p>
+  <table>
+    <tr><th>Technique</th><th>How it isolates</th><th>Tradeoff</th></tr>
+    <tr><td>Partition by endpoint</td><td>Key the queue by <code>endpointId</code> so each endpoint's backlog is independent.<a href="#c1" class="cite">[1]</a></td><td>Many partitions/queues to manage; a hot endpoint still needs its own concurrency cap.</td></tr>
+    <tr><td>Per-endpoint concurrency cap</td><td>Bound in-flight deliveries per endpoint; excess waits in that endpoint's lane only.</td><td>Needs a shared counter / token bucket; mis-tuning throttles healthy endpoints.</td></tr>
+    <tr><td>Circuit breaking</td><td>After repeated failures, "open" the circuit and stop trying for a cooldown, with periodic probes.</td><td>Adds per-endpoint state; a flapping endpoint needs half-open probing to recover.</td></tr>
+    <tr><td>Timeouts</td><td>Cap each POST (e.g. 5–10s) so no single request can pin a worker indefinitely.</td><td>Too tight rejects legitimately slow receivers; treat a timeout as a retryable failure.</td></tr>
+  </table>
+  <div class="box">
+    <b>Pick &amp; justify:</b> Combine all four — <b>partition by endpoint</b> for fairness, a <b>per-endpoint
+    concurrency cap</b> so a noisy tenant uses only its share of workers, a <b>circuit breaker</b> to stop
+    pouring requests into a dead endpoint (its events keep durably queuing for later), and a tight <b>timeout</b>
+    so a hung connection frees the worker. Together they guarantee a customer outage degrades only that
+    customer, not the platform.
+  </div>
+
+  <h3>3 · Security — signing (HMAC) + SSRF prevention</h3>
+  <p>Two distinct threats. First, the receiver can't trust that a POST is really from us — anyone could forge an
+  event. Second, a <em>registered URL is untrusted input</em>: if a customer points an endpoint at
+  <code>http://169.254.169.254</code> or an internal host, our delivery worker becomes an SSRF proxy into our own
+  network — a direct violation of secure-coding rules on outbound requests.<a href="#c3" class="cite">[3]</a></p>
+  <div class="box">
+    <b>Signing payloads (HMAC):</b>
+    <ul>
+      <li>Each endpoint has a shared <b>secret</b>. We send <code>HMAC-SHA256(secret, timestamp + "." + body)</code> in a signature header.<a href="#c4" class="cite">[4]</a></li>
+      <li>The receiver recomputes the HMAC with its copy of the secret and compares using a <b>constant-time</b> check.</li>
+      <li>Include a signed <b>timestamp</b> and reject old signatures to prevent replay; rotate secrets without downtime by accepting two valid secrets briefly.</li>
+    </ul>
+  </div>
+  <div class="box">
+    <b>SSRF prevention (allow-list, not block-list):</b>
+    <ul>
+      <li>At registration <b>and</b> at delivery time, require <code>https</code> and a public host; reject anything else.</li>
+      <li><b>Resolve the DNS and validate the resolved IP</b> against private/loopback/link-local ranges (10.x, 127.x, 169.254.x, etc.) — block-listing strings alone is bypassable.<a href="#c3" class="cite">[3]</a></li>
+      <li>Re-check at connection time to defeat <b>DNS rebinding</b> (TOCTOU): pin the validated IP for the request.</li>
+      <li>Disable redirects (or re-validate each hop), and never forward internal headers/credentials to the customer URL.</li>
+    </ul>
+  </div>
+  <p>This is the staff differentiator most candidates miss: a webhook sender makes outbound requests to
+  attacker-chosen URLs by design, so SSRF defense is not optional hardening — it's a core requirement.</p>
+
+  <h3>4 · Idempotency keys &amp; delivery ordering</h3>
+  <p>Because delivery is at-least-once, the same event can arrive twice. We can't make the network exactly-once,
+  so we make <em>repeats safe</em> and push dedup to the consumer.</p>
+  <table>
+    <tr><th>Concern</th><th>Approach</th></tr>
+    <tr><td>Duplicate suppression</td><td>Send a stable <b>idempotency key</b> (the <code>event_id</code>) in a header; the consumer records processed ids and treats a repeat as a no-op.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Ordering, when needed</td><td>Ordering across endpoints is meaningless; <em>per-endpoint</em> order can be approximated by keying the queue partition on <code>endpointId</code> and processing a partition serially.</td></tr>
+    <tr><td>When to drop ordering</td><td>Strict ordering fights retries (a stuck event blocks newer ones). Prefer including a sequence number/timestamp and letting consumers reorder.</td></tr>
+  </table>
+  <div class="box">
+    <b>Pick &amp; justify:</b> Default to <b>unordered, at-least-once + idempotency keys</b> — it's the most
+    available and scalable, and matches what Stripe/GitHub-style webhooks actually promise.<a href="#c2" class="cite">[2]</a>
+    Offer <b>best-effort per-endpoint ordering</b> (serial partition) only if a customer needs it, and accept that
+    it reduces throughput and complicates retries. Don't promise global ordering — it's the wrong tradeoff at scale.
+  </div>
+  <p>State the breadth/depth ratio out loud: you went deep on delivery semantics, isolation, and security — the
+  parts that break in production — and kept registration CRUD and storage shallow because that's not where this
+  design fails. See also <a href="0046-notification-service.html">Lesson 46 (Notification Service)</a> for the
+  multi-channel fan-out cousin of this problem, and the <a href="../reference/glossary.html">glossary</a> for
+  at-least-once, DLQ, HMAC, and SSRF.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why deliver webhooks asynchronously from a durable queue?</p>
+      <button class="opt">It lets us promise true exactly-once network calls</button>
+      <button class="opt">A slow customer can't block ingest or lose events</button>
+      <button class="opt">It removes the need to ever retry a failed POST job</button>
+      <p class="fb">Async decouples ingest from delivery: events survive crashes and one slow endpoint can't stall producers.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. What stops one failing endpoint from starving every other customer?</p>
+      <button class="opt">A single global FIFO queue shared by all endpoints</button>
+      <button class="opt">Raising the visibility timeout on the shared queue</button>
+      <button class="opt">Partition by endpoint plus a per-endpoint concurrency cap</button>
+      <p class="fb">Per-endpoint partitions and concurrency caps confine a slow tenant to its own lane — no head-of-line blocking.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why must a registered webhook URL be treated as untrusted input?</p>
+      <button class="opt">It can point at internal hosts, making delivery an SSRF</button>
+      <button class="opt">It can change the HMAC secret used for the signature</button>
+      <button class="opt">It can force the queue to process deliveries out of order</button>
+      <p class="fb">Outbound POSTs go to attacker-chosen URLs; resolve and allow-list the IP so it can't hit internal hosts.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. At-least-once delivery can POST an event twice. What makes that safe?</p>
+      <button class="opt">Signing each request body with an HMAC secret value</button>
+      <button class="opt">A stable idempotency key the consumer uses to dedupe</button>
+      <button class="opt">Strict global ordering enforced across all endpoints</button>
+      <p class="fb">An idempotency key (the event_id) lets the receiver treat a repeat delivery as a harmless no-op.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic. Try:
+    "Walk me through what happens when a customer endpoint is down for 6 hours, then comes back."
+    "How exactly does the SSRF check defeat DNS rebinding at connection time?"
+    "Compare per-endpoint queues vs. a shared queue with concurrency tokens for isolation."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://docs.stripe.com/webhooks">Stripe — Webhooks documentation</a>. The clearest real-world reference for signing, verifying signatures, retries with backoff, and event idempotency; mirrors the delivery semantics used in this lesson.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://docs.svix.com/">Svix — Webhooks as a Service docs</a> (durable queue + worker delivery, retries with exponential backoff, dead-letter handling, per-endpoint isolation).</p>
+    <p id="c2">[2] <a href="https://docs.stripe.com/webhooks">Stripe — Webhooks</a> (at-least-once delivery, retries, and consumer-side idempotency via event ids).</p>
+    <p id="c3">[3] <a href="https://owasp.org/Top10/A10_2021-Server-Side_Request_Forgery_%28SSRF%29/">OWASP — Server-Side Request Forgery (SSRF)</a> (validate/allow-list outbound URLs and resolved IPs; never let user-supplied URLs reach internal hosts).</p>
+    <p id="c4">[4] <a href="https://datatracker.ietf.org/doc/html/rfc2104">RFC 2104 — HMAC: Keyed-Hashing for Message Authentication</a> (HMAC construction used to sign and verify payloads).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0070-calendar.html">← Lesson 70</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 72 · Fraud Detection</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

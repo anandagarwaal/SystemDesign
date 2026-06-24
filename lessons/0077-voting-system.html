@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 77 — Design a Voting System</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 77 · Phase 4 — Case Study · Medium</p>
+  <h1>Design a Voting System</h1>
+  <p class="sub">Millions of people cast votes on a live poll, the tally updates on everyone's screen in near-real-time, and yet the final number has to be exactly right — accuracy and low latency pulling in opposite directions.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A voting system looks like a counter with one extra rule — "one vote per user" — and that rule is the whole interview. The L6/L7 signal is recognizing two systems hiding inside one: a <b>fast, eventually-consistent live tally</b> that viewers watch, and a <b>slow, authoritative source of truth</b> that decides the result. Staff candidates separate those paths up front, make votes <b>idempotent</b> so a retry can't double-count, and say out loud which number is allowed to be wrong and which one never is.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Keep the core list tight. This is a vote-recording and tallying service — comments, the poll-authoring UI, and identity provisioning are out of scope.</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th><th>Why it shapes the design</th></tr>
+    <tr><td>1</td><td>Cast a vote on an option (and update it)</td><td>Write path — must enforce one-per-user; "latest vote wins" needs an upsert, not a blind insert</td></tr>
+    <tr><td>2</td><td>Be prevented from double-voting</td><td>Idempotency + dedup keyed by <code>(pollId, userId)</code> — the core correctness rule</td></tr>
+    <tr><td>3</td><td>See near-real-time results per option</td><td>Read path — huge read volume on a live poll, tolerant of a few seconds of lag</td></tr>
+    <tr><td>4</td><td>Have the poll close and freeze a result</td><td>Transition from live tally to authoritative final count — the accuracy moment</td></tr>
+  </table>
+  <div class="box">
+    <b>Out of scope (say it out loud):</b> poll creation/editing, authentication itself (we trust a verified identity in the token), rich result analytics, and weighted or ranked-choice ballots. We own one thing: recording a verified user's choice exactly once and showing a correct tally per <code>(pollId, optionId)</code>. The "latest-vote-wins" and "one-and-done" variants are the same machine with one flag.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>This system is defined by its NFRs. Two numbers must be right (final tally, one-per-user); the live view is allowed to be approximate.</p>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th></tr>
+    <tr><td>No double counting</td><td>A retried or double-clicked vote counts <i>once</i>; the final per-option tally is exact<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Integrity / one-per-user</td><td>One identity = one effective vote; a changed vote moves, never adds<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Near-real-time results</td><td>Live tally visible within a few seconds; sub-second is nice, not required</td></tr>
+    <tr><td>Accuracy &gt; latency at close</td><td>The displayed live count may lag; the <i>final</i> count is authoritative and reconciled<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>Absorb spikes</td><td>A poll on a live broadcast can 50–100× in seconds; never drop or block a vote</td></tr>
+  </table>
+  <div class="box">
+    <b>The key tension:</b> viewers want the bar to move <i>now</i>, but the result that decides a winner must be <i>provably correct</i>. You cannot get instant <i>and</i> authoritative from the same number cheaply. So you build two: an eventually-consistent live tally fed by an aggregation pipeline (fast, approximate, may lag) and a durable per-vote ledger that is the source of truth (slower, exact, replayable). Naming "the live number is eventually consistent, the final number is authoritative" is the unlock.<a href="#c3" class="cite">[3]</a>
+  </div>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that change a decision: per-poll write spikes (does one poll melt?), the read/write skew (do we cache?), and storage of the ledger (does exact dedup fit?).</p>
+  <div class="box">
+    <ul>
+      <li><b>Spiky writes:</b> a poll on a live TV moment might take <b>10M votes in 5 minutes</b> ≈ <b>~33K votes/sec</b> average, peaking <b>2–3×</b> ⇒ <b>~100K write QPS onto one poll</b>. A single row/key serializes that. <b>Implication: shard the per-option counter and buffer in a queue (DD3).</b></li>
+      <li><b>Read/write skew:</b> every viewer polls or subscribes for the live tally; reads can be <b>100×–1000×</b> writes ⇒ <b>millions of read QPS</b>. <b>Implication: reads served from a cached tally, never from the live ledger.</b></li>
+      <li><b>Ledger storage:</b> one vote row is ~tens of bytes (<code>pollId, userId, optionId, ts</code>). Even 10M votes/poll is a few hundred MB — <b>trivial</b>, and it gives us exact dedup and a recount. Keep the ledger; it is the source of truth.</li>
+      <li><b>Dedup set:</b> a bitmap/set of <code>(pollId, userId)</code> is small per poll and answers "has this user voted?" in O(1) without scanning the ledger.</li>
+    </ul>
+    <b>Design implication:</b> you never scale for storage — you scale to defeat <i>per-poll</i> write contention during spikes and to serve the live tally from cache while a durable ledger guarantees the final number.
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <h3>Entities</h3>
+  <table>
+    <tr><th>Entity</th><th>Fields (sketch)</th></tr>
+    <tr><td>Poll</td><td><code>pollId</code>, <code>options[]</code>, <code>mode</code> (<code>latest-wins</code>/<code>one-shot</code>), <code>status</code> (<code>open</code>/<code>closed</code>), <code>closesAt</code></td></tr>
+    <tr><td>Vote</td><td><code>pollId</code>, <code>userId</code>, <code>optionId</code>, <code>ts</code> — the durable ledger row; PK <code>(pollId, userId)</code> makes it an upsert (DD1)</td></tr>
+    <tr><td>Tally</td><td><code>pollId</code>, <code>optionId</code>, <code>count</code> — logically one number per option, physically N shards; the cached live view (DD2)</td></tr>
+  </table>
+  <h3>API</h3>
+  <p>Derive <code>userId</code> from the auth token, never the body. The write is a <i>command</i> ("user U chose option O"), not a raw "+1", so the server can dedup and apply latest-wins.</p>
+  <div class="box">
+    <ul>
+      <li><code>POST /v1/polls/{id}/votes</code> — body <code>{ optionId }</code>; user from JWT. Idempotent upsert keyed by <code>(pollId, userId)</code>. Returns <code>202 Accepted</code> (tally is async-aggregated).</li>
+      <li><code>DELETE /v1/polls/{id}/votes</code> — retract this user's vote (where allowed). Also idempotent.</li>
+      <li><code>GET /v1/polls/{id}/results</code> — returns the (eventually consistent) live per-option tally. Cache-served, may be a few seconds stale.</li>
+      <li><code>POST /v1/polls/{id}/close</code> — admin/scheduled; freezes status and triggers the authoritative recount from the ledger.</li>
+      <li><code>GET /v1/polls/{id}/results?final=true</code> — returns the reconciled final result once closed.</li>
+    </ul>
+  </div>
+
+  <h2>High-Level Design</h2>
+  <p>Two deliberately separated paths: a thin async <b>write path</b> (vote command → dedup/upsert ledger → aggregate into sharded tally) and a fat cached <b>read path</b> (cache → sum shards on miss). The ledger is durable truth; the tally is a fast projection of it.</p>
+  <table>
+    <tr><th>Component</th><th>Responsibility</th></tr>
+    <tr><td>Vote Service</td><td>Auth, rate-limit, builds <code>(pollId, userId)</code> key, emits a VoteEvent; serves results from cache</td></tr>
+    <tr><td>Event queue (Kafka)</td><td>Durable buffer partitioned by <code>pollId</code>; absorbs spikes and decouples vote rate from DB write rate<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Vote ledger (DB)</td><td>Source of truth — one upsertable row per <code>(pollId, userId)</code>; enables exact recount &amp; audit<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Aggregator (Flink / stream)</td><td>Applies latest-wins, computes per-option per-shard deltas over a window, flushes to the tally<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Tally store (sharded)</td><td>N sub-counters per <code>(pollId, optionId)</code> — the <a href="0048-distributed-counter.html">distributed counter</a> pattern</td></tr>
+    <tr><td>Results cache (Redis)</td><td>Serves the hot read path; holds the summed per-option totals, TTL'd to bound staleness</td></tr>
+  </table>
+  <div class="box">
+    <b>Why async aggregation, not a synchronous <code>+1</code>:</b> a synchronous increment couples vote throughput to the durable store's per-row lock and round-trip — exactly what dies in a spike. Writing each vote to a durable ledger and a buffered log, then aggregating into the tally, turns a flood of tiny writes into batched deltas. The DB sees a trickle, the queue eats the spike, and the live tally is a cheap projection you can always rebuild from the ledger.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Deep Dives</h2>
+
+  <h3>Deep Dive 1 — Idempotent, one-per-user vote recording (latest-wins)</h3>
+  <p>The rule "one vote per user" is enforced by the <b>primary key</b>, not by application checks. Make the ledger row's PK <code>(pollId, userId)</code> and every vote an <b>upsert</b>: the first vote inserts, a changed vote overwrites (<i>latest-wins</i>), and a duplicate/retry is a harmless no-op writing the same value. There is no path that produces two rows for one user, so retries, double-clicks, and at-least-once queue redeliveries all <b>converge</b> to one effective vote.<a href="#c2" class="cite">[2]</a></p>
+  <p>For the strict <b>one-shot</b> variant ("you can't change your vote"), use insert-if-absent: a conditional write (<code>INSERT … IF NOT EXISTS</code> / DynamoDB condition expression) that the second attempt fails cleanly. A raw "+1 to option O" command can't do either — it has no identity to dedup on — which is why the write must carry the <code>userId</code> and target a <i>state</i>, not a delta.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Approach</th><th>How</th><th>Verdict</th></tr>
+    <tr><td>App-level "check then insert"</td><td>Read "has voted?", then write</td><td>TOCTOU race — two concurrent votes both pass the check</td></tr>
+    <tr><td><b>Upsert on <code>(pollId, userId)</code></b></td><td>PK enforces one row; write overwrites</td><td>Latest-wins, idempotent — the standard pick<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Conditional insert-if-absent</td><td>Atomic create; second write rejected</td><td>The one-shot variant — same machine, one flag</td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior answer is "check if they voted, then count it." The staff answer is "I won't check — I'll make the <b>data model</b> enforce it." Pushing uniqueness into a primary key or conditional write removes an entire class of race conditions for free, and it means an idempotent retry can't corrupt the tally. Stating the <i>mode flag</i> (latest-wins vs one-shot) as a one-line config rather than two systems is the judgement signal.<a href="#c2" class="cite">[2]</a>
+  </div>
+
+  <h3>Deep Dive 2 — Durable source of truth vs fast cached tally (accuracy vs latency)</h3>
+  <p>Here is the heart of the problem: the number viewers watch and the number that decides the result are <b>not the same number</b>. The live tally is an eventually-consistent projection produced by the aggregation pipeline — fast, cacheable, and allowed to lag by seconds. The <b>ledger</b> is the authoritative source of truth: every vote, durably stored, recountable on demand.<a href="#c3" class="cite">[3]</a> Treat the live tally like a read-model in CQRS and the ledger like the event store behind it.</p>
+  <table>
+    <tr><th>Number</th><th>Source</th><th>Consistency</th><th>Used for</th></tr>
+    <tr><td>Live tally</td><td>Sharded counter, fed by aggregator</td><td>Eventually consistent, seconds of lag</td><td>The bar viewers watch move</td></tr>
+    <tr><td><b>Final result</b></td><td>Recount over the durable ledger</td><td>Strongly consistent, exact</td><td>Declaring a winner / audit</td></tr>
+  </table>
+  <p>When a poll <b>closes</b>, you stop accepting writes, drain the queue, and run an authoritative aggregation directly over the ledger — this is the moment <b>accuracy beats latency</b>. The final number may differ from the last live number by the in-flight votes; reconciling to the ledger value is correct, and because each vote is one idempotent row, the recount is deterministic and replayable. This links straight to the <a href="0048-distributed-counter.html">distributed counter</a>: the live tally <i>is</i> a sharded counter, and the trick is knowing it's the approximate view, not the truth.<a href="#c1" class="cite">[1]</a></p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    "Which number is allowed to be wrong?" is the question that separates levels. Staff candidates declare the live tally <b>eventually consistent</b> and cheap, keep an <b>authoritative ledger</b> for the final result, and reconcile to it at close — paying for strong consistency only at the one moment a human decides a winner. Treating the displayed count as truth, or trying to make every read strongly consistent under a spike, is the senior trap.<a href="#c3" class="cite">[3]</a>
+  </div>
+
+  <h3>Deep Dive 3 — Surviving spikes: queue + async aggregation</h3>
+  <p>A poll tied to a live broadcast goes from a trickle to <b>~100K votes/sec onto one poll</b> in seconds. If the request thread writes the durable store synchronously, the per-row lock serializes every vote and the service falls over exactly when it matters. The fix is two-fold: <b>absorb</b> the spike in a durable queue and <b>spread</b> the counter so no single key is contended.<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <b>The life of one vote under load:</b>
+    <ul>
+      <li>1. Vote Service authenticates, rate-limits, and writes the ledger upsert (or emits it), then appends a <b>VoteEvent</b> to Kafka partitioned by <code>pollId</code> — returns <code>202</code> immediately.</li>
+      <li>2. Kafka <b>buffers</b> the burst; the DB never sees 100K QPS, only the aggregator's steady drain.</li>
+      <li>3. The <b>stream aggregator</b> applies latest-wins, batches per-option deltas across <b>N shards</b>, and flushes to the sharded tally every window.</li>
+      <li>4. Reads hit the <b>results cache</b>; on miss it sums the N shards per option and re-caches with a short TTL. Millions of reads, near-zero contention.</li>
+    </ul>
+  </div>
+  <p>Sharding the per-option counter (see <a href="0048-distributed-counter.html">distributed counter</a>) gives N× write parallelism; the queue gives elasticity and <b>replay</b> — if the aggregator dies, you reprocess from the last committed offset and the tally rebuilds, losing nothing.<a href="#c1" class="cite">[1]</a></p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Naming "this poll is a hot key during a spike" before the interviewer, then reaching for a <b>queue to absorb</b> plus a <b>sharded counter to spread</b> — instead of a bigger database — is the move. The subtle staff point: the queue isn't just for throughput, it's for <b>durability and replay</b>, which is what lets you guarantee the final tally even if the live aggregator crashes mid-spike.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h3>Deep Dive 4 — Preventing fraud &amp; bot voting; auditability</h3>
+  <p>"One vote per user" is only as strong as the identity behind it. Integrity has layers, and you state the threat model explicitly: casual double-voting is stopped by the PK (DD1), but <b>ballot-stuffing</b> and bots need defense before the vote is even recorded.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Threat</th><th>Defense</th></tr>
+    <tr><td>Retry / double-click</td><td>Idempotent upsert on <code>(pollId, userId)</code> — already free (DD1)</td></tr>
+    <tr><td>One user, many requests</td><td>Per-user <a href="0022-rate-limiter.html">rate limiting</a> at the edge before the write</td></tr>
+    <tr><td>Bots / scripted floods</td><td>Auth required, device/IP rate limits, CAPTCHA or proof-of-work on signup</td></tr>
+    <tr><td>Sybil / fake accounts</td><td>Verified identity (phone/email), trust scoring — the residual hard problem</td></tr>
+  </table>
+  <p>The <b>ledger doubles as the audit log</b>: because every vote is a durable, timestamped, per-user row, you can recount, prove the result, and retroactively void votes from accounts later flagged as fraudulent — then re-aggregate. Append-only ledgers are what make a voting result <b>defensible</b>, not just fast. See the <a href="0022-rate-limiter.html">rate limiter</a> for the per-identity throttle and <a href="0010-common-patterns.html">common patterns</a> for the CQRS read/write split underpinning the dual-number design.<a href="#c1" class="cite">[1]</a></p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Stating the <b>threat model</b> out loud — "what does an attacker gain, and how do they cheat?" — then layering rate limiting + auth + a recountable ledger, shows you treat integrity as a first-class requirement, not an afterthought. The depth move is recognizing the ledger is simultaneously the source of truth, the audit trail, and the remediation tool: void fraudulent rows and re-aggregate, with no guesswork.<a href="#c2" class="cite">[2]</a>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. What is the cleanest way to enforce "one vote per user" with latest-wins semantics?</p>
+      <button class="opt">Read whether the user already voted in the poll and then insert a brand new ledger row</button>
+      <button class="opt">Upsert a single ledger row whose primary key is the pair of poll id and the user id</button>
+      <button class="opt">Lock the entire poll for the request so no other vote can be processed at the same time</button>
+      <button class="opt">Add more counter shards until the duplicate votes statistically cancel one another out</button>
+      <p class="fb">A PK of <code>(pollId, userId)</code> makes the write an idempotent upsert — first vote inserts, a change overwrites, retries are no-ops. No race, no double count.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. Why keep a durable per-vote ledger separate from the fast cached live tally?</p>
+      <button class="opt">The cache cannot hold integers so the ledger is needed to convert each value to text</button>
+      <button class="opt">The ledger is faster to read than the cache so viewers see the bar update more quickly</button>
+      <button class="opt">The tally is approximate and may lag; the ledger is the exact, recountable source of truth</button>
+      <button class="opt">The ledger removes the need for any queue because writes never spike on a busy live poll</button>
+      <p class="fb">The live tally is an eventually-consistent projection; the ledger is the authoritative source you recount at close, when accuracy must beat latency.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. How do you keep a single poll alive when votes spike to ~100K/sec in seconds?</p>
+      <button class="opt">Buffer votes in a durable queue and aggregate into a sharded per-option counter async</button>
+      <button class="opt">Write every incoming vote synchronously into one durable row to keep counts strongly exact</button>
+      <button class="opt">Reject all votes above a fixed limit so the database never has to handle the heavy burst</button>
+      <button class="opt">Store each vote inside the read cache only and skip the durable database write entirely now</button>
+      <p class="fb">A queue absorbs the burst (and enables replay) while sharding the counter spreads writes across N keys — neither a single row nor synchronous writes survive the spike.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Beyond the primary key, what stops organized ballot-stuffing and bot voting?</p>
+      <button class="opt">Summing more counter shards on each read so fraudulent votes get diluted across them</button>
+      <button class="opt">Per-identity rate limiting plus required auth, with the ledger enabling void-and-recount</button>
+      <button class="opt">Making the live tally strongly consistent so attackers can never see the count drift at all</button>
+      <button class="opt">Returning a 202 for every vote so a script cannot tell whether its vote was recorded yet</button>
+      <p class="fb">Idempotency stops accidental duplicates; deliberate fraud needs auth + rate limiting at the edge, and the append-only ledger lets you void flagged votes and re-aggregate.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this one — push on it:
+    <ul>
+      <li>"Walk me through closing a poll: how do I drain in-flight votes and reconcile the live tally to the ledger without double counting?"</li>
+      <li>"Compare latest-wins vs one-shot voting at the data layer — what exactly changes in the write path and why?"</li>
+      <li>"Quiz me as the interviewer: ramp one poll from 100 votes/sec to 100K during a live show and make me re-architect at each step."</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ad-click-aggregator">Hello Interview — Ad Click Aggregator breakdown</a>. The closest canonical walkthrough of a write-aggregation pipeline — queue buffering, stream aggregation, hot-key handling, and the eventually-consistent live view vs exact reconciled total — which maps directly onto recording and tallying votes at scale. Pair it with this course's <a href="0048-distributed-counter.html">distributed counter</a> lesson for the sharded-tally mechanics.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ad-click-aggregator">Hello Interview — Ad Click Aggregator</a> (write-aggregation pipeline shape: durable queue partitioned by key, async stream aggregation vs synchronous increments, replay for durability, eventually-consistent live view vs reconciled total).</p>
+    <p id="c2">[2] <a href="https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/WorkingWithItems.html#WorkingWithItems.ConditionalUpdate">AWS DynamoDB — Conditional writes &amp; idempotent updates</a> (enforcing uniqueness/one-per-user via primary key and condition expressions; insert-if-absent vs upsert for latest-wins).</p>
+    <p id="c3">[3] <a href="https://jepsen.io/consistency/models/eventual">Jepsen — Eventual consistency</a> (eventual consistency model: replicas converge over time; appropriate for a live tally that tolerates bounded staleness while a separate authoritative path stays exact).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0076-logging-tracing.html">← Lesson 76</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 78 · Music Recognition (Shazam)</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

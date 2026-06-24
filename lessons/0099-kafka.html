@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 99 — Deep Dive: Apache Kafka</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 99 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Apache Kafka</h1>
+  <p class="sub">A distributed commit log dressed as a message system — understand the log and partition model and you can reason about almost everything it does.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> At L6/L7, dropping a "Kafka" box on the board is table stakes. The interviewer wants to see that you know <em>why</em> it is fast (append-only log + page cache + zero-copy), <em>what</em> the partition really buys you (parallelism and ordering, but only <em>within</em> a partition), how it stays durable (replication, ISR, <code>acks</code>), and the exact delivery guarantee you are signing up for. The staff move is choosing Kafka for a <em>stream</em> and explicitly <em>not</em> for a task queue — and naming the tradeoff before you're asked.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>What it is &amp; the log model</h2>
+  <p>Kafka is a distributed, durable <b>append-only commit log</b> exposed as a publish/subscribe system.<a href="#c1" class="cite">[1]</a> Producers append records to the end of a log; consumers read forward from a position they control. The mental model that unlocks everything: it is not a queue that deletes messages on read — it is a <em>replayable log</em> that retains records and lets many independent readers move through it at their own pace.<a href="#c2" class="cite">[2]</a></p>
+  <p>The core vocabulary:</p>
+  <table>
+    <thead><tr><th>Term</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td><b>Topic</b></td><td>A named stream of records (e.g. <code>clicks</code>); the logical channel<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><b>Partition</b></td><td>An ordered, immutable log; a topic is split into N of them<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><b>Offset</b></td><td>The monotonic position of a record within one partition<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><b>Producer</b></td><td>Appends records, choosing the partition (often by key)<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><b>Consumer group</b></td><td>A set of consumers sharing the work of a topic's partitions<a href="#c3" class="cite">[3]</a></td></tr>
+    </tbody>
+  </table>
+  <p>Within a <b>consumer group</b>, each partition is read by exactly one consumer, so the group splits the topic's throughput across its members.<a href="#c3" class="cite">[3]</a> Different groups are independent — the <code>analytics</code> group and the <code>billing</code> group each read the whole topic without interfering, because each tracks its own offsets. That single design choice is why Kafka serves both fan-out streaming and load-balanced consumption from one log.</p>
+
+  <h2>Internals — the part that earns depth</h2>
+
+  <h3>The partition: unit of parallelism and ordering</h3>
+  <p>The partition is the atom of Kafka. It is the <b>unit of parallelism</b> — more partitions means more consumers can read in parallel, so a topic's throughput ceiling is set by its partition count.<a href="#c2" class="cite">[2]</a> It is also the <b>unit of ordering</b>: Kafka guarantees order <em>only within a single partition</em>, never across them.<a href="#c2" class="cite">[2]</a> This is the most common Kafka misconception and a favourite interview trap — "Kafka is ordered" is false; "Kafka is ordered per partition" is the correct, staff-level statement.</p>
+  <p>So if every event for one user must be processed in order, you must route them to the <em>same</em> partition — which is exactly what the producer key does (below). The cost of ordering is concentration: a hot key sends all its traffic to one partition, capping that key's throughput at one consumer.</p>
+
+  <h3>Why it's fast: segments, page cache, zero-copy</h3>
+  <p>Kafka's throughput comes from refusing to be clever. Each partition is stored on disk as a sequence of <b>segment files</b>, and writes are pure <em>sequential</em> appends — which on spinning and SSD media is dramatically faster than random I/O.<a href="#c4" class="cite">[4]</a> It deliberately does <em>not</em> maintain a per-message index in memory; the offset and the file layout are enough.</p>
+  <p>Two more tricks do the heavy lifting:</p>
+  <ul>
+    <li><b>OS page cache, not a JVM cache.</b> Kafka writes to the filesystem and lets the operating system's page cache hold hot data. Recently written records are usually still in cache, so consumers reading the tail of the log serve from RAM without Kafka managing a heap cache.<a href="#c4" class="cite">[4]</a></li>
+    <li><b>Zero-copy with <code>sendfile</code>.</b> To ship bytes from disk to a consumer's socket, Kafka uses the <code>sendfile</code> system call, which copies data straight from the page cache to the network card, skipping the trip through application memory and the redundant copies it implies.<a href="#c4" class="cite">[4]</a></li>
+  </ul>
+  <p>The payoff: Kafka moves data at close to network/disk hardware limits because the bytes barely touch user space. This is the "why is it fast" answer interviewers are fishing for — sequential I/O + page cache + zero-copy, not a magic in-memory store.</p>
+
+  <h3>Replication: leaders, followers, ISR, and acks</h3>
+  <p>Each partition is replicated across brokers for durability. One replica is the <b>leader</b> (all reads and writes go through it); the others are <b>followers</b> that pull the leader's log to stay current.<a href="#c5" class="cite">[5]</a> The followers that are sufficiently caught up form the <b>in-sync replica set (ISR)</b>. A record is considered <em>committed</em> once all in-sync replicas have it; only committed records are ever handed to consumers.<a href="#c5" class="cite">[5]</a> If the leader dies, a broker is elected from the ISR, so no acknowledged data is lost.</p>
+  <p>The producer chooses how much durability to pay for via <code>acks</code>:</p>
+  <table>
+    <thead><tr><th>acks</th><th>Leader waits for</th><th>Tradeoff</th></tr></thead>
+    <tbody>
+      <tr><td><code>acks=0</code></td><td>Nothing — fire and forget</td><td>Fastest; can silently lose records on failure<a href="#c5" class="cite">[5]</a></td></tr>
+      <tr><td><code>acks=1</code></td><td>Leader write only</td><td>Loses data if the leader dies before followers copy<a href="#c5" class="cite">[5]</a></td></tr>
+      <tr><td><code>acks=all</code></td><td>All in-sync replicas</td><td>Strongest durability; higher write latency cost<a href="#c5" class="cite">[5]</a></td></tr>
+    </tbody>
+  </table>
+  <p>Staff signal: pair <code>acks=all</code> with <code>min.insync.replicas</code> so a write fails fast rather than silently weakening durability when replicas fall out of the ISR.<a href="#c5" class="cite">[5]</a></p>
+
+  <h3>Retention: the log is the storage</h3>
+  <p>Kafka does not delete a record when it is consumed. It keeps records for a configured <b>retention</b> window — by time (e.g. 7 days) or by size — independent of who has read them.<a href="#c2" class="cite">[2]</a> This is why a new consumer group can replay history from offset zero, and why a buggy downstream can be fixed and re-run. <b>Log compaction</b> is the alternative policy: instead of dropping by age, it retains the latest record per key, turning the topic into a durable changelog of current state.<a href="#c2" class="cite">[2]</a></p>
+
+  <h2>Delivery semantics</h2>
+  <p>What guarantee you get depends on how producers and consumers handle failure and offsets — this is the highest-leverage thing to get right in an interview.</p>
+  <table>
+    <thead><tr><th>Guarantee</th><th>How you get it</th><th>Risk</th></tr></thead>
+    <tbody>
+      <tr><td><b>At-most-once</b></td><td>Commit offset before processing</td><td>Crash loses the in-flight record<a href="#c6" class="cite">[6]</a></td></tr>
+      <tr><td><b>At-least-once</b></td><td>Process, then commit the offset</td><td>Crash reprocesses — needs idempotency<a href="#c6" class="cite">[6]</a></td></tr>
+      <tr><td><b>Exactly-once</b></td><td>Idempotent producer + transactions</td><td>More overhead; Kafka-to-Kafka scope<a href="#c6" class="cite">[6]</a></td></tr>
+    </tbody>
+  </table>
+  <p><b>At-least-once</b> is the sane default: process the record, then commit the offset, and make your handler <em>idempotent</em> so a replay is harmless.<a href="#c6" class="cite">[6]</a> <b>Exactly-once</b> is real but narrow: the <b>idempotent producer</b> dedupes retried sends so a network hiccup doesn't double-append, and <b>transactions</b> let a consume-process-produce cycle commit its output records and input offsets atomically.<a href="#c6" class="cite">[6]</a> The honest framing: exactly-once is a Kafka-to-Kafka property — once you write to an external database or call an API, you're back to needing idempotency at the boundary.</p>
+
+  <h3>Rebalancing and keys</h3>
+  <p>When a consumer joins or leaves a group, Kafka triggers a <b>rebalance</b> that reassigns partitions across the surviving members.<a href="#c3" class="cite">[3]</a> During a rebalance, consumption briefly pauses — frequent rebalances (from flapping consumers or slow processing) are a real-world throughput killer, which is why staff candidates mention tuning session/heartbeat timeouts and using cooperative rebalancing.</p>
+  <p>Because order is per-partition, the <b>producer key</b> is your ordering and locality control: Kafka hashes the key to pick a partition, so all records with the same key (say <code>user_id</code>) land on the same partition and are read in order by one consumer.<a href="#c2" class="cite">[2]</a> Choose the key to match your ordering requirement — and beware that a skewed key distribution creates a hot partition.</p>
+
+  <h2>When to reach for it / when NOT to</h2>
+  <p>Kafka is a <em>stream / event log</em>, not a <em>task queue</em>. That distinction is the whole decision.</p>
+  <table>
+    <thead><tr><th>Reach for Kafka when…</th><th>Reach for RabbitMQ / SQS when…</th></tr></thead>
+    <tbody>
+      <tr><td>High-throughput event streams &amp; pipelines<a href="#c1" class="cite">[1]</a></td><td>Discrete background jobs / task work queue</td></tr>
+      <tr><td>Many independent consumers replay the same data<a href="#c2" class="cite">[2]</a></td><td>Per-message ack, retry, and dead-letter queues</td></tr>
+      <tr><td>Durable, ordered (per-key) event sourcing / CDC<a href="#c2" class="cite">[2]</a></td><td>Routing / fan-out by topic-exchange rules (Rabbit)</td></tr>
+      <tr><td>You need to retain &amp; reprocess history<a href="#c2" class="cite">[2]</a></td><td>You want a managed, zero-ops queue (SQS)</td></tr>
+    </tbody>
+  </table>
+  <p>The trap: using Kafka as a job queue. Kafka has no per-message acknowledgement or built-in delivery-retry/dead-letter per record — progress is a single offset per partition, so one slow "poison" message blocks the partition behind it. For task queues with redrive and visibility timeouts, a broker like RabbitMQ or SQS is the right tool. We cover that side in <a href="../lessons/0044-distributed-message-queue.html">Lesson 44 — Distributed Message Queue</a>, and Kafka in a real pipeline in <a href="../lessons/0036-ad-click-aggregator.html">Lesson 36 — Ad Click Aggregator</a>.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Seniors say "I'll put Kafka here." Staff candidates reason from the log model in one breath: "It's an append-only log, so it's fast via sequential I/O, page cache, and zero-copy <code>sendfile</code>; the partition is my unit of parallelism <em>and</em> ordering, so I'll key by <code>user_id</code> to keep per-user order, accept at-least-once and make consumers idempotent, and run <code>acks=all</code> with <code>min.insync.replicas=2</code>." And they <b>name the boundary proactively</b>: "this is an event stream — if these were discrete tasks needing per-message retry and a DLQ, I'd use SQS, not Kafka." Knowing the internals, picking the matching guarantee, and refusing to force Kafka into a task-queue shape is the judgement the bar rewards.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When you draw a Kafka box, justify it in one line ("durable, replayable event stream feeding the aggregator"), then be ready for the predictable follow-ups: <em>"How do you guarantee ordering?"</em> (per-partition only; key by the entity that needs order) and <em>"What delivery guarantee?"</em> (at-least-once + idempotent consumers, or transactions for exactly-once Kafka-to-Kafka).<a href="#c6" class="cite">[6]</a> Mentioning page cache + zero-copy when asked why it's fast, or <code>acks=all</code> with <code>min.insync.replicas</code> for durability, signals hands-on depth.<a href="#c4" class="cite">[4]</a> Don't over-explain pub/sub basics — and don't reflexively reach for Kafka when the requirement is a simple task queue.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. What ordering guarantee does Kafka actually provide?</p>
+      <button class="opt">Global ordering across every partition within the topic now</button>
+      <button class="opt">Ordering only within a single partition of the given topic</button>
+      <button class="opt">Ordering across all topics that share one consumer group</button>
+      <button class="opt">Ordering by wall-clock timestamp across the whole cluster</button>
+      <p class="fb">Kafka guarantees order only inside one partition; route same-key records together to preserve it.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. Why can Kafka move data at near hardware speed?</p>
+      <button class="opt">It keeps every record in a large in-memory JVM heap cache</button>
+      <button class="opt">It indexes each message so random reads stay extremely fast</button>
+      <button class="opt">It uses sequential appends, the page cache, and zero-copy I/O</button>
+      <button class="opt">It compresses all records into a single shared columnar file</button>
+      <p class="fb">Sequential disk writes, OS page cache, and sendfile zero-copy keep bytes out of user space.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. With <code>acks=all</code>, when is a produced record committed?</p>
+      <button class="opt">After every in-sync replica has written the record to its log</button>
+      <button class="opt">After the producer client finishes serializing the record now</button>
+      <button class="opt">After any one consumer group reads the record from the leader</button>
+      <button class="opt">After the leader broker alone writes the record to its disk</button>
+      <p class="fb">A record is committed once all in-sync replicas hold it; only committed records reach consumers.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. Which workload is the wrong fit for Kafka here?</p>
+      <button class="opt">A high-volume event stream replayed by many reader groups</button>
+      <button class="opt">A durable changelog of latest state per key via compaction</button>
+      <button class="opt">A click pipeline feeding a downstream real-time aggregator</button>
+      <button class="opt">A task queue needing per-message retry and dead-letter redrive</button>
+      <p class="fb">Per-message ack, retry, and DLQ point to RabbitMQ or SQS; Kafka tracks one offset per partition.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Quiz me on per-partition ordering and how the producer key controls it." · "Walk me through exactly how to get exactly-once and where it stops working." · "Give me a FAANG prompt and push me on Kafka vs SQS for the consumer side."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://kafka.apache.org/documentation/">Apache Kafka Documentation</a>. The canonical reference — read the Design chapter (persistence, efficiency/zero-copy, replication) and the Semantics/Delivery section. Pair it with the original <a href="https://notes.stephenholiday.com/Kafka.pdf">LinkedIn Kafka paper</a> for the design rationale, and the <a href="../reference/glossary.html">glossary</a>.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/key-technologies">Hello Interview — Key Technologies for System Design Interviews</a> (Kafka as a stream/event-log, not a task queue; pick the tool for the requirement).</p>
+    <p id="c2">[2] <a href="https://kafka.apache.org/documentation/#intro_concepts_and_terms">Apache Kafka Docs — Topics, Partitions, Offsets &amp; Retention</a> (append-only log, per-partition order, retention, compaction).</p>
+    <p id="c3">[3] <a href="https://kafka.apache.org/documentation/#intro_consumers">Apache Kafka Docs — Consumer Groups &amp; Rebalancing</a> (one consumer per partition per group; rebalance).</p>
+    <p id="c4">[4] <a href="https://kafka.apache.org/documentation/#design">Apache Kafka Docs — Design: Persistence &amp; Efficiency</a> (sequential I/O, page cache, zero-copy sendfile).</p>
+    <p id="c5">[5] <a href="https://kafka.apache.org/documentation/#replication">Apache Kafka Docs — Replication, ISR &amp; Producer acks</a> (leader/follower, in-sync replicas, acks levels).</p>
+    <p id="c6">[6] <a href="https://kafka.apache.org/documentation/#semantics">Apache Kafka Docs — Message Delivery Semantics</a> (at-least-once, idempotent producer, transactions / exactly-once).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0098-graph-db-neo4j.html">← Lesson 98</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 100 · Message Queues (RabbitMQ/SQS/SNS)</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

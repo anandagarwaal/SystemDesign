@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 28 — Design Top-K (YouTube Top-K Videos)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 28 · Phase 4 — Case Study · Hard</p>
+  <h1>Design Top-K (YouTube Top-K Videos)</h1>
+  <p class="sub">A firehose of view events in, the current top K most-viewed videos out — at scale, exactness is the trap.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Top-K is the canonical <em>streaming-analytics</em> interview. The whole problem turns on one judgment call senior candidates miss and staff candidates reach for instinctively: you cannot keep an exact, globally-sorted count for billions of events per minute, so you trade a sliver of accuracy for orders of magnitude of capacity. Knowing <em>when and why</em> to approximate — and how to avoid a single hot aggregator — is the L6/L7 signal.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Strip the prompt to the few things the system must do. For Top-K, everything orbits one query.</p>
+  <table>
+    <tr><th>#</th><th>Requirement</th></tr>
+    <tr><td>1</td><td>Given a massive stream of view events, return the <b>top K most-viewed videos</b> over a requested time window — e.g. last hour, last day, last month, or all-time.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>2</td><td>K is small and bounded — cap at <code>K ≤ 1,000</code>. We serve the <em>current</em> window, not arbitrary historical ranges.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>3</td><td>Counts are correct enough to rank reliably; a near-tie at rank 998 is acceptable noise.</td></tr>
+  </table>
+  <p><b>Explicitly out of scope</b> (say this out loud — scoping is a staff move): arbitrary start/end ranges, per-user or per-region top-K, and "top videos as of last Tuesday." Pin the windows to a fixed menu and the design simplifies enormously.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>NFR</th><th>Target & priority</th></tr>
+    <tr><td><b>High ingest throughput</b></td><td>Absorb the full view firehose — hundreds of thousands of events/sec — without backpressure dropping events. This is the dominant constraint.</td></tr>
+    <tr><td><b>Low-latency reads</b></td><td>Top-K query returns in <b>tens of milliseconds</b><a href="#c1" class="cite">[1]</a>. Reads vastly outnumber the cost of any single write path.</td></tr>
+    <tr><td><b>Approximate is acceptable</b></td><td>The ranking can be slightly off in the tail. This single concession unlocks the staff-grade design.</td></tr>
+    <tr><td><b>Bounded freshness</b></td><td>A view should be reflected within ~1 minute of occurring<a href="#c1" class="cite">[1]</a> — near-real-time, not strict real-time.</td></tr>
+    <tr><td><b>Scalable & elastic</b></td><td>Throughput grows with the catalog; no component may become a single global bottleneck.</td></tr>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The interviewer rarely hands you "approximate is fine." <b>You propose it.</b> Stating early that the ranking tolerates small error is what licenses Count-Min Sketch and probabilistic counting later. A senior candidate builds an exact system and then struggles to scale it; a staff candidate negotiates the relaxed NFR up front and designs straight to the cheap solution.
+  </div>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute the numbers that change the design. Three matter: ingest rate, distinct videos, and K.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>View events/sec</td><td>~70B views/day ÷ ~100k effective sec/day ≈ <b>700k events/sec</b><a href="#c1" class="cite">[1]</a></td><td>Far past what one node or one DB row counter can absorb. Forces partitioning of the ingest path.</td></tr>
+    <tr><td>Distinct videos</td><td>~1M new/day → <b>billions</b> over a decade<a href="#c1" class="cite">[1]</a></td><td>A naive id→count table is ~64 GB<a href="#c1" class="cite">[1]</a> and grows; keeping it sorted on every event is the real killer.</td></tr>
+    <tr><td>K</td><td>≤ 1,000</td><td>The <em>answer</em> is tiny. Only the <em>intermediate</em> count state is huge — the asymmetry is the whole problem.</td></tr>
+  </table>
+  <p>The punchline: the output fits in a kilobyte, but to produce it the naive approach wants a globally sorted structure over billions of keys updated 700k times a second. That tension drives every later decision.</p>
+
+  <h2>Core Entities & API</h2>
+  <p><b>Entities:</b> <code>View</code> (videoId + timestamp, the raw event), <code>VideoCount</code> (a videoId's view total within a window), and <code>TimeWindow</code> (the query spec — hour / day / month / all-time).<a href="#c1" class="cite">[1]</a></p>
+  <p>The read API is a single endpoint. Ingest is not a REST call — views arrive as a stream (next section), so we don't expose a public write route here.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>GET /v1/top-k?window={hour|day|month|all}&k={K}</code></td><td>Return the ranked list <code>[{ videoId, views }]</code> for the window, length ≤ K.<a href="#c1" class="cite">[1]</a> Caller identity (if any) comes from the auth token; the query itself is anonymous-readable.</td></tr>
+  </table>
+
+  <h2>Data Flow</h2>
+  <p>Top-K is a data-processing system, so trace the event end to end before drawing boxes. Five stages:</p>
+  <div class="box">
+    <ol style="margin:.2rem 0 .2rem 1.1rem; padding:0;">
+      <li><b>Emit</b> — a view fires a lightweight event <code>{videoId, ts}</code>.</li>
+      <li><b>Stream</b> — events land on a durable, partitioned log (Kafka), partitioned by <code>videoId</code>.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Count / aggregate</b> — a stream processor folds events into per-video, per-window counts, doing <em>local</em> aggregation per partition.</li>
+      <li><b>Maintain top-K</b> — each partition keeps its own partial top-K; a merge step combines partials into the global top-K.</li>
+      <li><b>Serve</b> — the precomputed top-K lands in a cache that the read API answers from in single-digit milliseconds.</li>
+    </ol>
+  </div>
+  <p>Stages 3 and 4 are where the design earns or loses its scalability — that's the two-level aggregation we deep-dive below. Stages 1–2 and 5 are mostly plumbing you've seen in other lessons.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Walk the request and the event separately. The write path (event) and read path (query) are fully decoupled — a hallmark of analytics systems.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>Kafka (view-events topic)</td><td>Durable buffer absorbing the 700k/sec firehose; partitioned by <code>videoId</code> so all of one video's views land on one partition.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Stream processor (Flink / Spark Streaming)</td><td>Reads partitions, aggregates into tumbling windows, maintains a local top-K heap per partition, and emits partial results.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Merger / global top-K job</td><td>Combines partial top-K lists across partitions into the true global top-K per window.</td></tr>
+    <tr><td>Materialized count store</td><td>Per-window rollup tables (<code>VideoViewsLastHour</code>, <code>…Day</code>, <code>…AllTime</code>) for durable, queryable aggregates.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Top-K cache (Redis)</td><td>Precomputed ranked lists keyed <code>top-k:{window}</code>; the read API serves directly from here.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Top-K read service</td><td>Stateless API in front of the cache; fans out to nothing on the hot path.</td></tr>
+  </table>
+  <p><b>Write path:</b> view → Kafka → stream processor (local aggregate + local top-K) → merger → count store / cache. <b>Read path:</b> <code>GET /v1/top-k</code> → read service → Redis lookup → return. Because the answer is precomputed, reads never touch the count store.</p>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1 · Why exact counting at scale is hard — the heavy-hitters problem</h3>
+  <p>The naive design: one row per video, <code>UPDATE counts SET views = views + 1 WHERE videoId = ?</code>, with an index on <code>views</code> so <code>ORDER BY views DESC LIMIT K</code> is cheap. It works on a laptop and collapses in production for two compounding reasons.</p>
+  <p><b>Write amplification from the sort.</b> The index that makes the read O(K) makes every write O(log n). At 700k writes/sec against a multi-billion-row index, you're re-balancing a B-tree on the hottest path in the system.<a href="#c1" class="cite">[1]</a> Drop the index and writes are O(1), but now the top-K query is a full scan over billions of rows — "prohibitively slow."<a href="#c1" class="cite">[1]</a> You cannot have both cheap writes and a globally sorted view of the data at this rate.</p>
+  <p><b>The state is enormous and skewed.</b> This is the classic <em>heavy hitters</em> problem: among billions of keys, find the few with the highest frequency in a stream you can only read once. The honest exact answer needs a counter for every distinct key (~64 GB and rising)<a href="#c1" class="cite">[1]</a> even though the result you return is a thousand entries. Keeping that whole structure consistent and sorted under a firehose is the wall every naive design hits.</p>
+
+  <h3>2 · Approximate counting — Count-Min Sketch + a min-heap</h3>
+  <p>Relax the precision NFR and the problem dissolves. Two cooperating structures replace the giant sorted table:</p>
+  <div class="box">
+    <b>Count-Min Sketch (CMS)</b> — a 2D array of counters with <em>d</em> hash functions. <code>add(videoId)</code> increments one cell per row; <code>estimate(videoId)</code> returns the <em>minimum</em> across those cells.<a href="#c1" class="cite">[1]</a> Collisions only ever inflate a count, so the min is an upper bound with a tunable, bounded error. Fixed size — <b>hundreds of MB, not 64 GB</b><a href="#c1" class="cite">[1]</a> — and O(1) per event regardless of how many distinct videos exist.
+    <ul style="margin-top:.6rem;">
+      <li><b>Min-heap of size K</b> — alongside the sketch, keep a heap of the current top K. On each event, estimate the video's count; if it beats the heap's minimum, insert/update and evict.</li>
+      <li><b>The tradeoff knob:</b> wider sketch (more columns) → less collision → tighter error → more memory. You dial accuracy against space directly. The true heavy hitters dominate their cells, so they're estimated accurately; only the long tail is fuzzy — exactly the part the NFR said we don't care about.</li>
+    </ul>
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Naming Count-Min Sketch isn't the signal — <em>justifying</em> it is. The staff framing: "the result is 1k entries but exact state is 64 GB and unsortable at 700k writes/sec; since we negotiated approximate ranking, a fixed-size sketch plus a K-heap gives O(1) updates and bounded error in the tail we don't rank on." That sentence connects the NFR, the bottleneck, and the data structure in one breath. Mention the alternative — Redis-native <code>CMS.INCRBY</code> + a sorted set — and its risk (data loss between the sketch update and the sorted-set write if Redis crashes)<a href="#c1" class="cite">[1]</a> to show you know more than one implementation.
+  </div>
+
+  <h3>3 · Windowing — fixed vs sliding, and expiring old counts</h3>
+  <p>"Top videos this hour" means counts must <em>forget</em>. How you forget is a real design fork.</p>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Cost / use</th></tr>
+    <tr><td><b>Tumbling (fixed) windows</b></td><td>Hard boundaries — the "last hour" is the current clock hour, not a rolling 60-min trailing window.<a href="#c1" class="cite">[1]</a> Each window gets its own sketch/heap; old windows are dropped wholesale.</td><td>Cheap, simple, no per-event expiry. Default choice; what the prompt's freshness NFR allows.</td></tr>
+    <tr><td><b>Sliding windows</b></td><td>True trailing 60 min, updated continuously: keep minute-grained buckets, <em>increment</em> by the newest minute and <em>decrement</em> by the minute falling out 60 ago.<a href="#c1" class="cite">[1]</a></td><td>Needs retained minute-level history and decrement logic. Reserve for "last hour" where smoothness matters; use tumbling for day/month.<a href="#c1" class="cite">[1]</a></td></tr>
+  </table>
+  <p><b>Multiple granularities</b> come nearly free: maintain separate windows (hour, day, month, all-time) in one pass and roll coarser grains up from finer ones. Expiry is just "stop reading the old window's structure," which is why fixed windows scale so well — there is no per-key cleanup.</p>
+
+  <h3>4 · The streaming pipeline — two-level local-then-global aggregation</h3>
+  <p>This is the deepest idea in the problem and the one that separates levels. The danger: if every event flows to one aggregator to update one global top-K, that aggregator is a single hot bottleneck choking on 700k/sec. The fix is to aggregate in two tiers.</p>
+  <div class="box">
+    <b>Level 1 — local (per partition).</b> Kafka is partitioned by <code>videoId</code>, so each Flink/Spark task owns a slice of videos and sees <em>all</em> events for them.<a href="#c1" class="cite">[1]</a> Each task keeps its own sketch + local top-K heap, aggregating into tumbling windows. No cross-task coordination on the hot path.<br><br>
+    <b>Level 2 — global (merge).</b> Each window's end, every task emits its small partial top-K. A merge step unions the partials and takes the overall top K.
+    <ul style="margin-top:.5rem;">
+      <li><b>Why this is correct:</b> a video in the global top-K must be in the top-K of <em>its own partition</em> (that partition saw all its views). So merging per-partition top-Ks cannot miss a global winner — it's "mathematically guaranteed to contain the global top K."<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Why it scales:</b> the firehose is spread across N tasks; only K×N tiny partial lists meet at the merge, never the raw events.</li>
+      <li><b>Fault tolerance:</b> Flink checkpoints sketch state (RocksDB-backed) and replays from Kafka offsets on failure<a href="#c1" class="cite">[1]</a> — the count state survives a crash without a global lock.</li>
+    </ul>
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Two-level aggregation is the "avoid a single hot aggregator" insight, and the partition-by-key correctness argument is what proves you understand <em>why</em> it works, not just that Flink does it. Pair it with the partition choice: keying Kafka by <code>videoId</code> is what makes local top-K complete per partition. Get the key wrong (e.g. round-robin) and the local-then-global guarantee breaks — articulating that dependency is the depth interviewers probe for.
+  </div>
+
+  <h3>5 · Serving — precompute and read from cache</h3>
+  <p>Reads need tens of ms and the answer is already computed by the pipeline, so the read path should touch almost nothing.</p>
+  <div class="box">
+    <b>Precompute over lazy cache.</b> A naive TTL cache (query the store on miss) means every expiry triggers a thundering-herd query against the count store and an SLA spike.<a href="#c1" class="cite">[1]</a> Instead, have the pipeline (or a short-interval job) <b>write the top-K list into Redis before the old entry expires</b><a href="#c1" class="cite">[1]</a>, keyed <code>top-k:{window}</code>, with a generous retention buffer.
+    <ul style="margin-top:.5rem;">
+      <li>Read path becomes a single key lookup → sub-millisecond, no store contention.</li>
+      <li>The materialized rollup tables (hour/day/month/all-time) back the precompute and serve as the durable source of truth if the cache is cold.<a href="#c1" class="cite">[1]</a></li>
+      <li>Because K ≤ 1,000, every cached value is tiny; the whole serving tier is trivially replicable for read scale and HA.</li>
+    </ul>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why does the naive single-table exact-count design fail at 700k events/sec?</p>
+      <button class="opt">Kafka cannot durably buffer that many events per second over a window</button>
+      <button class="opt">A sorted index makes writes O(log n); dropping it makes top-K a full scan</button>
+      <button class="opt">Redis runs out of memory storing the precomputed top-K list per window</button>
+      <button class="opt">The auth token lookup adds latency to every single inbound view event</button>
+      <p class="fb">You can't get cheap O(1) writes and a globally sorted view at once — that's the core tension.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. What does pairing a Count-Min Sketch with a size-K min-heap buy you?</p>
+      <button class="opt">Exact counts for all videos using far less memory than a counter table</button>
+      <button class="opt">Strict per-event ordering guarantees across every Kafka topic partition</button>
+      <button class="opt">O(1) updates in fixed memory with bounded error in the unranked tail</button>
+      <button class="opt">Sliding windows for free without retaining any minute-level history data</button>
+      <p class="fb">CMS is fixed-size and O(1); heavy hitters are estimated tightly, only the tail (which we don't rank) is fuzzy.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why is merging per-partition top-K lists guaranteed to find the global top-K?</p>
+      <button class="opt">Partitioning by videoId means a partition sees all of a video's views</button>
+      <button class="opt">The merger re-reads every raw event a second time to verify totals</button>
+      <button class="opt">Each partition holds an exact globally sorted index of all videos</button>
+      <button class="opt">Flink checkpoints to RocksDB so no partition can ever lose a count</button>
+      <p class="fb">A global winner must rank in its own partition's top-K, since that partition counted all its views.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why precompute the top-K into cache instead of a lazy TTL cache-on-miss?</p>
+      <button class="opt">Precomputing lets the read API skip the auth token check entirely</button>
+      <button class="opt">Lazy expiry triggers herd queries on the count store and SLA spikes</button>
+      <button class="opt">Redis cannot store lists, so values must be computed ahead of time</button>
+      <button class="opt">Precomputing converts approximate counts back into fully exact ones</button>
+      <p class="fb">Refreshing the entry before expiry keeps the read path a single key lookup with no store contention.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — push on it. Try: <em>"Walk me through sizing a Count-Min Sketch for 0.1% error on the top 1k."</em> · <em>"Show how the sliding-window increment/decrement bookkeeping actually works minute by minute."</em> · <em>"When would you reach for a real-time OLAP store like Druid or Pinot instead of a sketch + Flink?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/top-k">Hello Interview — Top K (YouTube Top-K Videos)</a>. The definitive walkthrough: it builds exact-first, hits the bottlenecks, then layers in sharding, batching, windowing, and Count-Min Sketch with explicit level expectations.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/top-k">Hello Interview — Top K problem breakdown</a> (FRs/NFRs, 700k req/sec & 64 GB estimates, tumbling vs sliding windows, Count-Min Sketch + heap, two-level partition aggregation, precompute-to-cache serving).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0027-instagram.html">← Lesson 27</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 29 · Uber</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

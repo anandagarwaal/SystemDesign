@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 94 — Deep Dive: Elasticsearch</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 94 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Elasticsearch</h1>
+  <p class="sub">A distributed inverted index that pretends to be a database — know exactly where that illusion ends.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Almost every search, log-analytics, or
+    "find me documents matching X" design ends with a candidate reaching for Elasticsearch. At L6/L7 the
+    interviewer doesn't care that you <em>named</em> it — they probe whether you know what it's doing: the
+    Lucene segment lifecycle, near-real-time refresh, BM25 scoring, the shard/routing model, and the one
+    thing that gets candidates dinged hardest — treating it as a <b>system of record</b>. Naming the tool is
+    senior. Explaining its internals and its failure boundaries is staff.
+  </div>
+
+  <h2>What it is</h2>
+  <p>Elasticsearch is a <b>distributed search and analytics engine</b> built on top of <b>Apache Lucene</b>,
+  a single-node Java search library that implements the inverted index.<a href="#c1" class="cite">[1]</a>
+  Lucene gives you indexing, scoring, and querying on one machine; Elasticsearch wraps Lucene in a cluster:
+  it handles sharding, replication, node discovery, a JSON/HTTP API, and aggregations.<a href="#c2" class="cite">[2]</a></p>
+  <p>The mental model: <b>a document store with a search engine bolted to the front of it.</b> You index JSON
+  documents; it builds inverted indexes over their fields; you query with rich full-text, filtering, and
+  aggregation semantics and get back ranked results in milliseconds over billions of documents. It is the
+  same machinery behind the <a href="../lessons/0025-fb-post-search.html">Facebook Post Search</a> and
+  <a href="../lessons/0052-web-search-engine.html">web search engine</a> designs — this lesson is the
+  "what's inside the black box" companion to those.</p>
+  <div class="box">
+    <b>Where it fits in the stack.</b>
+    <ul>
+      <li><b>Lucene</b> — single-node library: inverted index, segments, BM25 scoring.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Elasticsearch</b> — distribution layer over Lucene: shards, replicas, routing, REST, aggregations.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>The ELK / Elastic Stack</b> — Elasticsearch + Kibana (viz) + Beats/Logstash (ingest). Out of scope here.</li>
+    </ul>
+  </div>
+
+  <h2>Internals — the meat</h2>
+  <p>This is the section that separates senior from staff. Everything below happens inside <em>one shard</em>,
+  which is a complete Lucene index.<a href="#c2" class="cite">[2]</a></p>
+
+  <h3>The inverted index</h3>
+  <p>A forward index maps <code>document → terms</code>; searching it means scanning every document. The
+  <b>inverted index</b> flips it to <code>term → posting list</code> — for each term, the sorted list of
+  document IDs containing it (plus term frequencies and positions for phrase queries).<a href="#c1" class="cite">[1]</a>
+  A keyword lookup becomes a hash/tree lookup; a multi-word query becomes an <b>intersection</b> of posting lists.</p>
+  <pre style="font-family:'SF Mono',Menlo,monospace; font-size:.78rem; background:#f3ece1; padding:.9rem 1rem; border-radius:6px; overflow:auto;">"elastic"   → [d3, d17, d42, d91, ...]
+"search"    → [d3, d42, d88, d91, ...]
+"distributed" → [d3, d91, ...]</pre>
+  <p>This is the lesson from <a href="../lessons/0025-fb-post-search.html">Post Search</a> — but Lucene adds a
+  crucial twist in <em>how</em> the index is physically stored: segments.</p>
+
+  <h3>Lucene segments — immutable, then merged</h3>
+  <p>Lucene never edits an inverted index in place. Each batch of buffered documents is flushed to disk as an
+  <b>immutable segment</b>: a self-contained mini inverted index.<a href="#c1" class="cite">[1]</a> A shard is just a
+  <em>set of segments</em> plus a small "commit point" listing the live ones. Three consequences fall out of
+  immutability, and naming them is the staff signal:</p>
+  <ul style="font-size:.92rem;">
+    <li><b>No locking on read.</b> Segments never change, so queries read them without contention — great for concurrency and OS page-cache friendliness.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Updates and deletes are not in-place.</b> A "delete" just marks the doc ID in a per-segment <code>.del</code> bitset; an "update" is a delete + re-index of a new doc. The old bytes linger until merge.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Segments accumulate.</b> Many small segments slow queries (more lists to consult), so Lucene runs background <b>segment merges</b>: combine small segments into bigger ones and physically drop deleted docs.<a href="#c1" class="cite">[1]</a></li>
+  </ul>
+  <p>Merging is steady-state I/O and CPU you must budget for — it's why heavy-update Elasticsearch clusters burn
+  disk and why "just update the doc" is more expensive than it looks.</p>
+
+  <h3>Analyzers &amp; tokenization</h3>
+  <p>Before a text field is indexed, it passes through an <b>analyzer</b>: character filters → tokenizer →
+  token filters.<a href="#c2" class="cite">[2]</a> Typical English analysis: lowercase, split on whitespace/punctuation,
+  drop stop-words, optionally stem (<code>running</code> → <code>run</code>). The query string is analyzed by the
+  <em>same</em> analyzer so query terms match indexed terms. Get this wrong (e.g. index with one analyzer, search
+  with another) and results silently vanish — a classic real-world Elasticsearch bug.</p>
+
+  <h3>Near-real-time refresh &amp; the translog</h3>
+  <p>Newly indexed documents are <b>not</b> instantly searchable. They sit in an in-memory buffer until a
+  <b>refresh</b> turns the buffer into a new searchable segment — by default once per second.<a href="#c2" class="cite">[2]</a>
+  That ~1s gap is why Elasticsearch is called <b>near-real-time (NRT)</b>, not real-time. It's the same freshness
+  budget you saw in the Post Search design.</p>
+  <p>But a refresh is not a durable <code>fsync</code> — so what protects data between refreshes and the slower
+  <b>flush</b> (a real Lucene commit to disk)? The <b>translog</b> (transaction/write-ahead log).<a href="#c2" class="cite">[2]</a>
+  Every write is appended to the translog before being acknowledged; on a crash, Elasticsearch replays the
+  translog to recover acknowledged-but-not-yet-committed writes. Refresh makes data <em>visible</em>; the
+  translog makes it <em>durable</em>; flush makes it <em>committed</em> and trims the translog.</p>
+  <div class="box">
+    <b>The three lifecycle verbs — don't conflate them.</b>
+    <ul>
+      <li><b>Refresh</b> (≈1s): buffer → new segment → searchable. Visibility, not durability.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Translog</b>: append-only WAL; replayed on crash for durability between flushes.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Flush</b>: fsync segments via a Lucene commit, then clear the translog. Durability + committed.<a href="#c2" class="cite">[2]</a></li>
+    </ul>
+  </div>
+
+  <h3>Relevance scoring — BM25</h3>
+  <p>Returning matches is easy; <em>ranking</em> them is the search problem. Since Lucene's default, the scoring
+  function is <b>BM25</b>, a refinement of TF-IDF.<a href="#c1" class="cite">[1]</a> Intuition: a document scores
+  higher when a query term appears often in it (term frequency), but with <b>diminishing returns</b> — the 20th
+  occurrence barely beats the 10th — and rarer terms across the corpus count for more (inverse document
+  frequency). BM25 also <b>normalizes for document length</b> so a long document isn't unfairly favored just for
+  containing more words.<a href="#c1" class="cite">[1]</a> Filters (e.g. <code>status = active</code>) skip scoring
+  entirely and are cacheable; full-text queries pay the BM25 cost.</p>
+
+  <h2>Distribution</h2>
+  <p>Lucene is one node. Elasticsearch's job is to make many Lucene indexes behave like one.</p>
+  <h3>Indices → shards → replicas</h3>
+  <p>An <b>index</b> is a logical collection of documents. It is split into <b>primary shards</b>, each a full,
+  independent Lucene index; each primary has zero or more <b>replica shards</b> (copies on other nodes).<a href="#c2" class="cite">[2]</a>
+  Primaries give you <b>horizontal scale</b> (the corpus spans nodes); replicas give you <b>availability</b>
+  (survive a node loss) and <b>read throughput</b> (queries can hit replicas).</p>
+  <table>
+    <tr><th>Unit</th><th>What it is</th><th>Buys you</th></tr>
+    <tr><td>Index</td><td>Logical doc collection (e.g. <code>logs-2026</code>).</td><td>Namespacing, mapping/schema.</td></tr>
+    <tr><td>Primary shard</td><td>One independent Lucene index; a slice of the data.<a href="#c2" class="cite">[2]</a></td><td>Horizontal scale of data + indexing.</td></tr>
+    <tr><td>Replica shard</td><td>A copy of a primary on another node.<a href="#c2" class="cite">[2]</a></td><td>HA + extra read throughput.</td></tr>
+  </table>
+
+  <h3>Routing — which shard owns a document</h3>
+  <p>A document's home shard is deterministic: <code>shard = hash(routing) % number_of_primary_shards</code>,
+  where <code>routing</code> defaults to the document ID.<a href="#c2" class="cite">[2]</a> This is why you can fetch a
+  doc by ID without a cluster-wide search — and, crucially, why the <b>primary shard count is fixed at index
+  creation</b>: it's baked into the modulo.</p>
+
+  <h3>Scatter-gather query &amp; aggregations</h3>
+  <p>A search doesn't know which shards hold matches, so it fans out. The coordinating node <b>scatters</b> the
+  query to one copy of every shard; each shard runs the query locally and returns its top-K (the cheap
+  <em>query phase</em>); the coordinator merges into a global top-K and then <b>fetches</b> the full documents for
+  just those winners (the <em>fetch phase</em>).<a href="#c2" class="cite">[2]</a> Aggregations work the same way:
+  each shard computes a partial aggregation, the coordinator combines them — which is why some aggregations are
+  approximate (e.g. <code>terms</code> cardinality) at high shard counts.</p>
+
+  <h3>The reindex &amp; shard-count pain</h3>
+  <p>Because routing hard-codes the primary shard count, <b>you cannot change it on a live index.</b> Outgrowing
+  your shard count means <b>reindexing</b> into a new index with a new count and swapping an <b>alias</b> over —
+  an expensive, full-corpus rewrite.<a href="#c2" class="cite">[2]</a> The staff move is to dodge this entirely:</p>
+  <div class="box">
+    <b>Avoiding the reindex trap.</b>
+    <ul>
+      <li><b>Size shards up front</b> — aim for tens of GB per shard, not too many tiny shards (each carries overhead).<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Time-based indices + aliases</b> for logs/metrics: roll over to a fresh index daily/by size; query the alias. New scale = new index, no reindex.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Replicas, not primaries,</b> are the dial you <em>can</em> change live — add them for read throughput on the fly.<a href="#c2" class="cite">[2]</a></li>
+    </ul>
+  </div>
+
+  <h2>When to reach for it — and when NOT</h2>
+  <p>The single highest-value judgement in an interview: Elasticsearch is a <b>search and analytics index, not a
+  system of record.</b> It is eventually consistent, has no multi-document transactions, and its update model
+  (delete + re-index + merge) is poor for hot mutable rows. Lose a shard mid-write and you can lose
+  acknowledged data in ways a primary database would not.</p>
+  <table>
+    <tr><th>Reach for it when…</th><th>Reach for something else when…</th></tr>
+    <tr><td>Full-text / fuzzy / relevance-ranked search over large corpora.</td><td>You need ACID transactions or strong read-your-write (use Postgres/MySQL).</td></tr>
+    <tr><td>Log &amp; metrics analytics, faceting, aggregations at scale.</td><td>It's your only copy of critical data (it must not be the source of truth).</td></tr>
+    <tr><td>Read-heavy, eventually-consistent, append-mostly workloads.</td><td>Heavy per-row updates / counters (the merge cost crushes you).</td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The pattern that signals seniority: <b>keep the source of truth in a database, and feed Elasticsearch from
+    it.</b> Don't dual-write from the app (the two stores will silently drift on partial failures). Instead, stream
+    changes via <b>CDC</b> (e.g. Debezium reading the DB binlog) → a queue → an indexer that upserts into
+    Elasticsearch. The DB owns correctness and transactions; Elasticsearch owns search. If the index is corrupted
+    or you must change shard count, you <em>rebuild it from the DB</em> — it's a derived, disposable view. A
+    candidate who proactively says "Elasticsearch is a secondary index, not my database" has already passed this
+    part of the loop.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>How this topic actually shows up, and how to handle it like staff:</p>
+  <ul style="font-size:.92rem;">
+    <li><b>Don't stop at "use Elasticsearch."</b> Say it, then immediately explain the inverted index, NRT
+      refresh, and that it's a secondary index fed from your DB. That one extra breath is the senior→staff jump.</li>
+    <li><b>Lead with the source-of-truth boundary.</b> State it before the interviewer probes — proactive deep
+      dives are exactly the staff behavior being scored.</li>
+    <li><b>Know the freshness story.</b> "~1s refresh, durable via translog, NRT not real-time" answers the
+      consistency question crisply.</li>
+    <li><b>Anticipate the shard-count trap.</b> Mention fixed primary count + reindex/alias up front; reach for
+      time-based indices for log workloads.</li>
+    <li><b>Don't over-explain BM25.</b> "TF-IDF with saturation and length normalization, default since Lucene"
+      is enough — model the judgement of <em>not</em> rabbit-holing.</li>
+  </ul>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why are Lucene segments designed to be immutable?</p>
+      <button class="opt">So that a single document update edits the segment file in place</button>
+      <button class="opt">So that reads need no locking and merges can drop deleted docs</button>
+      <button class="opt">So that every query must scan each document inside the index</button>
+      <button class="opt">So that the primary shard count can be changed while it is live</button>
+      <p class="fb">Immutable segments mean lock-free reads; updates/deletes are deferred and reclaimed at merge time.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. What makes Elasticsearch "near-real-time" rather than real-time?</p>
+      <button class="opt">The translog is replayed on every single search request that arrives</button>
+      <button class="opt">BM25 must re-score the entire corpus before any result is returned</button>
+      <button class="opt">New documents are searchable only after a refresh, about once per second</button>
+      <button class="opt">Replica shards must finish merging before the primary will respond</button>
+      <p class="fb">Writes become visible only when a refresh turns the buffer into a segment — the default ~1s gap.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why is the primary shard count fixed when an index is created?</p>
+      <button class="opt">Routing uses hash(id) modulo that count to place each document</button>
+      <button class="opt">Replica shards refuse to start once the index has been opened</button>
+      <button class="opt">The translog stores the count and cannot ever be appended to</button>
+      <button class="opt">BM25 weights are precomputed against the original shard layout</button>
+      <p class="fb">Document placement is hash(routing) % primaries; changing the count would break every lookup, so you reindex.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. What is the staff-correct way to keep Elasticsearch in sync with data?</p>
+      <button class="opt">Make Elasticsearch the only store and the source of truth for data</button>
+      <button class="opt">Keep truth in a database and stream changes in via CDC pipelines</button>
+      <button class="opt">Dual-write from the application to both stores on every request</button>
+      <button class="opt">Disable refresh entirely so the two systems never diverge at all</button>
+      <p class="fb">DB owns correctness; CDC → queue → indexer feeds ES as a derived, rebuildable secondary index. Dual-writes drift.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this — try:
+    <em>"Walk me through exactly what happens from index request to fsync: buffer, refresh, translog, flush, merge."</em> ·
+    <em>"How would I wire CDC from Postgres into Elasticsearch, and how do I handle reindex with zero downtime via aliases?"</em> ·
+    <em>"When would I pick Elasticsearch over a vector DB or over ClickHouse for an analytics workload?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html">Elasticsearch Reference — "Documents and indices", "Near real-time search", and "Add data" guides</a>.
+  The canonical explanation of shards/replicas, routing, the refresh/translog/flush lifecycle, and scatter-gather
+  query execution. Pair it with the <a href="https://lucene.apache.org/core/">Apache Lucene</a> docs for segment
+  and BM25 internals. Read it alongside this course's
+  <a href="../lessons/0025-fb-post-search.html">Post Search</a> and
+  <a href="../lessons/0052-web-search-engine.html">web search engine</a> lessons.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://lucene.apache.org/core/">Apache Lucene documentation</a> (inverted index, immutable segments and merging, analyzers, BM25 default scoring).</p>
+    <p id="c2">[2] <a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html">Elasticsearch Reference Guide</a> (Lucene-based engine, indices/shards/replicas, routing, near-real-time refresh and translog, scatter-gather query/fetch, aggregations, reindex/aliases, time-based indices). Web fetch was unavailable at authoring time; claims grounded in well-established Elasticsearch/Lucene fundamentals and these canonical docs.</p>
+    <p id="c3">[3] Cross-references: <a href="../lessons/0025-fb-post-search.html">Lesson 25 — FB Post Search</a>, <a href="../lessons/0052-web-search-engine.html">Lesson 52 — Web Search Engine</a>, <a href="../lessons/0009-key-technologies-tour.html">Lesson 9 — Key Technologies Tour</a>, <a href="../reference/glossary.html">Glossary</a>.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0093-redis.html">← Lesson 93</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 95 · ClickHouse / OLAP</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

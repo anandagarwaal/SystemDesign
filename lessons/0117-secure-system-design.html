@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 117 — Deep Dive: Secure System Design</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 117 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Secure System Design</h1>
+  <p class="sub">Security isn't a feature you bolt on at the end — it's a property of the whole architecture. Here's how to weave it through a design and talk about it like a staff engineer.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Most candidates treat security as "we'll add HTTPS and call it done." At L6/L7 — and especially for fintech, healthcare, or any system handling money or PII — the interviewer wants a threat-aware design: defense in depth, least privilege, encryption in transit <em>and</em> at rest, and a plan for the OWASP-class attacks. This lesson gives you a reusable security checklist you can layer onto any case study, plus the secure-cloud-architecture vocabulary (VPCs, secrets, zero trust) that signals you've shipped systems people try to break.
+  </div>
+
+  <h2>The mindset: think like an attacker</h2>
+  <p>Secure design starts by asking <b>"what could go wrong, and who benefits?"</b> for each component — a lightweight <b>threat model</b>. A handy frame is <b>STRIDE</b>: Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege.<a href="#c2" class="cite">[2]</a> Two principles run through everything:</p>
+  <ul>
+    <li><b>Defense in depth:</b> never rely on one control. If the firewall fails, network segmentation, auth checks, and encryption should each still limit the blast radius.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Least privilege:</b> every user, service, and credential gets the <em>minimum</em> access needed. A compromised image-thumbnail service should not be able to read the payments database.<a href="#c2" class="cite">[2]</a></li>
+  </ul>
+
+  <h2>The layered checklist</h2>
+  <table>
+    <thead><tr><th>Layer</th><th>What to secure</th></tr></thead>
+    <tbody>
+      <tr><td><b>Network / perimeter</b></td><td>Private subnets in a <b>VPC</b>; only load balancers in public subnets; security groups as host firewalls; WAF + DDoS protection at the edge; internal services unreachable from the internet.</td></tr>
+      <tr><td><b>Transport</b></td><td><b>TLS everywhere</b> (in transit), including service-to-service (mTLS / zero-trust); HSTS; valid certs, no <code>InsecureSkipVerify</code>.</td></tr>
+      <tr><td><b>Identity &amp; access</b></td><td>Strong AuthN, least-privilege AuthZ on every request (see <a href="0115-auth-oauth-jwt.html">Lesson 115</a>); short-lived credentials; MFA for humans; service identities, not shared keys.</td></tr>
+      <tr><td><b>Application</b></td><td>Validate &amp; sanitize all input; parameterized queries (no SQL injection); output encoding (no XSS); CSRF tokens; rate limiting; safe deserialization.</td></tr>
+      <tr><td><b>Data at rest</b></td><td>Encrypt databases, disks, and backups (KMS-managed keys); hash passwords with <b>bcrypt/argon2</b> (never plain SHA); tokenize/encrypt PII &amp; card data; field-level encryption for the most sensitive fields.</td></tr>
+      <tr><td><b>Secrets</b></td><td>No secrets in code or env files in the repo; use a <b>secrets manager / vault</b>; rotate keys; scope each secret to one service.</td></tr>
+      <tr><td><b>Observability</b></td><td>Audit logs for security events (logins, permission denials), tamper-evident; anomaly/fraud detection; no secrets or full PII in logs.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="box">
+    <b>The OWASP attacks you should be able to name &amp; block</b>
+    <ul>
+      <li><b>Injection (SQL/command):</b> attacker input becomes code. Block with parameterized queries and input validation — never string-concatenate queries.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Broken access control:</b> the #1 risk — a user reaches another user's data by changing an id (IDOR). Block with an authorization check on <em>every</em> object access, server-side.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>XSS:</b> injected script runs in a victim's browser. Block with output encoding, a Content-Security-Policy, and HttpOnly cookies.</li>
+      <li><b>CSRF:</b> a malicious site triggers an authenticated action. Block with CSRF tokens and <code>SameSite</code> cookies.</li>
+      <li><b>SSRF:</b> the server is tricked into calling an internal URL (e.g. cloud metadata). Block by validating/allow-listing outbound destinations.</li>
+      <li><b>Sensitive data exposure:</b> unencrypted PII or weak password hashing. Block with encryption at rest and argon2/bcrypt.</li>
+    </ul>
+  </div>
+
+  <h2>Secure cloud architecture</h2>
+  <p>For the "secure cloud" framing specifically: design from the network outward. A <b>VPC</b> with public subnets (just the ALB/NAT) and private subnets (app + data tiers) is the spine; <b>security groups</b> and NACLs enforce who-talks-to-whom; a <b>bastion / SSM</b> replaces direct SSH; <b>KMS</b> manages encryption keys with rotation; <b>IAM roles</b> (not long-lived access keys) grant scoped, temporary credentials to each service. The modern endpoint is <b>zero trust</b>: trust nothing by network location — every request is authenticated and authorized even inside the perimeter, often via mTLS between services.<a href="#c2" class="cite">[2]</a></p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    A junior says "we'll use HTTPS." A staff candidate weaves security through the whole design: "PII is encrypted at rest with KMS, passwords are argon2-hashed, the payments service runs in a private subnet with an IAM role scoped to only its tables, and every API call re-checks authorization server-side so an attacker can't IDOR into another account."<a href="#c1" class="cite">[1]</a> They name <b>defense in depth</b> and <b>least privilege</b> as principles, not buzzwords, and proactively call out a concrete attack and its mitigation ("the upload endpoint validates content type and stores files outside the web root to prevent RCE"). The tell is treating security as a cross-cutting property and reasoning about <em>blast radius</em> when a component is compromised — not as a single checkbox.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>Don't deliver a security monologue up front — weave it in. When you place the database, add "encrypted at rest, in a private subnet." When you design auth, mention least-privilege and server-side authz on every object. When money or PII appears, name the specific controls (argon2, KMS, tokenization, audit logs). If asked to "do security properly," walk the layers top-down — network → transport → identity → app → data → secrets → monitoring — and for each name one concrete control and the attack it stops. Closing with "and I'd threat-model the critical flows with STRIDE" signals maturity.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What does the principle of least privilege require?</p>
+      <button class="opt">Encrypting every network connection with TLS by default</button>
+      <button class="opt">Logging every security event to a tamper-evident store</button>
+      <button class="opt">Granting each user and service only the access it needs</button>
+      <button class="opt">Adding multiple independent layers of defensive controls</button>
+      <p class="fb">Least privilege limits blast radius: a compromised component can only reach the minimal set of resources it was explicitly granted.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. How do you prevent SQL injection?</p>
+      <button class="opt">Use parameterized queries and validate all untrusted input</button>
+      <button class="opt">Encrypt the database files at rest with managed KMS keys</button>
+      <button class="opt">Place the database inside a private VPC subnet only</button>
+      <button class="opt">Hash all stored passwords with argon2 instead of SHA-1</button>
+      <p class="fb">Parameterized queries keep input as data, never code; the other controls are valuable but address different threats.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. What is broken access control (IDOR)?</p>
+      <button class="opt">A server tricked into fetching an internal metadata URL</button>
+      <button class="opt">A script injected into a victim's browser via a form field</button>
+      <button class="opt">A malicious site triggering an authenticated state change</button>
+      <button class="opt">Reaching another user's data by changing an object id</button>
+      <p class="fb">It's the top OWASP risk: the fix is a server-side authorization check on every object access, not just on the listing endpoint.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why store passwords with bcrypt or argon2?</p>
+      <button class="opt">They encrypt passwords so they can be decrypted on login</button>
+      <button class="opt">They are slow, salted hashes that resist brute-forcing</button>
+      <button class="opt">They compress the hash so the database stays small</button>
+      <button class="opt">They let any service verify the token without a lookup</button>
+      <p class="fb">Password hashing must be deliberately slow and salted; fast hashes like SHA-1 let an attacker brute-force a leaked table cheaply.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Threat-model the <a href="0037-payment-system.html">payment system</a> with STRIDE and list mitigations." · "Walk me through a secure VPC layout for a three-tier app." · "How would an attacker exploit SSRF against cloud metadata, and how do I block it?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://owasp.org/www-project-top-ten/">OWASP Top 10</a> for the canonical web-application risk list and mitigations, paired with the security chapters of any cloud well-architected framework (e.g. AWS Well-Architected — Security Pillar) for the defense-in-depth and least-privilege patterns.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://owasp.org/www-project-top-ten/">OWASP Top 10</a> (the canonical taxonomy of web application security risks — injection, broken access control, XSS, SSRF, sensitive data exposure — and their mitigations).</p>
+    <p id="c2">[2] <a href="https://csrc.nist.gov/pubs/sp/800/207/final">NIST SP 800-207, Zero Trust Architecture</a> &amp; the AWS Well-Architected Security Pillar (defense in depth, least privilege, encryption in transit/at rest, and the zero-trust model of authenticating every request regardless of network location).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0116-geohashing-quadtrees.html">← Lesson 116</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 118 · Distributed Locks</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

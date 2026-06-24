@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 70 — Design a Calendar Service (Google Calendar)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 70 · Phase 4 — Case Study · Medium</p>
+  <h1>Design a Calendar Service (Google Calendar)</h1>
+  <p class="sub">Events, invites, recurrence, and free/busy — where the hard parts are time math and consistency, not raw scale.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A calendar looks like CRUD, and that is the trap. Seniors
+    store events and move on; staff candidates spot the three landmines — <em>recurring events</em> (store the
+    rule, don't materialize a million rows), <em>free/busy across many calendars</em> (a range query that must
+    not double-book a room), and <em>timezones</em> (store UTC + the original zone, never a naive local time).
+    Naming those before being asked is the whole signal at L6/L7.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope to what a calendar must do; say the rest aloud as out of scope.</p>
+  <table>
+    <tr><th>The user should be able to…</th><th>Detail</th></tr>
+    <tr><td>Create &amp; edit events</td><td>Title, start/end, location, attendees; edit or delete later.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Invite attendees + RSVP</td><td>Add guests who each get <code>accepted</code> / <code>declined</code> / <code>tentative</code> status.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Create recurring events</td><td>"Every weekday", "first Monday monthly" — one rule, many occurrences.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>See free/busy + room suggestions</td><td>Query several calendars for open slots; suggest a free meeting room.</td></tr>
+    <tr><td>Get reminders</td><td>A push/email/popup notification N minutes before an event.</td></tr>
+  </table>
+  <p><b>Out of scope</b> (state this aloud): video-call provisioning, attachments, calendar sharing/ACL UX,
+  and external interop via iCalendar feeds — we model the core engine, not every Google feature.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th></tr>
+    <tr><td>Consistency (invites &amp; booking)</td><td><b>Strong</b> on the write path that matters: an RSVP and especially a <b>room booking</b> must be read-your-writes and free of double-booking. Read-heavy views can lag slightly.</td></tr>
+    <tr><td>Availability</td><td>High — people live in their calendar all day; reads stay up even if a region degrades. Lean <b>AP</b> for views, <b>CP</b> for the room-booking transaction.</td></tr>
+    <tr><td>Low latency</td><td>Month/agenda view in <b>&lt;200&nbsp;ms p99</b>; this drives expanding recurrence at read time fast, or caching expansions.</td></tr>
+    <tr><td>Durability</td><td>An event never silently disappears — it lives in a replicated, backed-up store.</td></tr>
+  </table>
+  <p>The tension to name: a calendar is overwhelmingly <em>read</em> (everyone refreshes their day) but the few
+  <em>writes</em> that conflict — two people grabbing the last room — need real isolation. So most of the system
+  is an eventually-consistent read path with one small, strongly-consistent booking core.</p>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that change the design.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Scale</td><td>~500M users, ~10 events/user/week → ~5B new events/week; tens of billions at rest, ~1&nbsp;KB each → tens of TB</td><td>Big but not exotic — a sharded store partitioned by <code>calendar_id</code> handles it. Volume isn't the hard part.</td></tr>
+    <tr><td>Read:write ratio</td><td>~100:1 (constant view refreshes vs. occasional edits)</td><td>Optimize the read path: cache the rendered view, replicas for fan-out, keep writes simple.</td></tr>
+    <tr><td>Recurring blow-up</td><td>"Daily standup forever" = 1 rule, but ~10k instances over 30 years</td><td>The reason to <b>store the RRULE, not the instances</b> — materializing all of them wastes storage and breaks edits.</td></tr>
+    <tr><td>Reminder fan-out</td><td>Peak ~minutes near :00 — millions of "9:00 AM" events fire together</td><td>Reminders are spiky → offload to a scheduler + queue, never a per-row poll at send time.</td></tr>
+  </table>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Event</b> — the source of truth: time, recurrence rule, organizer, timezone.<a href="#c2" class="cite">[2]</a>
+  <b>Attendee</b> — a (event, user) join row carrying RSVP status, so a 500-person invite is 500 small rows, not one fat blob.
+  <b>Calendar</b> — a container a user owns or subscribes to; resources (rooms) are calendars too, which is what lets us book a room like an attendee.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/events</code></td><td>Create an event: <code>{ start, end, tz, rrule?, attendees[] }</code>. Returns <code>eventId</code>.</td></tr>
+    <tr><td><code>PATCH /v1/events/{id}</code></td><td>Edit; for recurring, a <code>scope</code> of <code>this</code> / <code>this_and_following</code> / <code>all</code>.</td></tr>
+    <tr><td><code>PUT /v1/events/{id}/rsvp</code></td><td>Set the caller's status to accepted / declined / tentative.</td></tr>
+    <tr><td><code>GET /v1/calendars/{id}/events?from=&amp;to=</code></td><td>List occurrences in a window (recurrence expanded server-side).</td></tr>
+    <tr><td><code>POST /v1/freebusy</code></td><td>Body <code>{ calendarIds[], from, to }</code> → merged busy blocks + free slots.</td></tr>
+    <tr><td><code>POST /v1/rooms/book</code></td><td>Atomically reserve a room for a slot; fails if already taken.</td></tr>
+  </table>
+  <p>The acting user is derived from the auth token, never sent in the body.</p>
+
+  <h2>High-Level Design</h2>
+  <p>A read-optimized core with one small strongly-consistent booking path:</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>API / Event service</td><td>Validates, writes events &amp; attendees, expands recurrence for range reads.</td></tr>
+    <tr><td>Event DB</td><td>Durable store sharded by <code>calendar_id</code>; holds events (with RRULE), attendees, exceptions. Source of truth.</td></tr>
+    <tr><td>Free/Busy service</td><td>Range-queries many calendars, merges busy intervals, returns open slots &amp; room candidates.</td></tr>
+    <tr><td>Booking service</td><td>The CP island: takes a row lock / unique constraint on (room, slot) so a room is booked exactly once.</td></tr>
+    <tr><td>Reminder pipeline</td><td>Registers a trigger with the <a href="../lessons/0034-job-scheduler.html">job scheduler</a>; fan-out goes to the <a href="../lessons/0046-notification-service.html">notification service</a>.</td></tr>
+    <tr><td>Cache / read replicas</td><td>Serve hot month/agenda views at <200&nbsp;ms; absorb the 100:1 read skew.</td></tr>
+  </table>
+  <p><b>Flow:</b> create event → API writes the Event (+ RRULE) and Attendee rows → if attendees include a room,
+  the booking service reserves it transactionally → reminders are registered with the scheduler. On a view read,
+  the Event service pulls the window, expands recurrence on the fly, and serves from cache/replicas.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Three sentences win this round: <b>(1)</b> store the recurrence <em>rule</em> and expand at read time, never
+    materialize every instance; <b>(2)</b> model a room as a calendar/attendee and book it with a DB
+    uniqueness/lock so it can't double-book; <b>(3)</b> store every time as <b>UTC + the originating IANA zone</b>,
+    not naive local time. Volume, sharding, and CRUD are the shallow 40% — spend your depth here.
+  </div>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1 · Event model &amp; recurring expansion — store the rule, not the rows</h3>
+  <p>The naive design writes one row per occurrence. "Daily standup forever" then becomes ~10k rows, editing the
+  series rewrites all of them, and storage explodes. The disciplined design stores a single event with a
+  <b>recurrence rule</b> and computes occurrences when needed.</p>
+  <table>
+    <tr><th>Approach</th><th>How</th><th>Tradeoff</th></tr>
+    <tr><td>Materialize instances</td><td>Pre-write every occurrence as its own row.</td><td>Trivial reads, but unbounded storage and painful "edit the whole series" — bad for infinite recurrence.</td></tr>
+    <tr><td>Store RRULE, expand on read</td><td>Keep one event with an <code>RRULE</code> (RFC&nbsp;5545); generate occurrences in the queried window.<a href="#c2" class="cite">[2]</a></td><td>Tiny storage, cheap edits; expansion is CPU at read time — bound it to the window and cache it.</td></tr>
+    <tr><td>Hybrid + exceptions</td><td>Store the rule plus override rows (<code>EXDATE</code> / modified single instances).<a href="#c2" class="cite">[2]</a></td><td>Best of both: rule stays compact, one-off changes ("move just this Tuesday") are small deltas.</td></tr>
+  </table>
+  <div class="box">
+    <b>Pick &amp; justify:</b> Store the <b>RRULE plus an exceptions table</b>, expand only inside the requested
+    date window, and cache the expansion for hot views. "Edit this event" inserts an exception/override;
+    "edit this &amp; following" splits the series (end the old rule, start a new one); "edit all" rewrites one
+    rule. This keeps a 30-year daily meeting as one row and makes every edit O(1) instead of O(occurrences).
+  </div>
+
+  <h3>2 · Free/busy across calendars &amp; conflict-free room booking</h3>
+  <p>Free/busy is an <b>interval-merge</b> problem: pull each calendar's busy blocks in <code>[from, to]</code>,
+  sort by start, merge overlaps, and the gaps are free slots. The room-booking write is the dangerous part — two
+  organizers can race for the last room and both "succeed" without isolation.</p>
+  <table>
+    <tr><th>Concurrency control</th><th>How it stops double-booking</th></tr>
+    <tr><td>Read-then-write check</td><td>"Is it free? then insert." <b>Broken under races</b> — both readers see free and both write (TOCTOU).</td></tr>
+    <tr><td>Unique constraint on (room, slot)</td><td>Model the booking as a row the DB rejects on duplicate; the loser gets a clean conflict error. Simple and correct for discrete slots.</td></tr>
+    <tr><td>Row lock / serializable txn</td><td><code>SELECT … FOR UPDATE</code> the room, check overlap, insert — the DB serializes contenders so only one wins arbitrary ranges.</td></tr>
+    <tr><td>Distributed lock</td><td>Lock per room key in Redis/etcd before booking. Use only across services without a shared DB; adds a dependency.</td></tr>
+  </table>
+  <div class="box">
+    <b>Pick &amp; justify:</b> Treat the room as a calendar and make the booking a <b>single transactional write
+    guarded by a row lock or a uniqueness constraint</b> on overlapping slots — the database's concurrency control
+    is your double-booking defense, no read-modify-write window. This is the same first-to-commit-wins reservation
+    logic as seat selection in <a href="../lessons/0015-ticketmaster.html">Ticketmaster (Lesson 15)</a>; a meeting
+    room is just a seat with a calendar.
+  </div>
+
+  <h3>3 · The reminder / notification pipeline</h3>
+  <p>A reminder is "fire a notification N minutes before an event." The anti-pattern is polling the event table
+  every minute for "what's due" — that's a scan at calendar scale and bunches violently at the top of the hour.
+  Reuse infrastructure you've already designed instead of rebuilding timing.</p>
+  <div class="box">
+    <b>Pipeline:</b>
+    <ul>
+      <li>On create/edit, compute <code>remind_at = start − lead_time</code> and register a trigger with the
+        <a href="../lessons/0034-job-scheduler.html">job scheduler (Lesson 34)</a>, indexed by next-run-time so "due" is a range read, not a scan.</li>
+      <li>At fire time the scheduler enqueues a job; a worker fans out to attendees via the
+        <a href="../lessons/0046-notification-service.html">notification service (Lesson 46)</a> (push / email / popup).</li>
+      <li><b>Idempotency key</b> = <code>(eventId, occurrence, userId)</code> so an at-least-once retry can't double-send a reminder.</li>
+      <li>For recurring events, register only the <em>next</em> occurrence's reminder and roll forward after it fires — never pre-schedule infinity.</li>
+    </ul>
+  </div>
+  <p>State the breadth/depth ratio aloud: you didn't reinvent a timer; you delegated timing to the scheduler and
+  delivery to the notification service, and spent your words on the calendar-specific edges — recurrence and idempotency.</p>
+
+  <h3>4 · Timezone &amp; DST correctness</h3>
+  <p>This is where calendars quietly break. Store an instant as a naive "3 PM" and the meeting jumps an hour when
+  daylight-saving flips or the user travels. The rule: <b>store UTC for the instant <em>and</em> the original IANA
+  timezone</b> (e.g. <code>America/New_York</code>), never a fixed offset like <code>-05:00</code>.</p>
+  <table>
+    <tr><th>Case</th><th>Correct behavior</th></tr>
+    <tr><td>One-off meeting</td><td>Store UTC instant + creator's zone; render in each viewer's local zone. The instant is absolute.</td></tr>
+    <tr><td>Recurring "9 AM daily"</td><td>Anchor recurrence to <b>wall-clock time in the stored zone</b>, then convert each occurrence to UTC — so it stays 9 AM local even across a DST change.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>DST transition day</td><td>Recompute the offset per occurrence from the IANA database; a fixed offset would drift by an hour for half the year.</td></tr>
+    <tr><td>All-day event</td><td>Store as a floating date with no zone, so "March 3rd" is March 3rd everywhere — not 23:00 the day before.</td></tr>
+  </table>
+  <div class="box">
+    <b>Pick &amp; justify:</b> Persist <code>{ utc_instant, tz_id, rrule }</code> and resolve offsets from the IANA
+    tz database at expansion time. Recurrence math runs in the event's <em>local</em> wall clock, then each
+    occurrence is converted to UTC for storage and re-rendered per viewer. This single decision prevents the
+    classic "the standup moved itself after the clocks changed" bug, and it's the detail interviewers probe to
+    separate someone who's shipped a calendar from someone who hasn't.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why store an RRULE instead of materializing every occurrence?</p>
+      <button class="opt">Materialized rows are far simpler to read</button>
+      <button class="opt">A rule cannot capture weekly meeting times</button>
+      <button class="opt">Infinite series would explode storage and edits</button>
+      <p class="fb">"Daily forever" is ~10k rows; the rule keeps it one row and makes series edits O(1).</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. What actually prevents two organizers double-booking a room?</p>
+      <button class="opt">A DB lock or uniqueness on the booked slot</button>
+      <button class="opt">A read check confirming the room looks free</button>
+      <button class="opt">A larger cache in front of the booking path</button>
+      <p class="fb">Read-then-write races (TOCTOU); a row lock or unique constraint lets the DB serialize the booking.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">3. How should the reminder pipeline find which reminders are due?</p>
+      <button class="opt">Scan the entire event table once a minute</button>
+      <button class="opt">Register triggers with the job scheduler tier</button>
+      <button class="opt">Ask each client device to poll the server</button>
+      <p class="fb">Delegate timing to the scheduler indexed by next-run-time, then fan out via the notification service.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Why store the IANA timezone id and not just a UTC offset?</p>
+      <button class="opt">Offsets are slower for the database to index</button>
+      <button class="opt">UTC offsets cannot be displayed to the user</button>
+      <button class="opt">Offsets drift across DST; the zone fixes it</button>
+      <p class="fb">A fixed offset like -05:00 breaks for half the year; the IANA zone recomputes DST per occurrence.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic. Try:
+    "Walk me through editing 'this and following' on a 3-year recurring series."
+    "How do free/busy and the room-booking transaction differ in consistency needs?"
+    "Why does anchoring recurrence to wall-clock time survive a daylight-saving change?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/google-calendar">Hello Interview — Design Google Calendar</a>. The cleanest walkthrough of the recurrence, free/busy, and reminder deep dives in the exact requirements → entities → HLD → deep-dive framework used here.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://developers.google.com/calendar/api/concepts/events-calendars">Google Calendar API — Events and calendars</a> (event/attendee model, RSVP response statuses, invitations).</p>
+    <p id="c2">[2] <a href="https://www.rfc-editor.org/rfc/rfc5545">RFC 5545 — Internet Calendaring (iCalendar)</a> (RRULE recurrence rules, EXDATE exceptions, and timezone/VTIMEZONE handling for recurring events).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0069-online-chess-matchmaking.html">← Lesson 69</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 71 · Webhook Delivery</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

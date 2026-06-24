@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 102 — Deep Dive: Apache Flink</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 102 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Apache Flink</h1>
+  <p class="sub">A record-at-a-time stream processor that gets exactly-once correct results from out-of-order, unbounded data — and how it differs from Spark's micro-batch.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> The moment a design needs "react to events in milliseconds, not minutes" — fraud detection, real-time ad aggregation, live leaderboards — the senior answer is "process the stream." The staff answer explains <em>how a stream processor stays correct</em>: event time vs processing time, watermarks for late data, windowing, and checkpointed state for exactly-once. Flink is the canonical true-streaming engine, and knowing its internals lets you defend it against Spark Streaming instead of name-dropping a buzzword.
+  </div>
+
+  <h2>What it is</h2>
+  <p>Apache Flink is a distributed engine for <b>stateful computation over unbounded and bounded data streams</b>.<a href="#c1" class="cite">[1]</a> Its core philosophy is <b>streaming-first</b>: it processes data <b>one record at a time</b> as events arrive, rather than collecting them into batches first. A continuous "unbounded" stream (a Kafka topic that never ends) and a finite "bounded" dataset (yesterday's log files) are both just streams to Flink — batch is simply the special case of a stream with a known end.<a href="#c1" class="cite">[1]</a></p>
+  <p>This inverts the older Hadoop/Spark mental model, where the primitive is a batch and streaming is bolted on as many tiny batches. In Flink, the primitive is the <em>continuous dataflow</em>, and a bounded job is a streaming job that happens to terminate. That single design choice is why Flink can deliver <b>millisecond latency</b> — there is no batch interval to wait out before a record is processed. (Contrast with <a href="0101-spark.html">Lesson 101 — Spark</a>, whose Structured Streaming is micro-batch by default.)</p>
+
+  <h2>Internals — the meat</h2>
+
+  <h3>1 · Event time vs processing time</h3>
+  <p>The single most important concept in stream processing is <b>which clock you use</b>.<a href="#c2" class="cite">[2]</a></p>
+  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
+    <li><b>Event time</b> — the timestamp embedded in the record, i.e. <em>when the event actually happened</em> at the source (a click fired at 12:00:03).<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Processing time</b> — the wall-clock time on the machine when the operator <em>handles</em> the record (it arrived in Flink at 12:00:07, four seconds later).<a href="#c2" class="cite">[2]</a></li>
+  </ul>
+  <p>They diverge because of network delays, retries, backpressure, and mobile clients that buffer offline and dump events hours later. Processing time is simple and low-latency but <b>non-deterministic</b> — replaying the same input gives different window results. Event time gives <b>correct, reproducible</b> results that match reality, at the cost of having to wait for stragglers. Production analytics almost always wants event time. But event-time processing raises a hard question: events arrive <em>out of order</em>, so how does the engine know when it has seen "enough" of time-window 12:00–12:01 to emit its result? That is exactly what watermarks solve.</p>
+
+  <h3>2 · Watermarks — handling out-of-order &amp; late events</h3>
+  <p>A <b>watermark</b> is a special marker injected into the stream that asserts: <em>"event time has now progressed to T; do not expect any more events with a timestamp ≤ T."</em><a href="#c2" class="cite">[2]</a> It is the engine's notion of completeness — a heuristic threshold that lets event-time windows know when to fire.</p>
+  <p>Watermarks flow with the data. When a windowing operator receives a watermark for T, it knows every window that ends at or before T is complete and can emit its aggregate. The watermark is generated with a <b>bounded out-of-orderness</b> allowance — e.g. "watermark = max-event-time-seen − 5s" tolerates events up to 5 seconds late.<a href="#c2" class="cite">[2]</a> This is the fundamental <b>latency vs completeness tradeoff</b>: a larger allowance catches more stragglers but delays every result; a tighter one fires fast but risks dropping late data.</p>
+  <div class="box">
+    <b>Late events</b> are records that arrive <em>after</em> the watermark has already passed their window. Flink gives you explicit control: drop them (default), route them to a <b>side output</b> for separate handling, or keep windows open with <b>allowed lateness</b> so a late event re-fires an updated result. Naming this policy is a staff-level detail — "what happens to the click that shows up 10 minutes late?" is a question juniors forget to answer.
+  </div>
+
+  <h3>3 · Windowing — tumbling, sliding, session</h3>
+  <p>Unbounded streams have no end, so to aggregate you must slice time into finite <b>windows</b>.<a href="#c2" class="cite">[2]</a> The three canonical types:</p>
+  <table>
+    <tr><th>Window</th><th>Shape</th><th>Use it for</th></tr>
+    <tr><td>Tumbling</td><td>Fixed size, non-overlapping, back-to-back (every 1 min).</td><td>Per-minute counts, hourly rollups — each event in exactly one window.</td></tr>
+    <tr><td>Sliding</td><td>Fixed size, overlapping by a slide step (5-min window every 1 min).</td><td>Moving averages, "last 5 min" metrics refreshed often.</td></tr>
+    <tr><td>Session</td><td>Dynamic size, closed by a gap of inactivity (no events for 30 min).</td><td>User activity bursts, sessions — boundaries depend on the data, not the clock.</td></tr>
+  </table>
+  <p>Windows are keyed (per user, per ad, per device), and each window's partial result lives in <b>state</b> until its watermark fires it. Which brings us to the part that makes Flink hard to operate — and hard to compete with.</p>
+
+  <h3>4 · Stateful operators &amp; state backends</h3>
+  <p>Most useful stream computations are <b>stateful</b>: a running count, a window's accumulator, the last value seen per key, a join buffer. Flink makes state a <b>first-class, managed primitive</b> — operators read and write <em>keyed state</em> that Flink partitions, persists, and recovers for you.<a href="#c1" class="cite">[1]</a> You don't bolt on an external Redis; the state lives <em>with</em> the operator for local, low-latency access.</p>
+  <p>Where that state physically lives is the <b>state backend</b>:<a href="#c3" class="cite">[3]</a></p>
+  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
+    <li><b>HashMap (heap) backend</b> — state lives as objects on the JVM heap. Fastest access, but bounded by memory and subject to GC pressure. Good for small state.<a href="#c3" class="cite">[3]</a></li>
+    <li><b>RocksDB backend</b> — state lives in an embedded <a href="0095-clickhouse-olap.html">LSM-tree</a> key-value store on local disk, spilling beyond RAM.<a href="#c3" class="cite">[3]</a> This is what lets Flink hold <b>terabytes</b> of state per job (large joins, huge keyspaces) and supports <b>incremental checkpoints</b> — only changed SST files get uploaded, not the whole state. The tradeoff is per-access serialization overhead vs the pure-heap backend.</li>
+  </ul>
+
+  <h3>5 · Checkpointing — Chandy-Lamport for exactly-once</h3>
+  <p>If an operator holds state and a machine dies, you must recover that state <em>consistently</em> — without losing data or double-counting. Flink does this with <b>asynchronous distributed snapshots</b>, a variant of the <b>Chandy-Lamport</b> algorithm.<a href="#c4" class="cite">[4]</a></p>
+  <p>The mechanism: Flink injects special <b>checkpoint barriers</b> into the stream at the sources. A barrier flows downstream with the records. When an operator has received the barrier on all its input channels (<b>barrier alignment</b>), it snapshots its current state to durable storage (e.g. S3/HDFS) and forwards the barrier onward.<a href="#c4" class="cite">[4]</a> Because the barrier cleanly separates "records before the snapshot" from "records after," the set of all operator snapshots forms a <b>globally consistent cut</b> of the entire pipeline — without ever stopping the stream.</p>
+  <div class="box">
+    <b>What "exactly-once" really means.</b> On failure, Flink restores every operator's state from the last checkpoint and rewinds the sources (e.g. Kafka offsets) to that point. State is exactly-once <em>internally</em>. End-to-end exactly-once <em>output</em> additionally needs either an <b>idempotent sink</b> or a <b>transactional sink</b> (two-phase commit) so replayed records don't produce duplicate side effects. Saying "exactly-once" without naming the sink requirement is the most common interview overclaim.<a href="#c4" class="cite">[4]</a>
+  </div>
+
+  <h3>6 · The job graph</h3>
+  <p>A Flink program is a <b>dataflow graph</b>: sources → transformations (map, keyBy, window, aggregate) → sinks. Flink compiles your logical graph into a physical <b>JobGraph</b>, then parallelizes each operator into <b>subtasks</b> spread across <b>TaskManagers</b> (workers), coordinated by the <b>JobManager</b> (master).<a href="#c1" class="cite">[1]</a> A <code>keyBy</code> triggers a network shuffle so all records for a key land on the same subtask (where that key's state lives); chained operators that don't need a shuffle are fused into <b>operator chains</b> to avoid serialization between them. This is the same logical/physical plan idea as MapReduce and Spark, but executed as a long-running, always-on topology rather than a job that starts and finishes.</p>
+
+  <h2>Flink vs Spark Streaming</h2>
+  <p>Both are distributed, fault-tolerant, JVM-based engines that do windowed aggregation with exactly-once semantics. The architectural fork is <b>true streaming vs micro-batch</b>.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Dimension</th><th>Flink (true streaming)</th><th>Spark Structured Streaming (micro-batch)</th></tr>
+    <tr><td>Processing model</td><td>Record-at-a-time, continuous dataflow.</td><td>Tiny batches at a trigger interval (a "stream of batches").</td></tr>
+    <tr><td>Latency</td><td>Millisecond / sub-second.</td><td>Hundreds of ms to seconds, set by batch interval.</td></tr>
+    <tr><td>Core abstraction</td><td>Stream is primary; batch is a bounded stream.</td><td>Batch (RDD/DataFrame) is primary; stream is repeated batches.</td></tr>
+    <tr><td>State &amp; windowing</td><td>Rich keyed state, event time, watermarks, session windows native.</td><td>Capable, but historically less flexible for complex event-time logic.</td></tr>
+    <tr><td>Ecosystem fit</td><td>Best when streaming IS the workload.</td><td>Best when you already run Spark for batch/ETL/ML and want one engine.</td></tr>
+  </table>
+  <p><b>When each wins.</b> Reach for <b>Flink</b> when low latency is a hard requirement and the logic is genuinely stream-native — fraud scoring per transaction, real-time alerting, complex event processing, large stateful joins on the hot path. Reach for <b>Spark</b> when your team already lives in Spark for batch ETL and ML, your latency tolerance is seconds not milliseconds, and operational simplicity (one engine, one skill set) beats squeezing out the last bit of latency. Spark's Continuous Processing mode narrows the latency gap but micro-batch remains its default and most mature path.</p>
+
+  <h2>When to reach for it — and when NOT</h2>
+  <div class="box">
+    <b>Reach for Flink when…</b>
+    <ul>
+      <li>You need <b>sub-second latency</b> on a continuous stream — alerting, fraud, real-time aggregation.</li>
+      <li>Correctness over <b>out-of-order / late events</b> matters — you need event time + watermarks.</li>
+      <li>The job is <b>heavily stateful</b> — large windows, streaming joins, big keyed state (RocksDB, TBs).</li>
+      <li>You need <b>exactly-once</b> stateful processing with consistent recovery.</li>
+    </ul>
+    <b>Do NOT reach for it when…</b>
+    <ul>
+      <li>The workload is <b>batch/ETL</b> with no latency pressure — a warehouse or Spark batch is simpler.</li>
+      <li>A few seconds of latency is fine <b>and</b> you already run Spark — don't add a second engine.</li>
+      <li>The logic is <b>stateless and trivial</b> — a Kafka consumer or simple function may suffice.</li>
+      <li>Your team can't carry the <b>operational cost</b> — Flink state, checkpoints, and tuning are non-trivial.</li>
+    </ul>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Don't say "I'll use Flink for real-time." Say <em>"reads here are event-time aggregations over an out-of-order stream, so I need watermarks to bound lateness, keyed state in RocksDB for the per-user windows, and checkpointing for exactly-once — Flink gives all three natively, and Spark's micro-batch would add a batch-interval of latency I can't afford."</em> Then show judgement: if the team already runs Spark and the SLA is seconds, you might <em>reject</em> Flink to avoid a second engine. The staff move is grounding the pick in latency + state + correctness, and naming the operational cost you're taking on — not explaining what a window is.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>Flink shows up as the <b>stream-processing brain</b> in nearly every real-time design — the <a href="0036-ad-click-aggregator.html">ad click aggregator</a>, real-time fraud, live dashboards (<a href="0075-realtime-analytics.html">Lesson 75 — real-time analytics</a>). When you reach the "how do we aggregate the firehose?" moment:</p>
+  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
+    <li><b>Lead with event time.</b> "I'll aggregate on event time with watermarks so late clicks land in the right minute bucket." One sentence proves you know the hard part.</li>
+    <li><b>Name the state backend.</b> Per-key windows over millions of users → RocksDB state with incremental checkpoints. Don't hand-wave "it keeps state."</li>
+    <li><b>Claim exactly-once carefully.</b> Checkpoints give exactly-once <em>state</em>; pair with an idempotent or transactional sink for end-to-end. Mentioning the sink caveat is the depth signal.</li>
+    <li><b>Justify vs Spark out loud.</b> "True streaming for ms latency" vs "micro-batch if seconds are fine and we already run Spark." Naming the rejected alternative is the breadth signal.</li>
+  </ul>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What problem does a watermark solve in event-time stream processing?</p>
+      <button class="opt">It compresses the keyed state so a large window backend fits inside the JVM heap memory</button>
+      <button class="opt">It shuffles records by their key so each user's events all reach the same parallel subtask</button>
+      <button class="opt">It signals event time has reached T so windows know enough late events have arrived to fire</button>
+      <button class="opt">It commits the sink output in one transaction so replayed records never produce any duplicates</button>
+      <p class="fb">A watermark asserts no more events with timestamp ≤ T are expected, letting event-time windows fire on completeness.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. How does Flink take a consistent snapshot without stopping the running stream?</p>
+      <button class="opt">It flows checkpoint barriers through the dataflow and snapshots each operator at the barrier</button>
+      <button class="opt">It pauses every source and worker, copies all of the operator state, then resumes processing</button>
+      <button class="opt">It writes each incoming record twice to durable storage so any failed node can be replayed later</button>
+      <button class="opt">It keeps the entire keyed state inside Kafka so the broker rather than Flink owns the recovery path</button>
+      <p class="fb">Flink injects barriers (Chandy-Lamport variant); aligned operators snapshot state, forming a consistent global cut live.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">3. What is the core architectural difference between Flink and Spark Structured Streaming?</p>
+      <button class="opt">Flink runs only on bounded data while Spark is the engine built for unbounded infinite streams</button>
+      <button class="opt">Flink processes records one at a time while Spark groups them into small recurring micro-batches</button>
+      <button class="opt">Flink lacks any exactly-once guarantee while Spark alone can recover state after a worker crashes</button>
+      <button class="opt">Flink stores all state externally in Redis while Spark keeps every accumulator on the local disk</button>
+      <p class="fb">Flink is true record-at-a-time streaming (ms latency); Spark defaults to micro-batch at a trigger interval.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. Which workload is the WEAKEST fit for choosing Apache Flink?</p>
+      <button class="opt">Scoring each card transaction for fraud within milliseconds across a huge keyed state</button>
+      <button class="opt">Aggregating an out-of-order click firehose into event-time minute buckets correctly</button>
+      <button class="opt">Maintaining streaming joins with terabytes of keyed state and exactly-once recovery</button>
+      <button class="opt">Running an overnight batch ETL with no latency need on a team already using Spark</button>
+      <p class="fb">Latency-insensitive batch ETL on an existing Spark stack adds a second engine for no gain — wrong fit for Flink.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this technology — push on the internals. Try:
+    "Walk me through what happens to a click that arrives 10 minutes after its window's watermark."
+    "Why do checkpoint barriers need alignment, and what is unaligned checkpointing for?"
+    "When would you pick Spark Structured Streaming over Flink even for a real-time feature?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/stateful-stream-processing/">Apache Flink documentation — "Stateful Stream Processing" &amp; "Timely Stream Processing"</a>.
+    The canonical explanation of event time, watermarks, keyed state, state backends, and checkpointing via distributed snapshots. Pair it with the <a href="https://research.google/pubs/the-dataflow-model/">Dataflow Model paper</a> for the theory of windowing and watermarks.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/flink-architecture/">Apache Flink docs — Flink Architecture &amp; "What is Apache Flink?" (streaming-first model, bounded vs unbounded streams, JobManager/TaskManager, stateful computation)</a>.</p>
+    <p id="c2">[2] <a href="https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/time/">Apache Flink docs — Timely Stream Processing (event time vs processing time, watermarks, lateness, windowing)</a>. Theory cross-referenced with the Google Dataflow Model paper (Akidau et al., VLDB 2015).</p>
+    <p id="c3">[3] <a href="https://nightlies.apache.org/flink/flink-docs-stable/docs/ops/state/state_backends/">Apache Flink docs — State Backends (HashMap/heap vs embedded RocksDB, incremental checkpoints)</a>.</p>
+    <p id="c4">[4] <a href="https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/stateful-stream-processing/">Apache Flink docs — Stateful Stream Processing (asynchronous barrier snapshotting, Chandy-Lamport variant, exactly-once, transactional/idempotent sinks)</a>.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0101-spark.html">← Lesson 101</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 103 · MapReduce &amp; Hadoop</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 67 — Design a CI/CD System (Jenkins / GitHub Actions)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 67 · Phase 4 — Case Study · Hard</p>
+  <h1>Design a CI/CD System (Jenkins / GitHub Actions)</h1>
+  <p class="sub">Turn a git push into parallel build/test jobs on a fleet of ephemeral, sandboxed runners — fast, fair, and safe against untrusted code.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A CI/CD platform is really three hard systems wearing a trench coat:
+    a <em>job scheduler</em>, a <em>multi-tenant sandbox</em>, and a <em>DAG executor</em>. Seniors describe "a webhook starts a build."
+    Staff candidates decompose untrusted-code isolation, an autoscaling pool of ephemeral runners, a stage DAG with fan-out/fan-in,
+    and a caching strategy that decides whether builds take 2 minutes or 20. Pick those battles out loud and you've passed.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope to what a developer actually expects when they push code; everything else is out of scope.</p>
+  <table>
+    <tr><th>The user should be able to…</th><th>Detail</th></tr>
+    <tr><td>Trigger a pipeline</td><td>A <code>push</code> or pull-request event fires the repo's pipeline automatically via a webhook.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Run jobs in parallel</td><td>Build and test jobs execute concurrently across runners, respecting declared dependencies.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>See status &amp; logs</td><td>Per-job pass/fail status reported back to the commit/PR, with streamed logs.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Store &amp; deploy artifacts</td><td>Persist build outputs (binaries, images) and run a deploy step on success.<a href="#c2" class="cite">[2]</a></td></tr>
+  </table>
+  <p><b>Out of scope</b> (say it aloud): the source-control system itself (see <a href="0066-version-control-github.html">Lesson 66</a>),
+  the contents of users' build scripts, billing/quotas, and rich pipeline-authoring UI. We deliver the engine, not the YAML.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th></tr>
+    <tr><td>Scalability of runners</td><td>Elastically scale an <b>ephemeral runner pool</b> from zero to thousands on bursty, spiky load; a fresh runner per job is the default.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Isolation / security</td><td><b>Top priority.</b> Build code is <b>untrusted</b> and arbitrary; one tenant's job must never read another's secrets, cache, or host.<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>Reliability</td><td>At-least-once job execution; a crashed runner reruns its job. Build results must be durable and reproducible.</td></tr>
+    <tr><td>Fairness</td><td>No tenant or one huge repo monopolizes the pool; small jobs aren't starved behind a 2-hour build. Bounded queue wait.</td></tr>
+  </table>
+  <p>The defining tension: <b>isolation vs. speed</b>. Perfect isolation says "throw away the whole machine after each job";
+  speed says "keep the warm cache and reuse it." Most of the design below is negotiating that line.</p>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only the numbers that change the design.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Pipeline triggers</td><td>~50k repos pushing ~10×/day → ~500k pipelines/day, ~6/sec avg but <b>~10× bursty peaks</b> (9am, pre-deploy)</td><td>6/sec is trivial to ingest; the spikiness is the whole problem — the runner pool must autoscale, not be sized for average.</td></tr>
+    <tr><td>Jobs per pipeline</td><td>~10 jobs/pipeline → ~5M job-runs/day → ~60 job-starts/sec avg, ~600/sec peak</td><td>The scheduler dispatches hundreds of jobs/sec onto runners — this is the <a href="0034-job-scheduler.html">job-scheduler</a> core, not a webhook problem.</td></tr>
+    <tr><td>Artifacts &amp; logs</td><td>~5M runs × ~50&nbsp;MB artifacts + logs → <b>~250&nbsp;TB/day</b> ingested, retained ~90 days → tens of PB</td><td>Far too large for a DB; artifacts and logs go to <b>blob storage</b> (see <a href="0045-blob-store-s3.html">Lesson 45</a>) with lifecycle expiry.</td></tr>
+  </table>
+  <p><b>The math that matters:</b> ingestion QPS is a rounding error; the cost centers are <em>compute</em> (thousands of concurrent
+  runner VMs at peak) and <em>blob storage</em> (PB-scale). That's where the design earns its keep — autoscaling and offloading bytes.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Pipeline</b> — a run triggered by one commit, holding a DAG of stages.<a href="#c2" class="cite">[2]</a>
+  <b>Job</b> — one unit of work (build, test-shard) that runs on a single runner.<a href="#c2" class="cite">[2]</a>
+  <b>Runner</b> — an ephemeral executor (container/VM) that claims and runs one job.<a href="#c2" class="cite">[2]</a>
+  <b>Artifact</b> — a stored output blob with a lifetime.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/webhooks/{provider}</code></td><td>Ingest a signed push/PR event; verify HMAC signature, enqueue a pipeline trigger.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><code>GET /v1/pipelines/{id}</code></td><td>Fetch a pipeline's DAG, per-job status, and timing.</td></tr>
+    <tr><td><code>GET /v1/jobs/{id}/logs</code></td><td>Stream or page a job's log output from blob storage.</td></tr>
+    <tr><td><code>POST /v1/jobs/{id}/claim</code></td><td>A runner leases the next eligible job (long-poll); returns its spec + scoped token.</td></tr>
+    <tr><td><code>POST /v1/jobs/{id}/status</code></td><td>Runner reports running/success/failure + uploads artifact references.</td></tr>
+    <tr><td><code>GET /v1/artifacts/{id}</code></td><td>Redirect to a pre-signed blob URL for download.<a href="#c4" class="cite">[4]</a></td></tr>
+  </table>
+  <p>The repo and tenant are derived from the verified webhook payload and the runner's scoped token — never trusted from the caller's body.</p>
+
+  <h2>Data Flow</h2>
+  <p>CI/CD is a data-processing pipeline, so trace one push end-to-end:</p>
+  <ol style="font-family:-apple-system,sans-serif; font-size:.9rem;">
+    <li><b>Trigger:</b> git host POSTs a signed webhook on push/PR. The ingestion service verifies the signature and writes a trigger to a durable queue (see <a href="0007-messaging-and-async.html">Lesson 07</a>) — return <code>200</code> fast, work async.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Plan:</b> a worker reads the trigger, fetches the pipeline config, and materializes the <b>stage DAG</b> of jobs with their dependencies.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Schedule:</b> jobs whose dependencies are satisfied become <em>eligible</em> and land on a dispatch queue, tagged by required labels (OS, GPU, tenant).</li>
+    <li><b>Execute:</b> an ephemeral runner claims a job, restores caches, runs the user's steps in a sandbox, streams logs, uploads artifacts.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Aggregate:</b> on each job's ACK the scheduler re-evaluates the DAG, unlocking downstream jobs (fan-out/fan-in), until a final deploy job runs and status is reported to the commit.</li>
+  </ol>
+
+  <h2>High-Level Design</h2>
+  <p>Seven components, split cleanly into <em>ingest</em>, <em>plan/schedule</em>, and <em>execute</em>:</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>Webhook ingestion</td><td>Verifies HMAC signatures, dedupes, writes triggers to a queue. Stateless, autoscaled behind a load balancer.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Trigger queue</td><td>Durable buffer (Kafka/SQS) absorbing bursts so ingestion never blocks on planning.</td></tr>
+    <tr><td>Pipeline planner</td><td>Expands config into a DAG of jobs, persists it, marks dependency-free jobs eligible.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Scheduler / dispatcher</td><td>Matches eligible jobs to runners by label; leases with visibility timeout (the <a href="0034-job-scheduler.html">job-scheduler</a> core).</td></tr>
+    <tr><td>Runner pool + autoscaler</td><td>Ephemeral containers/VMs that claim one job each; autoscaler sizes the fleet to queue depth.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Metadata DB</td><td>Pipelines, jobs, DAG edges, statuses. Small structured data; source of truth for orchestration.</td></tr>
+    <tr><td>Blob store + cache</td><td>Artifacts, logs, and dependency caches in object storage (see <a href="0045-blob-store-s3.html">Lesson 45</a>).<a href="#c4" class="cite">[4]</a></td></tr>
+  </table>
+  <p><b>Flow:</b> webhook → verify → trigger queue → planner builds DAG → scheduler dispatches eligible jobs onto labeled runners →
+  runner sandboxes the build, streams logs to blob, uploads artifacts, ACKs → scheduler unlocks downstream jobs → deploy → report status.
+  Keeping orchestration metadata (small, transactional) separate from artifacts/logs (huge, append-only) is the load-bearing split.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Don't re-derive a job scheduler from scratch — name it: "the dispatch tier <em>is</em> the distributed scheduler from
+    <a href="0034-job-scheduler.html">Lesson 34</a> with label-matching." Then spend your depth budget on the two things unique
+    to CI/CD: <b>isolating untrusted build code</b> and a <b>DAG executor with fan-out/fan-in</b>. Treating isolation as the #1 NFR
+    (not an afterthought) and reaching for <em>ephemeral</em> runners by default is the move that reads as staff.
+  </div>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1 · Scheduling jobs onto a pool of ephemeral runners + autoscaling</h3>
+  <p>The dispatch tier is a <a href="0034-job-scheduler.html">distributed job scheduler</a> with one twist: jobs carry <b>labels</b>
+  (<code>linux/x64</code>, <code>gpu</code>, <code>tenant-A</code>) and must land on a matching runner. Runners are <b>ephemeral</b> —
+  spun up, given exactly one job, then destroyed<a href="#c2" class="cite">[2]</a> — which is what makes isolation tractable (deep dive 2).
+  Runners pull work via long-poll/lease+ACK so a crashed runner's job is re-dispatched (the same semantics as Lesson 34).</p>
+  <table>
+    <tr><th>Autoscaling signal</th><th>Behavior</th><th>Tradeoff</th></tr>
+    <tr><td>Scale on queue depth</td><td>Add runners when eligible-job backlog grows; scale to zero when idle.</td><td>Directly tracks demand; but cold-start latency (boot a VM) adds seconds to the first job.</td></tr>
+    <tr><td>Warm pool / pre-provision</td><td>Keep a small buffer of idle runners ready to claim instantly.</td><td>Kills cold-start for the common case; costs money to hold idle capacity.</td></tr>
+    <tr><td>Predictive pre-warm</td><td>Scale up ahead of known peaks (9am, release windows) from history.</td><td>Smooths bursts; wrong predictions waste spend or under-provision.</td></tr>
+  </table>
+  <div class="box">
+    <b>Pick &amp; justify:</b> <b>Scale-to-zero on queue depth + a small warm pool</b> for the hot labels. This gives elastic cost
+    (idle tenants pay nothing) while hiding boot latency for typical jobs. Enforce <b>fairness</b> with per-tenant concurrency caps
+    and weighted-fair dispatch so one repo's 500-shard test matrix can't starve everyone else — fairness lives in the scheduler, not the pool.
+  </div>
+
+  <h3>2 · Isolating &amp; sandboxing untrusted build code — the security core</h3>
+  <p>This is the deep dive that matters most: build steps run <b>arbitrary attacker-controlled code</b> (anyone can open a PR).
+  A weak sandbox leaks secrets, poisons caches, or escalates to the host and pivots into your network.<a href="#c3" class="cite">[3]</a>
+  Defense is layered.</p>
+  <table>
+    <tr><th>Isolation level</th><th>Boundary</th><th>Tradeoff</th></tr>
+    <tr><td>Shared host, OS users</td><td>Just process/user separation on one box.</td><td>Fast and cheap, but a shared kernel + escapes make it unsafe for untrusted multi-tenant code.</td></tr>
+    <tr><td>Containers</td><td>Namespaces + cgroups isolate filesystem, network, resources.</td><td>Lightweight and fast; shared kernel means a kernel exploit can still escape — not enough alone.</td></tr>
+    <tr><td>MicroVMs (Firecracker)</td><td>Per-job lightweight VM with its own kernel.<a href="#c5" class="cite">[5]</a></td><td>Near-container speed with a true hardware/VM boundary; more infra complexity to operate.</td></tr>
+    <tr><td>Full VM per job</td><td>Heavyweight hypervisor isolation, destroyed after.</td><td>Strongest blast-radius control; slowest to boot and most expensive per job.</td></tr>
+  </table>
+  <div class="box">
+    <b>Pick &amp; justify:</b> <b>One ephemeral microVM (or fresh VM) per job</b>, destroyed on completion, is the safe default for
+    untrusted code — a fresh kernel boundary plus zero reuse means no cross-job leakage.<a href="#c5" class="cite">[5]</a> Layer on:
+    <ul>
+      <li><b>Least-privilege scoped tokens</b> — the runner gets a short-lived token good only for <em>this</em> job's repo/artifacts, never org-wide secrets.</li>
+      <li><b>Egress control</b> — restrict outbound network to prevent exfiltration and SSRF into internal services.</li>
+      <li><b>No reuse</b> — never run a fork-PR job on a runner that later touches privileged caches or signing keys.</li>
+    </ul>
+    Ephemeral-by-default makes "throw the machine away" the cheap path, which is exactly why deep dive 1 chose ephemeral runners.
+  </div>
+
+  <h3>3 · The pipeline DAG — stages, dependencies, fan-out / fan-in</h3>
+  <p>A pipeline isn't a list; it's a <b>directed acyclic graph</b> of jobs.<a href="#c2" class="cite">[2]</a> <code>build</code> fans out
+  to <code>test-shard-1..N</code> running in parallel (fan-out); <code>deploy</code> waits for <em>all</em> shards to pass before it runs (fan-in).
+  The scheduler is a DAG evaluator: a job is <em>eligible</em> only when every upstream dependency has succeeded.</p>
+  <div class="box">
+    <b>How the executor drives the graph:</b>
+    <ul>
+      <li><b>Persist the DAG</b> with each edge as a dependency; track per-job state (<code>pending → eligible → running → done/failed</code>).</li>
+      <li><b>On each job ACK</b>, re-evaluate downstream jobs: any whose dependencies are now all <code>done</code> become eligible and are dispatched (fan-out is just many eligible jobs at once).</li>
+      <li><b>Fan-in</b> is a join node that stays <code>pending</code> until its last parent finishes — a counter of remaining upstreams hitting zero.</li>
+      <li><b>Fail-fast vs. continue:</b> a failed required job marks the pipeline failed and cancels in-flight siblings; <code>continue-on-error</code> jobs don't.</li>
+    </ul>
+  </div>
+  <p>Pass shard outputs forward as <b>artifacts</b> (deep dive 4), not shared mutable disk — that keeps parallel jobs independent and
+  reschedulable. The DAG state lives in the metadata DB so an evaluator crash resumes from the last persisted state, not from scratch.</p>
+
+  <h3>4 · Artifact &amp; log storage + dependency caching</h3>
+  <p>Two byte-heavy concerns, both offloaded to <b>blob storage</b> (see <a href="0045-blob-store-s3.html">Lesson 45</a>) — never the metadata DB.<a href="#c4" class="cite">[4]</a></p>
+  <table>
+    <tr><th>Data</th><th>Storage approach</th><th>Why</th></tr>
+    <tr><td>Artifacts</td><td>Object store, content-addressed by hash; metadata DB holds only the pointer + TTL.<a href="#c4" class="cite">[4]</a></td><td>PB-scale, immutable, cheap; dedup identical builds; lifecycle policy expires old runs.</td></tr>
+    <tr><td>Logs</td><td>Stream live over websockets to viewers, then flush to blob in chunks for replay.<a href="#c1" class="cite">[1]</a></td><td>Append-only and huge; live tail needs low latency, history needs cheap durable storage.</td></tr>
+    <tr><td>Dependency cache</td><td>Keyed by a hash of the lockfile (<code>package-lock</code>, <code>go.sum</code>); restored before the build, saved after.<a href="#c6" class="cite">[6]</a></td><td>Turns a 20-min cold build into a 2-min warm one — the single biggest speed lever.</td></tr>
+  </table>
+  <div class="box">
+    <b>The caching subtlety (where it gets staff-level):</b> caches collide with isolation. A cache writable by an untrusted job is a
+    <b>cache-poisoning vector</b> — a malicious PR plants a backdoored dependency that a later trusted build consumes.<a href="#c6" class="cite">[6]</a>
+    Mitigate by making caches <b>read-only for untrusted (fork) PRs</b>, scoping cache keys per-branch/per-tenant, and verifying integrity
+    by content hash. Speed is great, but it must not punch a hole in deep dive 2.
+  </div>
+  <p>State the breadth/depth ratio aloud: you went deep on isolation, scheduling/autoscaling, the DAG, and caching — the parts that
+  break (security) or dominate cost/latency — and kept ingestion and the metadata schema shallow because they're boring and well-understood.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why are ephemeral, single-job runners the default for CI builds?</p>
+      <button class="opt">They are the cheapest possible compute to keep idle</button>
+      <button class="opt">They let one runner cache every tenant's secrets fast</button>
+      <button class="opt">A fresh box per job means no cross-job state can leak</button>
+      <p class="fb">Untrusted code runs each job; destroying the box afterward guarantees no secret, cache, or state survives to the next tenant.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. What is the single most important NFR for a CI/CD system?</p>
+      <button class="opt">Raw webhook ingestion throughput at the front door</button>
+      <button class="opt">Isolation of arbitrary untrusted multi-tenant build code</button>
+      <button class="opt">Storing every build log forever inside the metadata DB</button>
+      <p class="fb">Anyone can open a PR running arbitrary code; a weak sandbox leaks secrets or escapes to the host, so isolation leads.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. In the pipeline DAG, when does a fan-in deploy job become eligible?</p>
+      <button class="opt">Only once every upstream parent job has finished okay</button>
+      <button class="opt">As soon as the very first parallel test shard passes</button>
+      <button class="opt">Whenever the runner autoscaler adds more idle nodes</button>
+      <p class="fb">Fan-in is a join: the deploy job waits until its remaining-parents counter hits zero, i.e. all shards succeeded.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why must dependency caches be read-only for untrusted fork PRs?</p>
+      <button class="opt">Read-only caches restore much faster than writable ones</button>
+      <button class="opt">A writable cache lets a malicious PR poison later builds</button>
+      <button class="opt">Object stores simply cannot accept writes from any runner</button>
+      <p class="fb">A writable shared cache is a poisoning vector: a fork PR could plant a backdoored dependency a trusted build then consumes.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic. Try:
+    "Walk me through exactly what a fork-PR attacker could do if I reused runners, and how microVMs stop it."
+    "Compare containers vs. Firecracker microVMs vs. full VMs for build isolation."
+    "How does the scheduler here map onto the distributed job scheduler from Lesson 34, and what's the one new piece?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://docs.github.com/en/actions/concepts/runners/about-self-hosted-runners">GitHub Actions — About self-hosted runners &amp; ephemeral runners</a>.
+  The clearest production model of pipelines, jobs, runner labels, and ephemeral-runner security; pair it with the Firecracker paper for the isolation deep dive.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://docs.github.com/en/webhooks/about-webhooks">GitHub — About webhooks</a> (signed push/PR events trigger pipelines; verify before acting; report status to commits).</p>
+    <p id="c2">[2] <a href="https://docs.github.com/en/actions/concepts/workflows-and-actions/about-workflows">GitHub Actions — Workflows, jobs, and runners</a> (pipelines as jobs/steps, parallel jobs with <code>needs</code> dependencies, runners and labels, artifacts).</p>
+    <p id="c3">[3] <a href="https://docs.github.com/en/actions/concepts/security/security-hardening-for-github-actions">GitHub Actions — Security hardening</a> (untrusted build code, secret exposure, fork-PR risks, least-privilege tokens).</p>
+    <p id="c4">[4] <a href="../lessons/0045-blob-store-s3.html">Lesson 45 — Blob Store (S3)</a> (object storage for large immutable artifacts/logs, content-addressing, pre-signed URLs, lifecycle expiry).</p>
+    <p id="c5">[5] <a href="https://www.usenix.org/conference/nsdi20/presentation/agache">Agache et&nbsp;al., "Firecracker: Lightweight Virtualization for Serverless Applications," NSDI 2020</a> (microVMs giving per-job VM-grade isolation at near-container speed).</p>
+    <p id="c6">[6] <a href="https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/cache-dependencies">GitHub Actions — Caching dependencies</a> (lockfile-keyed dependency caches for build speed; cache scoping and poisoning considerations).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0066-version-control-github.html">← Lesson 66</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 68 · Authentication Service</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 110 — Deep Dive: gRPC</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 110 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: gRPC</h1>
+  <p class="sub">The default for fast, typed, internal service-to-service calls — and knowing exactly why you'd never put it raw in a browser.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> At L6/L7 "we'll use gRPC between services" is only a starting move. The interviewer wants to know <em>why</em> it's faster than JSON-over-REST (binary Protobuf on HTTP/2, not magic), what its streaming modes buy you, and — the real depth — why long-lived HTTP/2 connections wreck naive L4 load balancing and what you do about it. Naming that load-balancing problem before you're asked is the signal that reads as staff.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>What it is</h2>
+  <p>gRPC is a high-performance, open-source <b>RPC (Remote Procedure Call)</b> framework: you call a method on a remote server as if it were a local function, and gRPC handles serialization, transport, and the round trip.<a href="#c2" class="cite">[2]</a> Two design choices define it. First, the contract is written in <b>Protocol Buffers (Protobuf)</b> — a language-neutral interface definition language (IDL) — and a code generator emits typed client and server <b>stubs</b> in your language.<a href="#c2" class="cite">[2]</a> Second, the wire transport is <b>HTTP/2</b>, which gives it multiplexing, streaming, and header compression for free.<a href="#c3" class="cite">[3]</a></p>
+  <p>The net effect: a strongly-typed, versioned contract; a compact binary payload; and full-duplex streaming over a single connection. That combination is why gRPC became the default for the chatty east-west traffic <em>between</em> microservices in large fleets, where JSON's verbosity and the cost of one-connection-per-request actually add up.<a href="#c1" class="cite">[1]</a> It builds directly on the transport choices from <a href="../lessons/0009-key-technologies-tour.html">Lesson 09</a>.</p>
+
+  <h2>Internals — the part that earns depth</h2>
+
+  <h3>Protobuf: the IDL and the binary wire format</h3>
+  <p>You declare messages and services in a <code>.proto</code> file. Each field gets a name, a type, and — critically — a small integer <b>field tag</b>:</p>
+  <table>
+    <thead><tr><th>.proto definition</th><th>What the tag is for</th></tr></thead>
+    <tbody>
+      <tr><td><code>message User { string name = 1; int32 age = 2; }</code></td><td>Tags <code>1</code> and <code>2</code> identify fields on the wire — not the names<a href="#c4" class="cite">[4]</a></td></tr>
+    </tbody>
+  </table>
+  <p>On the wire a Protobuf message is <b>not</b> self-describing text like JSON. Each field is encoded as a <em>key</em> (the field tag combined with a 3-bit wire type) followed by the value.<a href="#c4" class="cite">[4]</a> Integers use <b>varints</b> — variable-length integers where small numbers cost one byte and only large ones cost more — so common small values are tiny.<a href="#c4" class="cite">[4]</a> Field names never travel; the tag number is the identity. Compare the two encodings of the same record:</p>
+  <table>
+    <thead><tr><th>JSON</th><th>Protobuf</th></tr></thead>
+    <tbody>
+      <tr><td><code>{"age":150}</code> — 11 bytes, ships the key text and digits as characters</td><td>~3 bytes — one byte tag/type, value as a varint, no key text<a href="#c4" class="cite">[4]</a></td></tr>
+    </tbody>
+  </table>
+  <p><b>Why it's smaller and faster:</b> no repeated field-name strings, no quotes or braces, numbers stored as bytes rather than ASCII digits, and parsing is a tight length-prefixed walk instead of tokenizing text.<a href="#c4" class="cite">[4]</a> The cost is that the bytes are opaque — you cannot read them without the <code>.proto</code>, which is exactly why Protobuf shines internally and JSON wins for human-debuggable public APIs.</p>
+  <p>The same tag-based design gives <b>schema evolution</b>: add a new field with a new tag and old clients simply ignore it; never reuse or renumber a tag and forward/backward compatibility holds. This is the staff-relevant property — you can deploy producer and consumer independently.<a href="#c4" class="cite">[4]</a></p>
+
+  <h3>HTTP/2: multiplexing and streaming</h3>
+  <p>gRPC runs on HTTP/2, whose key feature is <b>multiplexing</b>: many independent <em>streams</em> share one TCP connection concurrently, with no head-of-line blocking at the HTTP layer.<a href="#c3" class="cite">[3]</a> HTTP/1.1 forced one in-flight request per connection (or clumsy pipelining), so high call volume meant many sockets; HTTP/2 collapses that to a single long-lived connection. Headers are compressed (HPACK), and frames are binary.<a href="#c3" class="cite">[3]</a> Because a stream is bidirectional and long-lived, gRPC exposes four call types:</p>
+  <table>
+    <thead><tr><th>Call type</th><th>Shape</th><th>Use</th></tr></thead>
+    <tbody>
+      <tr><td><b>Unary</b></td><td>1 request → 1 response</td><td>The normal RPC; most calls<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><b>Server streaming</b></td><td>1 request → N responses</td><td>Subscriptions, large result feeds<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><b>Client streaming</b></td><td>N requests → 1 response</td><td>Uploads, telemetry batches<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><b>Bidirectional</b></td><td>N ↔ N, independent</td><td>Chat, real-time sync<a href="#c2" class="cite">[2]</a></td></tr>
+    </tbody>
+  </table>
+
+  <h3>Codegen stubs</h3>
+  <p>Running <code>protoc</code> (with the gRPC plugin) on your <code>.proto</code> generates a typed <b>client stub</b> and a server <b>skeleton</b> in each target language.<a href="#c2" class="cite">[2]</a> The client calls <code>stub.GetUser(req)</code> like a local method; the stub marshals the Protobuf, opens an HTTP/2 stream, and unmarshals the reply. You get compile-time type safety across a polyglot fleet from a single source of truth — no hand-written client libraries drifting out of sync.</p>
+
+  <h3>Deadlines, cancellation, metadata, status codes</h3>
+  <p>gRPC bakes in the operational primitives REST leaves to convention:</p>
+  <ul>
+    <li><b>Deadlines/timeouts:</b> the caller sets an absolute deadline that propagates with the call; when it passes, the RPC fails fast on both ends rather than hanging — essential for bounding cascading latency.<a href="#c5" class="cite">[5]</a></li>
+    <li><b>Cancellation:</b> if the caller goes away or cancels, the server is notified and can stop work, freeing resources.<a href="#c5" class="cite">[5]</a></li>
+    <li><b>Metadata:</b> key-value pairs (carried as HTTP/2 headers) for auth tokens, tracing IDs, etc. — the gRPC analog of HTTP headers.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Status codes:</b> a fixed enum (<code>OK</code>, <code>NOT_FOUND</code>, <code>DEADLINE_EXCEEDED</code>, <code>UNAVAILABLE</code>…) — a uniform error vocabulary across languages, unlike REST's reuse of HTTP status codes.<a href="#c6" class="cite">[6]</a></li>
+  </ul>
+
+  <h2>gRPC vs REST</h2>
+  <p>This is the comparison the interviewer is actually after. They are not rivals so much as tools for different edges of the system.</p>
+  <table>
+    <thead><tr><th>Dimension</th><th>gRPC</th><th>REST / JSON</th></tr></thead>
+    <tbody>
+      <tr><td>Payload</td><td>Binary Protobuf — compact, opaque<a href="#c4" class="cite">[4]</a></td><td>JSON text — verbose, human-readable</td></tr>
+      <tr><td>Transport</td><td>HTTP/2, multiplexed, streaming<a href="#c3" class="cite">[3]</a></td><td>Usually HTTP/1.1, request/response</td></tr>
+      <tr><td>Contract</td><td>Strict <code>.proto</code> + codegen<a href="#c2" class="cite">[2]</a></td><td>OpenAPI/convention, looser</td></tr>
+      <tr><td>Browser</td><td>No native support → needs gRPC-Web<a href="#c7" class="cite">[7]</a></td><td>Works everywhere, natively</td></tr>
+      <tr><td>Best at</td><td>Internal service-to-service<a href="#c1" class="cite">[1]</a></td><td>Public / browser-facing APIs</td></tr>
+    </tbody>
+  </table>
+  <p><b>The rule of thumb:</b> reach for gRPC for <em>internal east-west</em> traffic — high-volume, low-latency, polyglot service-to-service calls behind your edge. Reach for REST (or GraphQL, the subject of <a href="../lessons/0111-rest-vs-graphql.html">Lesson 111</a>) for <em>public, browser-facing</em> APIs where ubiquity, caching, and debuggability matter more than raw bytes.<a href="#c1" class="cite">[1]</a></p>
+  <p><b>gRPC-Web:</b> browsers can't speak raw gRPC because they don't expose the HTTP/2 frame control gRPC needs. <b>gRPC-Web</b> is a variant plus a proxy (e.g. Envoy) that translates the browser's calls into real gRPC behind the edge — so you keep the typed contract but pay a proxy hop.<a href="#c7" class="cite">[7]</a></p>
+
+  <div class="box">
+    <b>The load-balancing trap — name this before they make you</b>
+    <ul>
+      <li>gRPC opens <b>one long-lived HTTP/2 connection</b> and multiplexes every call over it. A naive <b>L4 (connection-level) load balancer</b> picks a backend <em>once</em>, at connect time, then pins all that traffic there.<a href="#c8" class="cite">[8]</a></li>
+      <li>Result: connections distribute evenly but <b>requests don't</b> — a few backends get hammered while new ones added during a scale-up sit idle, because nobody opens fresh connections to them.<a href="#c8" class="cite">[8]</a></li>
+      <li><b>Fixes:</b> use an <b>L7 (request-aware) proxy</b> like Envoy that balances individual streams; or <b>client-side load balancing</b> where the client resolves all backends and round-robins calls; or periodically recycle connections so rebalancing happens.<a href="#c8" class="cite">[8]</a></li>
+      <li>This is the gotcha that separates "I used gRPC" from "I've run gRPC in production."</li>
+    </ul>
+  </div>
+
+  <h2>When NOT to use it</h2>
+  <table>
+    <thead><tr><th>Avoid gRPC when…</th><th>Because…</th></tr></thead>
+    <tbody>
+      <tr><td>The client is a browser / public web app</td><td>No native support; needs a gRPC-Web proxy hop<a href="#c7" class="cite">[7]</a></td></tr>
+      <tr><td>You want human-readable, easily-debugged APIs</td><td>Binary payloads need the <code>.proto</code> to decode<a href="#c4" class="cite">[4]</a></td></tr>
+      <tr><td>You rely on HTTP caching / CDNs for GET reads</td><td>RPC POST semantics don't map to HTTP caching<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>It's a simple low-traffic CRUD or third-party API</td><td>REST is simpler and ubiquitous; gRPC overhead unjustified<a href="#c1" class="cite">[1]</a></td></tr>
+    </tbody>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Seniors say "gRPC between services because it's faster." Staff candidates say <em>why and what it costs</em> in one breath: "Protobuf over HTTP/2 — compact binary, multiplexed streams, typed stubs across our polyglot fleet — but it's opaque to debug and browsers can't speak it natively, so the public edge stays REST and we'd front internal gRPC with gRPC-Web only where a browser needs it." And they raise the real operational trap <b>unprompted</b>: "long-lived HTTP/2 connections defeat L4 load balancing, so I'd put Envoy (L7) or client-side LB in front, otherwise scaling out adds idle backends."<a href="#c8" class="cite">[8]</a> Choosing the protocol per <em>edge</em>, and surfacing the load-balancing failure mode before being cornered, is the judgement the bar rewards — without over-explaining what RPC is.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When you draw arrows between internal services, justify the protocol in one line ("gRPC for east-west — typed contracts and a compact binary payload at high call volume") and keep REST/GraphQL at the public edge.<a href="#c1" class="cite">[1]</a> Be ready for the two predictable follow-ups: <em>"Why is it faster than REST?"</em> (binary Protobuf + HTTP/2 multiplexing, not magic) and <em>"How do you load-balance it?"</em> (L7/Envoy or client-side LB, because long-lived HTTP/2 connections fool L4).<a href="#c8" class="cite">[8]</a> Mentioning deadlines propagating to bound cascading latency, or streaming for a feed, signals hands-on depth. Don't pitch gRPC for the browser path — that's the tell that you've only read about it.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why is a Protobuf payload smaller than the equivalent JSON?</p>
+      <button class="opt">It compresses the entire JSON text with a gzip pass first</button>
+      <button class="opt">It sends field names but drops every value below a limit</button>
+      <button class="opt">It sends numeric field tags and varints, never key text</button>
+      <button class="opt">It strips whitespace yet keeps the readable string format</button>
+      <p class="fb">Protobuf encodes fields by integer tag plus varint values — field-name strings never travel, so bytes shrink.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. What does HTTP/2 multiplexing give gRPC over HTTP/1.1?</p>
+      <button class="opt">It encrypts each request with a separate per-stream TLS key</button>
+      <button class="opt">It runs many concurrent streams over one shared connection</button>
+      <button class="opt">It converts each binary frame back into readable JSON text</button>
+      <button class="opt">It caches every response automatically at the nearest proxy</button>
+      <p class="fb">HTTP/2 multiplexes independent streams on a single long-lived connection, removing one-request-per-socket limits.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why do long-lived gRPC connections break naive L4 load balancing?</p>
+      <button class="opt">A backend is picked once at connect, so requests pile up there</button>
+      <button class="opt">A backend rejects every stream after the first request returns</button>
+      <button class="opt">A backend rotates its address faster than clients can resolve</button>
+      <button class="opt">A backend drops the connection whenever a new replica appears</button>
+      <p class="fb">L4 balances at connect time; with one pinned connection, requests aren't spread — use L7/Envoy or client-side LB.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. When is REST the better choice over gRPC for an interface?</p>
+      <button class="opt">For internal high-volume calls between two backend services</button>
+      <button class="opt">For bidirectional streaming between two trusted internal nodes</button>
+      <button class="opt">For a polyglot fleet needing one strict generated contract</button>
+      <button class="opt">For a public browser-facing API needing ubiquity and caching</button>
+      <p class="fb">Browsers lack native gRPC and HTTP caching wants REST; public edges favor REST while gRPC stays internal.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Quiz me on how Protobuf field tags enable backward-compatible schema evolution." · "Walk me through exactly how I'd load-balance gRPC in a Kubernetes fleet." · "Give me a FAANG prompt and push me on when I'd pick gRPC vs REST vs GraphQL per edge."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://grpc.io/docs/what-is-grpc/introduction/">gRPC — Introduction &amp; Core Concepts</a>. The canonical reference — read "Introduction to gRPC" and "Core concepts" (call types, deadlines, metadata, status), then the <a href="https://protobuf.dev/programming-guides/encoding/">Protobuf encoding guide</a> for the wire format. Pair with <a href="../lessons/0111-rest-vs-graphql.html">Lesson 111</a> and the <a href="../reference/glossary.html">glossary</a>.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/key-technologies">Hello Interview — Key Technologies for System Design Interviews</a> (gRPC for internal service-to-service; pick the protocol for the edge).</p>
+    <p id="c2">[2] <a href="https://grpc.io/docs/what-is-grpc/introduction/">gRPC Docs — Introduction to gRPC</a> (RPC model, Protobuf IDL, generated stubs, four call types, metadata).</p>
+    <p id="c3">[3] <a href="https://httpwg.org/specs/rfc9113.html">RFC 9113 — HTTP/2</a> (streams, multiplexing over one connection, binary framing, header compression).</p>
+    <p id="c4">[4] <a href="https://protobuf.dev/programming-guides/encoding/">Protocol Buffers — Encoding</a> (field tags, wire types, varints, opaque binary format, schema evolution).</p>
+    <p id="c5">[5] <a href="https://grpc.io/docs/guides/deadlines/">gRPC Docs — Deadlines</a> (deadline propagation, fail-fast, cancellation semantics).</p>
+    <p id="c6">[6] <a href="https://grpc.io/docs/guides/status-codes/">gRPC Docs — Status Codes</a> (uniform cross-language error enum).</p>
+    <p id="c7">[7] <a href="https://grpc.io/docs/platforms/web/basics/">gRPC-Web — Basics</a> (browser support via a proxy that translates to gRPC).</p>
+    <p id="c8">[8] <a href="https://grpc.io/blog/grpc-load-balancing/">gRPC Blog — gRPC Load Balancing</a> (long-lived HTTP/2 connections defeat L4; use L7 proxy or client-side LB).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0109-cdn.html">← Lesson 109</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 111 · REST vs GraphQL</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

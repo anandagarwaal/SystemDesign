@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 33 — Design YouTube (Video Streaming)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 33 · Phase 4 — Case Study · Hard</p>
+  <h1>Design YouTube (Video Streaming)</h1>
+  <p class="sub">Three decisions carry this design: async transcoding, adaptive-bitrate segments, and a CDN. Everything else is plumbing.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> YouTube is the canonical "media at scale" interview. The trap is treating it like a CRUD app and burning time on the metadata DB. At L6/L7 you must recognize that the <em>real</em> system is a transcoding pipeline feeding a CDN, and that <b>bandwidth — not storage or QPS — is the dominant cost and scaling axis.</b> Get the three load-bearing decisions right and you've passed.
+  </div>
+
+  <h2>1. Functional Requirements</h2>
+  <p>Scope is mercilessly narrow. Two flows define the product; everything else (search, comments, recommendations, channels) is explicitly out of scope and you should say so to buy depth elsewhere.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th><th>Note</th></tr>
+    <tr><td>1</td><td>Upload a video</td><td>Files up to 10s of GBs; must be resumable</td></tr>
+    <tr><td>2</td><td>Watch a video</td><td>Streamed, with adaptive quality across devices/bitrates</td></tr>
+    <tr><td>3</td><td>View metadata + view count</td><td>Title, description, uploader, approximate view count</td></tr>
+  </table>
+  <p>The third item is a deliberate add to this lesson — view counts are a classic "approximate at scale" sub-problem worth a deep dive.</p>
+
+  <h2>2. Non-Functional Requirements</h2>
+  <p>These are where the design lives or dies. State the target, not just the word.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>NFR</th><th>Target</th><th>Drives</th></tr>
+    <tr><td>Durability</td><td>Never lose an uploaded video</td><td>Object storage (S3) with replication</td></tr>
+    <tr><td>Low-latency playback</td><td>Start in &lt;~2s, no rebuffering</td><td>Segments + CDN + adaptive bitrate</td></tr>
+    <tr><td>Read scalability</td><td>~100M watches/day, extreme read:write</td><td>CDN absorbs reads; cache hot metadata</td></tr>
+    <tr><td>Device/bitrate reach</td><td>Many codecs, 240p–4K, weak networks</td><td>Multi-format transcode + manifest</td></tr>
+    <tr><td>Availability</td><td>HA &gt; strong consistency</td><td>Cassandra, async processing</td></tr>
+  </table>
+  <p>Order matters. <b>Low-latency global playback</b> and <b>read scalability</b> are the headline NFRs — they're what justify the CDN and segmentation that make this problem "hard."</p>
+
+  <h2>3. Capacity Estimation</h2>
+  <p>Only compute the numbers that change a decision. Three matter here.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Uploads</td><td>~1M videos/day → ~365M/yr</td><td>~12 uploads/sec. Trivial write QPS — <em>not</em> the bottleneck.</td></tr>
+    <tr><td>Storage</td><td>1M/day × ~1–5 GB raw, ×~5 for transcoded copies → PBs/yr</td><td>Huge, but cheap object storage; not the hard part.</td></tr>
+    <tr><td>Watch bandwidth</td><td>100M watches/day × ~5 min × ~5 Mbps</td><td><b>This is the cost.</b> Tens-to-hundreds of Tbps at peak → must serve from the CDN edge, never origin.</td></tr>
+  </table>
+  <div class="box">
+    <b>The one number that reframes the problem.</b> Write QPS (~12/s) is laughable. The metadata DB is easy. The interview-defining figure is egress bandwidth: serving 100M streams from origin S3 is both impossible and ruinously expensive. <b>Bandwidth dominates everything</b> — so the architecture must push bytes to the edge and keep them there.
+  </div>
+
+  <h2>4. Core Entities &amp; API</h2>
+  <p>Three entities. Note <code>VideoMetadata</code> carries the <em>manifest URL</em> and per-chunk upload progress — those two fields wire the whole system together.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Entity</th><th>Key fields</th></tr>
+    <tr><td>User</td><td>id, uploaders and viewers</td></tr>
+    <tr><td>Video</td><td>the raw + transcoded byte assets in blob storage</td></tr>
+    <tr><td>VideoMetadata</td><td>id, title, description, uploaderId, status, <b>manifestUrl</b>, chunk list + per-chunk status</td></tr>
+  </table>
+  <p>The API is small. The user is always derived from the auth token, never a body param.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/videos</code></td><td>Create metadata, return chunk plan + presigned upload URLs (resumable)</td></tr>
+    <tr><td><code>PATCH /v1/videos/{id}/chunks</code></td><td>Report a chunk's ETag after a successful direct-to-S3 PUT</td></tr>
+    <tr><td><code>GET /v1/videos/{id}</code></td><td>Return metadata + <code>manifestUrl</code> (the streaming entry point)</td></tr>
+    <tr><td><code>GET</code> manifest &amp; <code>GET</code> segments</td><td>Served directly by the <b>CDN</b>, not the app tier</td></tr>
+  </table>
+  <p>Critical move: the client uploads bytes <em>directly</em> to object storage via presigned URLs, and downloads segments <em>directly</em> from the CDN. The app tier only ever touches small metadata — it never proxies video bytes. (Presigned uploads → see <a href="0045-blob-store-s3.html">Lesson 45, Object Storage</a>.)</p>
+
+  <h2>5. Data Flow — upload to playable</h2>
+  <p>YouTube is a pipeline, so trace the bytes once before drawing boxes:</p>
+  <div class="box">
+    <ol style="margin:.2rem 0 .2rem 1.1rem; padding:0;">
+      <li><b>Upload:</b> client splits the file into ~5–10 MB chunks and PUTs each to S3 via presigned URLs; backend tracks chunk status for resumability.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Store raw:</b> on the final chunk, S3 assembles the object and fires an <code>ObjectCreated</code> event.</li>
+      <li><b>Transcode:</b> the event enqueues a job; a worker fleet runs a DAG — split into 2–10s segments, transcode each into multiple codecs/resolutions, process audio.</li>
+      <li><b>Segment + manifest:</b> workers write segments to S3 and generate the manifest (the index of every variant + segment URL).</li>
+      <li><b>Distribute:</b> segments + manifest are served via CDN; metadata is flipped to <code>READY</code> with the <code>manifestUrl</code> set.</li>
+    </ol>
+  </div>
+
+  <h2>6. High-Level Design</h2>
+  <p>Map each requirement to a component and follow a request through.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>Video Service</td><td>Stateless; mints presigned URLs, serves metadata. Behind a load balancer, horizontally scaled.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Metadata Store (Cassandra)</td><td>Partitioned by <code>videoId</code> → uniform distribution, HA, scales reads.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Blob Storage (S3)</td><td>Raw uploads + transcoded segments + manifests. The durability layer.</td></tr>
+    <tr><td>Queue + Transcoding workers</td><td>Async DAG-based processing fleet, orchestrated (e.g., Temporal).<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>CDN</td><td>Caches segments + manifests at the edge. Absorbs ~all read bandwidth.</td></tr>
+  </table>
+  <p><b>Watch path:</b> <code>GET /v1/videos/{id}</code> → Video Service → Cassandra (or cache) → returns <code>manifestUrl</code> → client fetches manifest from CDN → client requests segments from CDN, adapting quality as it goes. The app tier is touched once, for tiny JSON; all heavy bytes flow edge → client.</p>
+
+  <h2>7. Deep Dives</h2>
+  <p>This is 60% of the interview. Four hard parts, each with the alternative and a justified pick.</p>
+
+  <h3>Deep Dive 1 — Resumable upload + async transcoding pipeline</h3>
+  <p>A 10 GB upload over a flaky connection <em>will</em> fail mid-flight. A single PUT means restarting from zero — unacceptable. So: the client splits the file into ~5–10 MB chunks (each with a fingerprint hash), the backend records a chunk list as <code>NotUploaded</code>, and the client PUTs chunks directly to S3 via presigned URLs, reporting each ETag back. On resume, the client re-reads metadata and skips chunks already marked <code>Uploaded</code>.<a href="#c1" class="cite">[1]</a></p>
+  <p>Transcoding is the expensive, slow part — minutes to hours of CPU — so it <b>must be asynchronous</b>. The S3 <code>ObjectCreated</code> event enqueues a job (see <a href="0007-messaging-and-async.html">Lesson 07, Messaging &amp; Async</a>); an autoscaling worker fleet pulls jobs and runs a DAG with ffmpeg: split → transcode-per-format → audio → manifest → mark ready. Intermediate files live in S3, URLs passed between stages.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Choice</th><th>Pick &amp; why</th></tr>
+    <tr><td>Sync vs async transcode</td><td><b>Async.</b> Upload returns instantly; processing happens off the request path. Decouples spiky load.</td></tr>
+    <tr><td>One job vs DAG of stages</td><td><b>DAG.</b> Resolutions transcode in parallel; a failed stage retries without redoing the whole video. (Worker patterns → <a href="0010-common-patterns.html">Lesson 10</a>.)</td></tr>
+    <tr><td>Queue vs cron-poll S3</td><td><b>Event → queue.</b> No polling lag, natural backpressure, at-least-once retries.</td></tr>
+  </table>
+
+  <h3>Deep Dive 2 — Adaptive bitrate streaming</h3>
+  <p>Why not just download the file? At 10 GB it's a 13+ minute wait before playback, and a phone on 3G never finishes.<a href="#c1" class="cite">[1]</a> The fix is two-part: <b>segment</b> the video into 2–10s chunks, and produce each segment at <b>multiple bitrates/resolutions</b>. A <b>manifest</b> (HLS <code>.m3u8</code> or MPEG-DASH <code>.mpd</code>) indexes every variant and segment URL.</p>
+  <p>The player downloads the manifest, fetches the first low-bitrate segment to start fast, then continuously measures throughput: bandwidth improves → request higher-bitrate segments; it degrades → drop down. Quality adapts per-segment, so a network dip causes a resolution drop, never a stall.<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <b>Why segments are the keystone.</b> Segmentation is what makes both adaptive bitrate <em>and</em> CDN caching possible. Small, immutable, independently-addressable files can be cached at the edge, requested à la carte, and swapped mid-stream. HLS vs DASH is a near-coin-flip (HLS = universal Apple/device support; DASH = codec-agnostic, open standard) — name both, pick HLS for reach, move on. Don't burn time here.
+  </div>
+
+  <h3>Deep Dive 3 — Global delivery via CDN</h3>
+  <p>Recall the capacity math: serving 100M streams from origin S3 is impossible and bankrupting. The CDN is the answer to the dominant NFR. Segments and manifests are immutable, cacheable assets — perfect CDN payloads. They're pushed/pulled to edge PoPs near viewers, so a stream is served from a city away, not a continent away.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Concern</th><th>How the CDN handles it</th></tr>
+    <tr><td>Latency</td><td>Bytes served from the nearest edge → fast first-segment, low RTT for the next.</td></tr>
+    <tr><td>Origin offload</td><td>Hot videos hit cache, not S3 — solves the "viral video" hotspot.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Cost</td><td>Edge egress &lt; origin egress; cache hit ratio is the lever that controls the bill.</td></tr>
+  </table>
+  <p>The cost story is the staff insight: the read:write ratio is extreme — a viral video is uploaded once and watched millions of times.<a href="#c1" class="cite">[1]</a> The CDN, not the database, is what makes that economically survivable. Tune for cache hit ratio; consider tiered caching and pre-warming for predictable hits (premieres).</p>
+
+  <h3>Deep Dive 4 — View count at scale</h3>
+  <p>A naive <code>UPDATE ... SET views = views + 1</code> per watch creates a write hotspot on the hottest videos — exactly the rows everyone reads. And users don't need an exact count; "1.2M views" is fine. So relax consistency: counts are <b>approximate and eventually consistent</b>.</p>
+  <table>
+    <tr><th>Approach</th><th>Tradeoff</th></tr>
+    <tr><td>Sync increment in DB</td><td>Accurate but hot-row contention; doesn't scale to viral.</td></tr>
+    <tr><td><b>Async aggregation (pick)</b></td><td>Watch events → stream → batch/windowed aggregate → write count periodically. Smooths writes.</td></tr>
+    <tr><td>Probabilistic / sketches</td><td>HyperLogLog for unique views; trade exactness for tiny memory at extreme scale.</td></tr>
+  </table>
+  <p>Emit a lightweight watch event, aggregate it asynchronously, and write the rolled-up count back on an interval. Same counting-at-scale machinery as <a href="0022-rate-limiter.html">Lesson 22</a> — name the pattern and the interviewer knows you've seen it.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The three load-bearing decisions are <b>async transcoding</b>, <b>adaptive-bitrate segmentation</b>, and the <b>CDN</b> — say so explicitly and structure your deep dives around them. The senior-vs-staff tell is the capacity insight: candidates who optimize the metadata DB have missed the problem. Articulate that <b>egress bandwidth is the dominant cost and scaling axis</b>, that segmentation is what makes both ABR and edge caching possible, and that the app tier must never proxy video bytes. Treat HLS-vs-DASH as a quick named tradeoff, not a tangent — knowing what <em>not</em> to over-explain is itself the staff move.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What is the dominant cost and scaling axis for YouTube?</p>
+      <button class="opt">Write throughput from the steady upload volume daily</button>
+      <button class="opt">Storage capacity for the raw and transcoded files</button>
+      <button class="opt">Egress bandwidth from serving streams to viewers</button>
+      <button class="opt">Compute time used by the transcoding worker fleet</button>
+      <p class="fb">Uploads are ~12/s and storage is cheap; serving 100M streams/day is tens of Tbps — bandwidth dominates.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Why must transcoding run asynchronously off the request path?</p>
+      <button class="opt">Because object storage cannot accept a large file synchronously</button>
+      <button class="opt">Because it is slow and spiky, so it is queued to workers</button>
+      <button class="opt">Because the manifest file must be generated before any upload</button>
+      <button class="opt">Because Cassandra needs the segments before it stores metadata</button>
+      <p class="fb">Transcoding takes minutes to hours; an event enqueues a job for an autoscaling worker fleet so upload returns instantly.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What makes both adaptive bitrate and CDN edge caching possible?</p>
+      <button class="opt">Segmenting video into small, immutable, addressable chunks</button>
+      <button class="opt">Storing the entire video as one large object in S3 first</button>
+      <button class="opt">Partitioning the metadata table by videoId across nodes</button>
+      <button class="opt">Deriving the viewer identity directly from the auth token</button>
+      <p class="fb">Small immutable segments can be cached at the edge, fetched à la carte, and swapped mid-stream as bandwidth changes.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why is an approximate, async view count the right choice?</p>
+      <button class="opt">Because Cassandra cannot perform any increment writes at all</button>
+      <button class="opt">Because exact sync counts create hot-row contention on viral videos</button>
+      <button class="opt">Because the manifest file already stores the running view total</button>
+      <button class="opt">Because the CDN refuses to cache any video that is being counted</button>
+      <p class="fb">Users don't need exactness; aggregating watch events asynchronously avoids contention on the hottest rows.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it. Try: <em>"Walk me through the resumable-upload state machine when a chunk PUT fails twice."</em> · <em>"Compare HLS and DASH and when you'd actually care about the difference."</em> · <em>"How would adding live streaming change the transcoding and CDN design?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/youtube">Hello Interview — YouTube system design breakdown</a>. The clearest walkthrough of the upload pipeline, ABR, and CDN delivery, with explicit mid/senior/staff level expectations.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/youtube">Hello Interview — Design YouTube</a> (FRs/NFRs, capacity, multipart upload, DAG transcoding, adaptive bitrate, CDN, Cassandra-by-videoId, read:write ratio).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0032-distributed-cache.html">← Lesson 32</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 34 · Job Scheduler</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

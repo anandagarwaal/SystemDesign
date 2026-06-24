@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 64 — Design Google Photos</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 64 · Phase 4 — Case Study · Medium</p>
+  <h1>Design Google Photos</h1>
+  <p class="sub">Storing the pixels is the easy half — the interview lives in the async pipelines that make them searchable.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Google Photos is a trap if you treat it as "Dropbox with thumbnails." The blob/metadata split is table stakes here — borrow it from <a href="0012-dropbox.html">Lesson 12 (Dropbox)</a> in five minutes and move on. The L6/L7 signal is recognizing that the <em>hard</em> system is the <b>asynchronous ML pipeline</b> behind "search by content and face": ingestion that never blocks the user, fan-out to expensive GPU inference, and serving billions of embeddings for semantic search. Spend your hour where the difficulty is.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Five flows, but they collapse into three layers: get the bytes in, make them browsable, make them findable. Scope to these and say the rest is out.</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td><b>Upload</b> photos and videos from any device.</td></tr>
+    <tr><td>2</td><td><b>Auto-sync</b> — new photos on a phone back up automatically in the background.</td></tr>
+    <tr><td>3</td><td><b>View &amp; organize</b> — scroll a fast timeline, build albums.</td></tr>
+    <tr><td>4</td><td><b>Search by content / face</b> — "beach", "my dog", a particular person.</td></tr>
+    <tr><td>5</td><td><b>Share albums</b> with other people via a link or grant.</td></tr>
+  </table>
+  <p><b>Explicitly out of scope</b> (name them to show judgement): in-app editing/filters, collaborative real-time albums, and full version history of edits. Defer them aloud.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th></tr>
+    <tr><td><b>Durability first</b></td><td>A user's only copy of a memory may live here. Lose nothing — lean on blob-store replication (S3-class, 11 nines).<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td><b>Availability &gt; Consistency</b></td><td>It is fine if a freshly uploaded photo takes seconds to appear in search; it is not fine if the app is down. Choose AP.</td></tr>
+    <tr><td><b>Massive scale</b></td><td>Billions of users' libraries → trillions of media objects, exabytes of bytes, growing forever.</td></tr>
+    <tr><td><b>Read-heavy &amp; low-latency view</b></td><td>Timeline scroll and thumbnails must feel instant; reads dwarf writes.</td></tr>
+    <tr><td><b>Cost efficiency</b></td><td>At exabyte scale, storage cost <em>is</em> a design constraint — tiering and dedup pay rent.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that <em>change a decision</em>. For Photos, two forces dominate: total stored bytes (drives tiering) and the inference fan-out (drives the async pipeline).</p>
+  <div class="box">
+    <ul>
+      <li><b>Storage volume → tiering + dedup.</b> Say 1B active users × ~4 GB/yr of new media = <b>~4 EB/yr</b> ingested. <b>Implication:</b> bytes live in object storage, and old/cold photos must drop to cheaper tiers automatically — you cannot keep an exabyte on hot storage.</li>
+      <li><b>Variants multiply the bytes.</b> Each original spawns several derivatives (a grid thumbnail, a few display sizes). Naïvely that's a 20–40% storage tax on top of originals. <b>Implication:</b> generate variants in a pipeline, store them on a cheaper/cacheable path, and serve via CDN — never resize on the read path.</li>
+      <li><b>Inference fan-out → async, not inline.</b> Every uploaded image needs face detection + object/scene tagging + an embedding. At, say, 50K uploads/sec peak, doing GPU inference synchronously would stall every upload behind a model. <b>Implication:</b> ingestion must return the instant bytes are durable; all ML runs off a queue.</li>
+      <li><b>Read:write skew → cache thumbnails hard.</b> A user uploads occasionally but scrolls thousands of thumbnails. <b>Implication:</b> the timeline is a CDN + cache problem, not a database-throughput problem.</li>
+    </ul>
+    <p style="font-size:.82rem;color:var(--muted);margin:.6rem 0 0;">Numbers are illustrative back-of-envelope estimates to drive decisions, not official figures.</p>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Keep the bytes separate from everything that describes them — exactly the Dropbox split.<a href="#c1" class="cite">[1]</a> Search artifacts (tags, faces, embeddings) are <em>derived</em> entities produced asynchronously, not written by the client.</p>
+  <table>
+    <tr><th>Entity</th><th>Holds</th></tr>
+    <tr><td><code>MediaBlob</code></td><td>Original bytes + generated variants. Lives in blob storage, addressed by content hash.</td></tr>
+    <tr><td><code>MediaMetadata</code></td><td>id, ownerId, type, capturedAt, dimensions, EXIF, blob refs, processing status.</td></tr>
+    <tr><td><code>Album</code> / <code>ShareGrant</code></td><td>Album membership and who an album/photo is shared with.</td></tr>
+    <tr><td><code>SearchIndex</code></td><td>Derived: object/scene tags, face clusters, and a vector embedding per photo.</td></tr>
+  </table>
+  <p>The user is derived from the auth token, never passed in the body.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/media</code></td><td>Initiate upload: send <code>MediaMetadata</code> + content hash, get back a <b>presigned URL</b> to PUT bytes directly to blob storage.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><code>POST /v1/media/{id}/complete</code></td><td>Bytes landed; backend verifies and enqueues the processing pipeline.</td></tr>
+    <tr><td><code>GET /v1/media?cursor={c}</code></td><td>Paginated timeline of the caller's media (newest first), returning thumbnail URLs.</td></tr>
+    <tr><td><code>GET /v1/search?q={text}</code></td><td>Semantic search across the caller's library by text, object, or person.</td></tr>
+    <tr><td><code>POST /v1/albums/{id}/share</code></td><td>Grant album access to users or mint a shareable link.</td></tr>
+  </table>
+
+  <h2>Data Flow</h2>
+  <p>Photos is fundamentally a <b>data-processing system</b>: an upload triggers a pipeline whose stages are independent, retryable, and asynchronous. Trace one photo from camera to searchable:</p>
+  <table>
+    <tr><th>Stage</th><th>What happens</th><th>Sync?</th></tr>
+    <tr><td>1. Upload</td><td>Client PUTs bytes straight to blob storage via presigned URL; metadata row created with status <code>processing</code>.<a href="#c1" class="cite">[1]</a></td><td>Sync (fast)</td></tr>
+    <tr><td>2. Fan-out</td><td><code>complete</code> publishes one event onto a queue; multiple consumers subscribe.</td><td>Async</td></tr>
+    <tr><td>3. Thumbnails</td><td>Worker decodes the original, generates variants, writes them back to blob storage.</td><td>Async</td></tr>
+    <tr><td>4. ML inference</td><td>GPU workers run object/scene tagging, face detection, and embedding generation.</td><td>Async</td></tr>
+    <tr><td>5. Index</td><td>Tags + face clusters land in a search store; embeddings land in a vector DB.<a href="#c3" class="cite">[3]</a></td><td>Async</td></tr>
+  </table>
+  <p>The user sees the photo in their timeline after stage 3; it becomes <em>searchable</em> after stage 5. That gap is acceptable and is what lets you keep uploads fast.</p>
+
+  <h2>High-Level Design</h2>
+  <p>The system hinges on two splits. First, the <b>metadata/blob split</b> from Dropbox: small structured data flows through your app servers into a DB; huge opaque bytes go around the app tier straight to object storage.<a href="#c1" class="cite">[1]</a> Second — and this is the Photos-specific one — the <b>synchronous ingest path is split from the asynchronous enrichment path</b> by a queue, so expensive ML never sits on the user's request.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+    <tr><td>Client (phone)</td><td>Watches the camera roll; chunks &amp; PUTs bytes to blob storage; tracks backup state.</td><td>—</td></tr>
+    <tr><td>Media Service</td><td>Issues presigned URLs, writes metadata, serves the timeline and album reads.</td><td>NoSQL (wide-column)</td></tr>
+    <tr><td>Blob Storage</td><td>Originals + generated variants, content-addressed.<a href="#c1" class="cite">[1]</a></td><td>S3-class object store<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>CDN</td><td>Caches thumbnails &amp; display sizes at the edge — carries the read load.</td><td>Edge cache</td></tr>
+    <tr><td>Ingest Queue</td><td>Decouples upload from enrichment; one event fans out to many workers.</td><td>Kafka / SQS</td></tr>
+    <tr><td>Processing Workers</td><td>Thumbnailing (CPU) and ML inference (GPU), scaled independently.</td><td>—</td></tr>
+    <tr><td>Search Store + Vector DB</td><td>Tags &amp; faces for filtering; embeddings for semantic similarity.<a href="#c3" class="cite">[3]</a></td><td>Search index + vector DB</td></tr>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The move that separates staff from senior here is <em>refusing to do ML on the request path</em>. A senior candidate often wires "upload → resize + run models → respond," then spends the deep dive trying to make a 2-second GPU call fast enough for a mobile timeout. A staff candidate says, in the first five minutes: "uploads return as soon as the bytes are durable; everything else — thumbnails, tagging, faces, embeddings — is an idempotent, retryable job behind a queue, and the photo simply becomes searchable a few seconds later." That single decision lets thumbnailing and GPU inference scale on totally different fleets, makes the pipeline resilient to a model outage, and turns a latency problem into a throughput problem. Borrowing the blob/metadata split from Dropbox without re-deriving it is itself a signal — you know what's solved and where the new hardness is.
+  </div>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1. Blob storage, thumbnail pipeline &amp; tiered storage</h3>
+  <p>Originals are the source of truth and never change after write — content-address them by hash in an object store and lean on its replication for the durability NFR.<a href="#c2" class="cite">[2]</a> See <a href="0045-blob-store-s3.html">Lesson 45 (Blob Store / S3)</a> for the internals and <a href="0012-dropbox.html">Lesson 12 (Dropbox)</a> for the presigned-upload mechanics.<a href="#c1" class="cite">[1]</a></p>
+  <ul>
+    <li><b>Generate variants, never resize on read.</b> A thumbnailing worker decodes each original once and emits a fixed set of sizes (grid thumb, a couple of display widths). Resizing on the read path would burn CPU on the hottest requests; pre-generating means the timeline is pure cache hits.</li>
+    <li><b>Serve through a CDN.</b> Thumbnails are tiny, immutable, and read enormously — ideal CDN objects. The originals are fetched rarely (only on full-screen open or download), so keep them off the edge.</li>
+    <li><b>Tier by access pattern.</b> A photo from this week is hot; a photo from 2014 is opened almost never. Lifecycle policies migrate cold originals to <b>infrequent-access / archival tiers</b> automatically.<a href="#c2" class="cite">[2]</a> Keep all <em>thumbnails</em> hot (they're cheap and power the scroll) while the heavy originals sink to cold storage — the user still browses instantly, and you only pay archival retrieval on the rare full open.</li>
+  </ul>
+
+  <h3>2. Client auto-sync, background backup &amp; dedup</h3>
+  <p>Auto-backup is the feature users actually rely on, and the client carries most of the complexity — much like Dropbox's sync, but one-directional (phone → cloud) for the core flow.<a href="#c1" class="cite">[1]</a></p>
+  <ul>
+    <li><b>Background, resumable, battery-aware.</b> The client queues new camera-roll items and uploads opportunistically (often Wi-Fi + charging by default). Uploads are chunked and resumable so a 4 GB video survives a dropped connection and continues, not restarts.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Dedup so you don't re-upload or re-store.</b> Before uploading, the client computes a <b>cryptographic content hash</b>; if the backend already has those exact bytes, skip the transfer entirely. Identical files (the meme shared into ten chats) are stored once and referenced many times.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Perceptual hashing for near-duplicates.</b> Cryptographic hashes only catch byte-identical files; a re-compressed or lightly cropped copy hashes completely differently. A <b>perceptual hash (pHash)</b> maps visually similar images to nearby hashes, so the product can group "looks the same" shots and de-clutter the library. Use it for <em>grouping and suggestions</em>, not for storage dedup — perceptual collisions are intentional and lossy, so they must never silently drop a user's distinct file.</li>
+  </ul>
+
+  <h3>3. ML-based search &amp; tagging via an async pipeline + embeddings</h3>
+  <p>This is the heart of the interview. "Search my photos for my dog on a beach" has no filename to match — it needs the system to <em>understand the pixels</em>. Three derived signals power it, all produced off the queue:</p>
+  <table>
+    <tr><th>Signal</th><th>Model</th><th>Powers</th></tr>
+    <tr><td>Object/scene tags</td><td>Image classifier / detector</td><td>Keyword search: "beach", "cake", "dog".</td></tr>
+    <tr><td>Face clusters</td><td>Face detect + face embedding</td><td>"People" grouping; search by a person.</td></tr>
+    <tr><td>Image embedding</td><td>Vision model (e.g. CLIP-style)</td><td>Semantic text→image search via vectors.<a href="#c3" class="cite">[3]</a></td></tr>
+  </table>
+  <ul>
+    <li><b>Why a queue, not inline.</b> GPU inference is slow and bursty. Decoupling via a queue lets you batch requests for GPU efficiency, scale inference workers on their own fleet, and retry failures without touching the upload path. Jobs must be <b>idempotent</b> (keyed by media id) so a redelivered message re-indexes rather than duplicates.</li>
+    <li><b>Embeddings + vector DB for semantic search.</b> The vision model turns each photo into a vector; the same model turns the query <em>text</em> into a vector in the same space. Search becomes <b>approximate nearest-neighbor (ANN)</b> over vectors — see <a href="0040-vector-databases.html">Lesson 40 (Vector Databases)</a> for HNSW/IVF indexing.<a href="#c3" class="cite">[3]</a> This is what makes "dog on a beach" work without anyone ever tagging it.</li>
+    <li><b>Scope search to the owner.</b> A query must only ever search the caller's library (and albums shared with them). Partition the vector index per user, or filter by ownerId post-ANN — never let one user's nearest-neighbor results leak another user's photos.</li>
+    <li><b>Privacy boundary.</b> Faces and embeddings are sensitive biometric-adjacent data. Keep them in the user's own partition, make face grouping opt-out, and never use one account's data to answer another's query. Calling this out unprompted is a staff signal.</li>
+  </ul>
+
+  <h3>4. Sharing &amp; permissions</h3>
+  <p>Sharing in Photos is album-centric, and the access check sits on the hot read path, so model it explicitly rather than scanning.</p>
+  <table>
+    <tr><th>Stage</th><th>Design</th><th>Problem it fixes</th></tr>
+    <tr><td>Good</td><td>A <code>sharelist</code> array on each <code>Album</code>.</td><td>Works, but "albums shared with me" needs a full scan.</td></tr>
+    <tr><td>Better</td><td>A <code>ShareGrant</code> table, PK <code>userId</code> / SK <code>albumId</code>.</td><td>Cheap lookups in both directions; one source of truth.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Best</td><td>Add unguessable <b>signed link tokens</b> with expiry for link-sharing.</td><td>Share to non-users without exposing the owner's library.</td></tr>
+  </table>
+  <p>For link access, hand out short-lived <b>signed URLs</b> for the underlying blobs (same mechanism as download), so a leaked link expires rather than granting forever.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why does ML inference run off a queue rather than during the upload request?</p>
+      <button class="opt">Queues are the only place a GPU model can read photo bytes from</button>
+      <button class="opt">Search results must be fully ready before the upload call returns ok</button>
+      <button class="opt">Slow bursty GPU work would stall uploads, so enrich them later async</button>
+      <button class="opt">A queue lets the client skip computing any content hash on device</button>
+      <p class="fb">Decoupling keeps uploads fast and lets inference scale and retry independently.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. What makes "search my photos for a dog on a beach" actually work?</p>
+      <button class="opt">Every file is renamed on upload to include its detected scene words</button>
+      <button class="opt">Photo and query both map to vectors, matched by nearest-neighbor</button>
+      <button class="opt">The phone uploads a manual text caption alongside each photo blob</button>
+      <button class="opt">The CDN inspects each cached thumbnail and returns close matches</button>
+      <p class="fb">A shared embedding space turns text→image search into ANN over vectors.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why keep thumbnails hot while letting old originals sink to cold tiers?</p>
+      <button class="opt">Thumbnails power the constant scroll; originals open very rarely</button>
+      <button class="opt">Cold storage physically cannot hold any image under one megabyte</button>
+      <button class="opt">Thumbnails must be regenerated from scratch on every single read</button>
+      <button class="opt">Originals are read far more often than the small grid thumbnails</button>
+      <p class="fb">Match the tier to access frequency: hot for the scroll, archival for rare opens.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Why use perceptual hashing only for grouping, not for storage dedup?</p>
+      <button class="opt">Perceptual hashes are far slower to compute than any crypto hash</button>
+      <button class="opt">Crypto hashes cannot detect two files that are exactly identical</button>
+      <button class="opt">Perceptual collisions are lossy and could silently drop a real file</button>
+      <button class="opt">Storage dedup is impossible whenever a CDN sits in front of blobs</button>
+      <p class="fb">pHash intentionally collides similar images, so it must never gate storage.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it. Try: <em>"Walk me through exactly what happens between tapping the shutter and the photo being searchable, stage by stage."</em> · <em>"How would you partition the vector index across a billion users so search stays fast and private?"</em> · <em>"Reason out the storage bill at 4 EB/yr and where tiering plus dedup actually save money."</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/google-photos">Hello Interview — Google Photos / photo storage breakdowns</a>. The clearest walkthrough of the blob/metadata split and the async enrichment pipeline; pair it with <a href="0012-dropbox.html">Lesson 12 (Dropbox)</a> and <a href="0040-vector-databases.html">Lesson 40 (Vector DBs)</a> before your interview.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="0012-dropbox.html">Lesson 12 — Design Dropbox</a> (metadata/blob split, presigned + resumable chunked uploads, content-hash dedup, sharing table) — the storage/sync mechanics reused here.</p>
+    <p id="c2">[2] <a href="0045-blob-store-s3.html">Lesson 45 — Blob Store / S3</a> &amp; object-storage fundamentals (11-nines durability, lifecycle tiering to infrequent-access/archival) — established cloud-storage practice.</p>
+    <p id="c3">[3] <a href="0040-vector-databases.html">Lesson 40 — Vector Databases</a> (embeddings + approximate nearest-neighbor / HNSW) — the basis for semantic image search. Numeric capacity figures are the author's own back-of-envelope estimates.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0063-email-service.html">← Lesson 63</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 65 · Q&amp;A / Forum</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

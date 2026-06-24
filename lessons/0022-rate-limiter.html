@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 22 — Design an API Rate Limiter</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 22 · Phase 4 — Case Study · Medium</p>
+  <h1>Design an API Rate Limiter</h1>
+  <p class="sub">The defensive component that caps requests per client per window and returns 429 — the canonical "small system, deep tradeoffs" interview.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Rate limiting looks tiny — one boolean check — but it is a favorite L6/L7 screen precisely because there is little breadth to hide behind. Your score is decided almost entirely by depth: which counting algorithm you pick and <em>why</em>, how you make the shared counter atomic, and whether you say the fail-open vs fail-closed tradeoff out loud. This lesson drills exactly those signals.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Keep the core scope to three crisp capabilities. Resist the urge to design abuse-detection or billing — those are out of scope and naming them as out-of-scope is itself a senior signal.</p>
+  <table>
+    <thead><tr><th>#</th><th>The system should…</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Permit up to <b>N</b> requests per time window per <b>client key</b> (user ID, IP, or API key) and reject the rest with <b>HTTP 429</b>, including <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, and <code>X-RateLimit-Reset</code> headers.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>2</td><td>Support <b>configurable rules</b> — e.g. "100 requests/min per user" — that can differ per route and per user tier (free vs paid).<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>3</td><td>Expose a fast <code>allow(key)</code> decision the request path can consult before the request reaches application logic.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>Rate limiting sits in the hot path of every single request, so its NFRs are unusually sharp. State concrete targets, not adjectives.</p>
+  <table>
+    <thead><tr><th>Property</th><th>Target & priority</th></tr></thead>
+    <tbody>
+      <tr><td>Low added latency</td><td>The check must add <b>&lt; 10 ms</b> per request — it is overhead on every call, so this is the top constraint.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>High availability</td><td>The limiter must not take the API down. This forces the explicit <b>fail-open vs fail-closed</b> choice when the counter store is unreachable (deep dive 4).</td></tr>
+      <tr><td>Accuracy</td><td>Enforce the cap closely. <b>Eventual consistency is acceptable</b> — a small over/under-count at window edges across nodes is fine.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Fleet consistency</td><td>A client's limit is one logical counter even though it is enforced by many horizontally-scaled servers — they must share state.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute the numbers that change a decision. Three matter here: throughput, distinct keys, and counter memory.</p>
+  <div class="box">
+    <ul>
+      <li><b>Throughput:</b> ~<b>1M requests/sec</b> across ~100M daily active users.<a href="#c1" class="cite">[1]</a> <em>Implication:</em> every check is on the hot path 1M times a second — a per-request network hop to a counter store must be cheap and shardable.</li>
+      <li><b>Distinct keys:</b> ~100M active keys. <em>Implication:</em> we need an entry per key, but only a tiny one.</li>
+      <li><b>Counter memory:</b> A token-bucket entry is ~2 fields — token count + last-refill timestamp — say <b>~100 bytes</b> with overhead. 100M keys × 100 B ≈ <b>~10 GB</b>. <em>Implication:</em> this fits comfortably in one (or a small sharded) in-memory store like Redis; we never need to persist counters to disk, and TTL-based expiry keeps idle keys from accumulating.</li>
+    </ul>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Three entities: <b>Rule</b> (a policy: limit, window, scope), <b>Client</b> (the keyed subject), and <b>Counter</b> (the per-key state).<a href="#c1" class="cite">[1]</a> The interface is deliberately tiny.</p>
+  <div class="box">
+    <p><b>The hot-path check</b> — returns the decision plus the headers the caller echoes back:</p>
+    <p><code>allow(key, ruleId) → { passes: boolean, remaining: number, resetTime: timestamp }</code><a href="#c1" class="cite">[1]</a></p>
+    <p style="margin-top:1rem"><b>Rule configuration</b> (admin plane, low traffic, derives caller from auth token):</p>
+    <ul>
+      <li><code>POST /v1/rules</code> — create a rule <code>{ scope, key_type, limit, window_seconds }</code></li>
+      <li><code>PUT /v1/rules/{id}</code> — update a limit or window (e.g. bump a paid tier)</li>
+      <li><code>GET /v1/rules</code> — list active rules for a route/tier</li>
+    </ul>
+  </div>
+  <p>Note the split: <code>allow()</code> runs millions of times a second and must be in-memory fast; the rule CRUD endpoints are rare and can hit a normal database, with rules cached at each enforcement point.</p>
+
+  <h2>High-Level Design</h2>
+  <p>The flow is short. A request arrives, the enforcement point extracts the client key and the matching rule, calls <code>allow()</code> against a shared counter store, and either forwards the request or short-circuits with 429 — the application servers ideally never see blocked traffic.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <thead><tr><th>Component</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>Enforcement point</td><td>Sits at the edge (API gateway / middleware / sidecar — deep dive 3). Extracts key, looks up rule, calls <code>allow()</code>, returns 429 on deny.</td></tr>
+      <tr><td>Counter store</td><td>Centralized in-memory store (Redis) holding per-key counter state, mutated atomically. Sharded by client key at scale.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Rules store</td><td>Durable DB of policies; rules are cached at each enforcement point and refreshed periodically.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Deep Dives</h2>
+  <p>This is where the interview is won. Four hard parts: the algorithm, atomic shared counting, placement, and the availability tradeoff.</p>
+
+  <h3>1. Counting algorithms — and the staff-preferred default</h3>
+  <p>Five standard algorithms, each trading accuracy against memory and burst behavior.</p>
+  <table>
+    <thead><tr><th>Algorithm</th><th>How it works</th><th>Weakness</th></tr></thead>
+    <tbody>
+      <tr><td>Fixed window</td><td>One counter per fixed bucket (e.g. each minute); <code>INCR</code> on each request.</td><td><b>Boundary burst:</b> 100 reqs at 12:00:59 plus 100 at 12:01:00 = 200 in two seconds, double the intended cap.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Sliding window log</td><td>Store every request timestamp; drop those older than the window; count the rest.</td><td>Accurate but memory-heavy — 1000 reqs/min means storing 1000 timestamps per key.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Sliding window counter</td><td>Weighted blend of current + previous fixed-window counts.</td><td>Tiny memory, smooths the boundary burst; approximate, assumes evenly-spread traffic.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Token bucket</td><td>Bucket holds up to <em>burst</em> tokens, refilled at a steady rate; each request spends one.</td><td>Stores just count + last-refill time; allows controlled bursts. Hard to make wrong.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Leaky bucket</td><td>Requests queue and drain at a fixed rate (a smoothing queue).</td><td>Enforces a steady output rate but adds queuing latency and disallows any burst.</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <p><b>The pick:</b> <b>token bucket</b> as the default. The reasoning to say out loud: it "strikes the best balance between simplicity, memory efficiency, and handling real-world traffic patterns"<a href="#c1" class="cite">[1]</a> — two small fields per key, and it tolerates legitimate bursts (a user loading a page that fires several calls) while still capping the sustained rate. The <b>sliding window counter</b> is the strong runner-up when you want a strict per-window cap with minimal memory and no burst allowance. Fixed window is the trap answer because of its boundary burst.</p>
+  </div>
+
+  <h3>2. Shared counting across the fleet — make it atomic</h3>
+  <p>With many enforcement nodes, the counter cannot live in any one process — every node must read and update the same logical counter. Put it in a central store such as <b>Redis</b>. The non-obvious failure is the race: a naive read-then-write (e.g. <code>HMGET</code> outside a transaction, compute, then write back) lets two concurrent requests both read "1 token left" and both pass, busting the limit.<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <p><b>Fix:</b> collapse read-calculate-update into <b>one atomic operation</b>. For a simple counter, <code>INCR</code> followed by <code>EXPIRE</code> on the first increment gives you a self-expiring fixed-window count. For token bucket — which must read tokens, compute refill, and decrement together — wrap the whole logic in a small <b>Lua script</b>; Redis runs scripts atomically, eliminating the race in one round trip.<a href="#c1" class="cite">[1]</a></p>
+  </div>
+  <p><b>Tradeoff to name:</b> a centralized counter adds one <b>extra network hop</b> per request. That is the price of fleet-wide consistency, and why the &lt; 10 ms latency budget and Redis's in-memory speed matter. At 1M RPS you also <b>shard</b> Redis (consistent hashing on the client key) so a client's requests always land on the same instance.<a href="#c1" class="cite">[1]</a></p>
+
+  <h3>3. Placement — where the check runs</h3>
+  <table>
+    <thead><tr><th>Placement</th><th>Tradeoff</th></tr></thead>
+    <tbody>
+      <tr><td>In-process / local buckets</td><td>Zero network hop, lowest latency. But each server only sees its own slice of traffic; behind a load balancer the global limit is wrong unless nodes reconcile state.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Sidecar</td><td>Co-located proxy per service; isolates limiter logic from app code, still talks to a shared store.</td></tr>
+      <tr><td>API gateway / edge (preferred)</td><td>Check at the system edge so blocked requests never reach application servers.<a href="#c1" class="cite">[1]</a> Centralizes config and is the cleanest interview answer.</td></tr>
+    </tbody>
+  </table>
+  <p>The real spectrum is <b>local in-memory buckets with periodic async reconciliation</b> (fast, approximate — push each node's counts to a coordinator and pull back the global view every few seconds) versus a <b>centralized counter</b> on every request (exact-ish, one hop). For most APIs the gateway + centralized Redis counter wins; local buckets are the move only when latency is so tight that an extra hop is unacceptable and you can tolerate looser global enforcement.</p>
+
+  <h3>4. Fail-open vs fail-closed when the store is down</h3>
+  <p>The counter store <em>will</em> have outages. You must decide what <code>allow()</code> returns when it cannot reach Redis — and stating this tradeoff explicitly is a defining staff signal.</p>
+  <div class="box">
+    <ul>
+      <li><b>Fail-open</b> — allow all requests, skip the check. Keeps the API serving, but during the outage abusive clients can flood the backend, and rate-limiter failures often coincide with the traffic spikes you most need protection from, risking cascade failure.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Fail-closed</b> — reject (503/429) until the store recovers. Sacrifices availability of that path but protects the backend exactly when it is most fragile.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+    <p>Hello Interview <b>selects fail-closed</b> here, on the logic that "rate limiting failures often coincide with traffic spikes when we need protection most."<a href="#c1" class="cite">[1]</a> The honest answer is that it depends on the route: fail-open a checkout flow you can't afford to block, fail-closed an expensive internal endpoint. Pair the choice with <b>Redis Cluster replication and automatic failover</b> so the store rarely goes fully dark in the first place.<a href="#c1" class="cite">[1]</a></p>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Three moves separate staff from senior on this problem: (1) <b>pick an algorithm with explicit reasoning</b> — name token bucket (or sliding-window counter) and say <em>why</em>, while flagging fixed window's boundary burst; (2) <b>make the shared-counter update atomic</b> — call out the read-then-write race and reach for <code>INCR</code>+<code>EXPIRE</code> or a Lua script unprompted; (3) <b>state the fail-open vs fail-closed tradeoff out loud</b> and commit to one with a reason. Candidates who quietly assume "it just works" cap out at senior.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What is the specific weakness of the fixed-window counting algorithm?</p>
+      <button class="opt">It stores one timestamp per request, so memory grows without any bound</button>
+      <button class="opt">It queues requests and adds latency, blocking every legitimate burst</button>
+      <button class="opt">It permits a burst across the window boundary, doubling the intended cap</button>
+      <p class="fb">100 requests at 12:00:59 plus 100 at 12:01:00 yields 200 in two seconds — the boundary burst.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Why wrap the token-bucket update in a Redis Lua script instead of separate calls?</p>
+      <button class="opt">Lua scripts compress the counters and cut the memory cost per stored key</button>
+      <button class="opt">Lua runs atomically, so read-calculate-update cannot race across requests</button>
+      <button class="opt">Lua removes the extra network hop that a centralized counter would add</button>
+      <p class="fb">A naive read-then-write lets two requests both see the last token and both pass; atomicity prevents it.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why is token bucket the common default rate-limiting algorithm choice?</p>
+      <button class="opt">It balances simplicity and memory while tolerating real-world legitimate bursts</button>
+      <button class="opt">It records every single request timestamp and gives perfectly exact counting</button>
+      <button class="opt">It alone runs entirely in local process memory with no shared store at all</button>
+      <p class="fb">Two small fields per key, and it allows controlled bursts while capping the sustained rate.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. What does choosing "fail-closed" mean when the counter store is unreachable?</p>
+      <button class="opt">Allow every request through unchecked so the API stays fully available</button>
+      <button class="opt">Switch each node to a local in-memory bucket and reconcile state later</button>
+      <button class="opt">Reject requests until the store recovers, protecting the fragile backend</button>
+      <p class="fb">Limiter outages often coincide with traffic spikes, exactly when the backend needs protection most.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — push on it. Try: "Walk me through the exact Lua script for an atomic token-bucket check." · "When would local in-memory buckets with async reconciliation beat a centralized Redis counter?" · "How would I design per-route fail-open vs fail-closed policy instead of one global choice?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/distributed-rate-limiter">Hello Interview — Distributed Rate Limiter</a>. The cleanest walk-through of the algorithm comparison, atomic Redis counting, edge placement, and the fail-closed decision; read it end to end before your next mock.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/distributed-rate-limiter">Hello Interview — Distributed Rate Limiter</a> (requirements, &lt;10ms / 1M RPS / 100M DAU scale, token-bucket recommendation, fixed-window boundary burst, sliding-window-log memory cost, atomic INCR+EXPIRE / Lua scripting, consistent-hashing shards, edge placement, fail-closed choice, Redis Cluster failover).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0021-strava.html">← Lesson 21</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 23 · Online Auction</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

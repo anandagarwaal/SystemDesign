@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 51 — Design Google Maps (Navigation)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 51 · Phase 4 — Case Study · Hard</p>
+  <h1>Design Google Maps (Navigation)</h1>
+  <p class="sub">Render the planet from a CDN, find any place in milliseconds, and route a car across a continent with live traffic — read-heavy everywhere, and precomputed where it counts.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Maps looks like three easy products — a map you pan, a search box, and a blue line A→B — and a junior candidate will treat all three the same. The L6/L7 signal is recognizing that they have <em>completely different</em> shapes: tiles are static reads you push to a CDN, search is a geospatial-index problem you've already solved (Yelp/Uber), and routing is a <b>continent-scale graph shortest-path</b> problem that is impossible at interactive latency without heavy <b>precomputation</b>. Spend your breath on the graph. That's the whole interview.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope to the three flows that define navigation. Turn-by-turn voice, lane guidance, offline maps, and Street View are named non-goals you defer.</p>
+  <table>
+    <tr><th>#</th><th>A user should be able to…</th></tr>
+    <tr><td>1</td><td><b>Render the map</b> — pan and zoom anywhere on Earth and see the map fill in smoothly.</td></tr>
+    <tr><td>2</td><td><b>Search for a place</b> — type a name or address and get matching locations, ranked by proximity.</td></tr>
+    <tr><td>3</td><td><b>Route A→B with an ETA</b> — get the fastest driving route and an arrival time that reflects <b>live traffic</b>, and be <b>re-routed</b> when conditions change.</td></tr>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>These three constraints drive every deep dive. State targets — "scalable" with no number reads junior.</p>
+  <table>
+    <tr><th>NFR</th><th>Target &amp; why it shapes the design</th></tr>
+    <tr><td><b>Low latency</b></td><td>Tiles in <b>&lt; 100 ms</b>, a route in <b>&lt; ~1 s</b>. Plain Dijkstra on a continent graph takes seconds-to-minutes — so routing <em>must</em> be precomputed, and tiles <em>must</em> be edge-cached.</td></tr>
+    <tr><td><b>Massive read scale</b></td><td>Overwhelmingly read-only: ~billions of users, most traffic is tile + search reads. Drives a CDN-first design and read replicas; the route graph is served from memory.</td></tr>
+    <tr><td><b>High availability</b></td><td>A utility people depend on. Degrade gracefully — stale traffic or a slightly worse route beats an error. Everything favors availability over freshness.</td></tr>
+    <tr><td><b>Freshness of traffic</b></td><td>ETAs should reflect conditions within ~minutes, not hours. Forces a streaming probe pipeline feeding edge weights, decoupled from the read path.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that change a decision. (Round, illustrative back-of-envelope figures — flag the design implication, not the digits.)</p>
+  <div class="box">
+    <ul>
+      <li><b>Tile reads dominate.</b> One pan/zoom fetches ~a dozen tiles; with ~1B users, peak tile requests run into the <b>millions/sec</b>. <i>Implication:</i> the origin can never serve this — tiles must be immutable and CDN-cached at the edge.</li>
+      <li><b>Tiles are static per map version.</b> A pre-rendered planet at all zoom levels is petabyte-scale if stored as raster images. <i>Implication:</i> prefer <b>vector tiles</b> (smaller, client-rendered) and render-on-miss rather than storing every raster.</li>
+      <li><b>Routing QPS is far lower but compute-heavy.</b> A single naive query can touch tens of millions of graph nodes. <i>Implication:</i> precompute so a query touches thousands, not millions — the cost moves offline.</li>
+      <li><b>Graph size.</b> A continent's road network is on the order of <b>10<sup>8</sup> nodes/edges</b>. <i>Implication:</i> the contracted graph fits in RAM on a routing server; partition it so prep and traffic updates parallelize.</li>
+    </ul>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Three entities; the caller's identity (for history/personalization) comes from the auth token, never the body.</p>
+  <table>
+    <tr><th>Entity</th><th>Key fields</th></tr>
+    <tr><td><b>Tile</b></td><td><code>(z, x, y)</code> coordinate, format (vector/raster), version — immutable once rendered.</td></tr>
+    <tr><td><b>Place</b></td><td>id, name, address, <code>(lat, lng)</code>, category, geohash/S2 cell — for search ranking.</td></tr>
+    <tr><td><b>RoadSegment (edge)</b></td><td>id, from-node, to-node, length, free-flow time, <b>live cost</b> (current travel time).</td></tr>
+  </table>
+  <p>Endpoints (user derived from token):</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>GET /v1/tiles/{z}/{x}/{y}</code></td><td>Returns one map tile. Heavily CDN-cached; origin renders only on a miss <a href="#c3" class="cite">[3]</a>.</td></tr>
+    <tr><td><code>GET /v1/places?q=&amp;lat=&amp;lng=</code></td><td>Autocomplete + geospatial search; ranks matches by prefix and proximity.</td></tr>
+    <tr><td><code>POST /v1/routes</code></td><td>Body <code>{origin, dest, mode}</code> → fastest route + ETA using current edge costs.</td></tr>
+    <tr><td><code>GET /v1/routes/{id}</code></td><td>Re-evaluate an active route against fresh traffic; returns a re-route if better.</td></tr>
+  </table>
+
+  <h2>High-Level Design</h2>
+  <p>Split along the three load profiles: a <b>tile path</b> (huge static reads → CDN), a <b>search path</b> (geospatial index), and a <b>route path</b> (in-memory graph servers fed by an offline preprocessing job and a live-traffic stream). They share almost nothing.</p>
+  <table>
+    <tr><th>Component</th><th>Responsibility</th></tr>
+    <tr><td>CDN</td><td>Serves immutable tiles from the edge; absorbs the millions/sec read load.</td></tr>
+    <tr><td>Tile Service</td><td>Renders a tile on cache miss from the map data store; stamps a version.</td></tr>
+    <tr><td>Search Service</td><td>Autocomplete + geocoding over a geospatial index of Places.</td></tr>
+    <tr><td>Routing Service</td><td>Holds the contracted graph in memory; answers shortest-path queries in ms.</td></tr>
+    <tr><td>Preprocessing job</td><td>Offline: builds the contraction hierarchy / partition from raw road data.</td></tr>
+    <tr><td>Traffic pipeline</td><td>Ingests GPS probes → per-segment speeds → updates live edge costs.</td></tr>
+    <tr><td>Map data store</td><td>Source of truth for road geometry + POIs; feeds tiles, search, and prep.</td></tr>
+  </table>
+  <p><b>Route flow:</b> client → <code>POST /routes</code> → Routing Service runs a query over the in-memory contracted graph using the <em>current</em> edge costs → returns geometry + ETA. The graph's structure comes from the offline Preprocessing job; its weights come from the Traffic pipeline. <b>Tile flow:</b> client → CDN; on a miss, CDN → Tile Service renders and caches. <b>Search flow:</b> client → Search Service → geospatial index.</p>
+
+  <h2>Data Flow — the live-traffic pipeline</h2>
+  <p>This is the one data-processing path, so it earns a flow. Phones running the app emit anonymized GPS probes; the pipeline turns a firehose of points into one number per road segment: its current travel time.</p>
+  <div class="box">
+    <b>Probes → ETA, in stages:</b>
+    <ul>
+      <li><b>Ingest.</b> Anonymized, aggregated GPS traces stream in (Kafka). Privacy first — never tie a trace to a user.</li>
+      <li><b>Map-match.</b> Snap each raw point to the road segment it's actually on.</li>
+      <li><b>Aggregate.</b> Per segment, compute current median speed → travel time; blend with <b>historical</b> time-of-day patterns when probes are sparse.</li>
+      <li><b>Publish.</b> Push updated edge costs to the Routing Service's in-memory graph and to the metric-customization step.</li>
+    </ul>
+  </div>
+  <p>The pipeline is async and best-effort: a lagging probe stream degrades to historical estimates, never to an outage. That is the availability NFR made concrete.</p>
+
+  <h2>Deep Dive 1 — Serving the map: a tile pyramid on a CDN</h2>
+  <p>You never ship "the whole map." The world is sliced into a <b>pyramid of square tiles</b>, one layer per zoom level. At zoom <code>z</code> the map is a <code>2<sup>z</sup> × 2<sup>z</sup></code> grid of 256×256-px tiles addressed by <code>(z, x, y)</code>, projected with Web Mercator <a href="#c3" class="cite">[3]</a>. Zoom 0 is one tile for the planet; each zoom-in quadruples the tile count. A viewport only needs the ~dozen tiles it overlaps at its current zoom — so cost scales with screen size, not map size.</p>
+  <table>
+    <tr><th>Choice</th><th>Idea</th><th>Verdict</th></tr>
+    <tr><td>Render per request</td><td>Origin draws the exact view each call.</td><td>✗ Can't survive millions/sec; cache-hostile.</td></tr>
+    <tr><td>Pre-rendered raster tiles</td><td>Render every <code>(z,x,y)</code> PNG ahead of time, cache on CDN.</td><td>~ Trivially cacheable, but petabyte-scale and restyle = re-render everything.</td></tr>
+    <tr><td><b>Vector tiles + CDN</b></td><td>Ship geometry per tile; the <b>client</b> renders and styles it.</td><td>✓ Far smaller, smooth zoom/rotate, restyle with no re-fetch.</td></tr>
+  </table>
+  <p>Whichever format, the win is the same: a tile is <b>immutable for a given map version</b>, so it's perfectly cacheable. The CDN serves ~all reads; the origin only renders on a cold miss or a new map version, and you bust the cache by bumping the version in the path. This is a read problem you solve with caching, not a compute problem.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The junior instinct is "render the map." The staff move is reframing tiles as <em>static content addressed by a key</em> — at which point the answer is a CDN, and the only real decisions are vector-vs-raster and how you version for cache-busting. Naming the zoom pyramid (cost scales with viewport, not planet size) and choosing vector tiles to dodge petabyte raster storage shows you see the read/storage tradeoff, not just "use a CDN."
+  </div>
+
+  <h2>Deep Dive 2 — Routing as a graph problem (the hard part)</h2>
+  <p>Model the road network as a <b>directed weighted graph</b>: nodes are intersections, edges are road segments, and each edge weight is <em>travel time</em> (not distance). "Fastest route" is then single-source shortest path. The trouble is scale: a continent has ~10<sup>8</sup> nodes, and a route can span thousands of kilometers.</p>
+  <table>
+    <tr><th>Algorithm</th><th>Behavior on a continent graph</th><th>Verdict</th></tr>
+    <tr><td>Dijkstra</td><td>Explores an expanding "ball" around the origin until it reaches the target — touches tens of millions of nodes for a long route.</td><td>✗ Correct but seconds-to-minutes; misses the latency NFR.</td></tr>
+    <tr><td>A* (with heuristic)</td><td>Guides search toward the target via a great-circle/lower-bound heuristic.</td><td>~ Big constant-factor win, but still too much exploration cross-continent.</td></tr>
+    <tr><td><b>Precomputation (CH / CRP)</b></td><td>Do expensive work <em>offline</em> so each online query touches only thousands of nodes.</td><td>✓ Millisecond queries at continent scale — the only thing that meets the bar.</td></tr>
+  </table>
+  <p><b>Contraction Hierarchies (CH).</b> Offline, order nodes by "importance," then <em>contract</em> them one at a time; whenever removing a node would change a shortest path between its neighbors, add a <b>shortcut</b> edge that preserves the distance <a href="#c1" class="cite">[1]</a>. The online query is a <b>bidirectional Dijkstra</b> that only ever relaxes edges going "upward" to more-important nodes — meeting in the middle on the sparse top of the hierarchy. Result: queries explore a tiny fraction of the graph, returning in milliseconds <a href="#c1" class="cite">[1]</a>.</p>
+  <p><b>The catch — and why live traffic complicates CH.</b> CH bakes the edge weights into its shortcuts. If weights change (traffic!), the preprocessing is stale, and rebuilding a full CH is far too slow to run every few minutes. The fix is to <b>separate the slowly-changing topology from the fast-changing metric</b>. <b>Customizable Route Planning (CRP)</b> partitions the graph into nested cells <em>once</em> (topology), and when weights change it runs only a fast <b>customization</b> step that recomputes the costs across cell boundaries — seconds, not hours <a href="#c2" class="cite">[2]</a>. That is exactly the shape a traffic-aware planet-scale router needs.</p>
+  <h3>Partitioning into regions</h3>
+  <p>Cut the graph into a multilevel partition of cells, and treat the edges crossing cell boundaries as a small <b>overlay graph</b>. A long route becomes: local search to the origin cell's boundary → a fast hop across the sparse overlay → local search into the destination cell. Partitioning is what makes preprocessing parallelizable and lets a single congested cell be re-customized independently when its traffic shifts <a href="#c2" class="cite">[2]</a>.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Anyone can say "Dijkstra." The staff answer is the chain: Dijkstra is correct but too slow → A* helps but not enough → so you <em>precompute</em>. Then the decisive insight: <b>live traffic mutates edge weights</b>, so plain CH's baked-in shortcuts go stale. Naming the metric/topology split (CRP: partition once, customize fast) — and that partitioning lets you re-customize only the cells that changed — is the judgement that separates a textbook graph answer from a planet-scale, traffic-aware one.
+  </div>
+
+  <h2>Deep Dive 3 — Live traffic → edge weights → ETA</h2>
+  <p>ETA is only as good as the edge weights. The Data Flow above turns GPS probes into a current travel time per segment; this deep dive is about <em>using</em> them well.</p>
+  <ul>
+    <li><b>Blend real-time with historical.</b> Where probes are dense, use observed median speed; where sparse (a quiet road at 3 a.m.), fall back to a historical time-of-day model so you always have a number.</li>
+    <li><b>Push weights into the router.</b> Updated costs flow to the in-memory graph and trigger a CRP customization, so the next query routes around the jam — this is what powers <b>re-routing</b> on an active trip <a href="#c2" class="cite">[2]</a>.</li>
+    <li><b>ETA &gt; sum of current edges.</b> A naive ETA adds up <em>current</em> segment times; better is to predict what each segment will look like <em>when you arrive there</em>, using historical curves. The honest interview answer: start simple (sum live edges), then mention predictive ETA as the upgrade.</li>
+    <li><b>Privacy by construction.</b> Probes are anonymized and aggregated; you publish per-segment speeds, never per-user traces.</li>
+  </ul>
+
+  <h2>Deep Dive 4 — Place search &amp; geocoding</h2>
+  <p>"Find places near me" is the geospatial-index problem you've already met. A B-tree on latitude alone can't co-prune two dimensions, so a radius query degenerates to a scan. Map 2-D into one sortable key with a <b>geohash, quadtree, or S2 cell</b>, then range-scan — identical to the index behind <a href="../lessons/0020-yelp.html">Lesson 20 — Yelp</a> and the nearby-driver lookup in <a href="../lessons/0029-uber.html">Lesson 29 — Uber</a>.</p>
+  <p>Search layers two concerns: <b>text match</b> (autocomplete via a prefix/trie or search engine over place names + addresses) and <b>spatial ranking</b> (boost results near the viewport using the geohash/S2 index). Geocoding — turning a typed address into <code>(lat, lng)</code> — sits on the same index. Keep this tight in the interview: it's the breadth part, and the interesting machinery is reused, not new. See <a href="../reference/glossary.html">the glossary</a> for geohash/S2 definitions.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why are map tiles an almost perfect fit for a CDN?</p>
+      <button class="opt">Recomputed each request, so the origin must render every view</button>
+      <button class="opt">Tied to a user token, so each tile is unique per signed-in account</button>
+      <button class="opt">Immutable per map version, so any edge cache can serve them cheaply</button>
+      <button class="opt">Recolored on traffic change, so each road forces a fresh re-render</button>
+      <p class="fb">A tile is static for a given version → cache it at the edge; the origin renders only on a miss.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. What do Contraction Hierarchies precompute to make routing fast?</p>
+      <button class="opt">Shortcut edges added as nodes are contracted, so queries skip detail</button>
+      <button class="opt">A full distance matrix between every pair of intersections in advance</button>
+      <button class="opt">One A* heuristic table storing the precomputed answer to each query</button>
+      <button class="opt">Every tile image at each zoom level so the route is drawn instantly</button>
+      <p class="fb">CH contracts nodes by importance, adding shortcuts; the query searches only upward, touching few nodes.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">3. Why does live traffic complicate plain CH, and what addresses it?</p>
+      <button class="opt">CH needs no preprocessing; CRP adds a heavy index that slows every query</button>
+      <button class="opt">CH prep is slow to redo on weight change; CRP recustomizes the metric fast</button>
+      <button class="opt">CH stores raw GPS probes itself; CRP deletes them to keep the graph small</button>
+      <button class="opt">CH ignores edge weights entirely; CRP introduces weights for the first time</button>
+      <p class="fb">CH bakes weights into shortcuts; CRP splits topology from metric so traffic triggers only a fast customization.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. How does place search find points of interest near a location fast?</p>
+      <button class="opt">A B-tree on latitude alone, scanning the whole table for each lookup now</button>
+      <button class="opt">The routing graph is queried so each nearby place becomes a graph vertex</button>
+      <button class="opt">The CDN caches each place result so a lookup never touches an index again</button>
+      <button class="opt">A spatial index like geohash or quadtree maps 2-D into one sortable key</button>
+      <p class="fb">Spatial indexes (geohash/quadtree/S2) collapse 2-D to a 1-D sortable key — same trick as Yelp and Uber.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on the graph, that's where the points are. Try: <em>"Walk me through a CRP query across three cells, step by step."</em> · <em>"Why is predictive ETA better than summing current edge times, and how would I build it?"</em> · <em>"When would vector tiles lose to pre-rendered raster, and how do I version for cache-busting?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns">Hello Interview — System Design Problem Breakdowns</a>. Use their delivery framework (FR → NFR → estimation → entities/API → HLD → deep dives) and per-seniority bar; pair it with the routing papers below for the precomputation depth this problem rewards.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] Geisberger, Sanders, Schultes &amp; Delling, <a href="https://en.wikipedia.org/wiki/Contraction_hierarchies">"Contraction Hierarchies: Faster and Simpler Hierarchical Routing in Road Networks"</a> (2008) — node contraction adds shortcut edges; the query is a bidirectional, upward-only search (CH concept).</p>
+    <p id="c2">[2] Delling, Goldberg, Pajor &amp; Werneck, <a href="https://en.wikipedia.org/wiki/Contraction_hierarchies#Customizable_route_planning">"Customizable Route Planning" (CRP)</a> — partition once (topology), then a fast metric-customization step handles changing edge weights, e.g. live traffic (metric/topology separation, per-cell re-customization).</p>
+    <p id="c3">[3] OpenStreetMap Wiki, <a href="https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames">"Slippy map tilenames"</a> — the Web Mercator <code>(z, x, y)</code> tile pyramid: a <code>2<sup>z</sup>×2<sup>z</sup></code> grid of 256-px tiles per zoom level.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0050-recommendation-system.html">← Lesson 50</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 52 · Web Search Engine</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 48 — Design a Distributed Counter (Likes at Scale)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 48 · Phase 4 — Case Study · Medium</p>
+  <h1>Design a Distributed Counter (Likes at Scale)</h1>
+  <p class="sub">Counting a billion likes a day when a single celebrity post can take tens of thousands of writes per second into one number — and the count is allowed to be a little behind.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A "like counter" sounds like a one-liner — <code>UPDATE posts SET likes = likes + 1</code> — and that naive answer is exactly the trap. The whole L6/L7 interview is about what happens when one row gets hammered (the <b>hot key</b>) and how you trade strict consistency for throughput. Staff candidates name the contention problem before the interviewer does, reach for <b>write sharding</b> and <b>aggregation</b> instead of synchronous increments, and say out loud "this count is eventually consistent and that's fine."<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Keep the core list to three. This is a counting service, not a social network — replies, notifications, and the feed itself are out of scope.</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th><th>Why it shapes the design</th></tr>
+    <tr><td>1</td><td>Like (and unlike) a post</td><td>Write path — bursty, hot-keyed, must be idempotent per user</td></tr>
+    <tr><td>2</td><td>See the like count on a post</td><td>Read path — extreme read volume, tolerant of slight staleness</td></tr>
+    <tr><td>3</td><td>See a count of unique viewers / views</td><td>Distinct-count path — exact is expensive, approximate is fine</td></tr>
+  </table>
+  <div class="box">
+    <b>Out of scope (say it out loud):</b> who liked a post (the liker list / social graph), notifications, ranking and feed assembly, abuse/bot detection. We own one thing: returning a number per <code>(postId, metric)</code> at scale. Likes, views, retweets, and reactions are all the same problem — a monotonic counter.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>This system is defined by its NFRs, not its features. State the target and the priority order.</p>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th></tr>
+    <tr><td>Write-heavy at scale</td><td>Absorb tens of thousands of writes/sec onto a <i>single</i> hot post without a serialized bottleneck<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Near-real-time reads</td><td>Counts visible within seconds; sub-second is nice, not required</td></tr>
+    <tr><td>Eventual consistency</td><td>The count may lag the true value briefly; it must converge and never go backwards<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>Availability over consistency</td><td>Always return a count (maybe slightly stale) rather than erroring or stalling</td></tr>
+    <tr><td>Idempotency</td><td>A double-tapped or retried like must not double-count<a href="#c1" class="cite">[1]</a></td></tr>
+  </table>
+  <div class="box">
+    <b>The key tension:</b> a like is a tiny write, but they all collide on the same key for a popular post, and reads outnumber writes by orders of magnitude. So the architecture optimizes two things that pull apart — <i>contention-free writes</i> and <i>cheap cached reads</i> — and pays for both by giving up strict, read-your-write consistency. Saying "the count is eventually consistent" is the unlock, not a cop-out.<a href="#c3" class="cite">[3]</a>
+  </div>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute numbers that change a decision. Two matter here: the per-key write rate (does one row melt?) and the read/write skew (do we cache?).</p>
+  <div class="box">
+    <ul>
+      <li><b>Aggregate writes:</b> ~1B likes/day ≈ <b>~12K likes/sec</b> average, with peaks of <b>5–10×</b> ⇒ <b>~50–100K write QPS</b> globally. Easy to spread across a sharded store — <i>aggregate</i> throughput is not the problem.</li>
+      <li><b>Hot key:</b> a viral post during a peak moment can take <b>tens of thousands of likes/sec onto one <code>postId</code></b>. A single row / single Redis key serializes those increments — this is the entire problem. <b>Implication: shard the counter (Deep Dive 1).</b></li>
+      <li><b>Read/write skew:</b> every feed render reads many counts; reads can be <b>100×–1000×</b> writes ⇒ <b>millions of read QPS</b>. <b>Implication: reads must hit a cache, never a contended write row.</b></li>
+      <li><b>Storage:</b> a counter is ~tens of bytes per <code>(postId, metric)</code>. Even billions of posts is a few hundred GB — <b>trivial</b>. The count value is small; the <i>write rate onto it</i> is what hurts.</li>
+    </ul>
+    <b>Design implication:</b> you never scale for storage and rarely for aggregate QPS — you scale to defeat <i>per-key</i> write contention and to serve reads from cache.
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <h3>Entities</h3>
+  <table>
+    <tr><th>Entity</th><th>Fields (sketch)</th></tr>
+    <tr><td>Post</td><td><code>postId</code> — owned by another team; we only reference it</td></tr>
+    <tr><td>Counter</td><td><code>postId</code>, <code>metric</code> (<code>like</code>/<code>view</code>), <code>count</code> — logically one number, physically N shards (DD1)</td></tr>
+    <tr><td>LikeEvent</td><td><code>postId</code>, <code>userId</code>, <code>action</code> (<code>like</code>/<code>unlike</code>), <code>dedupKey</code>, <code>ts</code> — the idempotency unit (DD3)</td></tr>
+  </table>
+  <h3>API</h3>
+  <p>Derive <code>userId</code> from the auth token, never the body. The write is a command (<code>like</code>/<code>unlike</code>), not a raw "+1", so the server can dedup it.</p>
+  <div class="box">
+    <ul>
+      <li><code>POST /v1/posts/{id}/likes</code> — body <code>{ }</code>; user from JWT. Idempotent: liking twice is a no-op. Returns <code>202 Accepted</code> (write is async-aggregated).</li>
+      <li><code>DELETE /v1/posts/{id}/likes</code> — user from JWT. Records an unlike; also idempotent.</li>
+      <li><code>GET /v1/posts/{id}/counts?metrics=like,view</code> — returns the (eventually consistent) counts. Cache-served, may be a few seconds stale.</li>
+      <li><code>POST /v1/posts/{id}/views</code> — fire-and-forget; feeds the distinct-viewer estimator (HyperLogLog, DD3).</li>
+    </ul>
+  </div>
+
+  <h2>Data Flow</h2>
+  <p>This is a <b>write-aggregation pipeline</b>, the same shape as an <a href="0036-ad-click-aggregator.html">ad click aggregator</a>: high-rate events in, a counter out. The trick is to never apply each event to durable storage synchronously.<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <b>The life of one like:</b>
+    <ul>
+      <li>1. Client <code>POST</code>s a like → API service authenticates, builds a <code>dedupKey = (postId, userId)</code>, and emits a <b>LikeEvent</b> to a log (Kafka), partitioned by <code>postId</code>.</li>
+      <li>2. A <b>stream processor</b> (or Redis layer) <b>dedups</b> per user and <b>aggregates</b> events into per-shard deltas over a short window.</li>
+      <li>3. Aggregated deltas are flushed to the <b>durable counter store</b> (incrementing one of N shards for that post).</li>
+      <li>4. On read, the cache returns the post's count; on a miss it <b>sums the N shards</b> and re-caches. Done — millions of reads, near-zero contention.</li>
+    </ul>
+  </div>
+
+  <h2>High-Level Design</h2>
+  <p>Two deliberately separated paths: a thin async <b>write path</b> (event → dedup → aggregate → durable shard) and a fat cached <b>read path</b> (cache → sum shards on miss).</p>
+  <table>
+    <tr><th>Component</th><th>Responsibility</th></tr>
+    <tr><td>Like/Count Service</td><td>Auth, builds dedup key, emits LikeEvent; serves reads from cache</td></tr>
+    <tr><td>Event log (Kafka)</td><td>Durable buffer, partitioned by <code>postId</code>; absorbs bursts and decouples write rate from DB write rate<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Aggregator (Flink / Redis)</td><td>Dedups per user, sums events per shard over a window, flushes deltas<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Counter store (sharded)</td><td>Durable home of N sub-counters per <code>(postId, metric)</code> (DynamoDB/Cassandra-style, partitioned by shard key)<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Count cache (Redis)</td><td>Serves the hot read path; holds the summed total, TTL'd to bound staleness</td></tr>
+    <tr><td>Dedup store</td><td>Set/bitmap of <code>(postId, userId)</code> to make like/unlike idempotent (DD3)</td></tr>
+  </table>
+  <div class="box">
+    <b>Why async aggregation, not synchronous <code>+1</code>:</b> a synchronous increment couples your write throughput to the durable store's per-row lock and round-trip latency. Buffering in a log and aggregating turns thousands of tiny increments into one batched delta — the DB sees a trickle, not a flood. This is the senior→staff move and the heart of every deep dive below.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Deep Dives</h2>
+
+  <h3>Deep Dive 1 — The hot key: single-row contention &amp; write sharding</h3>
+  <p>One <code>postId</code> = one logical counter = one physical row or key. Tens of thousands of likes/sec all do <code>count = count + 1</code> on that one place. Whether it's a SQL row lock, a Cassandra partition, or a single Redis key, every increment <b>serializes</b> behind the last — throughput collapses to what one shard can do, and the partition becomes a hotspot.<a href="#c2" class="cite">[2]</a></p>
+  <p>The fix is the canonical <b>sharded / distributed counter</b> pattern: split the logical counter into <b>N sub-counters</b> (<code>postId:shard0 … postId:shardN-1</code>). Each write picks a random shard and increments only that one; a read <b>sums all N shards</b>.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Approach</th><th>Write</th><th>Read</th><th>Verdict</th></tr>
+    <tr><td>Single counter</td><td>One contended row — serializes</td><td>One cheap read</td><td>Melts under a hot key</td></tr>
+    <tr><td><b>N sharded sub-counters</b></td><td>Increment a random shard — N× the write parallelism</td><td>Sum N shards (or read a cached total)</td><td>The standard answer<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Adaptive sharding</td><td>Grow N only for hot posts</td><td>Sum a variable N</td><td>Best for skew; more bookkeeping</td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Pick N for the <i>hot</i> case, not the average. The trade is read cost vs write contention: large N spreads writes but makes reads sum more shards. The staff move is <b>adaptive</b> — keep N=1 for the long tail of cold posts and split a counter only once it gets hot, so you don't pay summing cost on the 99% of posts nobody touches.<a href="#c2" class="cite">[2]</a> Naming "this is a hot-key problem and I'll shard the write, sum on read" before the interviewer pushes is the whole signal.
+  </div>
+
+  <h3>Deep Dive 2 — The write pipeline: aggregation vs synchronous increments vs Redis flush</h3>
+  <p>Sharding fixes contention but you still choose <i>how</i> increments reach durable storage. Three options, in increasing sophistication.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Approach</th><th>How</th><th>Trade-off</th></tr>
+    <tr><td>Synchronous DB <code>+1</code></td><td>Each like writes the store inline on the request</td><td>Simple; couples QPS to per-row latency; melts on hot keys even when sharded</td></tr>
+    <tr><td>Redis <code>INCR</code> + periodic flush</td><td>Atomic in-memory increment; a job flushes Redis totals to the DB every few seconds<a href="#c2" class="cite">[2]</a></td><td>Blazing fast; <b>durability risk</b> — un-flushed counts vanish if Redis dies</td></tr>
+    <tr><td><b>Log + stream aggregation</b></td><td>Kafka buffers events; Flink dedups &amp; sums per window, flushes deltas<a href="#c1" class="cite">[1]</a></td><td>Durable, replayable, decoupled; more infra, seconds of lag</td></tr>
+  </table>
+  <p><b>Redis <code>INCR</code></b> is atomic so it sidesteps the read-modify-write race, and it's the fastest path — but Redis is memory-first, so a crash between flushes loses the delta. You mitigate with AOF persistence, replicas, and frequent flushes, but you can't fully escape the durability gap.<a href="#c2" class="cite">[2]</a> The <b>log + Flink</b> path makes the event stream itself the source of truth: if the aggregator dies, you <b>replay</b> from the last committed Kafka offset and recompute, so no count is lost.<a href="#c1" class="cite">[1]</a></p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    There is no single right answer — there's a right <i>justification</i>. For a pure like count where a tiny loss is survivable, Redis <code>INCR</code> + flush is the simple-by-default pick. For counts feeding billing or analytics where exactness matters, the Kafka+Flink pipeline's <b>replayability and exactly-once</b> earns its complexity.<a href="#c1" class="cite">[1]</a> Stating that durability requirement <i>first</i>, then choosing, is the staff behavior — see the <a href="0036-ad-click-aggregator.html">ad click aggregator</a> for the exactly-once version.
+  </div>
+
+  <h3>Deep Dive 3 — Idempotent likes &amp; approximate distinct counts</h3>
+  <p><b>Likes must be idempotent.</b> A double-tap, a client retry, or an at-least-once Kafka redelivery must not add 2. A raw "+1" command can't be deduped; a <i>state</i> command keyed by <code>(postId, userId)</code> can. Keep a set/bitmap of who liked: if <code>(postId, userId)</code> is already present, the like is a no-op; unlike removes it. This makes like/unlike <b>convergent</b> regardless of retries or reordering.<a href="#c1" class="cite">[1]</a></p>
+  <p><b>Distinct counts are different.</b> "Unique viewers" needs cardinality, not a sum — and storing every viewer's id to dedup exactly costs memory proportional to the audience. For billions of views that's prohibitive. Use a <b>HyperLogLog</b>: a probabilistic structure that estimates distinct cardinality in a few KB with ~1–2% error, mergeable across shards.<a href="#c2" class="cite">[2]</a> See <a href="0041-data-structures-for-big-data.html">data structures for big data</a> for how HLL and Count-Min Sketch trade exactness for memory.</p>
+  <div class="box">
+    <b>Exact vs approximate — pick per metric:</b>
+    <ul>
+      <li><b>Likes</b> → exact, idempotent, dedup set keyed by user. People notice if a like is lost.</li>
+      <li><b>Unique viewers</b> → HyperLogLog estimate. Nobody can tell 1,000,000 from 1,012,000, and you save gigabytes.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Total views</b> → a plain sharded counter (DD1); over-counting a few is harmless.</li>
+    </ul>
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Matching the <i>data structure to the tolerance of the metric</i> is the staff insight: exact-and-idempotent where users would notice, probabilistic where they wouldn't. Proposing a HyperLogLog for unique viewers unprompted — and knowing it's mergeable so each shard keeps its own and you union them on read — separates breadth-only candidates from depth.<a href="#c2" class="cite">[2]</a>
+  </div>
+
+  <h3>Deep Dive 4 — Eventual consistency &amp; read-time aggregation</h3>
+  <p>Reads dwarf writes, so they must come from cache, not from summing live shards every time. The flow: read the cached total; on miss, <b>sum the N shards</b>, cache it with a short TTL, return it.<a href="#c2" class="cite">[2]</a> Between flushes the cached number lags reality by seconds — that's the eventual consistency you negotiated up front.<a href="#c3" class="cite">[3]</a></p>
+  <table>
+    <tr><th>Read strategy</th><th>How</th><th>Trade-off</th></tr>
+    <tr><td>Sum shards per read</td><td>Always read N sub-counters and add</td><td>Always fresh; expensive at millions of QPS</td></tr>
+    <tr><td><b>Cache total, short TTL</b></td><td>Serve cached sum; recompute on TTL expiry/miss</td><td>Cheap; bounded staleness — the standard pick</td></tr>
+    <tr><td>Push total on flush</td><td>Aggregator writes the summed total to cache each window</td><td>Freshest cache; couples read cache to write pipeline</td></tr>
+  </table>
+  <div class="box">
+    <b>The "monotonic" guarantee:</b> users tolerate a count being <i>behind</i>, but a count that jumps <b>down</b> then back up looks broken. Make the cached value non-decreasing for likes (only replace if the new sum is ≥ old), and reconcile real unlikes through the same pipeline. For the viewer's <i>own</i> like, return an <b>optimistic</b> incremented value locally so their action feels instant while the true count converges.<a href="#c1" class="cite">[1]</a>
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The staff framing is "<b>read-your-own-write for the actor, eventual consistency for everyone else</b>." The person who clicked like must see it increment immediately (optimistic UI); a stranger refreshing can be seconds behind and nobody cares. Explicitly separating those two consistency requirements — and only paying for strong consistency where a human would notice — is exactly the L6/L7 judgement.<a href="#c3" class="cite">[3]</a> See <a href="0010-common-patterns.html">common patterns</a> for caching and CQRS read/write split.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why does a naive single like counter fail for a viral post?</p>
+      <button class="opt">The total stored count grows too large to fit inside a single database row value</button>
+      <button class="opt">Every increment serializes on one row or key, so the hot key becomes a bottleneck</button>
+      <button class="opt">The read query has to scan every user who liked the post before it returns count</button>
+      <button class="opt">The cache cannot store integers and must convert each value into a string per read</button>
+      <p class="fb">It's a hot-key / single-row contention problem — all increments queue behind one lock. Shard the counter, sum on read.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. What is the main risk of using Redis <code>INCR</code> with a periodic flush to the durable store?</p>
+      <button class="opt">Redis <code>INCR</code> is not atomic, so concurrent increments race and silently lose writes</button>
+      <button class="opt">Reads become far slower because every count must be recomputed from event logs</button>
+      <button class="opt">Counts not yet flushed are lost if Redis crashes, since it is memory-first storage</button>
+      <button class="opt">The durable store rejects batched deltas and demands one row update per single like</button>
+      <p class="fb"><code>INCR</code> is atomic and fast, but un-flushed in-memory deltas vanish on a crash — the durability gap you mitigate with persistence, replicas, and a log.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Which structure best estimates unique viewers at billions of views, cheaply?</p>
+      <button class="opt">A HyperLogLog sketch, which estimates distinct cardinality in a few kilobytes</button>
+      <button class="opt">A relational table storing one indexed row per viewer to deduplicate them all</button>
+      <button class="opt">A single sharded integer counter incremented once for every view that arrives</button>
+      <button class="opt">A sorted set keyed by timestamp holding every viewer id for the whole post</button>
+      <p class="fb">HyperLogLog gives ~1–2% error in a few KB and merges across shards — exact per-user storage is prohibitive at that scale.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. How do you keep like/unlike correct under client retries and at-least-once delivery?</p>
+      <button class="opt">Send a raw plus-one command and trust the network to deliver each event exactly once</button>
+      <button class="opt">Record like state keyed by <code>(postId, userId)</code> so repeats are idempotent no-ops</button>
+      <button class="opt">Lock the post row for the full request so no second like can ever be processed at all</button>
+      <button class="opt">Increase the shard count until accidental double likes statistically cancel each other</button>
+      <p class="fb">A state command keyed per user dedups naturally — re-liking is a no-op, unliking removes it — so retries and redeliveries converge.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this one — push on it:
+    <ul>
+      <li>"Walk me through choosing N shards adaptively — how do I detect a post is hot and split it without losing the existing count?"</li>
+      <li>"Compare Redis <code>INCR</code>+flush vs Kafka+Flink for a count that feeds billing — when is exactly-once worth the infra?"</li>
+      <li>"Quiz me as the interviewer: ramp one post from 10 likes/sec to 50K/sec and make me re-architect at each step."</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ad-click-aggregator">Hello Interview — Ad Click Aggregator breakdown</a>. The closest canonical walkthrough of a write-aggregation pipeline: Kafka buffering, stream aggregation, hot-key handling, and the exactly-once vs at-least-once durability discussion that maps directly onto counting likes at scale.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ad-click-aggregator">Hello Interview — Ad Click Aggregator</a> (write-aggregation pipeline shape: Kafka event log partitioned by key, stream aggregation/dedup with Flink, async aggregation vs synchronous increments, at-least-once vs exactly-once durability, replay).</p>
+    <p id="c2">[2] <a href="https://cloud.google.com/datastore/docs/sharding-counters">Google Cloud — Distributed (sharded) counters</a> and <a href="https://redis.io/docs/latest/develop/data-types/">Redis data types docs</a> (sharded counter pattern: split into N sub-counters, increment a random shard, sum on read; atomic <code>INCR</code>; HyperLogLog probabilistic cardinality with bounded error).</p>
+    <p id="c3">[3] <a href="https://jepsen.io/consistency/models/eventual">Jepsen — Eventual consistency</a> (eventual consistency model: replicas converge over time; appropriate when reads tolerate bounded staleness and the system favors availability).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0047-leaderboard.html">← Lesson 47</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 49 · Distributed Unique ID Generator</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

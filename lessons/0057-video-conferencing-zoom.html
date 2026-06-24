@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 57 — Design Video Conferencing (Zoom / Google Meet)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 57 · Phase 4 — Case Study · Hard</p>
+  <h1>Design Video Conferencing (Zoom / Google Meet)</h1>
+  <p class="sub">Real-time media is the opposite of the systems you've practiced: you throw data away on purpose, you prefer UDP over TCP, and the server's job is to forward — not to store.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Conferencing is the case study that breaks request/response instincts. At L6/L7 the bar is not "draw a media server" — it is to <em>separate the signaling plane from the media plane</em>, justify <b>WebRTC over UDP</b> for sub-150ms latency, and reach for an <b>SFU</b> topology that scales group calls without melting the client's uplink. Name those three moves with their tradeoffs and you've shown staff-level judgement; over-explain WebSockets and you've shown senior.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope tightly to the live-call core. Say the deferrals out loud — it signals you know the surface area without drowning in it.</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td><b>Create and join a meeting</b> via a shareable ID/link, with a lobby and host controls.</td></tr>
+    <tr><td>2</td><td>Exchange <b>real-time audio and video</b> with everyone else in the room.</td></tr>
+    <tr><td>3</td><td><b>Share a screen</b> (a second, high-resolution video track) to the whole room.</td></tr>
+    <tr><td>4</td><td>Have calls work with <b>many participants</b> (1:1 up to large group rooms).</td></tr>
+  </table>
+  <p style="font-size:.9rem;color:var(--muted);">Out of scope (state it): chat, reactions, breakout rooms, virtual backgrounds, transcription/AI, and webinar-scale (10k+ view-only) broadcast — that's the live-streaming problem from Lesson 56, not conferencing.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>For media, the "-ilities" are unusually strict and they decide the entire transport. Lead with latency.</p>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th><th>Why it shapes the design</th></tr>
+    <tr><td>Ultra-low latency</td><td><b>&lt;150ms</b> mouth-to-ear for natural conversation <a href="#c1" class="cite">[1]</a></td><td>Forces <b>UDP + WebRTC</b>; rules out TCP retransmits and rules out buffering.</td></tr>
+    <tr><td>Loss tolerance</td><td>Glitch &gt; freeze; drop late packets</td><td>Forces <b>lossy by design</b> — a jitter buffer + concealment, never a full resend.</td></tr>
+    <tr><td>Availability</td><td>Call survives a participant or media-node blip</td><td>Forces regional media servers + reconnect/ICE-restart, not one central box.</td></tr>
+    <tr><td>Scale (per room)</td><td>Many participants on a weak client uplink</td><td>Forces an <b>SFU</b> + <b>simulcast</b> so the client uploads once, not N times.</td></tr>
+    <tr><td>Scale (global)</td><td>Millions of concurrent meetings</td><td>Forces horizontal media servers placed close to users (edge regions).</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only the numbers that change the topology. For conferencing the load-bearing figure is <b>egress bandwidth per room</b>, which is exactly what separates mesh, MCU, and SFU.</p>
+  <div class="box">
+    <ul>
+      <li><b>Per-stream bitrate:</b> a 720p video track ≈ <b>1–2 Mbps</b>; audio ≈ 40 kbps. Use ~1.5 Mbps/video as the working number.</li>
+      <li><b>The killer: client uplink in a mesh.</b> In an <i>N</i>-person room with no server, each client sends its stream to the other <i>N−1</i> peers. At <i>N</i>=10 that's ~9 × 1.5 = <b>~13.5 Mbps upload per person</b> — most home connections die here. This single number kills mesh for groups.</li>
+      <li><b>SFU egress:</b> each client uploads <b>once</b> (~1.5 Mbps); the server fans out. Server egress per room ≈ <i>N</i> × (<i>N−1</i>) × 1.5 Mbps. A 10-person room ≈ <b>~135 Mbps</b> egress on <i>one</i> media node — so media servers are bandwidth-bound, and you pin a room to a region near its participants.</li>
+      <li><b>Signaling vs media:</b> signaling is a trickle (a few KB at join, then heartbeats) — handled by ordinary stateful WebSocket servers like Lesson 19's chat tier. Media is the firehose and lives on a totally separate fleet.</li>
+    </ul>
+    <p style="margin:.6rem 0 0;"><b>Implication:</b> the design is decided by who pays the fan-out cost. Move it off the client (mesh fails) and off a transcoder (MCU is CPU-bound) and onto a forwarding server (SFU) — that's the whole case study in one sentence. <span style="color:var(--muted);">Bitrates are standard WebRTC ballparks; treat as my own estimates.</span></p>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>User</code>, <code>Meeting</code> (room id, host, settings), <code>Participant</code> (user + device + connection state + assigned media node), and <code>MediaStream</code> / track (audio, camera, screen). A <code>Recording</code> entity exists only if recording is on.</p>
+  <p>Split the API by plane. The <b>control plane</b> (create/join, negotiate) is plain REST + a signaling WebSocket — it's fine to be TCP-reliable because it's tiny and infrequent. The <b>media plane</b> is <em>not</em> an API you call; it's WebRTC peer connections to a media server, negotiated <i>through</i> signaling.</p>
+
+  <h3>Control plane — REST + signaling</h3>
+  <table>
+    <tr><th>Method / frame</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/meetings</code></td><td>Create a room; returns <code>meetingId</code> + join link. Host derived from auth token.</td></tr>
+    <tr><td><code>POST /v1/meetings/{id}/join</code></td><td>Admit participant; returns an <b>SFU/TURN endpoint + ICE servers + token</b>.</td></tr>
+    <tr><td><code>GET /v1/meetings/{id}</code></td><td>Room metadata, participant list, settings.</td></tr>
+    <tr><td><code>POST /v1/meetings/{id}/recordings</code></td><td>Start/stop recording (host only).</td></tr>
+    <tr><td>WS <code>offer</code> / <code>answer</code> / <code>ice-candidate</code></td><td>SDP + ICE exchange to set up the WebRTC media path (signaling).</td></tr>
+  </table>
+
+  <h2>High-Level Design</h2>
+  <p>The defining move is the <b>two-plane split</b>: a thin, reliable <b>signaling plane</b> that sets calls up, and a fat, lossy <b>media plane</b> that carries the actual audio/video and never touches your database on the hot path.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Plane</th></tr>
+    <tr><td>API / signaling servers</td><td>Create/join, auth, and relay SDP offers/answers + ICE candidates over WebSocket <a href="#c2" class="cite">[2]</a>.</td><td>Signaling</td></tr>
+    <tr><td>SFU media servers</td><td>Receive each participant's uploaded streams and <b>forward</b> selected layers to others — no decode/encode <a href="#c3" class="cite">[3]</a>.</td><td>Media</td></tr>
+    <tr><td>STUN / TURN servers</td><td>NAT traversal: STUN discovers the public address; TURN relays media when a direct path fails <a href="#c4" class="cite">[4]</a>.</td><td>Media</td></tr>
+    <tr><td>Room/orchestration service</td><td>Assigns a room to an SFU node in a nearby region; tracks participant ↔ node mapping.</td><td>Control</td></tr>
+    <tr><td>Metadata store</td><td>Meetings, participants, settings (a normal OLTP DB). Not on the media hot path.</td><td>Control</td></tr>
+    <tr><td>Recording pipeline + blob storage</td><td>A "ghost" SFU subscriber composites/stores tracks to object storage.</td><td>Async</td></tr>
+  </table>
+  <p><b>Join-and-talk flow:</b> client calls <code>POST /join</code> → control plane assigns an SFU in the user's region and returns ICE/TURN config → client opens a signaling WebSocket and sends a WebRTC <b>offer</b> (SDP) → SFU replies with an <b>answer</b> → both sides exchange <b>ICE candidates</b> and pick the best path (direct, or via TURN) → the client uploads <b>one</b> set of streams to the SFU over UDP → the SFU forwards each participant's stream to every other participant. Signaling is done after setup; media flows peer-to-SFU and never round-trips through the app DB.</p>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1. Why WebRTC over UDP — and why TCP is wrong for live media</h3>
+  <p>The instinct from every other lesson is "use TCP, it's reliable." For real-time media that reliability is actively harmful. TCP guarantees <b>in-order, lossless</b> delivery, which means a single lost packet causes <b>head-of-line blocking</b>: everything behind it waits for the retransmit. In a conversation, a video frame that arrives 300ms late is <i>useless</i> — the moment has passed — yet TCP would stall the whole stream to redeliver it.</p>
+  <p>Real-time media wants the opposite contract: <b>send fast, tolerate loss, never wait</b>. That's UDP. WebRTC builds on UDP and layers in exactly what media needs — <b>RTP</b> for timestamped/sequenced media packets, <b>RTCP</b> for feedback (loss reports, bitrate hints), <b>DTLS-SRTP</b> for mandatory encryption, and <b>ICE/STUN/TURN</b> for connectivity <a href="#c2" class="cite">[2]</a>. A dropped packet becomes a tiny glitch the codec conceals, not a freeze. TCP (and TURN-over-TCP) is kept only as a <i>fallback</i> for hostile networks that block UDP.</p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Say the sentence: <b>"For live media, latency beats reliability, so a late packet is worthless and resending it makes things worse."</b> A senior reaches for TCP/WebSocket reflexively; a staff engineer explains <i>why</i> head-of-line blocking makes reliability a liability here, then names UDP + RTP + a jitter buffer as the correct stack. Knowing <i>when not</i> to want a guarantee is the judgement being tested.
+  </div>
+
+  <h3>2. Topology: mesh vs MCU vs SFU — and why SFU wins group calls</h3>
+  <p>This is the heart of the design. Three ways to get <i>N</i> participants' streams to each other, each pushing the fan-out cost to a different place.</p>
+  <table>
+    <tr><th>Topology</th><th>How it works</th><th>Cost / verdict</th></tr>
+    <tr><td><b>Mesh (P2P)</b></td><td>Every client sends its stream directly to every other client; no media server.</td><td>Client uploads <i>N−1</i> copies → <b>uplink explodes</b> (~13.5 Mbps at N=10). Fine for 1:1–3, dies for groups <a href="#c3" class="cite">[3]</a>.</td></tr>
+    <tr><td><b>MCU</b> (Multipoint Control Unit)</td><td>Server <b>decodes</b> all streams, <b>composites</b> them into one mixed stream, re-encodes, sends one stream down.</td><td>Client uploads/downloads once (cheap client), but server <b>decode+encode is hugely CPU-bound</b> → expensive, adds latency. Legacy.</td></tr>
+    <tr><td><b>SFU</b> (Selective Forwarding Unit)</td><td>Server <b>receives</b> each stream and <b>forwards packets as-is</b> to the others. No decode, no re-encode <a href="#c3" class="cite">[3]</a>.</td><td>Client uploads <b>once</b>; server is bandwidth-bound but cheap on CPU; per-receiver layer selection. <b>The winner for groups.</b></td></tr>
+  </table>
+  <p>The SFU wins because it moves fan-out off the client (fixing mesh's uplink) <i>without</i> paying the MCU's transcoding bill. The client sends one upstream; the SFU does the <i>N</i>×(<i>N</i>−1) replication on fat datacenter pipes. The tradeoff: each receiver now <i>downloads</i> N−1 streams, which the next deep dive controls with simulcast and active-speaker selection. Modern Zoom/Meet/most WebRTC platforms are SFU-based.</p>
+
+  <h3>3. Making the SFU scale: simulcast, adaptive layers, and jitter buffers</h3>
+  <p>A raw SFU forwarding every stream at full quality still overwhelms weak receivers. Three mechanisms fix it:</p>
+  <ul style="font-size:.92rem;">
+    <li><b>Simulcast:</b> each sender encodes its camera at <b>multiple resolutions/bitrates simultaneously</b> (e.g. 1080p/360p/180p) and uploads all of them. The SFU then forwards the layer that fits each <i>receiver's</i> bandwidth — a strong viewer gets HD, a weak one gets the low layer, from the same upload <a href="#c3" class="cite">[3]</a>. (SVC is the codec-level variant: one layered stream.)</li>
+    <li><b>Adaptive selection / active speaker:</b> the SFU doesn't forward all N at HD. It sends the <b>active speaker</b> in high res and others as thumbnails or audio-only, reacting to RTCP feedback and bandwidth estimates. This is how a 50-person room stays watchable.</li>
+    <li><b>Jitter buffer:</b> UDP packets arrive out of order and with variable delay (jitter). The receiver holds a tiny buffer (tens of ms) to reorder and smooth playout, trading a sliver of latency for stability. Late packets are dropped, not awaited; packet-loss concealment masks the gap.</li>
+  </ul>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The staff insight is that <b>quality adaptation is the receiver's problem solved with the sender's help</b>: the sender does cheap extra work (simulcast layers) so the SFU can make a <i>per-receiver</i> choice without any transcoding. A senior proposes "the server downscales for weak clients" (re-inventing the MCU's CPU cost); a staff engineer pushes the encode to the edge (sender) and keeps the SFU a dumb, fast forwarder. Cost lives where it's cheap.
+  </div>
+
+  <h3>4. Signaling vs media planes, NAT traversal, and recording</h3>
+  <p><b>Two planes, two transports.</b> Signaling carries SDP offers/answers and ICE candidates — small, infrequent, and it must be reliable, so it rides a TCP WebSocket. Media carries the firehose — large, continuous, loss-tolerant — so it rides UDP/RTP straight to the SFU. They are <i>different fleets with different scaling laws</i>: signaling scales like Lesson 19's connection servers; media scales by bandwidth and region. Conflating them is a classic senior flattening.</p>
+  <p><b>NAT traversal (STUN/TURN).</b> Most clients sit behind NAT with no routable public address, so peers can't just dial each other. WebRTC uses <b>ICE</b> to gather candidate paths: <b>STUN</b> lets a client discover its own public IP:port so a direct path can often be punched through <a href="#c4" class="cite">[4]</a>; when symmetric NATs or firewalls block that (~10–20% of the time), <b>TURN</b> relays the media through a server as a fallback — reliable but it costs you bandwidth and a hop of latency <a href="#c4" class="cite">[4]</a>. With an SFU the "peer" is the SFU itself, which has a public address, so traversal is mostly client↔SFU and simpler than full mesh P2P.</p>
+  <p><b>Recording.</b> Don't bolt it onto the hot path. Add a <b>headless participant</b> ("ghost" client / recording bot) that subscribes to the SFU like any other receiver, composites the layout, and writes to <b>object storage</b> asynchronously — server-side so it survives clients leaving. Keep it off the live forwarding path so it can never add latency to the call.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why is UDP, not TCP, the right transport for live conferencing media?</p>
+      <button class="opt">UDP encrypts each media packet automatically while plain TCP leaves it exposed</button>
+      <button class="opt">UDP compresses audio and video far better than TCP does on slow connections</button>
+      <button class="opt">TCP resends and reorders, so one lost packet stalls a stream that wants speed</button>
+      <button class="opt">TCP cannot traverse a NAT device whereas UDP punches through every firewall</button>
+      <p class="fb">A late retransmitted frame is useless in a live call; TCP's head-of-line blocking trades latency for reliability you don't want.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Why does an SFU beat a full mesh topology for a ten-person room?</p>
+      <button class="opt">An SFU decodes and remixes the streams so each client downloads only one feed</button>
+      <button class="opt">A mesh forces each client to upload N−1 copies and the uplink simply runs out</button>
+      <button class="opt">An SFU encrypts streams end to end whereas a mesh leaks them to the relay node</button>
+      <button class="opt">A mesh cannot work behind NAT so every participant must relay through a server</button>
+      <p class="fb">Mesh fan-out lives on the client uplink (~13.5 Mbps at N=10); the SFU lets the client upload once and forwards on fat server pipes.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What problem does simulcast solve in an SFU-based call?</p>
+      <button class="opt">Senders ship several quality layers so the SFU forwards each receiver a fit</button>
+      <button class="opt">Senders merge all the audio tracks into one mix to cut the room bandwidth</button>
+      <button class="opt">Servers decode and re-encode each stream to match the slowest viewer's link</button>
+      <button class="opt">Clients retransmit any dropped packet so the picture never freezes or glitches</button>
+      <p class="fb">Each sender encodes multiple resolutions at once; the SFU picks the right layer per receiver — no transcoding on the server.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. What is the role of a TURN server in WebRTC connectivity?</p>
+      <button class="opt">It mixes every participant's video into one composited frame for the room</button>
+      <button class="opt">It relays media as a fallback when a direct peer path cannot be established</button>
+      <button class="opt">It stores the meeting recording and serves it back from the object storage</button>
+      <button class="opt">It assigns each new meeting room to the closest available regional media node</button>
+      <p class="fb">STUN finds your public address for a direct path; when NAT/firewalls block that, TURN relays the media at the cost of bandwidth and a hop.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it:
+    <ul style="margin:.4rem 0 0;">
+      <li>"Walk me through exactly what changes when a 1:1 call grows to a 50-person room."</li>
+      <li>"How would you place SFUs globally and reassign a room if its media node fails?"</li>
+      <li>"Where does end-to-end encryption fit if the SFU is supposed to forward packets?"</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://webrtc.org/">WebRTC.org — Architecture &amp; Getting Started</a>. The canonical grounding for the media stack (RTP/SRTP, ICE/STUN/TURN, the offer/answer model); pair it with any SFU vendor's "mesh vs MCU vs SFU" explainer for the topology tradeoffs.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] ITU-T G.114 / WebRTC latency guidance — sub-150ms one-way is the threshold for natural real-time conversation (NFR target).</p>
+    <p id="c2">[2] <a href="https://datatracker.ietf.org/doc/html/rfc8825">IETF RFC 8825 — Overview: Real-Time Protocols for Browser-Based Applications (WebRTC)</a> (signaling/SDP offer-answer, RTP/SRTP, ICE; UDP-based media stack).</p>
+    <p id="c3">[3] <a href="https://webrtcglossary.com/sfu/">WebRTC Glossary — SFU vs MCU vs Mesh</a> (forwarding vs transcoding vs peer-to-peer fan-out; simulcast layer selection).</p>
+    <p id="c4">[4] <a href="https://datatracker.ietf.org/doc/html/rfc8445">IETF RFC 8445 — Interactive Connectivity Establishment (ICE)</a>, with STUN (RFC 8489) and TURN (RFC 8656) (NAT traversal, direct path vs relay fallback).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0056-live-streaming-twitch.html">← Lesson 56</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 58 · Slack</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

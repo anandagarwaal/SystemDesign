@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Design — Decision Guides</title>
+<style>
+  :root{--ink:#1a1a1a;--paper:#fffefb;--muted:#6b6356;--rule:#e3ddd0;--accent:#7a2e1d;--accent-soft:#f3ece1;--staff:#1f4d3f;--staff-soft:#e7f0ec;}
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:Georgia,"Iowan Old Style",serif;line-height:1.5;margin:0;}
+  .wrap{max-width:780px;margin:0 auto;padding:3rem 1.5rem 5rem;}
+  .kicker{font-family:-apple-system,sans-serif;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 .5rem;}
+  h1{font-size:2.1rem;margin:0 0 .3rem;}
+  .sub{color:var(--muted);font-style:italic;margin:0 0 1.6rem;}
+  h2{font-size:1.25rem;font-family:-apple-system,sans-serif;margin:2.6rem 0 .6rem;border-bottom:1px solid var(--rule);padding-bottom:.3rem;color:var(--accent);}
+  p{margin:.6rem 0;font-size:.95rem;}
+  a{color:var(--accent);}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:.85em;background:#f3ece1;padding:.08rem .3rem;border-radius:3px;}
+  table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.84rem;font-family:-apple-system,sans-serif;}
+  th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--rule);vertical-align:top;}
+  th{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);}
+  .tree{font-family:-apple-system,sans-serif;font-size:.9rem;background:#fff;border:1px solid var(--rule);border-radius:10px;padding:1.2rem 1.4rem;margin:1rem 0;}
+  .tree .q{font-weight:600;color:var(--ink);margin:.9rem 0 .2rem;}
+  .tree .q:first-child{margin-top:0}
+  .tree .a{margin:.15rem 0 .15rem 1rem;color:var(--muted);}
+  .tree .a b{color:var(--accent)}
+  .note{background:var(--accent-soft);border-left:3px solid var(--accent);padding:.8rem 1rem;font-size:.88rem;margin:1.2rem 0;}
+  .staff{background:var(--staff-soft);border-left:3px solid var(--staff);padding:.8rem 1rem;font-size:.88rem;margin:1.2rem 0;}
+  .staff b{color:var(--staff)}
+  @media print{body{font-size:10.5pt}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">System Design · Reference</p>
+  <h1>Decision Guides</h1>
+  <p class="sub">The "which one do I reach for?" cheat sheets — datastore selection, messaging selection, and a map of which patterns each case study exercises. Use them to justify choices out loud with tradeoffs, not vibes.</p>
+
+  <div class="note"><b>How to use in an interview:</b> never say "I'll use X" — say "the requirement is Y, which means I need property Z, so X fits and here's the tradeoff I'm accepting." These trees encode the Y→Z→X chain.</div>
+
+  <h2>1 · Which datastore?</h2>
+  <div class="tree">
+    <p class="q">Is the data a hot, ephemeral, sub-ms working set (cache, session, rate-limit counter, leaderboard)?</p>
+    <p class="a">→ <b>Redis</b> (in-memory; sorted sets, TTL). See <a href="../lessons/0093-redis.html">L93</a>.</p>
+    <p class="q">Do you need full-text / fuzzy search, ranking, or faceted filtering?</p>
+    <p class="a">→ <b>Elasticsearch</b> (inverted index) alongside your source of truth. See <a href="../lessons/0094-elasticsearch.html">L94</a>.</p>
+    <p class="q">Is it heavy analytical aggregation over huge columns (OLAP, dashboards, ad/metrics rollups)?</p>
+    <p class="a">→ <b>ClickHouse / columnar OLAP</b>. See <a href="../lessons/0095-clickhouse-olap.html">L95</a>.</p>
+    <p class="q">Is it append-heavy, time-stamped metrics/events with time-range queries?</p>
+    <p class="a">→ <b>Time-series DB</b>. See <a href="../lessons/0042-time-series-databases.html">L42</a>.</p>
+    <p class="q">Highly connected data with multi-hop traversals (social graph, fraud rings, recommendations)?</p>
+    <p class="a">→ <b>Graph DB (Neo4j)</b>. See <a href="../lessons/0098-graph-db-neo4j.html">L98</a>.</p>
+    <p class="q">Do you need strong multi-row ACID transactions + rich queries/joins (payments, orders, ledger)?</p>
+    <p class="a">→ <b>Relational (PostgreSQL/MySQL)</b>; if it must scale writes globally with strong consistency → <b>distributed SQL (Spanner/CockroachDB)</b> or <b>Aurora</b>. See <a href="../lessons/0088-postgresql.html">L88</a>, <a href="../lessons/0096-distributed-sql-spanner.html">L96</a>.</p>
+    <p class="q">Massive write throughput, simple access by key, availability &gt; strong consistency, easy horizontal scale?</p>
+    <p class="a">→ <b>Wide-column / KV (Cassandra, DynamoDB)</b> — design around the query/partition key. See <a href="../lessons/0090-cassandra.html">L90</a>, <a href="../lessons/0091-dynamodb.html">L91</a>.</p>
+    <p class="q">Flexible/evolving documents, nested objects, single-document atomicity?</p>
+    <p class="a">→ <b>MongoDB</b> (document). See <a href="../lessons/0092-mongodb.html">L92</a>.</p>
+    <p class="q">Large immutable objects (images, video, backups, files)?</p>
+    <p class="a">→ <b>Blob store (S3)</b> + CDN; keep metadata in a DB. See <a href="../lessons/0045-blob-store-s3.html">L45</a>.</p>
+  </div>
+  <div class="staff"><b>Default & escalate:</b> start with <b>PostgreSQL</b> — it does KV, JSON, full-text, and geo "well enough" to ship. Only introduce a specialized store when a concrete requirement (scale, access pattern, latency) forces it. Adding stores adds operational + consistency cost; say that.</div>
+
+  <h2>2 · SQL vs NoSQL — the honest table</h2>
+  <table>
+    <thead><tr><th>Dimension</th><th>Relational (SQL)</th><th>NoSQL (KV / wide-col / doc)</th></tr></thead>
+    <tbody>
+      <tr><td>Best when</td><td>Relationships, transactions, ad-hoc queries</td><td>Known access pattern, massive scale, high write rate</td></tr>
+      <tr><td>Consistency</td><td>Strong ACID by default</td><td>Often tunable / eventual (AP-leaning)</td></tr>
+      <tr><td>Scaling writes</td><td>Vertical first; sharding is manual & painful</td><td>Horizontal by design (partition key)</td></tr>
+      <tr><td>Joins</td><td>Yes</td><td>Avoid — denormalize / duplicate</td></tr>
+      <tr><td>Schema</td><td>Fixed, migrations</td><td>Flexible</td></tr>
+      <tr><td>Failure mode</td><td>Write primary is the bottleneck</td><td>Hot partitions / skew; eventual-read surprises</td></tr>
+    </tbody>
+  </table>
+  <p>Modern reality: the line is blurry (Postgres scales far; DynamoDB has transactions). Choose on <em>access pattern + scale + consistency need</em>, not the label.</p>
+
+  <h2>3 · Which messaging system?</h2>
+  <div class="tree">
+    <p class="q">Do you need a durable, replayable, ordered <em>log</em> for streams / event sourcing / many consumers / high throughput?</p>
+    <p class="a">→ <b>Kafka</b> (partitioned log, consumer groups, replay). See <a href="../lessons/0099-kafka.html">L99</a>.</p>
+    <p class="q">Do you need flexible per-message routing, priorities, and classic task-queue semantics with ack/retry?</p>
+    <p class="a">→ <b>RabbitMQ</b> (AMQP broker). See <a href="../lessons/0100-message-queues.html">L100</a>.</p>
+    <p class="q">Want zero-ops managed decoupling on AWS, simple work queue?</p>
+    <p class="a">→ <b>SQS</b> (+ <b>SNS</b> for fan-out pub/sub). See <a href="../lessons/0100-message-queues.html">L100</a>, <a href="../lessons/0119-aws-core-services.html">L119</a>.</p>
+    <p class="q">Just need lightweight in-process / cache-adjacent pub/sub, fire-and-forget?</p>
+    <p class="a">→ <b>Redis Pub/Sub or Streams</b> (no strong durability for plain pub/sub).</p>
+    <p class="q">Stateful stream processing with event-time windows & exactly-once?</p>
+    <p class="a">→ Kafka as transport + <b>Flink</b> (or Spark Streaming) for compute. See <a href="../lessons/0102-flink.html">L102</a>.</p>
+  </div>
+  <table>
+    <thead><tr><th></th><th>Kafka</th><th>RabbitMQ</th><th>SQS</th></tr></thead>
+    <tbody>
+      <tr><td>Model</td><td>Distributed log</td><td>Broker/queues+exchanges</td><td>Managed queue</td></tr>
+      <tr><td>Ordering</td><td>Per partition</td><td>Per queue (best-effort)</td><td>FIFO queues only</td></tr>
+      <tr><td>Replay</td><td>Yes (retention)</td><td>No (consumed = gone)</td><td>No</td></tr>
+      <tr><td>Throughput</td><td>Very high</td><td>Moderate</td><td>High (auto)</td></tr>
+      <tr><td>Routing</td><td>Simple (topic/partition)</td><td>Rich (exchanges)</td><td>Simple</td></tr>
+      <tr><td>Ops</td><td>Heavy</td><td>Medium</td><td>None (managed)</td></tr>
+    </tbody>
+  </table>
+  <p class="note">All three give <b>at-least-once</b> in practice → your consumers must be <b>idempotent</b>. See <a href="../lessons/0122-idempotency-delivery-semantics.html">L122</a>.</p>
+
+  <h2>4 · Patterns × case studies</h2>
+  <p>Where each recurring pattern shows up — use this to <em>interleave</em>: pick a pattern, then drill the linked case studies that exercise it.</p>
+  <table>
+    <thead><tr><th>Pattern</th><th>Exercised in</th></tr></thead>
+    <tbody>
+      <tr><td>Fan-out (write vs read)</td><td><a href="../lessons/0016-fb-news-feed.html">News Feed</a>, <a href="../lessons/0053-twitter.html">Twitter</a>, <a href="../lessons/0046-notification-service.html">Notifications</a></td></tr>
+      <tr><td>Real-time push (WS/SSE)</td><td><a href="../lessons/0019-whatsapp.html">WhatsApp</a>, <a href="../lessons/0031-google-docs.html">Google Docs</a>, <a href="../lessons/0024-fb-live-comments.html">Live Comments</a>, <a href="../lessons/0083-live-score.html">Live Score</a></td></tr>
+      <tr><td>Geospatial indexing</td><td><a href="../lessons/0020-yelp.html">Yelp</a>, <a href="../lessons/0029-uber.html">Uber</a>, <a href="../lessons/0051-google-maps.html">Maps</a></td></tr>
+      <tr><td>Reservation / locking (contention)</td><td><a href="../lessons/0015-ticketmaster.html">Ticketmaster</a>, <a href="../lessons/0023-online-auction.html">Auction</a>, <a href="../lessons/0062-ecommerce-flash-sale.html">Flash Sale</a></td></tr>
+      <tr><td>Idempotency / exactly-once</td><td><a href="../lessons/0037-payment-system.html">Payments</a>, <a href="../lessons/0074-digital-wallet-p2p.html">Wallet</a>, <a href="../lessons/0071-webhook-delivery.html">Webhooks</a>, <a href="../lessons/0034-job-scheduler.html">Scheduler</a></td></tr>
+      <tr><td>Stream processing / windowing</td><td><a href="../lessons/0036-ad-click-aggregator.html">Ad Clicks</a>, <a href="../lessons/0038-metrics-monitoring.html">Metrics</a>, <a href="../lessons/0075-realtime-analytics.html">Realtime Analytics</a></td></tr>
+      <tr><td>Approximate counting (sketches)</td><td><a href="../lessons/0028-youtube-top-k.html">Top-K</a>, <a href="../lessons/0048-distributed-counter.html">Counter</a>, <a href="../lessons/0035-web-crawler.html">Crawler</a> (Bloom)</td></tr>
+      <tr><td>Blob + CDN + transcoding</td><td><a href="../lessons/0033-youtube.html">YouTube</a>, <a href="../lessons/0012-dropbox.html">Dropbox</a>, <a href="../lessons/0064-google-photos.html">Photos</a>, <a href="../lessons/0054-tiktok.html">TikTok</a></td></tr>
+      <tr><td>Saga / distributed txn</td><td><a href="../lessons/0037-payment-system.html">Payments</a>, <a href="../lessons/0059-food-delivery.html">Food Delivery</a>, <a href="../lessons/0060-hotel-booking.html">Hotel Booking</a></td></tr>
+      <tr><td>Consistent hashing / sharding</td><td><a href="../lessons/0032-distributed-cache.html">Cache</a>, <a href="../lessons/0044-distributed-message-queue.html">Msg Queue</a>, most large-scale designs</td></tr>
+      <tr><td>Sorted-set leaderboards</td><td><a href="../lessons/0047-leaderboard.html">Leaderboard</a>, <a href="../lessons/0069-online-chess-matchmaking.html">Chess</a>, <a href="../lessons/0018-leetcode.html">LeetCode</a></td></tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:2.5rem;font-size:.85rem;">
+    <a href="../index.html">🏠 Course home</a> ·
+    <a href="capacity-cheatsheet.html">🔢 Cheat sheet</a> ·
+    <a href="mock-interview.html">🎤 Mock trainer</a> ·
+    <a href="glossary.html">📖 Glossary</a>
+  </p>
+</div>
+</body>
+</html>

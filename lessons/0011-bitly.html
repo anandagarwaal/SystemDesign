@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 11 — Design Bitly (URL Shortener)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 11 · Phase 4 — Case Study · Easy</p>
+  <h1>Design Bitly (URL Shortener)</h1>
+  <p class="sub">A deceptively simple prompt that is really two problems in a trench coat: generating unique IDs and scaling reads.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Bitly is the canonical warm-up. The trap is treating it as easy and burning your time on CRUD. The staff move is to see through the surface — recognize within the first two minutes that this is a <em>unique-ID generation</em> problem stacked on a <em>read-scaling</em> problem, then spend your depth budget there. Get this framing right and the same muscles carry into Ticketmaster, Pastebin, and any system with a hot read path.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Drive the interviewer to the two core flows; everything else is a "would you like fries with that" add-on. Auth, spam detection, and click analytics are explicitly out of scope for the base design.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Requirement</th><th>Note</th></tr>
+    <tr><td>1</td><td>Users can submit a long URL and get a short URL back</td><td>Core write path</td></tr>
+    <tr><td>2</td><td>Users can supply an optional custom alias and expiry date</td><td>Modifiers on the write</td></tr>
+    <tr><td>3</td><td>Visiting a short URL redirects to the original long URL</td><td>Core read path — the money flow</td></tr>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>State the targets <em>with numbers</em> — vague "-ilities" are a senior tell. The single most important line you can say here: this system is read-heavy, on the order of <strong>100:1 to 1000:1 reads per write</strong>.<a href="#c1" class="cite">[1]</a> That asymmetry is the design.</p>
+  <table>
+    <tr><th>Property</th><th>Target</th><th>Why it drives design</th></tr>
+    <tr><td>Latency</td><td>Redirects &lt; 100ms</td><td>Forces a cache / CDN on the read path</td></tr>
+    <tr><td>Availability</td><td>99.99%, AP over CP</td><td>A stale redirect beats a failed one</td></tr>
+    <tr><td>Uniqueness</td><td>1 short code → exactly 1 long URL</td><td>Drives the ID-generation deep dive</td></tr>
+    <tr><td>Scale</td><td>~1B URLs, 100M DAU</td><td>Sets storage and QPS budgets</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute the numbers that <em>change a decision</em>. Three matter here: read QPS, write QPS, and short-code length.</p>
+
+  <h3>Read vs. write QPS</h3>
+  <p>100M DAU × ~5 redirects/day ≈ 500M reads/day ≈ <strong>~6k reads/sec average</strong>, spiking toward <strong>~600k/sec</strong> at peak.<a href="#c1" class="cite">[1]</a> Writes are ~100k new URLs/day ≈ <strong>~1 write/sec</strong>. <b>Implication:</b> the write path can be a single boring SQL insert; the read path needs a cache and possibly a CDN. Scale the two independently.</p>
+
+  <h3>Storage</h3>
+  <p>~500 bytes/record × 1B URLs ≈ <strong>500 GB</strong>.<a href="#c1" class="cite">[1]</a> <b>Implication:</b> this fits on one beefy node — sharding is a "later if asked" concern, not a day-one decision. Don't over-engineer a sharded cluster you don't need.</p>
+
+  <h3>Short-code length (the load-bearing math)</h3>
+  <p>We encode codes in <strong>base62</strong> — <code>[a-zA-Z0-9]</code>, 62 symbols. Why not base64? The <code>/</code> is a URL path separator and <code>+</code> decodes to a space in query strings, so both are unsafe in a path.<a href="#c1" class="cite">[1]</a> Each character multiplies the keyspace by 62:</p>
+  <table>
+    <tr><th>Length</th><th>Keyspace (62^n)</th><th>Verdict for 1B URLs</th></tr>
+    <tr><td>5</td><td>≈ 916 million</td><td>Too small — runs out</td></tr>
+    <tr><td>6</td><td>≈ 56.8 billion</td><td>Enough today (50× headroom)</td></tr>
+    <tr><td>7</td><td>≈ 3.52 trillion</td><td>Generous future-proof default</td></tr>
+  </table>
+  <p><b>Implication:</b> <strong>6 characters covers 1B URLs</strong> with room to spare; pick <strong>7</strong> if you want headroom for years of growth at trivial extra cost.<a href="#c1" class="cite">[1]</a> This number directly feeds the ID-generation deep dive below.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>One entity does almost all the work: the <strong>URL mapping</strong> (<code>short_code</code>, <code>long_url</code>, <code>custom_alias</code>, <code>expires_at</code>, <code>created_by</code>, <code>created_at</code>). A <strong>User</strong> entity exists if you support ownership.<a href="#c1" class="cite">[1]</a> Two endpoints cover both flows; derive the creator from the auth token, never from the request body.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th><th>Returns</th></tr>
+    <tr><td><code>POST /v1/urls</code></td><td>Create. Body: <code>long_url</code>, optional <code>custom_alias</code>, <code>expires_at</code></td><td><code>201</code> + <code>short_url</code></td></tr>
+    <tr><td><code>GET /{shortcode}</code></td><td>Redirect to the original URL</td><td><code>302 Found</code> + <code>Location</code> header</td></tr>
+  </table>
+
+  <h2>High-Level Design</h2>
+  <p>Separate the two flows from the start — they have wildly different traffic and SLAs.</p>
+  <table>
+    <tr><th>Flow</th><th>Path</th><th>Stores touched</th></tr>
+    <tr><td><b>Write</b> (rare)</td><td>Client → API/Write Service → generate code → insert row</td><td>DB (+ counter/key service)</td></tr>
+    <tr><td><b>Read</b> (constant)</td><td>Client → CDN/edge → Cache → (miss) DB → <code>302</code></td><td>Cache, then DB</td></tr>
+  </table>
+  <p>The write service validates the URL, obtains a unique code, and persists the mapping. The read service resolves <code>short_code → long_url</code> and issues the redirect. The DB enforces uniqueness via a <code>UNIQUE</code> constraint / primary key on <code>short_code</code>, which also gives you a B-tree index for O(log n) lookups for free.<a href="#c1" class="cite">[1]</a> Any of Postgres, MySQL, or DynamoDB works — read load is offloaded to cache and write load is tiny, so the DB choice is low-stakes; default to Postgres if unsure.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>Deep Dives</h2>
+  <p>This is 60% of your score. The first two are mandatory; the rest are proactive depth that signals seniority.</p>
+
+  <h3>Deep Dive 1 — Generating unique short codes</h3>
+  <p>This is the heart of the problem. Three approaches, in increasing order of staff-ness:</p>
+  <table>
+    <tr><th>Approach</th><th>How</th><th>Problem</th></tr>
+    <tr><td>Hash + truncate</td><td>Hash the long URL, base62-encode, take first N chars</td><td>Collisions rise with scale (birthday problem); needs a read-before-write or retry-with-salt loop on every create<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Counter + base62</td><td>Atomically increment a global counter; base62-encode the integer</td><td><b>Zero collisions by construction.</b> But naive: a central counter is a hot dependency, and sequential codes are enumerable<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Key-generation service</td><td>A service pre-generates/owns ranges of unique keys and hands them out</td><td>Removes the per-write coordination; the staff refinement of the counter idea</td></tr>
+  </table>
+  <div class="box">
+    <b>The staff-favored pick: counter + base62, hardened.</b>
+    <ul>
+      <li><b>Why over hashing:</b> hashing makes <em>collision handling</em> your steady-state cost — every write may need a DB round-trip to check, and the collision rate worsens as the table fills. The counter sidesteps the entire problem: monotonic integers are unique by definition. You are trading a probabilistic problem for a deterministic one.</li>
+      <li><b>Counter batching:</b> don't hit the counter per write. Each write-service instance grabs a <b>batch</b> (e.g. 1,000 IDs) from Redis, which is single-threaded and atomic, then serves locally.<a href="#c1" class="cite">[1]</a> This collapses network calls and lets one Redis node sustain 100k+ ops/sec.</li>
+      <li><b>Enumeration fix:</b> sequential codes let anyone scrape the corpus. Bias-shuffle the integer before encoding, or interleave with random bits, so codes look opaque without reintroducing collisions.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Availability:</b> Redis Sentinel / Cluster with failover; batching means an instance survives a brief counter outage on its remaining buffer.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Multi-region:</b> hand each region a <b>disjoint counter range</b> (region A: 0–1B, region B: 1B–2B) so they never coordinate cross-region.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+  </div>
+
+  <h3>Deep Dive 2 — Scaling reads to 600k/sec</h3>
+  <p>Raw DB IOPS (~100k on good SSD) cannot meet 600k peak reads. Layer the read path:</p>
+  <table>
+    <tr><th>Layer</th><th>Mechanism</th><th>Win</th></tr>
+    <tr><td>Index</td><td>Primary key / B-tree on <code>short_code</code></td><td>O(log n) DB lookup<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Cache</td><td>Redis/Memcached, LRU eviction, read-through</td><td>Memory ~100ns vs SSD ~0.1ms; millions of reads/sec<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>CDN / edge</td><td>Cloudflare Workers / Lambda@Edge resolve hot codes at PoP</td><td>Popular links never hit origin<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Replicas</td><td>Read replicas behind the cache for cache-miss fan-out</td><td>Scales miss traffic independently</td></tr>
+  </table>
+  <p>Because the read:write ratio is so skewed and a small number of links go viral, cache hit rates are excellent — the long tail of URLs barely matters. CDN edge resolution is the latency win but adds cache-consistency and debugging cost, so reach for it only after the cache is in place.<a href="#c1" class="cite">[1]</a></p>
+
+  <h3>Deep Dive 3 — Custom aliases &amp; collisions</h3>
+  <p>Custom aliases share the same code space as generated codes, so a future counter value could collide with someone's existing alias. Two clean fixes: keep aliases in a <b>separate namespace</b>, or <b>prefix generated codes</b> with a character custom aliases are forbidden to use, making the two sets disjoint by construction.<a href="#c1" class="cite">[1]</a> On create, a <code>UNIQUE</code> constraint rejects a duplicate alias; surface a clear "alias taken" error.</p>
+
+  <h3>Deep Dive 4 — Click analytics, asynchronously</h3>
+  <p>Analytics is out of base scope but a great proactive extension. The rule: <b>never let logging slow the redirect.</b> On each read, fire a lightweight event onto a <b>message queue</b> (Kafka/Kinesis) and return the <code>302</code> immediately. A downstream consumer aggregates clicks into an analytics store off the hot path. This keeps redirects under 100ms while still capturing every click — and it's the reason the redirect-code choice below matters.</p>
+
+  <h3>Deep Dive 5 — 301 vs. 302 redirect</h3>
+  <div class="box">
+    <b>The tradeoff is caching vs. control.</b>
+    <ul>
+      <li><b>301 (Permanent):</b> browsers cache it, so repeat visits skip your server entirely. Lower load and latency — but you <em>lose the click event</em> and can no longer expire or repoint the link.</li>
+      <li><b>302 (Found):</b> not cached; every click returns through your server. You keep full control — analytics, expiry, repointing — at the cost of serving every hit.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+    <b>Pick 302</b> for a Bitly-style product: link-level control and click analytics are the business, and your cache/CDN already absorbs the extra hits cheaply.<a href="#c1" class="cite">[1]</a> Expired links return <code>410 Gone</code>; set cache TTL to match <code>expires_at</code>.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior names the hashing-vs-counter tradeoff. The <strong>staff engineer</strong> reframes the whole problem in the first two minutes — "this is a unique-ID generator bolted to a read-scaling cache, the rest is CRUD" — and budgets time accordingly. They reject naive hashing not on vibes but because it makes <em>collision handling a steady-state per-write cost</em>, then harden the counter for the production concerns nobody asked about: enumeration security, counter failover, disjoint multi-region ranges, and async analytics off the hot path.<a href="#c1" class="cite">[1]</a> The trap is doing CRUD beautifully and running out of clock before the two parts that actually matter.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why is the counter + base62 approach generally favored over hashing the long URL?</p>
+      <button class="opt">It produces far shorter codes than any other generation method available</button>
+      <button class="opt">It removes collisions entirely instead of paying to handle them per write</button>
+      <button class="opt">It lets the system avoid using a database to persist the mappings</button>
+      <button class="opt">It makes the generated short codes harder for attackers to enumerate</button>
+      <p class="fb">Monotonic counters are unique by construction; hashing turns collision handling into a steady-state per-write cost.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. Roughly how many base62 characters are needed to encode 1 billion URLs?</p>
+      <button class="opt">4 characters, because that already covers many billions of codes</button>
+      <button class="opt">9 characters, since base62 grows quite slowly per added symbol</button>
+      <button class="opt">6 characters, since 62^6 is about 56 billion codes available</button>
+      <button class="opt">2 characters, because each symbol contributes enormous keyspace</button>
+      <p class="fb">62^6 ≈ 56.8 billion, comfortably above 1B; 7 chars (≈3.5T) adds headroom.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why prefer a 302 over a 301 redirect for a URL shortener product?</p>
+      <button class="opt">A 302 is not cached, so every click returns for analytics and control</button>
+      <button class="opt">A 302 is cached, so the origin server load drops dramatically over time</button>
+      <button class="opt">A 302 encodes the long URL directly inside the short code that is sent</button>
+      <button class="opt">A 302 is the only status code browsers accept for any redirect at all</button>
+      <p class="fb">302 isn't cached, so each hit returns through your server — needed for click tracking, expiry, and repointing.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. What is the single most design-shaping fact about a URL shortener?</p>
+      <button class="opt">Long URLs must be validated and sanitized before they are ever stored</button>
+      <button class="opt">Custom aliases can collide with generated codes within one namespace</button>
+      <button class="opt">The total dataset of one billion mappings is around five hundred gigabytes</button>
+      <button class="opt">It is extremely read-heavy, roughly a hundred or more reads per write</button>
+      <p class="fb">The ~100:1+ read:write skew is why the read path gets caches and CDNs while writes stay a trivial insert.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it. Try:
+    "Walk me through what breaks if the central counter goes down mid-batch."
+    "Compare a pre-generated key-generation service against counter batching."
+    "How would the design change if click analytics became a hard functional requirement?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/bitly">Hello Interview — Bitly / URL Shortener breakdown</a>. The canonical walkthrough; follows the same delivery framework and goes deep on code generation, caching, and the 301/302 decision.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/bitly">Hello Interview — Bitly URL Shortener</a> (FR/NFR, capacity numbers, base62, counter vs. hashing, caching/CDN, 301 vs 302, custom aliases, multi-region counter ranges, expiry).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0010-common-patterns.html">← Lesson 10</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 12 · Dropbox</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

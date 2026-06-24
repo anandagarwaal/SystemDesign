@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 122 — Deep Dive: Idempotency &amp; Delivery Semantics</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 122 · Phase 3 — Common Pattern · Deep Dive</p>
+  <h1>Deep Dive: Idempotency &amp; Delivery Semantics</h1>
+  <p class="sub">Every network call can be retried — so the only safe operation is one you can run twice and get the same result. How do you build that, and what does "exactly-once" actually mean?</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> The moment your design has a retry, a queue, or a webhook, you have a duplicate problem — and at L6/L7 the interviewer <em>will</em> push on it. "The client's request times out and they retry — does the customer get charged twice?" A senior says "I'll use a queue." A staff candidate says the magic words: <em>"true exactly-once delivery is impossible, so I'll build at-least-once delivery plus idempotent processing — effectively-once."</em> Then they show the idempotency key, the dedup store, and the TTL without being asked. This lesson gives you that vocabulary and the concrete mechanisms so duplicates become a non-event in every design you draw.
+  </div>
+
+  <h2>Why this matters: the network always retries</h2>
+  <p>Networks are unreliable, and the unreliability has a nasty asymmetry. When client A sends a request to server B and the response never comes back, A has <b>no way to know</b> whether B processed it. Maybe the request was lost on the way in (B did nothing). Maybe B did the work and the <em>response</em> was lost on the way out (B did everything). The two cases are indistinguishable to A.<a href="#c2" class="cite">[2]</a></p>
+
+  <p>So A does the only sensible thing: it retries. And every layer of the stack — TCP, HTTP client libraries, load balancers, message brokers, service meshes — retries on your behalf, often invisibly. The result is that <b>any operation will eventually be delivered more than once.</b> If that operation isn't safe to repeat, the consequences are real money:</p>
+  <ul>
+    <li>A retried <code>POST /charge</code> <b>double-charges</b> the customer's card.</li>
+    <li>A re-delivered "order placed" message gets <b>processed twice</b> — two shipments, two inventory decrements.</li>
+    <li>A webhook the provider re-sends (because your <code>200</code> was slow) <b>fires your fulfillment logic twice.</b></li>
+  </ul>
+  <p>The fix is not "stop retrying" — you <em>need</em> retries for reliability. The fix is to make the operations safe to retry. That property is <b>idempotency</b>: performing it once or many times yields the same effect and the same observable result.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>Delivery semantics: the three guarantees</h2>
+  <p>When one component hands a message to another — producer to broker, broker to consumer, client to server — the channel can promise one of three things. This is the core vocabulary, so know it cold.</p>
+
+  <table>
+    <thead><tr><th>Semantic</th><th>Guarantee</th><th>Failure mode</th><th>When acceptable</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>At-most-once</b></td>
+        <td>Delivered zero or one time; never duplicated.</td>
+        <td>Can <b>lose</b> messages (no retry after a failure).</td>
+        <td>Metrics, logs, telemetry — where a dropped sample is cheaper than a duplicate.</td>
+      </tr>
+      <tr>
+        <td><b>At-least-once</b></td>
+        <td>Delivered one or more times; never lost.</td>
+        <td>Can <b>duplicate</b> messages (retries until acked).</td>
+        <td>The default for anything that matters — payments, orders, events. You handle the duplicates.</td>
+      </tr>
+      <tr>
+        <td><b>Exactly-once</b></td>
+        <td>Delivered once and only once — no loss, no duplicate.</td>
+        <td>The ideal — but see below.</td>
+        <td>What everyone wants; what no channel can truly deliver end-to-end.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>The choice between the first two comes down to <b>when you acknowledge</b>. Ack <em>before</em> processing and crash mid-work → the message is gone (at-most-once). Ack <em>after</em> processing and crash before the ack lands → the sender redelivers (at-least-once). You cannot ack both before and after, so you must pick which failure you can tolerate. For almost every real system the answer is <b>at-least-once</b>: losing a payment event is unacceptable, so you accept duplicates and deal with them.<a href="#c2" class="cite">[2]</a></p>
+
+  <h3>Why true exactly-once delivery is impossible</h3>
+  <p>Go back to the two-generals asymmetry. To never <em>lose</em> a message, the sender must retry until it gets an ack. To never <em>duplicate</em>, it must stop after exactly one successful delivery. But a lost ack is indistinguishable from a lost message — so a sender that retries on a missing ack will sometimes redeliver something that already arrived. You can have "never lose" or "never duplicate" as a pure <em>delivery</em> property, but not both at the message-transport layer. Exactly-once <em>delivery</em> is a myth.<a href="#c2" class="cite">[2]</a></p>
+
+  <div class="box">
+    <b>What "effectively-once" really means</b>
+    <p style="margin:.4rem 0 0;">The honest, achievable goal is <b>exactly-once <i>processing</i></b> (also called effectively-once), and it has a precise recipe:</p>
+    <ul>
+      <li><b>At-least-once delivery</b> — the transport retries until acked, so nothing is ever lost.</li>
+      <li><b>+ idempotent processing</b> — the receiver detects and discards duplicates, so the <em>effect</em> happens once.</li>
+    </ul>
+    <p style="margin:.4rem 0 0;">You don't prevent the duplicate from arriving; you make the duplicate <em>harmless</em>. When a "exactly-once" system (Kafka transactions, Flink) claims the guarantee, this is what it's doing under the hood — dedup + atomic state commit, not magic on the wire.<a href="#c3" class="cite">[3]</a></p>
+  </div>
+
+  <h2>How to make operations idempotent</h2>
+  <p>There are two flavors. Some operations are <b>naturally idempotent</b>; the rest you make idempotent with a <b>dedup mechanism</b>. A staff answer reaches for natural idempotency first because it's free, then falls back to keys.</p>
+
+  <h3>1. Natural idempotency — design the operation to be repeat-safe</h3>
+  <p>The cleanest fix is to make the operation <em>set an absolute value</em> rather than apply a relative change. Compare:</p>
+  <ul>
+    <li><code>balance = balance - 10</code> (a delta) — running it twice subtracts 20. <b>Not idempotent.</b></li>
+    <li><code>status = 'SHIPPED'</code> or <code>PUT /order/42 {state: shipped}</code> — running it twice leaves the same state. <b>Idempotent.</b></li>
+  </ul>
+  <p>This is exactly why HTTP defines <code>PUT</code> and <code>DELETE</code> as idempotent but <code>POST</code> as not: <code>PUT</code> overwrites to an absolute state; <code>POST</code> creates a new thing each time.<a href="#c1" class="cite">[1]</a> When you can model a mutation as "set to X," you've removed the duplicate problem instead of detecting it.</p>
+
+  <h3>2. Idempotency keys — a client-supplied id plus a dedup store</h3>
+  <p>For operations that <em>can't</em> be naturally idempotent (charging a card creates a new transaction), the standard pattern is the <b>idempotency key</b>, popularized by Stripe.<a href="#c1" class="cite">[1]</a> The mechanism:</p>
+  <ol>
+    <li>The <b>client generates a unique id</b> (a UUID) for the logical operation and sends it, e.g. in an <code>Idempotency-Key</code> header. Crucially the <em>same</em> key is reused on every retry of that one operation.<a href="#c1" class="cite">[1]</a></li>
+    <li>The server checks a <b>dedup store</b> (e.g. Redis or a table) keyed by that id. If unseen, it processes the request, then <b>stores the key together with the saved response.</b></li>
+    <li>If the key is already present, the server <b>skips the work and replays the stored response</b> — the retry gets the same answer as the original, and the side effect happens only once.<a href="#c1" class="cite">[1]</a></li>
+  </ol>
+  <p>Storing the <em>response</em>, not just the key, is what makes a retry look identical to the first call — the client can't tell it was deduped, which is the whole point.</p>
+
+  <div class="box">
+    <b>Mechanisms for the dedup / "have I seen this?" check</b>
+    <ul>
+      <li><b>Dedup table / processed-message ids:</b> a consumer records each handled message id in a <code>processed_messages</code> table; on redelivery it sees the id and drops the message. This is how you make an at-least-once queue effectively-once.</li>
+      <li><b>Unique constraints:</b> let the <em>database</em> enforce it. A <code>UNIQUE</code> index on the idempotency key (or a natural key like <code>order_id</code>) means a duplicate insert fails atomically — no race, no read-then-write gap. The cheapest, most reliable dedup you have.</li>
+      <li><b>Conditional writes / optimistic versioning:</b> "update row to v2 <em>only if</em> current version is v1" (compare-and-set). A replayed write that expects v1 but finds v2 is rejected — duplicates and concurrent writers both bounce off the version check.</li>
+      <li><b>TTL on the dedup store:</b> you can't keep keys forever. Expire them after a window long enough to outlast all realistic retries (Stripe keeps idempotency keys ~24h<a href="#c1" class="cite">[1]</a>). After the TTL the same key is treated as new — fine, because no legitimate retry happens days later. The TTL bounds storage growth and is the detail seniors forget.</li>
+    </ul>
+  </div>
+
+  <h3>Mind the race: check-then-act is not atomic</h3>
+  <p>"Read the dedup store, and if absent do the work" has a window: two concurrent retries both read "absent" and both proceed. Close it the same way you'd close any check-then-act race — push the atomicity into one operation: an <b>insert that relies on a unique constraint</b> (the second insert fails), a <b>conditional/atomic write</b>, or processing inside a transaction that commits the dedup record and the side effect together. Never two separate steps with a gap.</p>
+
+  <h2>Where it shows up in real systems</h2>
+  <table>
+    <thead><tr><th>System</th><th>The duplicate risk</th><th>The idempotency move</th></tr></thead>
+    <tbody>
+      <tr><td><b>Payments</b></td><td>Client retries a charge after a timeout → double charge.</td><td><code>Idempotency-Key</code> on the charge API; dedup store replays the original result.<a href="#c1" class="cite">[1]</a> See <a href="0037-payment-system.html">Payment System (Lesson 37)</a>.</td></tr>
+      <tr><td><b>Message consumers</b></td><td>At-least-once broker redelivers after a slow/lost ack.</td><td>Processed-message-id table or unique constraint on the message key. See <a href="0099-kafka.html">Kafka (Lesson 99)</a>.</td></tr>
+      <tr><td><b>Webhooks</b></td><td>Provider re-sends because your 200 was slow → handler runs twice.</td><td>Dedupe on the provider's event id before acting; ack fast, process async.</td></tr>
+      <tr><td><b>Sagas</b></td><td>Async retries mean every step &amp; compensation may rerun.</td><td>Make each step and compensation idempotent. See <a href="0112-distributed-transactions.html">Distributed Transactions (Lesson 112)</a>.</td></tr>
+      <tr><td><b>CDC / outbox</b></td><td>Log-based relay guarantees at-least-once publish.</td><td>Downstream consumers dedupe by event id — the relay never promises uniqueness.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior candidates say "I'll add a queue" and assume the problem is solved. Staff candidates do three things. <b>First, they kill the exactly-once myth proactively:</b> "There's no true exactly-once delivery — I'll build at-least-once delivery plus idempotent processing, which gives effectively-once."<a href="#c2" class="cite">[2]</a> <b>Second, they reach for the cheapest mechanism that works:</b> "Can I model this as an absolute set instead of a delta? If so it's naturally idempotent and I need no dedup store at all. If not, idempotency key + a unique constraint to dedupe." <b>Third, they name the two details juniors drop:</b> the <em>check-then-act race</em> ("I'll enforce dedup with a unique constraint so the duplicate insert fails atomically, not a read-then-write") and the <em>TTL</em> ("keys expire after ~24h so the dedup store doesn't grow forever").<a href="#c1" class="cite">[1]</a> Saying "and I store the response so the retry is indistinguishable from the original" is the line that signals you've actually built this.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When duplicates could occur — and they almost always can — deliver it in this arc: (1) <b>Spot the retry source</b> — "the client retries on timeout, and the broker is at-least-once, so this handler will run more than once." (2) <b>State the goal in the right words</b> — "exactly-once delivery is impossible, so I'm targeting effectively-once: at-least-once delivery + idempotent processing." (3) <b>Try natural idempotency first</b> — "can I make this an absolute set rather than a delta?" (4) <b>Otherwise, idempotency key + dedup store</b> — client-supplied id, store the response, dedupe via a unique constraint to avoid the check-then-act race. (5) <b>Close the loose ends</b> — TTL on the keys, and confirm every retry returns the original response. That sequence is breadth-then-depth: a one-line framing, then 60% depth on the dedup mechanism and its races.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why is true exactly-once delivery impossible at the transport layer?</p>
+      <button class="opt">Brokers are too slow to track every single message they deliver</button>
+      <button class="opt">Clocks across machines drift and reorder the messages in transit</button>
+      <button class="opt">A lost ack looks identical to a lost message, so retries duplicate</button>
+      <button class="opt">Networks always drop the very first packet of any new request</button>
+      <p class="fb">The sender can't tell a lost ack from a lost message, so retrying to avoid loss will sometimes redeliver — you get loss-free OR duplicate-free, not both.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. "Effectively-once" processing is built from which two ingredients?</p>
+      <button class="opt">At-least-once delivery combined with idempotent message processing</button>
+      <button class="opt">At-most-once delivery combined with a fast retry on every failure</button>
+      <button class="opt">Exactly-once delivery combined with a global distributed-lock table</button>
+      <button class="opt">Synchronous replication combined with a single shared commit logs</button>
+      <p class="fb">Nothing is lost (at-least-once delivery) and duplicates are made harmless (idempotent processing), so the net effect happens exactly once.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. Why store the response alongside the idempotency key, not just the key?</p>
+      <button class="opt">To let the server compress old keys and reclaim its disk space</button>
+      <button class="opt">To allow the client to verify the server's TLS certificate chain</button>
+      <button class="opt">To give the load balancer a way to route the retry correctly</button>
+      <button class="opt">To replay the original result so a retry looks identical to it</button>
+      <p class="fb">Replaying the stored response makes the deduped retry indistinguishable from the first call; the side effect still happens only once.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Which mechanism best avoids the check-then-act race when deduping?</p>
+      <button class="opt">Read the dedup store first, then write the record once work ends</button>
+      <button class="opt">A unique constraint so a duplicate insert fails atomically in one step</button>
+      <button class="opt">A longer retry backoff so concurrent requests never overlap at all</button>
+      <button class="opt">A cache warmed ahead of time with every key the client may send</button>
+      <p class="fb">A read-then-write has a gap two retries can slip through; a unique constraint makes the duplicate fail atomically with no window.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Walk me through the full idempotency-key flow for a Stripe-style charge, including the race when two retries arrive at once." · "Show me exactly how Kafka's 'exactly-once' actually works — is it really exactly-once?" · "Design idempotent processing for a webhook handler where the provider re-sends on slow acks."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://docs.stripe.com/api/idempotent_requests">Stripe — Idempotent Requests</a>. The clearest production write-up of the idempotency-key pattern (client-supplied key, stored response, ~24h TTL); pair it with the "Reliability &amp; the trouble with distributed systems" chapter of <em>Designing Data-Intensive Applications</em> for the delivery-semantics foundations.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://docs.stripe.com/api/idempotent_requests">Stripe API — Idempotent Requests</a> (client-supplied <code>Idempotency-Key</code>, server-side dedup store that replays the saved response, and the ~24h key expiry; HTTP semantics of idempotent vs non-idempotent methods).</p>
+    <p id="c2">[2] <a href="https://martin.kleppmann.com/2017/03/27/designing-data-intensive-applications.html">Kleppmann, <em>Designing Data-Intensive Applications</em> (O'Reilly)</a> (unreliable networks and the lost-ack ambiguity, at-most-once vs at-least-once acknowledgement tradeoffs, and why end-to-end exactly-once delivery is unachievable while idempotent processing makes duplicates harmless).</p>
+    <p id="c3">[3] Cross-reference: <a href="0099-kafka.html">Kafka (Lesson 99)</a> — how at-least-once delivery plus consumer-side dedup / transactional commits implement effectively-once processing in practice; and <a href="0010-common-patterns.html">Common Patterns (Lesson 10)</a> for where idempotency recurs.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0121-load-balancing.html">← Lesson 121</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 🏠 Back to the case studies</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

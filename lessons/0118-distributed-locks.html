@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 118 — Deep Dive: Distributed Locks</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 118 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Distributed Locks</h1>
+  <p class="sub">A mutex protects a critical section inside one process. But when the "process" is 50 servers, how do you make sure only one of them runs the job — and why is that surprisingly hard to get right?</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Contention problems are everywhere in interviews — "only one worker should send this reminder," "two booking servers must not sell the same seat," "run this cron on exactly one node." The naive answer is "use a distributed lock," but a staff candidate knows that distributed locks are <em>leaky</em>: they need a TTL to survive crashes, the TTL creates a correctness hole, and the real fix is often a fencing token or avoiding the lock entirely. Knowing when NOT to reach for one is as valuable as knowing how to build it.
+  </div>
+
+  <h2>The problem &amp; why a TTL is mandatory</h2>
+  <p>A <b>distributed lock</b> lets multiple machines coordinate so that only one holds a named resource at a time. The minimal recipe with Redis is an atomic conditional set:</p>
+  <p><code>SET lock:resource &lt;owner_id&gt; NX PX 30000</code> — set the key only if absent (<code>NX</code>), with a 30-second expiry (<code>PX</code>).<a href="#c1" class="cite">[1]</a> If it succeeds you hold the lock; to release, you delete the key — but <em>only if you still own it</em> (check owner id in a Lua script, so you don't delete someone else's lock).</p>
+  <p>The <b>TTL is not optional</b>. Without an expiry, a holder that crashes (or is network-partitioned) before releasing would leave the lock held <b>forever</b> — a deadlock that wedges the whole system. The TTL guarantees liveness: the lock auto-releases so progress resumes.<a href="#c2" class="cite">[2]</a> But that same TTL is the source of the deepest bug in distributed locking.</p>
+
+  <div class="box">
+    <b>The TTL safety hole — and fencing tokens</b>
+    <ul>
+      <li><b>The bug:</b> Client A acquires the lock (30s TTL), then pauses — a long GC pause, slow disk, or network blip — for 31 seconds. The lock <b>expires</b>, Client B acquires it, and now <em>both</em> believe they hold it. A then wakes up and writes, corrupting the resource.<a href="#c2" class="cite">[2]</a> A TTL too short fails like this; too long means a crash wedges everyone for ages. There is no safe value.</li>
+      <li><b>The fix — fencing tokens:</b> the lock service returns a <em>monotonically increasing token</em> with each grant. Every write to the protected resource includes its token, and the resource <b>rejects any write with a token older than the highest it has seen.</b> So A's stale write (token 33) is refused after B's write (token 34) lands.<a href="#c2" class="cite">[2]</a> This makes correctness independent of timing — the only truly safe construction.</li>
+      <li><b>Implication:</b> the protected resource must be able to check the token. If it can't, the lock cannot be made safe under pauses — design around it.</li>
+    </ul>
+  </div>
+
+  <h2>Where the lock should live</h2>
+  <table>
+    <thead><tr><th>Backend</th><th>How</th><th>Trade-off</th></tr></thead>
+    <tbody>
+      <tr><td><b>Redis (single)</b></td><td><code>SET NX PX</code> + Lua release</td><td>Fast and simple, but a failover can lose the lock (not safe for strict mutual exclusion).<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Redis Redlock</b></td><td>Acquire on a majority of N independent nodes</td><td>More robust to single-node failure, but its safety under clock/pause assumptions is contested — still needs fencing.<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><b>ZooKeeper / etcd</b></td><td>Ephemeral + sequential znode; lowest sequence wins</td><td>Strongly consistent (consensus-backed), auto-releases on session loss — the safest choice when correctness matters.<a href="#c3" class="cite">[3]</a></td></tr>
+      <tr><td><b>Database</b></td><td>Conditional row / advisory lock</td><td>No new infra; lower throughput, and you own the cleanup.</td></tr>
+    </tbody>
+  </table>
+  <p><b>ZooKeeper/etcd locks</b> (see <a href="0106-zookeeper-etcd.html">Lesson 106</a>) are the gold standard because the coordination layer is consensus-backed and the <em>ephemeral node</em> tied to the client's session disappears automatically if the client dies — no arbitrary TTL guesswork, and natural fencing via the sequence number.<a href="#c3" class="cite">[3]</a> Redis locks are the pragmatic choice when "mostly once" is acceptable and speed matters.</p>
+
+  <h2>Often you shouldn't lock at all</h2>
+  <p>The strongest move is frequently to <b>avoid the distributed lock</b>:</p>
+  <ul>
+    <li><b>Idempotency</b> instead of mutual exclusion: if running the operation twice is harmless (dedupe by a key), you don't need a lock. This is the preferred fix for "process each message once."</li>
+    <li><b>Database constraints / conditional updates:</b> a unique constraint or <code>UPDATE … WHERE version = ?</code> (optimistic concurrency) lets the database enforce single-winner without an external lock — the right tool for "don't double-book a seat" (see <a href="0015-ticketmaster.html">Ticketmaster, Lesson 15</a>).</li>
+    <li><b>Single-partition ownership:</b> route all work for a key to one consumer/shard (as Kafka partitions do), so there's only ever one writer by construction.</li>
+    <li><b>Leader election</b> (via ZK/etcd) for "run on exactly one node" — a lock specialized for singleton work.</li>
+  </ul>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    A junior says "I'll use a distributed lock" and moves on. A staff candidate first asks <b>"do I actually need mutual exclusion, or just correctness?"</b> — and often replaces the lock with idempotency or an optimistic <code>WHERE version=?</code> update. When a lock is genuinely needed, they specify the <b>TTL for liveness</b> <em>and</em> immediately name its hole: "a GC pause longer than the TTL means two holders, so I need <b>fencing tokens</b> rejected by the resource, or a consensus-backed lock in ZooKeeper/etcd."<a href="#c2" class="cite">[2]</a> Knowing that a Redis TTL lock is <em>not</em> safe for strict mutual exclusion — and saying so — is the exact signal interviewers look for.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When contention appears: (1) ask whether the operation can just be made <b>idempotent</b> or guarded by a <b>DB constraint / optimistic lock</b> — prefer those. (2) If you truly need a lock, sketch <code>SET NX PX</code> with an owner id and a Lua-checked release, and <b>say the TTL is required for liveness</b>. (3) Pre-empt the bug: "a pause past the TTL allows two holders, so I'll use fencing tokens or a ZooKeeper ephemeral-node lock for strict correctness." (4) For singleton jobs, say <b>leader election</b>. That arc — avoid it, then build it safely, then name the failure mode — is exactly the depth they want.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why must a distributed lock have a TTL?</p>
+      <button class="opt">To make acquiring the lock faster than a database write</button>
+      <button class="opt">To let multiple clients share the lock at the same time</button>
+      <button class="opt">So a crashed holder's lock auto-releases instead of deadlocking</button>
+      <button class="opt">To guarantee that only one client ever sees the resource</button>
+      <p class="fb">Without expiry, a holder that dies before releasing wedges the resource forever; the TTL guarantees the lock eventually frees up (liveness).</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. What is the core safety hole created by the TTL?</p>
+      <button class="opt">A pause past the TTL lets two clients both hold the lock</button>
+      <button class="opt">The lock key grows unbounded and exhausts Redis memory</button>
+      <button class="opt">Clients must poll continuously, overloading the lock server</button>
+      <button class="opt">The lock can never be released early before it expires</button>
+      <p class="fb">If a holder stalls (GC, network) longer than the TTL, the lock expires and another client acquires it — now two clients act, risking corruption.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. How does a fencing token make a lock safe?</p>
+      <button class="opt">It encrypts the lock value so only the owner can read it</button>
+      <button class="opt">It extends the TTL automatically while work is in progress</button>
+      <button class="opt">It replicates the lock across a majority of Redis nodes</button>
+      <button class="opt">The resource rejects writes carrying a stale, lower token</button>
+      <p class="fb">Each grant gets an increasing token; the resource only accepts the highest seen, so a stale holder's late write is refused regardless of timing.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. What's often the best alternative to a distributed lock?</p>
+      <button class="opt">A longer TTL so the lock effectively never expires at all</button>
+      <button class="opt">Idempotency or an optimistic conditional database update</button>
+      <button class="opt">Polling the lock key from every server once per second</button>
+      <button class="opt">Storing the lock in application memory on each node</button>
+      <p class="fb">If the operation is idempotent or a unique constraint / version check can pick a single winner, you avoid the lock's timing pitfalls entirely.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Design exactly-once reminder sending without a distributed lock." · "Walk the GC-pause scenario step by step and show how fencing tokens save it." · "When is a ZooKeeper lock worth the extra infra over a Redis one?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://redis.io/docs/latest/develop/use/patterns/distributed-locks/">Redis — Distributed Locks (and Redlock)</a> for the practical recipe, paired with Martin Kleppmann's critique <a href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html">"How to do distributed locking"</a> for the fencing-token argument and the TTL safety analysis.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://redis.io/docs/latest/develop/use/patterns/distributed-locks/">Redis Distributed Locks documentation</a> (the <code>SET NX PX</code> recipe, safe release via owner check, and the Redlock multi-node algorithm).</p>
+    <p id="c2">[2] <a href="https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html">Kleppmann, "How to do distributed locking" (2016)</a> (why TTLs create a safety hole under pauses, the two-clients-hold-the-lock failure, and fencing tokens as the correct fix).</p>
+    <p id="c3">[3] <a href="https://zookeeper.apache.org/doc/current/recipes.html">Apache ZooKeeper Recipes — Locks</a> (ephemeral + sequential znode locks: consensus-backed, auto-release on session loss, fencing via sequence number).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0117-secure-system-design.html">← Lesson 117</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 119 · Core AWS Services</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

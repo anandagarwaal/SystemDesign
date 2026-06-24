@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 50 — Design a Recommendation System</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 50 · Phase 4 — Case Study · Hard</p>
+  <h1>Design a Recommendation System</h1>
+  <p class="sub">"Customers who bought this also bought…" and the Netflix home row. The ML is a detail; the win is a two-stage serving system that returns ranked items in tens of milliseconds.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Recommendations is the interview where candidates panic about machine learning and forget they're system designers. At L6/L7 the signal is the opposite: treat the model as a black box and design the <em>system</em> around it. The load-bearing insight is the <b>two-stage architecture</b> — cheap candidate generation narrows millions of items to hundreds, then an expensive ranking model scores only that shortlist. Pair that with an <b>offline pipeline that precomputes embeddings/features</b> and an <b>online tier that serves in &lt;~100ms</b>, and you've shown the staff-level move: separating what's slow and batchable from what's fast and online.
+  </div>
+
+  <h2>1. Functional Requirements</h2>
+  <p>Keep scope narrow. The product is "given a user (and optionally a context item), return a ranked list of items they're likely to engage with." Everything else — the ML training loop internals, search, ads — is explicitly out of scope so you can spend the budget on the serving system.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th><th>Note</th></tr>
+    <tr><td>1</td><td>Get a personalized feed of recommended items</td><td>Home page / "For You" row, ranked by predicted engagement</td></tr>
+    <tr><td>2</td><td>See "related to this item" recommendations</td><td>"Customers who bought this also bought…"; item-to-item</td></tr>
+    <tr><td>3</td><td>Have their interactions shape future recs</td><td>Clicks, watches, purchases feed back into the model</td></tr>
+  </table>
+  <p>The third item is what makes this a <em>pipeline</em>, not a CRUD app: the system must close the loop from interaction → training data → updated model → better recs.</p>
+
+  <h2>2. Non-Functional Requirements</h2>
+  <p>State the target, not just the "-ility." Three NFRs define this design.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>NFR</th><th>Target</th><th>Drives</th></tr>
+    <tr><td>Low-latency serving</td><td>p99 &lt;~100–200ms end-to-end</td><td>Two-stage funnel; precomputed candidates; ANN retrieval</td></tr>
+    <tr><td>Freshness</td><td>New items recommendable in minutes–hours; recs reflect recent behavior</td><td>Cold-start handling; streaming features; periodic re-index</td></tr>
+    <tr><td>Scale</td><td>100s of millions of users × millions of items</td><td>Can't score every item per request → candidate generation</td></tr>
+    <tr><td>Availability</td><td>Degrade gracefully, never blank</td><td>Fallback to popular/trending if model tier is down</td></tr>
+    <tr><td>Quality / relevance</td><td>Measured by online metrics (CTR, watch time)</td><td>A/B testing + feedback loop, not offline accuracy alone</td></tr>
+  </table>
+  <p>The headline tension is <b>low-latency serving vs scale</b>: you cannot run a heavy model over millions of items inside a 100ms request. That single constraint forces the entire two-stage architecture.</p>
+
+  <h2>3. Capacity Estimation</h2>
+  <p>Only the numbers that change the design. Two matter here, and they pull in opposite directions.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Catalog size</td><td>~10M items</td><td>Scoring all 10M with a deep model per request is impossible in 100ms → <b>must narrow first</b>.</td></tr>
+    <tr><td>Serving QPS</td><td>100M DAU × a few rec requests → ~10k–100k req/s peak</td><td>Each request fans out to retrieval + ranking → ranking model must be cheap <em>per candidate</em> and run on a shortlist of ~100s.</td></tr>
+    <tr><td>Interaction events</td><td>Billions/day of clicks, views, purchases</td><td>Firehose → streaming ingest + batch storage; this is the training-data and feature source.</td></tr>
+    <tr><td>Embedding store</td><td>10M items × ~256-dim float vector → a few GB</td><td>Small enough to hold in an in-memory ANN index → fast retrieval.</td></tr>
+  </table>
+  <div class="box">
+    <b>The number that forces the architecture.</b> 10M items × 10k–100k QPS means a brute-force "score everything" approach would need to evaluate <em>billions of item-scores per second</em>. That's absurd. So the system must do cheap retrieval to get from 10M → ~hundreds, then spend its model budget ranking only those. <b>Latency × catalog size is the constraint that creates candidate generation → ranking.</b><a href="#c2" class="cite">[2]</a>
+  </div>
+
+  <h2>4. Core Entities &amp; API</h2>
+  <p>Three entities. The <code>Embedding</code> is the glue: it turns "find similar things" into a nearest-neighbor lookup.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Entity</th><th>Key fields</th></tr>
+    <tr><td>User</td><td>id, profile features, recent interaction history, user embedding</td></tr>
+    <tr><td>Item</td><td>id, content features (genre, category, text), popularity, item embedding</td></tr>
+    <tr><td>Interaction</td><td>userId, itemId, type (click/watch/purchase), timestamp, context</td></tr>
+  </table>
+  <p>The serving API is small. The user is always derived from the auth token; the response is an ordered list with opaque scores.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>GET /v1/recommendations?context=home</code></td><td>Personalized feed for the authed user; returns ranked itemIds</td></tr>
+    <tr><td><code>GET /v1/items/{id}/related</code></td><td>Item-to-item recs (the "also bought" rail)</td></tr>
+    <tr><td><code>POST /v1/interactions</code></td><td>Log a click/watch/purchase event (fire-and-forget into the stream)</td></tr>
+    <tr><td><code>POST /v1/feedback</code></td><td>Explicit signal (thumbs up/down, "not interested")</td></tr>
+  </table>
+  <p>Critical move: <code>POST /v1/interactions</code> is async and high-volume — it writes to a stream (see <a href="0036-ad-click-aggregator.html">Lesson 36, Ad Click Aggregator</a> for the same firehose-ingest pattern), never blocking the serving path.</p>
+
+  <h2>5. Data Flow — interaction to recommendation</h2>
+  <p>This is an ML pipeline, so trace the loop once before drawing boxes. There are two clocks: a slow <b>offline</b> clock (hours) and a fast <b>online</b> clock (milliseconds).<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <ol style="margin:.2rem 0 .2rem 1.1rem; padding:0;">
+      <li><b>Collect:</b> the app emits interaction events to a stream; they land in a data lake / warehouse as training data and feature material.<a href="#c3" class="cite">[3]</a></li>
+      <li><b>Train (offline, batch):</b> periodic jobs train the retrieval and ranking models on logged interactions; produce fresh user + item <b>embeddings</b>.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Index (offline):</b> item embeddings are loaded into an <b>ANN index</b>; features are written to a <b>feature store</b> for fast online lookup.<a href="#c3" class="cite">[3]</a></li>
+      <li><b>Serve (online):</b> a request fetches the user's vector/features → <b>candidate generation</b> retrieves ~hundreds → <b>ranking</b> scores them → return the top N.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Loop:</b> what the user does with those recs becomes step-1 events → the model gets better. <b>The feedback loop is the product.</b></li>
+    </ol>
+  </div>
+
+  <h2>6. High-Level Design</h2>
+  <p>Map each requirement to a component, then follow one request through. The split between offline (batch) and online (serving) is the spine of the diagram.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>Recommendation Service</td><td>Stateless online orchestrator: calls retrieval, then ranking, applies filters, returns list.<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Candidate Generator (retrieval)</td><td>Cheap. Turns user context into ~hundreds of candidates via ANN over item embeddings.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Ranking Service</td><td>Expensive model scoring each candidate with rich features; produces the final order.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Feature Store</td><td>Low-latency online store of user/item features, kept consistent with offline training.<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>ANN Index / Vector DB</td><td>Holds item embeddings for nearest-neighbor retrieval (see <a href="0040-vector-databases.html">Lesson 40</a>).</td></tr>
+    <tr><td>Stream + Data Lake</td><td>Interaction firehose → training data + features.</td></tr>
+    <tr><td>Training Pipeline (offline)</td><td>Batch jobs that retrain models and refresh embeddings on a schedule.</td></tr>
+  </table>
+  <p><b>Read path:</b> <code>GET /v1/recommendations</code> → Rec Service → fetch user vector/features from Feature Store → Candidate Generator does ANN lookup (10M → ~500) → Ranking Service scores the 500 with a heavy model → apply business filters (already-seen, region, dedupe) → return top 20. All online steps share a ~100ms budget; the heavy training that made them possible happened offline, hours earlier.</p>
+
+  <h2>7. Deep Dives</h2>
+  <p>This is 60% of the interview. Four hard parts, each with the alternative and a justified pick. Keep the ML at "interview depth" — name the technique, explain why the <em>system</em> is shaped that way, don't derive loss functions.</p>
+
+  <h3>Deep Dive 1 — The two-stage funnel: candidate generation → ranking</h3>
+  <p>You can't run a high-quality model over 10M items in 100ms, and you don't need to — most items are obviously irrelevant. So split the work into two stages with opposite tradeoffs, the architecture popularized by YouTube's deep-learning recommender.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Stage</th><th>Job</th><th>Tradeoff</th></tr>
+    <tr><td><b>Candidate generation</b></td><td>10M → ~hundreds. High recall, cheap, approximate.</td><td>Few features, fast lookup (ANN). OK to be imprecise — just don't miss good items.</td></tr>
+    <tr><td><b>Ranking</b></td><td>~hundreds → ordered top N. High precision, expensive.</td><td>Rich features per (user,item), heavy model. Affordable only because the set is small.</td></tr>
+  </table>
+  <p>The funnel is the whole trick: precision is expensive, so you only pay for it on a set that recall already shrank. Many systems add a third <b>re-ranking / filtering</b> step for business rules — remove already-seen items, enforce diversity, apply region/policy filters — after scoring.<a href="#c2" class="cite">[2]</a></p>
+  <div class="box">
+    <b>Why two stages and not one big model?</b> A single model good enough to rank would be far too slow to evaluate 10M times per request; a model fast enough to score 10M items would be too weak to rank well. Splitting lets each stage optimize a different objective — <b>recall cheaply, then precision expensively</b> — which is exactly the latency × scale constraint from capacity estimation, solved.
+  </div>
+
+  <h3>Deep Dive 2 — Retrieval: collaborative filtering vs content-based vs embeddings/ANN</h3>
+  <p>Candidate generation needs a way to go from "this user/item" to "similar items" fast. Three families, and the modern answer combines them via embeddings.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Approach</th><th>Idea</th><th>Weakness</th></tr>
+    <tr><td>Collaborative filtering</td><td>"Users like you liked X." Learns from the interaction matrix, no content needed.</td><td>Cold start: useless for brand-new users/items with no interactions.</td></tr>
+    <tr><td>Content-based</td><td>"Similar to what you liked," using item features (genre, text, category).</td><td>Handles new items, but stays in a filter bubble; needs good features.</td></tr>
+    <tr><td><b>Embedding + ANN (pick)</b></td><td>Learn dense vectors for users and items; retrieval = nearest neighbors.</td><td>Needs a training pipeline + an index, but is fast and unifies both signals.</td></tr>
+  </table>
+  <p>The modern default is the <b>two-tower model</b>: one tower encodes the user (history, profile), another encodes the item (content), trained so a user vector lands near items they engaged with.<a href="#c2" class="cite">[2]</a> At serving time you precompute every item vector into an <b>ANN index</b> and, per request, embed the user once and do an approximate nearest-neighbor search to retrieve candidates in single-digit milliseconds. This is exactly the vector-search machinery from <a href="0040-vector-databases.html">Lesson 40, Vector Databases</a> — say "ANN index over item embeddings" and the interviewer knows you've connected the dots.</p>
+  <p>In practice you run <em>several</em> candidate generators in parallel (embedding ANN, recent-popular, content-based, "also bought" co-occurrence) and union their outputs — diversity of sources guards against any one being weak.<a href="#c2" class="cite">[2]</a></p>
+
+  <h3>Deep Dive 3 — Offline batch vs online serving, and the cold-start problem</h3>
+  <p>The defining architectural line is the <b>offline/online split</b>. Anything slow, heavy, or shared across users is precomputed offline; only the per-request, per-user work happens online.<a href="#c3" class="cite">[3]</a></p>
+  <table>
+    <tr><th>Work</th><th>Where</th><th>Why</th></tr>
+    <tr><td>Train models, compute item embeddings</td><td><b>Offline</b> (batch, hours)</td><td>Expensive, shared by all users, doesn't change minute-to-minute.</td></tr>
+    <tr><td>Build ANN index, write feature store</td><td><b>Offline → published</b></td><td>Precompute so the online path is a lookup, not a computation.</td></tr>
+    <tr><td>Embed the user, retrieve + rank</td><td><b>Online</b> (ms)</td><td>Depends on this request's user/context; can't be precomputed for everyone.</td></tr>
+  </table>
+  <p><b>Precompute vs real-time</b> is a spectrum, not a binary. For very high-traffic or stable surfaces you can precompute the <em>full</em> rec list per user nightly and just serve it (cheap, but stale). For personalization that must react to the current session you compute online. A common hybrid: precompute candidates, rank online with fresh session features.</p>
+  <div class="box">
+    <b>Cold start</b> is the inevitable follow-up. Embedding/CF methods need history that new users and items don't have. Handle it explicitly:
+    <ul>
+      <li><b>New user:</b> fall back to popular/trending or a quick onboarding survey; switch to personalized once a few interactions exist.</li>
+      <li><b>New item:</b> lean on <b>content-based</b> features (you have its metadata even with zero interactions) so it's recommendable on day one, then let interactions refine its embedding.</li>
+      <li><b>Freshness:</b> re-index embeddings frequently and stream recent interactions into online features so the system reflects "what you did 5 minutes ago," not just last night's batch.</li>
+    </ul>
+  </div>
+
+  <h3>Deep Dive 4 — Feature store, low-latency serving, and the A/B feedback loop</h3>
+  <p>Two operational problems separate a demo from a production recommender, and both are pure systems work.</p>
+  <p><b>Feature store + training/serving skew.</b> The ranking model needs the same features online (at serving) that it saw offline (at training). If the offline pipeline computes a feature one way and the online path another, predictions silently degrade — this is <em>training/serving skew</em>. A <b>feature store</b> solves it: features are computed once and written to both an offline store (for training) and a low-latency online store (for serving, e.g. an in-memory cache / KV store), guaranteeing consistency.<a href="#c3" class="cite">[3]</a> Online, the Ranking Service fetches features for ~hundreds of candidates in a single batched read — fanning out per-candidate would blow the latency budget.</p>
+  <table>
+    <tr><th>Concern</th><th>Move</th></tr>
+    <tr><td>Latency budget</td><td>Batch feature fetch; cap candidate count; keep the ranking model small enough to score ~100s in tens of ms.</td></tr>
+    <tr><td>Graceful degradation</td><td>If ranking or features are unavailable, serve candidate order or a cached popular list — <b>never return blank</b>.</td></tr>
+    <tr><td>Consistency</td><td>Feature store as single source of truth for both training and serving.</td></tr>
+  </table>
+  <p><b>A/B testing &amp; the feedback loop.</b> Offline accuracy (does the model predict held-out clicks?) does <em>not</em> equal business value. The only honest measure of a recommender is an <b>online A/B test</b>: ship the new model to a fraction of traffic, compare engagement (CTR, watch time, purchases, retention) against control, roll out if it wins.<a href="#c1" class="cite">[1]</a> This closes the loop — interactions logged from live traffic become tomorrow's training data, and the experiment framework is how you safely decide what to keep. Beware <b>feedback loops that narrow</b>: a model that only ever shows popular items gets data only on popular items; inject exploration (some randomized/novel candidates) so the system keeps learning.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior-vs-staff tell is refusing to get pulled into ML math. Say up front: <b>"I'll treat the models as black boxes and design the serving system."</b> Then structure the whole answer around two decisions — the <b>candidate-generation → ranking funnel</b> (recall cheaply, precision expensively, justified by latency × catalog size) and the <b>offline/online split</b> (precompute embeddings, features, and index offline; do only per-user retrieval + ranking online). Proactively raise the three things juniors miss: <b>cold start</b> (content features for new items, popularity for new users), <b>training/serving skew</b> (a feature store as the fix), and that <b>online A/B testing — not offline accuracy — is ground truth</b>, with exploration to avoid a self-reinforcing feedback loop. Naming what you're <em>not</em> going to derive is itself the staff move.<a href="#c2" class="cite">[2]</a>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why is recommendation split into candidate generation then ranking?</p>
+      <button class="opt">Because the vector index cannot store every item embedding at once</button>
+      <button class="opt">Because the feature store can only return features in a strict order</button>
+      <button class="opt">Because scoring every item with a heavy model is too slow per request</button>
+      <button class="opt">Because collaborative filtering requires content data for new items</button>
+      <p class="fb">10M items × 100ms budget makes brute-force scoring impossible; cheap retrieval narrows to hundreds, then expensive ranking scores only those.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. How does embedding-based retrieval find candidates fast at serving time?</p>
+      <button class="opt">It scans the full interaction matrix once for each incoming user request</button>
+      <button class="opt">It does approximate nearest-neighbor search over a precomputed item index</button>
+      <button class="opt">It retrains the two-tower model for each user before returning any items</button>
+      <button class="opt">It queries the relational database with a join across the items table</button>
+      <p class="fb">Item vectors are precomputed offline into an ANN index; per request you embed the user once and do nearest-neighbor lookup in milliseconds.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What is the standard fix for the new-item cold-start problem?</p>
+      <button class="opt">Use the item's content features so it is recommendable with zero interactions</button>
+      <button class="opt">Block the new item from any feed until it earns enough click history first</button>
+      <button class="opt">Retrain the entire ranking model synchronously on the new item arrival</button>
+      <button class="opt">Store the new item inside the feature store but never inside the index</button>
+      <p class="fb">A brand-new item has no interactions for collaborative filtering, but you do have its metadata, so content-based features make it recommendable on day one.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why is online A/B testing the real measure of a recommender?</p>
+      <button class="opt">Because offline accuracy metrics cannot ever be computed before launch</button>
+      <button class="opt">Because predicting held-out clicks does not equal real engagement gains</button>
+      <button class="opt">Because the feature store only records events during live experiments</button>
+      <button class="opt">Because candidate generation is impossible to evaluate in any offline way</button>
+      <p class="fb">A model can win offline yet lose on engagement; an A/B test on live traffic measures CTR/watch-time and closes the feedback loop.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it. Try: <em>"Walk me through the latency budget for a single recommendations request across retrieval and ranking."</em> · <em>"How would you keep the online feature store consistent with offline training data?"</em> · <em>"What changes if recommendations must react within the same session, not just nightly?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://research.google/pubs/deep-neural-networks-for-youtube-recommendations/">Covington, Adams &amp; Sargin — "Deep Neural Networks for YouTube Recommendations" (2016)</a>. The canonical write-up of the candidate-generation → ranking funnel at scale; read it for why retrieval and ranking optimize different objectives.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/introduction">Hello Interview — System Design delivery framework</a> (FR/NFR/capacity/HLD/deep-dive structure, online-metrics-over-offline, graceful degradation).</p>
+    <p id="c2">[2] <a href="https://research.google/pubs/deep-neural-networks-for-youtube-recommendations/">Covington et al. — Deep Neural Networks for YouTube Recommendations (2016)</a> (two-stage candidate generation → ranking, embeddings, multiple candidate sources, re-ranking).</p>
+    <p id="c3">[3] <a href="https://developers.google.com/machine-learning/recommendation">Google ML — Recommendation Systems overview</a> (collaborative vs content-based, retrieval/scoring/re-ranking stages, embeddings, offline vs online serving and feature consistency).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0049-unique-id-generator.html">← Lesson 49</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 51 · Google Maps</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

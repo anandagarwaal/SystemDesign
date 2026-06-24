@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 114 — Deep Dive: Database Internals (Storage Engines)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 114 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Database Internals (Storage Engines)</h1>
+  <p class="sub">Strip away the SQL and the marketing. Every database is one of two engines underneath — and which one decides whether it loves your reads or your writes.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> When you say "I'll use Cassandra for the write-heavy event log and Postgres for the transactional core," the interviewer's follow-up is "why?" The convincing answer isn't a feature list — it's the storage engine. A staff candidate knows that Cassandra is an <em>LSM-tree</em> (built for writes) and Postgres is a <em>B-tree</em> (built for reads), and can explain the read-vs-write amplification trade-off that follows. This one mental model lets you justify almost every datastore choice, reason about index cost, and explain how transactions survive a crash.
+  </div>
+
+  <h2>The two storage-engine families</h2>
+  <p>A storage engine's whole job is to answer "where on disk is this key, and how do I write a new value fast?" Disk (even SSD) loves sequential I/O and punishes random I/O, so the entire field comes down to two strategies for laying bytes down.<a href="#c1" class="cite">[1]</a></p>
+
+  <h3>B-tree — read-optimized, in-place</h3>
+  <p>A <b>B-tree</b> keeps keys sorted in fixed-size <b>pages</b> (typically 4–8 KB) arranged in a shallow, wide tree. A lookup walks from the root down a handful of levels to the leaf holding the key — <code>O(log n)</code> page reads, usually 3–4 disk seeks even for billions of rows.<a href="#c1" class="cite">[1]</a> Writes happen <b>in place</b>: find the page, modify it, write it back. This makes reads fast and predictable but writes do <em>random</em> disk I/O and may split pages. B-trees power Postgres, MySQL/InnoDB, and most relational engines.<a href="#c1" class="cite">[1]</a></p>
+
+  <h3>LSM-tree — write-optimized, append + merge</h3>
+  <p>A <b>Log-Structured Merge tree</b> never updates in place. Writes go to an in-memory sorted structure (the <b>memtable</b>) plus an append-only log for durability; when the memtable fills, it's flushed <em>sequentially</em> to an immutable on-disk file (an <b>SSTable</b>).<a href="#c1" class="cite">[1]</a> Because every write is an append to RAM and the flush is sequential, write throughput is enormous. The cost is paid on reads and on cleanup:</p>
+  <ul>
+    <li><b>Reads may check several SSTables</b> (memtable → newest → oldest) since a key's latest value could be in any of them. A <b>Bloom filter</b> per SSTable (see <a href="0041-data-structures-for-big-data.html">Lesson 41</a>) lets the engine skip files that definitely don't contain the key.</li>
+    <li><b>Compaction</b> runs in the background, merging SSTables, discarding superseded values and tombstones (deletes are just markers). This reclaims space but consumes I/O.</li>
+  </ul>
+  <p>LSM-trees power Cassandra, RocksDB, LevelDB, and HBase.<a href="#c1" class="cite">[1]</a></p>
+
+  <div class="box">
+    <b>The trade-off in one sentence: amplification</b>
+    <ul>
+      <li><b>B-tree → lower read amplification, higher write amplification.</b> Reads touch few pages; writes are random and a single logical write can rewrite a whole page (and the WAL).</li>
+      <li><b>LSM-tree → lower write amplification at ingest, higher read amplification.</b> Writes are cheap sequential appends; reads may probe multiple files and compaction rewrites data repeatedly over its lifetime.</li>
+      <li><b>So:</b> write-heavy (event logs, time series, metrics, messaging) → LSM. Read-heavy with complex queries and strong transactions → B-tree.<a href="#c1" class="cite">[1]</a> This single fact justifies "Cassandra for writes, Postgres for transactions."</li>
+    </ul>
+  </div>
+
+  <h2>Indexes</h2>
+  <p>An index is a second sorted structure mapping a column's values to row locations — it turns an <code>O(n)</code> table scan into an <code>O(log n)</code> seek, at the cost of extra storage and slower writes (every insert updates every index).</p>
+  <ul>
+    <li><b>Clustered (primary) index:</b> the table rows are physically stored <em>in</em> the index, ordered by primary key (InnoDB does this). Primary-key lookups are one seek; this is why your PK choice affects layout.</li>
+    <li><b>Secondary index:</b> a separate B-tree on another column that points back to the row (by PK or row id). Great for filtering, but each one taxes writes.</li>
+    <li><b>Covering index:</b> includes all columns a query needs, so the query is answered from the index alone without touching the table — a key tuning trick.</li>
+  </ul>
+
+  <h2>Transactions &amp; isolation internals</h2>
+  <p>The same engine must also make changes <b>durable</b> and <b>concurrent-safe</b>. Two mechanisms do the heavy lifting:</p>
+  <ul>
+    <li><b>Write-ahead log (WAL / redo):</b> before touching the data pages, the engine appends the change to a sequential log and fsyncs it. If the process crashes mid-write, recovery <em>replays</em> the WAL to redo committed changes and roll back uncommitted ones — that's how a half-finished write doesn't corrupt the database.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>MVCC (multi-version concurrency control):</b> rather than locking rows for readers, the engine keeps multiple <em>versions</em> of a row. Each transaction sees a consistent snapshot as of its start, so <b>readers never block writers and writers never block readers</b>.<a href="#c2" class="cite">[2]</a> A <b>rollback</b> simply discards the uncommitted versions (or applies undo records) — the old version is still there.</li>
+  </ul>
+  <table>
+    <thead><tr><th>Isolation level</th><th>Prevents</th><th>Still allows</th></tr></thead>
+    <tbody>
+      <tr><td>Read Committed</td><td>Dirty reads</td><td>Non-repeatable &amp; phantom reads</td></tr>
+      <tr><td>Repeatable Read</td><td>+ Non-repeatable reads</td><td>Phantoms (in the SQL standard)</td></tr>
+      <tr><td>Serializable</td><td>+ Phantoms — behaves as if serial</td><td>Nothing (highest cost)</td></tr>
+    </tbody>
+  </table>
+  <p>The anomalies, briefly: a <b>dirty read</b> sees another transaction's uncommitted change; a <b>non-repeatable read</b> gets two different values for the same row within one transaction; a <b>phantom</b> is a new row appearing in a repeated range query. Higher isolation removes more anomalies but costs concurrency. For coordination <em>across</em> machines, this local machinery isn't enough — see <a href="0112-distributed-transactions.html">Distributed Transactions (Lesson 112)</a>.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    A junior says "Cassandra is fast for writes." A staff candidate says <b>why</b>: "It's an LSM-tree — writes are sequential appends to a memtable, flushed to immutable SSTables, so it sustains huge write throughput; the price is read amplification across SSTables, mitigated by Bloom filters, and background compaction I/O. Postgres is a B-tree, so it's the opposite — cheap reads, random-I/O writes — which is why I'll put the transactional core there."<a href="#c1" class="cite">[1]</a> When asked how a crash mid-write doesn't corrupt data, they reach for the <b>WAL replay</b>, and for concurrency they cite <b>MVCC snapshots</b> rather than locks.<a href="#c2" class="cite">[2]</a> Reasoning from the engine, not the feature sheet, is the tell.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>Use this to <em>justify</em> datastore picks, not as a lecture. When you choose a store, add one clause: "Cassandra (LSM, write-optimized) for the high-volume event stream; Postgres (B-tree, strong transactions) for orders." When asked about durability, say "WAL — log the change before the page, replay on recovery." When asked about read/write contention, say "MVCC, so reads see a snapshot and don't block writes." And remember the universal trade-off when someone asks you to add an index: faster reads, slower writes, more storage — so index for your actual query patterns, not every column.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why does an LSM-tree sustain very high write throughput?</p>
+      <button class="opt">It updates each data page in place with a single seek</button>
+      <button class="opt">It keeps the entire dataset cached in memory at all times</button>
+      <button class="opt">Writes are appends to a memtable, flushed sequentially to disk</button>
+      <button class="opt">It skips durability by never logging changes before commit</button>
+      <p class="fb">Writes hit an in-memory memtable plus an append log, and flushes are sequential SSTable writes — disk-friendly and fast, unlike random in-place updates.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. What is the cost LSM-trees pay for cheap writes?</p>
+      <button class="opt">Higher read amplification — a key may sit in several SSTables</button>
+      <button class="opt">Loss of durability whenever the process crashes mid-write</button>
+      <button class="opt">Inability to store more data than fits in main memory</button>
+      <button class="opt">Random-I/O writes that rewrite an entire page each time</button>
+      <p class="fb">A read may probe the memtable and multiple SSTables; Bloom filters and background compaction reduce but don't eliminate this read overhead.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. How does a write-ahead log prevent corruption on a crash?</p>
+      <button class="opt">It keeps two synchronous replicas agreeing on every commit</button>
+      <button class="opt">It compresses pages so partial writes are always recoverable</button>
+      <button class="opt">It locks every row until the transaction fully completes</button>
+      <button class="opt">The change is logged before the page, then replayed on recovery</button>
+      <p class="fb">Durability comes from logging the change sequentially before modifying data pages; recovery replays committed changes and undoes uncommitted ones.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. What does MVCC give a database?</p>
+      <button class="opt">Atomic commits spanning several independent microservices</button>
+      <button class="opt">Readers see a snapshot, so reads and writes don't block</button>
+      <button class="opt">Sequential write throughput equal to an LSM-tree engine</button>
+      <button class="opt">Automatic sharding of a table across multiple machines</button>
+      <p class="fb">Keeping multiple row versions lets each transaction read a consistent snapshot without taking locks, so readers and writers don't block each other.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Trace a single read through an LSM-tree, memtable to compaction." · "Show me a non-repeatable read and exactly which isolation level stops it." · "Why does adding a secondary index slow down inserts, step by step?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.databass.dev/">Alex Petrov, <em>Database Internals</em> (O'Reilly)</a> for storage-engine mechanics (B-trees, LSM-trees, compaction), paired with the "Storage and Retrieval" and "Transactions" chapters of <em>Designing Data-Intensive Applications</em> for the WAL/MVCC/isolation foundations.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.databass.dev/">Petrov, <em>Database Internals</em> (O'Reilly, 2019)</a> (B-tree vs LSM-tree storage engines, pages, SSTables, memtables, compaction, Bloom filters, and the read/write amplification trade-off).</p>
+    <p id="c2">[2] <a href="https://martin.kleppmann.com/2017/03/27/designing-data-intensive-applications.html">Kleppmann, <em>Designing Data-Intensive Applications</em> (O'Reilly)</a> (write-ahead logging for durability/crash recovery, MVCC, isolation levels and the dirty/non-repeatable/phantom anomalies).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0113-change-data-capture.html">← Lesson 113</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 115 · OAuth, JWT &amp; Auth</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

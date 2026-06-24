@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 62 — Design an E-Commerce / Flash Sale System</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 62 · Phase 4 — Case Study · Hard</p>
+  <h1>Design an E-Commerce / Flash Sale System</h1>
+  <p class="sub">A normal checkout you could build in a weekend — until 5 million people race for 10,000 units at noon and a single oversold SKU becomes a refund-and-PR incident.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> An e-commerce store is an easy CRUD app right up to the moment a <em>flash sale</em> turns one row of inventory into the most contended object in the building.<a href="#c1" class="cite">[1]</a> The staff signal is not "I can write a checkout" — it's recognizing that you are running <em>two systems with opposite priorities</em> (an AP, cache-everything browse path and a CP, never-oversell inventory path), then shedding and serializing the spike at the door instead of scaling a fundamentally contended row. That framing — borrowed straight from <a href="0015-ticketmaster.html">Ticketmaster</a> and <a href="0023-online-auction.html">online auctions</a> — is what separates an L6/L7 hire from a senior one.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Lock scope to what a buyer actually does end-to-end, and call out the flash sale as a first-class requirement rather than "just more traffic." Push reviews, recommendations, returns, and seller onboarding out of scope and say so.</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th><th>Note</th></tr>
+    <tr><td>1</td><td>Browse and search the product catalog</td><td>Read path — by far the highest volume</td></tr>
+    <tr><td>2</td><td>Add items to a cart</td><td>Per-user state; cheap, soft, no inventory claim yet</td></tr>
+    <tr><td>3</td><td>Checkout: <b>reserve → pay → place order</b></td><td>Write path — the hard part; payment + order creation</td></tr>
+    <tr><td>4</td><td>Buy limited-inventory items in a flash sale</td><td>The crux: millions contend for thousands of units; <b>no overselling</b></td></tr>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>One sentence carries the whole design: <em>prioritize availability and low latency for browse, but prioritize consistency on inventory — never sell the same unit twice.</em> Different NFRs for different paths is the framing move, exactly as in the auction and ticketing problems.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>NFR</th><th>Target</th><th>Drives</th></tr>
+    <tr><td><b>No overselling (inventory consistency)</b></td><td>Units sold ≤ units in stock, <em>always</em></td><td>Atomic decrement + reservations (Deep Dive 1). This is the crux.</td></tr>
+    <tr><td>Availability under spike</td><td>Browse/cart stay up at 100× normal load</td><td>CDN + cache + queue-based admission (Deep Dives 1, 4)</td></tr>
+    <tr><td>Low latency on read path</td><td>p99 &lt; 200ms for catalog/PDP</td><td>Aggressive caching, read replicas (Deep Dive 3)</td></tr>
+    <tr><td>Durability &amp; correctness of orders</td><td>No lost orders, no double-charges</td><td>Queue + idempotent placement (Deep Dives 2, 2b)</td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Say out loud that you are deliberately running <b>two consistency regimes in one product</b>: AP (available, eventually consistent, cache-first) for browsing, and CP (strongly consistent, willing to reject) for the inventory decrement. The number-one failure mode in this interview is letting the strongly-consistent inventory machinery — locks, the primary DB — leak onto the read path and take the whole site down with it. Naming and enforcing that split is the single highest-leverage sentence you'll say.
+  </div>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only estimate the numbers that change a decision. For a flash sale exactly one thing matters: the spike. Assume a sale of <b>10,000 units</b> opening to <b>~5M interested users</b> arriving within the first ~10 seconds.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate (own assumptions)</th><th>Design implication</th></tr>
+    <tr><td>Peak arrival</td><td>5M users / ~10s ≈ <b>500k req/s</b> at the door, vs. a steady-state baseline of maybe 5k req/s</td><td>~100× spike. You cannot provision the inventory DB for 500k writes/s — you must shed and pace load <em>before</em> it reaches the contended row.</td></tr>
+    <tr><td>Contended write target</td><td>10,000 successful decrements total; everyone else must fail fast</td><td>The entire problem is funneling 500k req/s of intent into ≤10k correct writes without overselling and without melting the DB.</td></tr>
+    <tr><td>Read : write ratio</td><td>~1000 : 1 — browsing/refreshing dwarfs buying</td><td>Optimize the read path independently; serve stock-availability reads from cache, never the primary.</td></tr>
+  </table>
+  <p>Inventory itself is tiny — one hot row (or a few) per SKU. The challenge is never storage; it's <em>extreme concurrent contention on a single small, hot counter</em>. That single observation is what makes this a "hard" case study.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Entities: <b>Product</b> (id, title, price, description — the catalog), <b>Inventory</b> (productId, <code>available</code> count, optional <code>reserved</code> count), <b>Cart</b> (userId, line items), <b>Reservation</b> (userId, productId, qty, expiry — a short TTL hold), and <b>Order</b> (userId, items, total, status: <code>pending | paid | confirmed | failed</code>). The <code>available</code> counter and the Order <code>status</code> are where the consistency story lives.</p>
+  <p>User identity always comes from the auth token, never the request body.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>GET /v1/products?query=&amp;page=</code></td><td>Search / list catalog — served from cache + search index.</td></tr>
+    <tr><td><code>GET /v1/products/{id}</code></td><td>Product detail page (PDP), incl. cached availability flag.</td></tr>
+    <tr><td><code>POST /v1/cart/items</code></td><td>Add to cart: <code>{productId, qty}</code> — soft, no inventory claim.</td></tr>
+    <tr><td><code>POST /v1/checkout</code></td><td><b>Reserve</b>: atomically decrements stock and creates a <code>Reservation</code> + <code>Order(pending)</code>; returns <code>orderId</code>. <b>Idempotency-Key</b> header required.</td></tr>
+    <tr><td><code>POST /v1/orders/{id}/pay</code></td><td><b>Pay + place</b>: charges via the payment system, flips Order → <code>paid</code>; idempotent.</td></tr>
+  </table>
+  <p>Splitting <code>reserve</code> from <code>pay</code> is intentional: the buyer gets a short window to enter payment while the unit is held. That window is the entire reason the overselling problem exists — identical to the reserve→pay split in <a href="0015-ticketmaster.html">Ticketmaster</a>.</p>
+
+  <h2>High-Level Design</h2>
+  <p>An API Gateway (auth, routing, rate-limit) and a CDN front everything. Requests fan out to stateless services that share no critical-path infrastructure between the browse and buy paths.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Data store</th></tr>
+    <tr><td>CDN / Edge</td><td>Serves static catalog pages &amp; assets; absorbs most read spike</td><td>Edge cache</td></tr>
+    <tr><td>Catalog Service</td><td>Serves <code>/products</code> + PDP</td><td>Postgres (read replicas) + Redis cache + search index</td></tr>
+    <tr><td>Inventory Service</td><td>The only writer of stock; atomic decrement + reservations</td><td>Redis (hot counter) backed by Postgres (source of truth)</td></tr>
+    <tr><td>Order Service</td><td>Consumes order events; creates &amp; finalizes orders</td><td>Postgres (orders), idempotency table</td></tr>
+    <tr><td>Payment</td><td>Charges card; signals success/failure (see <a href="0037-payment-system.html">payment system</a>)</td><td>External PSP via webhook</td></tr>
+    <tr><td>Order Queue</td><td>Decouples accepted checkouts from fulfillment</td><td>Kafka / SQS</td></tr>
+  </table>
+  <p><b>Flow.</b> <code>browse</code> → CDN/Catalog Service → cache/replica (never touches inventory primary). <code>checkout</code> → optional <a href="#dd4">waiting room</a> → Inventory Service does an <em>atomic decrement</em>; if it succeeds, it writes a Reservation and enqueues an <code>OrderRequested</code> event and returns fast. The Order Service consumes the event, creates <code>Order(pending)</code>; the client then calls <code>pay</code>, which drives the <a href="0037-payment-system.html">payment system</a>; on success the Order flips to <code>paid</code> and the reservation is committed; on timeout/failure the reservation's TTL releases the unit back to stock.</p>
+
+  <h2 id="dd1">Deep Dive 1 — Overselling under extreme contention (the central problem)</h2>
+  <p>The hazard: 500k requests per second all read "1 unit left," all believe they won, and you ship 40,000 orders for 10,000 units.<a href="#c1" class="cite">[1]</a> The fix has two parts — make the decrement <em>atomic</em>, and make the hold <em>auto-expiring</em>. Mechanisms, escalating in quality:</p>
+  <table>
+    <tr><th>Mechanism</th><th>How</th><th>Why it fails / wins</th></tr>
+    <tr><td>Read-then-write in app code</td><td><code>SELECT count</code>, check &gt; 0, then <code>UPDATE count-1</code></td><td><b>Broken.</b> Classic race: the check and the write aren't atomic, so concurrent buyers all pass the check. This <em>is</em> the oversell bug.</td></tr>
+    <tr><td>DB row lock (<code>SELECT … FOR UPDATE</code>)</td><td>Lock the inventory row per checkout</td><td><b>Bad at scale.</b> Correct, but serializes 500k req/s on one row → lock queue, latency cliff, deadlocks. A lock is not a high-throughput tool.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Conditional atomic decrement (DB)</td><td><code>UPDATE inventory SET avail=avail-1 WHERE id=? AND avail&gt;0</code>; success ⇔ 1 row affected</td><td><b>Great.</b> One statement, atomic, no app-level race, no oversell. But the primary still eats the full write spike.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Redis atomic decrement + TTL hold (staff pick)</td><td><code>DECR</code> / Lua on a hot Redis counter; reject if it goes negative; set a per-user reservation key with TTL</td><td><b>Great, and the staff pick for a flash sale.</b> Single-threaded Redis serializes the decrement for free at &gt;100k ops/s, keeps the spike off Postgres, and the TTL <em>is</em> the hold-release. Reconcile to Postgres asynchronously.<a href="#c1" class="cite">[1]</a></td></tr>
+  </table>
+  <div class="box">
+    <b>The staff pick — and why.</b> A Redis atomic counter as the front-line inventory gate, with Postgres as the durable source of truth.<a href="#c1" class="cite">[1]</a> The reasoning matters more than the choice:
+    <ul>
+      <li><b>Atomicity beats locking.</b> A conditional decrement (or single-threaded Redis op) makes the operation correct <em>without</em> holding a lock across the network round-trip — so throughput isn't capped by lock duration. See <a href="0010-common-patterns.html">common patterns</a> on atomic counters vs. locks.</li>
+      <li><b>The hold is ephemeral, so store it ephemerally.</b> A 5-minute reservation is not durable business data; a Redis key with a TTL releases the unit automatically if payment never lands — no sweeper, no cron, no stuck stock (the same lazy-expiry insight from <a href="0015-ticketmaster.html">Ticketmaster</a>).</li>
+      <li><b>Belt and suspenders.</b> The final order commit still re-checks against Postgres in a transaction with the conditional decrement, so even a total Redis outage degrades to "more sold-out surprises" but <em>cannot</em> oversell. Redis is an optimization on top of a DB that is itself correct.</li>
+      <li><b>Hot-key sharding.</b> If a single SKU's counter saturates one Redis shard, split the stock into N sub-counters (e.g. 10×1,000) and decrement a random one — classic hot-key fan-out.</li>
+    </ul>
+  </div>
+  <p>Even an atomic counter doesn't help if 500k req/s reach it. For the most contended sales, put a <b>queue-based admission / virtual waiting room</b> in front of the Inventory Service (Deep Dive 4) so the counter only ever sees a paced trickle. This is the same load-shedding move as Ticketmaster's virtual queue<a href="#c1" class="cite">[1]</a> and the bid-serialization discipline in <a href="0023-online-auction.html">online auctions</a>.</p>
+
+  <h2 id="dd2">Deep Dive 2 — Decoupling checkout from order fulfillment via a queue</h2>
+  <p>Order placement does a lot: create the order record, reserve inventory, charge payment, notify warehouse, email the buyer. Doing all of that synchronously inside the <code>checkout</code> request means one slow downstream (a sluggish PSP, a warehouse API hiccup) stalls the whole request and amplifies the spike. The fix: <b>accept fast, fulfill asynchronously.</b></p>
+  <div class="box">
+    <b>Queue-backed order pipeline.</b>
+    <ul>
+      <li>Once inventory is atomically claimed, the checkout endpoint writes an <code>OrderRequested</code> event to a durable log (<a href="0010-common-patterns.html">Kafka/SQS</a>) and returns <code>orderId</code> + "pending" immediately.</li>
+      <li>Downstream consumers (Order Service, payment driver, notifications) process the event independently and can scale, retry, and fail in isolation.</li>
+      <li>The queue acts as a <b>buffer</b> that flattens the spike: the contended decrement is bounded by stock, and everything after it drains at a steady, provisioned rate.</li>
+      <li>Backpressure is natural — if fulfillment lags, the queue grows but the user already has a confirmed "order received."</li>
+    </ul>
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The insight to verbalize: <b>the only thing that must be synchronous and strongly consistent is the inventory decrement.</b> Everything else — order rows, payment, emails — can be pushed onto a durable queue and made eventually consistent. Drawing that line precisely (sync CP gate, async AP tail) is the senior-to-staff jump; juniors try to make the entire checkout one ACID transaction and then can't scale it.
+  </div>
+
+  <h2 id="dd2b">Deep Dive 2b — Idempotent order placement + payment</h2>
+  <p>Spikes mean retries: the client times out and resubmits, the gateway retries, the queue redelivers (at-least-once). Without idempotency you get duplicate orders and <em>double charges</em> — the single worst outcome for trust. Make both placement and payment idempotent.</p>
+  <table>
+    <tr><th>Layer</th><th>Idempotency mechanism</th><th>Effect</th></tr>
+    <tr><td>Checkout API</td><td>Client sends a unique <code>Idempotency-Key</code>; server stores key → result in a dedup table</td><td>Retried checkout returns the <em>same</em> <code>orderId</code>, never a second order.<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>Queue consumer</td><td>Consumers are idempotent on <code>orderId</code> (upsert / dedup on event id)</td><td>At-least-once redelivery is safe; reprocessing is a no-op.</td></tr>
+    <tr><td>Payment charge</td><td>Pass the order's idempotency key to the PSP (e.g. Stripe Idempotency-Key)</td><td>The <a href="0037-payment-system.html">payment system</a> charges the card exactly once even on retry.<a href="#c3" class="cite">[3]</a></td></tr>
+  </table>
+  <p>Pair this with the saga pattern: if payment ultimately fails or the reservation TTL lapses, a compensating action releases the held unit back to stock and marks the Order <code>failed</code>. See <a href="0037-payment-system.html">the payment system lesson</a> for the full charge/refund state machine and webhook reconciliation.</p>
+
+  <h2 id="dd3">Deep Dive 3 — Caching the catalog read path vs. the consistent write path</h2>
+  <p>During a flash sale, reads outnumber writes ~1000:1 — everyone is refreshing the product page waiting for the drop. Serve those reads from anything <em>except</em> the inventory primary.</p>
+  <table>
+    <tr><th>Read</th><th>Where it's served</th><th>Consistency</th></tr>
+    <tr><td>Product details, images, price, description</td><td>CDN + Redis cache (long TTL), search index for listings</td><td>Eventually consistent — fine; catalog rarely changes mid-sale.</td></tr>
+    <tr><td>"In stock / sold out" badge on the PDP</td><td>Cached availability flag (short TTL) or pub/sub fan-out from Inventory</td><td>Approximate is OK — the <em>authoritative</em> check is the atomic decrement at checkout.</td></tr>
+    <tr><td>Actual decrement at purchase</td><td>Inventory Service only (Redis counter → Postgres)</td><td><b>Strongly consistent</b> — the one place correctness is non-negotiable.</td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The move is to <b>decouple "is it available?" (a cached hint) from "claim it" (the atomic truth).</b> Showing a slightly stale "in stock" badge and then failing fast at checkout for the unlucky majority is correct and cheap; trying to show every user a perfectly live count would put the read spike directly on the contended counter and defeat the entire design. Accepting a little staleness on the read path to protect the write path is exactly the AP/CP judgement this question is testing.
+  </div>
+
+  <h2 id="dd4">Deep Dive 4 — Taming the thundering herd</h2>
+  <p>At <code>t=0</code> millions of clients (and their auto-refreshing tabs) hit the same endpoints in the same second. Three compounding layers defend against it:</p>
+  <div class="box">
+    <b>Layered defense against the spike.</b>
+    <ul>
+      <li><b>Absorb at the edge.</b> Serve the sale landing page + assets from the CDN; never let static reads reach origin. A countdown timer and client-side jitter spread out the initial connect.</li>
+      <li><b>Virtual waiting room / queue-based admission.</b> Enqueue arrivals (e.g. a Redis sorted set keyed by arrival time for fairness), show position + ETA over SSE, and <b>dequeue at a controlled rate</b> into an "admitted" set with a TTL — exactly the Ticketmaster pattern.<a href="#c1" class="cite">[1]</a> The Inventory Service only serves admitted users, so the counter sees a bounded stream.</li>
+      <li><b>Fail fast, don't queue forever.</b> Once stock hits zero, return "sold out" immediately at the gate; don't admit users to fight over nothing. Reject early and cheaply rather than letting load pile onto the DB.</li>
+      <li><b>Cache-stampede guards.</b> On expiry of the availability cache, use a single-flight / request-coalescing lock so one request refreshes while others serve stale — prevents a herd from hammering the origin at once.</li>
+    </ul>
+  </div>
+  <p>The unifying principle across all four deep dives: <b>don't scale the contended core to the spike — serialize and shed load before it gets there.</b> A queue converts an unbounded burst into a bounded, paced stream; an atomic counter makes each admitted request correct; idempotency makes retries safe; caching keeps the 99.9% of read traffic away from the one row that actually matters.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why does a read-then-write inventory check oversell under a flash sale?</p>
+      <button class="opt">A Redis counter cannot ever store the real remaining stock count</button>
+      <button class="opt">The primary database becomes the slowest possible component here</button>
+      <button class="opt">The check and the update are separate, so racing buyers all pass</button>
+      <button class="opt">The content delivery network caches the stale stock value forever</button>
+      <p class="fb">The read and the write aren't atomic — concurrent requests all read the same positive count and all decrement, selling more than exists.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Why is a Redis atomic decrement preferred over <code>SELECT … FOR UPDATE</code> here?</p>
+      <button class="opt">A database row lock will silently permit two buyers to win once</button>
+      <button class="opt">It serializes the decrement without a lock that caps throughput</button>
+      <button class="opt">It removes the need to ever persist inventory in a real database</button>
+      <button class="opt">It guarantees the payment provider charges every card precisely once</button>
+      <p class="fb">A row lock is correct but serializes 500k req/s on one row, causing a latency cliff; an atomic counter is correct AND high-throughput.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What does pushing order fulfillment onto a durable queue buy you?</p>
+      <button class="opt">Accept the order fast, then fulfill it asynchronously and resiliently</button>
+      <button class="opt">Make the inventory decrement eventually consistent across regions</button>
+      <button class="opt">Replace the idempotency key so retried requests create new orders</button>
+      <button class="opt">Serve the product detail page directly from the inventory primary</button>
+      <p class="fb">Only the inventory decrement must be synchronous and consistent; everything after it (orders, payment, email) can drain from a buffering queue.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Why is an idempotency key essential on the checkout and payment calls?</p>
+      <button class="opt">It lets the catalog read path skip the content delivery network</button>
+      <button class="opt">It converts the strongly consistent counter into an available one</button>
+      <button class="opt">Retries and redelivery would otherwise create duplicate orders and charges</button>
+      <button class="opt">It shards the single hot inventory counter across many Redis nodes</button>
+      <p class="fb">Spikes cause retries and at-least-once redelivery; without idempotency you get duplicate orders and double charges — the worst trust outcome.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — push on the parts that feel shaky. Try:
+    <ul>
+      <li>"Walk me through the exact Lua script that atomically decrements stock and sets a per-user reservation TTL."</li>
+      <li>"How do I reconcile the Redis hot counter back to Postgres without ever overselling or losing a sale?"</li>
+      <li>"Compare the virtual waiting room here with Ticketmaster's queue and an online auction's bid serialization."</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ticketmaster">Hello Interview — Ticketmaster system design breakdown</a>. The closest canonical write-up: its double-booking solution tiers and virtual-queue section map almost one-to-one onto flash-sale inventory and admission. Pair it with this course's <a href="0037-payment-system.html">payment system</a> and <a href="0010-common-patterns.html">common patterns</a> lessons for idempotency and atomic counters.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ticketmaster">Hello Interview — Ticketmaster breakdown</a> (AP/CP split, reservation holds with TTL, virtual waiting queue / load shedding — applied here to flash-sale inventory and admission).</p>
+    <p id="c2">[2] Well-established RDBMS concurrency fundamentals: <code>SELECT … FOR UPDATE</code> pessimistic locking vs. single-statement conditional/atomic updates and their throughput characteristics under contention.</p>
+    <p id="c3">[3] Idempotency for safe retries — see this course's <a href="0037-payment-system.html">payment system</a> lesson and the standard Idempotency-Key pattern used by payment providers (e.g. Stripe) to charge exactly once.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0061-flight-search.html">← Lesson 61</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 63 · Email (Gmail)</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

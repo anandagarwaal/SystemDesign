@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 78 — Design Music Recognition (Shazam)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 78 · Phase 4 — Case Study · Hard</p>
+  <h1>Design Music Recognition (Shazam)</h1>
+  <p class="sub">Hum the algorithm, not the song — turning a noisy 10-second clip into an audio fingerprint, then finding the one track out of 100M that lines up.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> This looks like an ML problem and panics most candidates. The L6/L7 move is to reframe it as a <b>hashing + exact-lookup</b> problem: the magic is a noise-robust fingerprint and an inverted index, not a neural net.<a href="#c1" class="cite">[1]</a> Staff signal is naming Avery Wang's combinatorial-hashing trick, defending <b>fingerprint-on-client</b> over uploading raw audio, and knowing the match is decided by a <b>time-offset histogram</b>, not by counting raw hash hits. Get the fingerprint right and the rest is a sharded key-value store you already know.</p>
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope the happy path ruthlessly — the interviewer wants the recognition core, not playlists or social features.</p>
+  <table>
+    <thead><tr><th>#</th><th>Users should be able to…</th><th>In scope?</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>Record a short clip</b> (~5–10s) of audio playing nearby.</td><td>Core</td></tr>
+      <tr><td>2</td><td><b>Identify the song</b> from that noisy clip, or get "no match".</td><td>Core</td></tr>
+      <tr><td>3</td><td><b>Return metadata</b> — title, artist, album (and a confidence).</td><td>Core</td></tr>
+      <tr><td>4</td><td><b>Build the catalog</b> — ingest new tracks so they become matchable.</td><td>Core (offline)</td></tr>
+      <tr><td>—</td><td>Recommendations, lyrics, humming-search, charts.</td><td>Out</td></tr>
+    </tbody>
+  </table>
+  <p>The system is two loosely-coupled halves: an <b>online recognition path</b> (req 1–3, latency-critical) and an <b>offline catalog-ingestion path</b> (req 4, throughput-critical). Call this split out loud early.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <thead><tr><th>NFR</th><th>Target</th><th>Why it shapes the design</th></tr></thead>
+    <tbody>
+      <tr><td><b>Fast identification</b></td><td>&lt; 1–2s end-to-end (p99)</td><td>Forces fingerprint-on-client + a single index lookup, not a scan.</td></tr>
+      <tr><td><b>Accuracy under noise</b></td><td>High recall at low SNR (chatter, distance, codec)</td><td>The whole reason for the spectrogram-peak fingerprint.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Scale</b></td><td>100M tracks; millions of lookups/day</td><td>Index is huge → must shard; reads ≫ writes.</td></tr>
+      <tr><td><b>Read-heavy</b></td><td>Reads ≫ writes</td><td>Catalog changes slowly; recognition is constant → cache + replicas.</td></tr>
+    </tbody>
+  </table>
+  <p>Note the deliberate trade: we accept the catalog being <b>eventually consistent</b> (a brand-new song may take minutes to become matchable) in exchange for fast, available reads. No one cares if a track is searchable 5 minutes after release.</p>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only estimate the numbers that <em>change a decision</em>. The decision here is "does the index fit in memory on one box, or must we shard?" — so we size the fingerprint index.</p>
+  <div class="box">
+    <b>Index size (the only number that matters)</b>
+    <ul>
+      <li>Catalog: <b>100M songs</b> × ~3 min each.</li>
+      <li>Fingerprint density: ~<b>20–30 hashes/sec</b> of audio (tunable).<a href="#c1" class="cite">[1]</a> Use 25.</li>
+      <li>Per song: 180s × 25 ≈ <b>4,500 hashes</b>.</li>
+      <li>Total postings: 100M × 4,500 ≈ <b>4.5 × 10¹¹</b> (≈ 450B) entries.</li>
+      <li>Each posting ≈ <code>(songID 4B + timeOffset 4B)</code> = 8B, plus the 4B hash key amortized.</li>
+      <li>≈ 450B × 12B ≈ <b>~5 TB</b> of index.</li>
+    </ul>
+    <b>Implication:</b> 5 TB will not sit on one machine's RAM. We <b>must shard the index by hash</b>, and we cannot afford a per-song scan — confirming the inverted-index-on-hash design. Storage of the <em>raw</em> audio (req 4) is a separate, cheaper concern handed to a <a href="0045-blob-store-s3.html">blob store</a>.<a href="#c3" class="cite">[3]</a>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>Song</code> (id, title, artist, album, durationMs) · <code>Fingerprint</code> (a list of <code>(hash, timeOffset)</code> derived from a track) · <code>HashPosting</code> (the index value: <code>hash → [(songId, timeOffset)…]</code>).</p>
+  <p>The client computes the fingerprint locally and sends <em>that</em>, never raw audio. The API is tiny.</p>
+  <table>
+    <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>POST /v1/identify</code><br>body: <code>{fingerprint:[{hash,offset}…]}</code></td><td>Recognition path. Returns <code>{songId,title,artist,album,confidence}</code> or <code>404 no_match</code>. User derived from auth token.</td></tr>
+      <tr><td><code>GET /v1/songs/{id}</code></td><td>Fetch full metadata for a matched song.</td></tr>
+      <tr><td><code>POST /v1/catalog/songs</code><br>(internal/admin)</td><td>Ingest a new track: upload audio → fingerprint → index. Async.</td></tr>
+      <tr><td><code>GET /v1/catalog/jobs/{id}</code></td><td>Poll status of an ingestion job.</td></tr>
+    </tbody>
+  </table>
+  <p>Notice <code>/identify</code> takes a fingerprint, not a file. That single API choice is a deep dive in disguise (see §"Client fingerprints").</p>
+
+  <h2>Data Flow</h2>
+  <p>This is a data-processing system (an ingestion pipeline feeds a query path), so the flow is worth tracing end-to-end:</p>
+  <ol>
+    <li><b>Ingest (offline):</b> raw track → store in <a href="0045-blob-store-s3.html">blob store</a> → fingerprinter computes <code>(hash, offset)</code> list → write each posting into the sharded index keyed by hash.<a href="#c3" class="cite">[3]</a></li>
+    <li><b>Query (online):</b> client mic → spectrogram → constellation of peaks → hashes → <code>POST /identify</code> → fan out hashes to index shards → gather candidate <code>(songId, offset)</code> postings → time-offset alignment → pick winner → hydrate metadata.</li>
+  </ol>
+
+  <h2>High-Level Design</h2>
+  <p>Walk each <code>/identify</code> request through the boxes:</p>
+  <table>
+    <thead><tr><th>Component</th><th>Role on the request path</th></tr></thead>
+    <tbody>
+      <tr><td><b>Mobile client</b></td><td>Records clip, runs the fingerprint algorithm locally, sends a compact list of hashes.</td></tr>
+      <tr><td><b>API gateway / LB</b></td><td>Auth, rate-limit, route to a stateless matcher.</td></tr>
+      <tr><td><b>Matcher service</b></td><td>Stateless. Fans the query's hashes to the right index shards, runs the time-offset histogram, returns the winning songId + confidence.</td></tr>
+      <tr><td><b>Fingerprint index</b></td><td>Sharded, in-memory-friendly KV store: <code>hash → [(songId, offset)]</code>. Read-replicated.</td></tr>
+      <tr><td><b>Metadata DB</b></td><td>Relational store of <code>Song</code> rows; hit only after a match to hydrate title/artist/album.</td></tr>
+      <tr><td><b>Ingestion pipeline</b></td><td>Offline workers: blob store → fingerprinter → index writers.</td></tr>
+    </tbody>
+  </table>
+  <p>Reads dominate, so the index gets read replicas and the metadata DB sits behind a cache. The matcher holds no state, so we scale it horizontally.</p>
+
+  <h2>Deep Dive 1 — Audio fingerprinting: why it survives noise</h2>
+  <p>You cannot match raw waveforms — two recordings of the same song differ in volume, EQ, codec, and background chatter. The fingerprint must throw away everything <em>except</em> the structure that survives all of that. Avery Wang's insight: work in the <b>spectrogram</b> and keep only the <b>loudest peaks</b>.<a href="#c1" class="cite">[1]</a></p>
+  <ol>
+    <li><b>Spectrogram.</b> Slice the audio into short windows and FFT each → a time-vs-frequency heatmap of energy.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Constellation of peaks.</b> Keep only local-maximum points (a frequency that is loudest in its neighborhood at that instant). Background noise rarely beats a song's dominant tones, so peaks are <b>robust to noise</b> — the constellation map looks nearly identical clean or noisy.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Combinatorial hashing.</b> A single peak (freq, time) is not distinctive enough. Pair an <b>anchor peak</b> with each peak in a small <em>target zone</em> ahead of it, and hash the triple <code>(freq1, freq2, Δtime)</code>. Each pair is far more unique, and pairing makes hashes survive when some peaks are missing.<a href="#c1" class="cite">[1]</a></li>
+  </ol>
+  <div class="box">
+    <b>Why it's noise-robust, in one line:</b> noise adds energy but rarely <em>removes</em> a song's loudest peaks; matching the <em>shape</em> of peak-pairs (not amplitudes) means a 10s clip from a noisy café still produces a subset of the exact same <code>(f1,f2,Δt)</code> hashes the studio track produced.<a href="#c1" class="cite">[1]</a> The recording is lossy; the fingerprint degrades gracefully.
+  </div>
+
+  <h2>Deep Dive 2 — The index &amp; matching by time-offset histogram</h2>
+  <p>The fingerprint index is a classic <b>inverted index</b>: the key is a hash, the value is a postings list of every place that hash occurs.<a href="#c1" class="cite">[1]</a></p>
+  <p><code>hash → [(songId, offsetInSong), …]</code></p>
+  <p>To identify a clip: for each of its ~100–300 hashes, look up the postings list and collect candidate <code>(songId, songOffset)</code> hits. The naive instinct — "the song with the most matching hashes wins" — is <b>wrong</b>, because popular hashes collide across many songs and noise injects spurious hits.</p>
+  <p>The real trick is <b>time alignment</b>. If the clip truly came from song X starting at second 47, then <em>every</em> true hash satisfies <code>songOffset − clipOffset ≈ 47</code> — a constant difference. So per candidate song, build a histogram of <code>(songOffset − clipOffset)</code>. A real match produces a sharp <b>spike</b> at one delta (all true hashes agree); coincidental matches scatter uniformly. The winner is the song whose histogram has the tallest spike, and that spike height is your <b>confidence score</b>.<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <b>Staff nuance:</b> this is why the match is robust even if 80% of clip hashes are garbage. You're not counting hits — you're detecting a <em>linear correspondence in time</em>. Random hits can't conspire to land on the same delta. This single idea is the heart of the answer.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Deep Dive 3 — Building &amp; ingesting the catalog</h2>
+  <p>Indexing 100M tracks is an embarrassingly-parallel batch job, fully offline and off the read path. The pipeline:</p>
+  <table>
+    <thead><tr><th>Stage</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td><b>Land</b></td><td>Upload raw audio to the <a href="0045-blob-store-s3.html">blob store</a>; enqueue an ingestion job.<a href="#c3" class="cite">[3]</a></td></tr>
+      <tr><td><b>Fingerprint</b></td><td>Worker pulls the file, runs the same spectrogram→peaks→hash code the client uses (one source of truth for the algorithm).</td></tr>
+      <tr><td><b>Index write</b></td><td>For each <code>(hash, offset)</code>, append <code>(songId, offset)</code> to that hash's postings list in the sharded index.</td></tr>
+      <tr><td><b>Metadata</b></td><td>Insert the <code>Song</code> row (title/artist/album) into the metadata DB.</td></tr>
+    </tbody>
+  </table>
+  <p>Because ingestion is async and idempotent (key by songId so re-runs overwrite), we can re-fingerprint the whole catalog when we tune the algorithm — a real operational need. Index writes are append-heavy and tolerate eventual visibility, which is exactly why this lives off the latency-critical path.</p>
+
+  <h2>Deep Dive 4 — Scaling: sharding &amp; approximate matching</h2>
+  <p>From capacity estimation, the index is ~5 TB — it must be <b>sharded by hash</b>. A query's hashes scatter across shards; the matcher fans out, each shard returns its postings, and the matcher merges before running the histogram. Hot hashes (common chords) get huge postings lists — cap/prune the most frequent hashes, which add cost but little discriminating power.</p>
+  <table>
+    <thead><tr><th>Concern</th><th>Move</th></tr></thead>
+    <tbody>
+      <tr><td>Index too big for one box</td><td>Shard by hash; replicate each shard for read throughput.</td></tr>
+      <tr><td>Hot/over-common hashes</td><td>Drop or down-weight high-frequency hashes (low signal, high cost).</td></tr>
+      <tr><td>Exact-hash misses</td><td>Pair-hashing tolerates dropped peaks; quantize Δtime/freq into buckets so near-identical pairs collide.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Humming / cover / fuzzy search</td><td>Beyond exact hashing — embed audio as vectors and do ANN. See <a href="0040-vector-databases.html">Lesson 40</a>.</td></tr>
+    </tbody>
+  </table>
+  <p>Be explicit about the boundary: Shazam-style recognition is an <b>exact-hash</b> problem and exact lookup is the right tool. <em>Humming</em> a tune or matching a live cover is <b>approximate similarity</b> — there you'd encode audio into embeddings and run approximate-nearest-neighbor against a <a href="0040-vector-databases.html">vector database</a>. Knowing which problem you're in — and not reaching for ML when a hash table suffices — is the judgement being tested.</p>
+
+  <h2>Deep Dive 5 — Why the client sends a fingerprint, not raw audio</h2>
+  <p>This API choice from §Core Entities deserves defending, because it's the cheap win staff candidates surface unprompted:</p>
+  <table>
+    <thead><tr><th>Dimension</th><th>Send raw audio</th><th>Send fingerprint (chosen)</th></tr></thead>
+    <tbody>
+      <tr><td>Bandwidth</td><td>~150–500 KB for 10s clip</td><td>~1–3 KB of hashes — <b>cellular-friendly</b></td></tr>
+      <tr><td>Server CPU</td><td>Server must FFT every request</td><td>FFT pushed to idle client silicon</td></tr>
+      <tr><td>Latency</td><td>Upload + server compute</td><td>Tiny upload, lookup only</td></tr>
+      <tr><td>Privacy</td><td>Ambient room audio leaves device</td><td>Only opaque hashes leave device</td></tr>
+    </tbody>
+  </table>
+  <p>The cost is a coupling: client and server must run the <em>same</em> fingerprint algorithm, so versioning the fingerprint format becomes a real concern (ship algorithm version in the request; keep server able to match older versions). That tradeoff is worth stating — it's the mark of someone who's shipped, not just designed.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior says "fingerprint the audio and look it up." Staff says four things in one breath: (1) <b>"the fingerprint is a constellation of spectrogram <em>peaks</em> hashed in <em>pairs</em> — that's what survives noise, because noise rarely kills the loudest tones";</b> (2) <b>"matching is decided by a <em>time-offset histogram spike</em>, not by raw hash counts, so 80% junk hashes still match cleanly";</b> (3) <b>"the index is a sharded inverted index — 100M songs ≈ 5 TB, so it cannot live on one box";</b> and (4) <b>"this is an <em>exact</em>-lookup problem; I'd only reach for embeddings + a vector DB if the requirement were <em>humming</em> or covers."</b> Picking a hash table over a neural net when a hash table is correct is the simple-by-default judgement L6/L7 rewards.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What makes the fingerprint robust to background noise?</p>
+      <button class="opt">It records the exact loudness level of each note over time</button>
+      <button class="opt">It encrypts the waveform so noise cannot corrupt any bytes</button>
+      <button class="opt">It keeps only loud spectrogram peaks, which noise rarely hides</button>
+      <p class="fb">Noise adds energy but rarely removes a song's dominant peaks, so the constellation of peaks looks nearly identical clean or noisy.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. How does the matcher pick the winning song from candidate hits?</p>
+      <button class="opt">It returns whichever song shares the largest count of hashes</button>
+      <button class="opt">It finds the song with a sharp time-offset histogram spike</button>
+      <button class="opt">It averages the audio loudness across every matching window</button>
+      <p class="fb">True hashes share a constant (songOffset − clipOffset); that linear time alignment forms a spike. Raw hash counts are misled by collisions.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why must the fingerprint index be sharded across machines?</p>
+      <button class="opt">At 100M songs the postings index is roughly 5 TB, too big for one</button>
+      <button class="opt">At 100M songs each lookup must touch every single server node</button>
+      <button class="opt">At 100M songs the metadata rows exceed a relational row limit</button>
+      <p class="fb">~4,500 hashes/song × 100M songs ≈ hundreds of billions of postings ≈ ~5 TB — far past one box's RAM, so shard by hash.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. When would you reach for a vector DB instead of exact hashing?</p>
+      <button class="opt">When the catalog of songs grows beyond ten million total tracks</button>
+      <button class="opt">When the recorded clip is shorter than five seconds of audio</button>
+      <button class="opt">When matching hummed tunes or live covers, not the exact track</button>
+      <p class="fb">Exact recognition is a hash-lookup problem. Fuzzy similarity — humming or covers — is approximate search, the job of embeddings + ANN.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — drill me. Try: <em>"Walk me through the time-offset histogram with a concrete example of 5 true hits and 3 noise hits."</em> · <em>"How would you redesign this for humming-to-search, and where does Lesson 40's vector DB plug in?"</em> · <em>"Size the fan-out: if the index has 200 shards and a clip has 250 hashes, what does one /identify cost?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="#c1">Avery Wang — "An Industrial-Strength Audio Search Algorithm" (ISMIR 2003)</a>. The original Shazam paper. Read §2–3 for the constellation map, combinatorial peak-pair hashing, and the time-offset scatter/histogram that decides the match — it's short and is the canonical answer to this question.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.ee.columbia.edu/~dpwe/papers/Wang03-shazam.pdf">Avery Li-Chun Wang, "An Industrial-Strength Audio Search Algorithm," ISMIR 2003</a> (spectrogram constellation of peaks; combinatorial pair hashing; noise robustness; inverted hash index; time-offset histogram matching; ~20–30 hashes/sec).</p>
+    <p id="c2">[2] <a href="../lessons/0040-vector-databases.html">Lesson 40 — Vector Databases</a> (embeddings + ANN for approximate/fuzzy audio similarity, e.g. humming and cover matching).</p>
+    <p id="c3">[3] <a href="../lessons/0045-blob-store-s3.html">Lesson 45 — Blob Store (S3)</a> (storing raw catalog audio cheaply, off the latency-critical recognition path).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0077-voting-system.html">← Lesson 77</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 79 · ML Platform</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

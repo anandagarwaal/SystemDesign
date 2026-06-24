@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 60 — Design Hotel Booking (Airbnb / Booking.com)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 60 · Phase 4 — Case Study · Medium</p>
+  <h1>Design Hotel Booking (Airbnb / Booking.com)</h1>
+  <p class="sub">A geo-and-date search problem fused to a reservation core that must never let two guests book the same room for the same night.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Hotel booking reads like a CRUD listing site until you notice that "is this room free for these dates?" is a <em>range-overlap consistency</em> question and that two guests can race for the last room on the same night. The L6/L7 signal is splitting the system into an availability-first <em>search/browse</em> path and a consistency-first <em>reservation</em> path, then picking the simplest correct concurrency mechanism for the latter. That same instinct powers <a href="../lessons/0015-ticketmaster.html">Ticketmaster</a> and <a href="../lessons/0023-online-auction.html">online auctions</a> — reuse it, don't reinvent it.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Lock scope to what a traveler actually does. Push reviews, messaging, host onboarding, and payouts out of scope and say so.</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th><th>Note</th></tr>
+    <tr><td>1</td><td>Search listings by location and date range</td><td>Read path — highest volume; geo + availability filter</td></tr>
+    <tr><td>2</td><td>View a listing and its availability calendar</td><td>Read path — must reflect held/booked nights</td></tr>
+    <tr><td>3</td><td>Book / reserve a listing for chosen dates</td><td>Write path — the hard part; no double-booking</td></tr>
+    <tr><td>4</td><td>Manage their bookings (view, cancel)</td><td>Read + light write; frees inventory on cancel</td></tr>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>One sentence carries the design: <em>prioritize consistency for reservations — no double-booking a room-night — but prioritize availability and low latency for search and browse.</em> Different NFRs for different paths is the framing move, exactly as in Ticketmaster.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>NFR</th><th>Target</th><th>Drives</th></tr>
+    <tr><td><b>Strong consistency on booking</b></td><td>A room-night is sold to exactly one guest — ever</td><td>The reservation/no-double-book mechanism (Deep Dive 2). The crux.</td></tr>
+    <tr><td>High availability for search</td><td>Search & listing pages stay up under load</td><td>Caching, read replicas, a dedicated search store</td></tr>
+    <tr><td>Low search latency</td><td>&lt; 500ms for geo + date queries</td><td>Geo index + availability filtering (Deep Dive 1)</td></tr>
+    <tr><td>Read-path freshness</td><td>Search may lag reality by seconds</td><td>Eventual consistency on the index is acceptable</td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Say out loud that you are running <b>two consistency regimes in one system</b>: AP (available, eventually consistent) for search and browse, CP (consistent, may reject) for reservations. A guest seeing a just-booked room in results for a few seconds is fine; two guests confirming the same room-night is never fine. Naming that asymmetry — and refusing to let reservation machinery slow the read path — is the highest-leverage sentence in this interview.
+  </div>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only estimate numbers that change a decision. Two facts matter; all figures here are my own back-of-envelope estimates.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Read : write ratio</td><td>~1000 : 1 — searches and listing views dwarf bookings</td><td>Optimize the read path independently; cache and index aggressively. The write path can be slower but must be correct.</td></tr>
+    <tr><td>Listings &amp; availability rows</td><td>~10M listings × ~365 nights ≈ a few billion room-night rows</td><td>Availability is the big table, but it is keyed lookups, not the bottleneck. The challenge is concurrent contention on a few hot room-nights, not raw storage.</td></tr>
+  </table>
+  <p>The contended set is tiny: at any instant only a handful of guests race for the same listing's same dates. As with Ticketmaster, the problem is never storage — it is <em>concurrent contention on a small, hot set of rows</em>.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Entities: <b>Listing</b> (host id, geo lat/lng, type, amenities, nightly base price), <b>Availability</b> (listing id, date, status: <code>available | held | booked</code>, price for that night), and <b>Reservation</b> (guest id, listing id, check-in, check-out, total, status: <code>pending | confirmed | cancelled</code>).<a href="#c1" class="cite">[1]</a> The <code>status</code> on Availability is where the consistency story lives.</p>
+  <p>User identity comes from the auth token, never the request body.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>GET /v1/listings/search?lat=&amp;lng=&amp;radius=&amp;checkIn=&amp;checkOut=&amp;page=</code></td><td>Search by geo + date range — served by the search store.</td></tr>
+    <tr><td><code>GET /v1/listings/{id}?checkIn=&amp;checkOut=</code></td><td>Listing detail + availability calendar + price.</td></tr>
+    <tr><td><code>POST /v1/reservations</code></td><td><b>Reserve</b>: body <code>{listingId, checkIn, checkOut}</code> → places a hold, returns <code>reservationId</code>.</td></tr>
+    <tr><td><code>POST /v1/reservations/{id}/confirm</code></td><td><b>Confirm</b>: finalizes after payment succeeds; idempotent.</td></tr>
+    <tr><td><code>GET /v1/reservations</code></td><td>List the caller's bookings (manage view).</td></tr>
+    <tr><td><code>DELETE /v1/reservations/{id}</code></td><td>Cancel; releases the held/booked room-nights.</td></tr>
+  </table>
+  <p>Splitting reserve from confirm is intentional: the guest gets a window to enter payment while the room-nights are held. That window is the entire reason the double-booking problem exists — identical to the reserve→pay→confirm split in <a href="../lessons/0015-ticketmaster.html">Ticketmaster</a>.</p>
+
+  <h2>High-Level Design</h2>
+  <p>An API Gateway (auth, routing, rate-limit) fans out to stateless services. Search and reservation share no critical-path infrastructure.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Data store</th></tr>
+    <tr><td>Search Service</td><td>Serves <code>/listings/search</code> (geo + date filter)</td><td>Elasticsearch / geo index, synced from listings DB via CDC</td></tr>
+    <tr><td>Listing Service</td><td>Serves <code>/listings/{id}</code> + availability calendar</td><td>Postgres (read replicas) + Redis cache</td></tr>
+    <tr><td>Reservation Service</td><td>Reserve / confirm / cancel; the only writer of availability status</td><td>Postgres (primary) + Redis (holds)</td></tr>
+    <tr><td>Payment</td><td>Charges card; signals success</td><td>External (e.g. Stripe) via webhook</td></tr>
+  </table>
+  <p><b>Flow.</b> <code>search</code> → Search Service → geo/date index. <code>GET listing</code> → Listing Service → cache/replica. <code>POST reservation</code> → Reservation Service holds the requested room-nights and writes a <code>Reservation(pending)</code>, returns <code>reservationId</code>; client goes to payment; on charge success the Payment webhook triggers <code>confirm</code>, which atomically flips the Availability rows → <code>booked</code> and the Reservation → <code>confirmed</code>. The listings DB is shared, but only the Reservation Service writes availability status — read services touch replicas and caches.</p>
+
+  <h2>Deep Dive 1 — Availability search by date range + geo</h2>
+  <p>A search is two filters ANDed together: "listings near (lat,lng) within radius" and "every night in [checkIn, checkOut) is available." Each needs a different index.</p>
+  <h3>The geo filter</h3>
+  <table>
+    <tr><th>Option</th><th>Verdict</th></tr>
+    <tr><td>Lat/lng B-tree range</td><td>Weak — a bounding-box on two independent columns can't prune well; degrades to scans.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Geohash prefix index</td><td>Good — encode location to a string; a prefix match is a cheap range, easy to shard.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td><b>Quadtree / geo index</b> (recommended)</td><td>Best — Elasticsearch <code>geo_point</code> or PostGIS answers "within radius" directly and ranks by distance.<a href="#c2" class="cite">[2]</a></td></tr>
+  </table>
+  <p>This is the same geo machinery as <a href="../lessons/0020-yelp.html">Yelp</a> — reuse it. The new wrinkle is the date filter layered on top.</p>
+  <h3>The date-range filter</h3>
+  <p>Modeling availability per <em>night</em> (one row per listing per date) turns "free for [checkIn, checkOut)?" into "are all those date rows <code>available</code>?" — a clean keyed lookup, and the model that makes the reservation transaction simple.<a href="#c1" class="cite">[1]</a> The alternative — storing reservations as intervals and testing <code>NOT (existing.end &lt;= new.start OR existing.start &gt;= new.end)</code> — is compact but turns every check into a range-overlap scan that is awkward to index and to lock.</p>
+  <div class="box">
+    <b>Why search availability is only "best effort".</b> You cannot cheaply keep the full availability of every listing in the search index fresh to the millisecond — bookings change it constantly.
+    <ul>
+      <li><b>Index a coarse signal</b> (e.g. has-any-availability, or a bucketed calendar) so search prunes most non-matches fast.</li>
+      <li><b>Re-check exact availability</b> on the listing-detail read and again, authoritatively, inside the reservation transaction.</li>
+      <li>Accept that a result may occasionally be stale-booked — the reservation path is the source of truth, so the worst case is a "just got taken" message, never a double-book.</li>
+    </ul>
+  </div>
+
+  <h2>Deep Dive 2 — The reservation / no-double-booking problem</h2>
+  <p>The hazard: two guests both see the last room free for the same nights, both reach payment, and both confirm.<a href="#c1" class="cite">[1]</a> You need a <em>hold</em> on the room-nights during the reserve→pay window that <em>auto-releases</em> if payment never lands. This is the same four-tier ladder as <a href="../lessons/0015-ticketmaster.html">Ticketmaster</a> and the bid-contention problem in <a href="../lessons/0023-online-auction.html">online auctions</a>; know it cold.</p>
+  <table>
+    <tr><th>Mechanism</th><th>How</th><th>Why it fails / wins</th></tr>
+    <tr><td>DB row lock (<code>SELECT … FOR UPDATE</code>)</td><td>Lock the date rows for the whole checkout</td><td><b>Bad.</b> A minutes-long open transaction strains the DB and invites lock contention and deadlocks. A lock is not a business-duration tool.</td></tr>
+    <tr><td>Status column + cron sweeper</td><td>Set rows → <code>held</code> with a timestamp; a job resets expired holds to <code>available</code></td><td><b>OK.</b> No long locks, but a held room stays stuck until the next sweep; correctness depends on the job running.</td></tr>
+    <tr><td>Status + expiry, checked inline (OCC)</td><td>One short transaction: claim the nights iff each is <code>available</code> OR (<code>held</code> AND expired), set <code>held</code> + now+10min</td><td><b>Great.</b> An expired hold is implicitly free the instant the next guest's transaction reads it; the sweep becomes optional cleanup.</td></tr>
+    <tr><td>Redis lock + TTL</td><td><code>SET listing:{id}:{date} {guestId} NX EX 600</code> per night (one Lua script, all-or-nothing); release on confirm</td><td><b>Great, and the staff pick.</b> Keeps the hot, short-lived hold out of the durable DB; the TTL <em>is</em> the expiry.</td></tr>
+  </table>
+  <div class="box">
+    <b>The staff pick — and why.</b> Redis lock with TTL on each room-night, acquired atomically via a Lua script so a multi-night stay is all-or-nothing.
+    <ul>
+      <li><b>The hold is ephemeral, so store it ephemerally.</b> A 10-minute hold is not durable business data — Redis keeps the churn off the primary DB.</li>
+      <li><b>The TTL is the expiry for free</b> — no sweeper, no cron, no stuck nights.</li>
+      <li><b>Belt and suspenders:</b> the final <code>confirm</code> still runs an OCC check inside the DB transaction, so even a total Redis outage degrades UX (more "just got taken") but <em>cannot</em> double-book. Redis is an optimization on top of a DB that is itself correct.</li>
+    </ul>
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Don't invent this from scratch — say "this is the same hold-with-TTL pattern as Ticketmaster and auctions, applied per room-night." Recognizing that double-booking, seat contention, and bid contention are <b>one problem in three costumes</b>, and reaching straight for the simplest correct member of the ladder, is the senior-to-staff jump. Then state the one local twist: the unit of contention is a <em>set</em> of nights, so the hold must be atomic across the range.
+  </div>
+
+  <h2>Deep Dive 3 — Pricing &amp; calendar data model</h2>
+  <p>Nightly price is not a single field on the listing — it varies by date (weekends, seasons, demand) and so does availability. Model both on the same per-night row.</p>
+  <table>
+    <tr><th>Approach</th><th>Verdict</th></tr>
+    <tr><td>Single <code>price</code> on the listing</td><td>Too coarse — can't express weekend or seasonal rates; wrong totals.</td></tr>
+    <tr><td>Price-rule engine evaluated at read time</td><td>Flexible but pushes per-night CPU into every search; cache the rendered calendar.</td></tr>
+    <tr><td><b>Per-night Availability row</b> <code>{listingId, date, status, price}</code> (recommended)</td><td>One row per listing per date: availability and price co-located, so booking and quoting read the same source. Materialize from rules nightly.</td></tr>
+  </table>
+  <p>With this model, a price quote for a stay is just <code>SUM(price)</code> over the date rows in <code>[checkIn, checkOut)</code> — and the reservation transaction reads and flips those exact rows, so the price the guest saw and the inventory they hold come from one place. <b>Pin the quoted total onto the <code>Reservation</code></b> at reserve time so a price change mid-checkout can't surprise the guest. Cancellations simply flip the rows back to <code>available</code> (see the manage-bookings flow).</p>
+
+  <h2>Deep Dive 4 — Search ranking &amp; caching</h2>
+  <p>Search is the AP path; scale it the boring, reliable way and keep it entirely off the reservation primary.</p>
+  <ul>
+    <li><b>Dedicated search store.</b> Elasticsearch (or PostGIS) holds listing + geo + coarse availability, synced from Postgres via <b>CDC</b> so the index stays current; accept eventual consistency.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Ranking.</b> Blend geo distance, price, rating, and booking-likelihood into a score; the date filter is a hard gate, ranking decides order. Keep the first pass cheap and re-rank the top-N.</li>
+    <li><b>Cache popular queries.</b> Location + date combinations cluster hard (cities, weekends, holidays). Cache result pages in Redis/CDN keyed by <code>{geohash, checkIn, checkOut, page}</code> with short TTLs; non-personalized pages can sit at the edge.</li>
+    <li><b>Stateless Search Service</b> behind a load balancer — scale horizontally.</li>
+  </ul>
+  <p>The point of this dive is restraint: the read path needs no exotic machinery. All the cleverness belongs in the reservation core — spending equal time on both signals poor prioritization.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why model availability as one row per listing per night?</p>
+      <button class="opt">It lets the search index stay perfectly fresh to the millisecond</button>
+      <button class="opt">It removes the need for any hold during the reserve-pay window</button>
+      <button class="opt">It turns a date-range check into a clean keyed-row lookup and lock</button>
+      <button class="opt">It guarantees the nightly price is the same across all the dates</button>
+      <p class="fb">Per-night rows make "free for these dates?" a lookup over those rows, and make the reservation transaction simple to lock and flip.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. What is the staff pick for preventing a double-booking?</p>
+      <button class="opt">A long FOR UPDATE row lock held open across the whole checkout</button>
+      <button class="opt">A Redis hold with a TTL per night, plus an OCC check at confirm</button>
+      <button class="opt">A nightly cron sweeper that resets every expired held row alone</button>
+      <button class="opt">A search-index flag that hides any room already shown as booked</button>
+      <p class="fb">Ephemeral hold in Redis (TTL = expiry), backstopped by an OCC check in the confirm transaction so even a Redis outage can't double-book.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why is search availability treated as only best-effort?</p>
+      <button class="opt">Bookings change it constantly; the reservation path is the real truth</button>
+      <button class="opt">The geo index cannot represent calendar dates in any usable form</button>
+      <button class="opt">Guests rarely filter their listing searches by check-in or check-out</button>
+      <button class="opt">Strong consistency on reads is cheaper than caching the result pages</button>
+      <p class="fb">Keeping every listing's calendar fresh in the index is too costly; search prunes, the reservation transaction is authoritative, so worst case is a "just taken" message.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Why pin the quoted total onto the reservation at reserve time?</p>
+      <button class="opt">So the search ranking can sort listings by their cheapest total first</button>
+      <button class="opt">So the cron sweeper knows which held rows it is allowed to release</button>
+      <button class="opt">So a per-night price change mid-checkout cannot surprise the guest</button>
+      <button class="opt">So the geo index and the listings database never drift out of sync</button>
+      <p class="fb">Availability and price share the per-night row; freezing the total onto the Reservation makes the charge match what the guest saw.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — push on the parts that feel shaky. Try:
+    <ul>
+      <li>"Write the exact reserve transaction that holds a 3-night stay atomically with the OCC check."</li>
+      <li>"How does this compare to <a href="../lessons/0023-online-auction.html">online auction</a> bid contention and <a href="../lessons/0015-ticketmaster.html">Ticketmaster</a> seat holds?"</li>
+      <li>"How would you keep the search index's coarse availability in sync without overloading CDC?"</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/airbnb">Hello Interview — Airbnb / hotel booking system design breakdown</a>. Read the availability data model and the reservation-concurrency section closely; that is where the staff-level judgement is modeled.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/airbnb">Hello Interview — Airbnb / hotel booking breakdown</a> (FRs/NFRs, per-night availability model, reserve→pay→confirm split, double-booking concurrency tiers). Source could not be fetched at authoring time; claims are grounded in standard reservation-system fundamentals and the parallel Ticketmaster breakdown.</p>
+    <p id="c2">[2] Geo-search fundamentals — geohash / quadtree / <code>geo_point</code> indexing and CDC-synced search stores, as covered in <a href="../lessons/0020-yelp.html">Lesson 20 · Yelp</a> and the course glossary.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0059-food-delivery.html">← Lesson 59</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 61 · Flight Search</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

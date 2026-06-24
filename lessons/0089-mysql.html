@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 89 — Deep Dive: MySQL (InnoDB)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 89 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: MySQL (InnoDB)</h1>
+  <p class="sub">The world's most-deployed relational engine — and why its clustered-index design quietly shapes every schema and query decision you make.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> At L6/L7, "I'll use MySQL" is a sentence, not a design. The signal comes from the <em>next</em> sentence: that the table physically <em>is</em> its primary-key B+tree, so a random UUID PK fragments your inserts, and every secondary-index lookup pays a double cost. This lesson gives you the InnoDB internals — clustered index, buffer pool, redo/undo, MVCC, gap locks — so you can reason about throughput, replication lag, and lock contention out loud instead of hand-waving.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>What it is &amp; data model</h2>
+  <p>MySQL is a relational database: data lives in tables of typed rows, queried with SQL, with ACID transactions and joins.<a href="#c1" class="cite">[1]</a> "MySQL" is really the server plus a pluggable <em>storage engine</em>; since MySQL 5.5 the default — and the only one you should assume in an interview — is <b>InnoDB</b>, a transactional, row-locking, crash-safe engine.<a href="#c2" class="cite">[2]</a> The old <code>MyISAM</code> engine (table-level locks, no transactions, no crash recovery) is legacy; naming InnoDB specifically is the first small signal that you know the engine matters.</p>
+  <p>The data model is the standard relational one: normalized tables, foreign keys, B-tree indexes, and a SQL optimizer that plans joins for you. What makes InnoDB worth a deep dive is <em>how</em> it lays those rows on disk.</p>
+
+  <h2>Internals (InnoDB)</h2>
+
+  <h3>The clustered index — the table <em>is</em> the PK B+tree</h3>
+  <p>This is the single most important InnoDB fact. InnoDB stores every table as a <b>clustered index</b>: the rows are kept inside the leaf nodes of a B+tree ordered by the primary key.<a href="#c3" class="cite">[3]</a> There is no separate "heap" of rows plus an index pointing at it — the primary-key index <em>is</em> the table. If you don't declare a PK, InnoDB uses the first <code>UNIQUE NOT NULL</code> key, or else synthesizes a hidden 6-byte row ID.<a href="#c3" class="cite">[3]</a></p>
+  <p>Two consequences fall out of this directly:</p>
+  <ul>
+    <li><b>PK lookups and range scans are fast.</b> Finding a row by PK walks the tree straight to the leaf — the row data is right there, no second hop. Range scans on the PK read sequential leaf pages.</li>
+    <li><b>Insert order matters enormously.</b> A monotonically increasing PK (<code>AUTO_INCREMENT</code>, or a time-ordered ID) appends to the rightmost leaf — cheap, dense pages. A random PK (a v4 UUID) inserts into random points in the tree, causing page splits, fragmentation, and a cold buffer pool. This is <em>the</em> reason "don't use random UUIDs as your InnoDB primary key" is interview canon.</li>
+  </ul>
+
+  <h3>Secondary indexes pay a double cost</h3>
+  <p>A secondary (non-PK) index in InnoDB does <em>not</em> store a pointer to a physical row location. Its leaf nodes store the indexed columns plus the <b>primary key value</b>.<a href="#c3" class="cite">[3]</a> So a lookup by a secondary index is two B+tree searches: walk the secondary index to find the PK, then walk the clustered index to fetch the row. This is the "double lookup" (a.k.a. bookmark lookup).</p>
+  <p>Staff-level implication: a <b>fat primary key</b> bloats every secondary index, because each one copies the full PK into its leaves. And a <b>covering index</b> — one that includes every column the query needs — lets InnoDB answer entirely from the secondary tree and skip the second hop entirely. That is the lever you reach for when a hot query is index-bound.</p>
+
+  <h3>The buffer pool</h3>
+  <p>InnoDB caches table and index pages in memory in the <b>buffer pool</b>, managed with a variant of LRU.<a href="#c4" class="cite">[4]</a> Reads and writes happen against pages in the pool; dirty (modified) pages are flushed to disk in the background. On a well-tuned server the buffer pool is sized to hold the working set — often 50–75% of RAM — so most reads never touch disk. When someone asks "why is this query slow after a restart," the answer is usually a cold buffer pool.</p>
+
+  <h3>Redo log + undo log: durability and rollback</h3>
+  <p>InnoDB does not flush data pages to disk on every commit — that would be random I/O on every write. Instead it uses <b>write-ahead logging</b>: the change is written to the <b>redo log</b> (a sequential, append-only log) and the commit returns once that durable write lands.<a href="#c4" class="cite">[4]</a> Data pages are flushed lazily afterward. On crash recovery, InnoDB replays the redo log to bring data files forward to the last committed state. This is what makes commits fast <em>and</em> crash-safe at the same time — sequential log writes instead of random page writes.</p>
+  <p>The <b>undo log</b> is the complement: it records the <em>previous</em> versions of rows so a transaction can be rolled back, and — crucially — so other transactions can read the old version. That second job is the basis of MVCC.<a href="#c5" class="cite">[5]</a></p>
+
+  <h3>MVCC — readers don't block writers</h3>
+  <p>InnoDB implements <b>Multi-Version Concurrency Control</b>: each row carries hidden transaction-id and roll-pointer fields, and old versions are reconstructed from the undo log.<a href="#c5" class="cite">[5]</a> A plain <code>SELECT</code> reads a <em>consistent snapshot</em> as of when the transaction (or statement) started — it sees a stable view and does not take row locks, so readers don't block writers and writers don't block readers.<a href="#c5" class="cite">[5]</a> Only locking reads (<code>SELECT ... FOR UPDATE</code>) and writes acquire row locks.</p>
+
+  <h3>Isolation: REPEATABLE READ + gap locks</h3>
+  <p>InnoDB's default isolation level is <b>REPEATABLE READ</b> (note: the SQL standard default and PostgreSQL's default is <code>READ COMMITTED</code>).<a href="#c5" class="cite">[5]</a> Under REPEATABLE READ, all plain reads in a transaction return the same snapshot. To stop phantom rows, InnoDB locking reads use <b>next-key locks</b> — a row lock plus a <b>gap lock</b> on the range before it — so another transaction can't insert into the gap your range query is reading.<a href="#c6" class="cite">[6]</a> Gap locks are a frequent, non-obvious source of deadlocks and contention on range writes; calling them out by name is a strong signal.</p>
+
+  <table>
+    <thead><tr><th>Component</th><th>Job</th><th>Interview implication</th></tr></thead>
+    <tbody>
+      <tr><td><b>Clustered index</b></td><td>Rows stored in PK B+tree</td><td>PK choice drives insert cost &amp; locality</td></tr>
+      <tr><td><b>Secondary index</b></td><td>Maps key → PK value</td><td>Double lookup; covering index avoids it</td></tr>
+      <tr><td><b>Buffer pool</b></td><td>In-memory page cache</td><td>Working set in RAM = no disk reads</td></tr>
+      <tr><td><b>Redo log</b></td><td>Write-ahead durability</td><td>Fast sequential commits, crash recovery</td></tr>
+      <tr><td><b>Undo log</b></td><td>Old row versions</td><td>Rollback + MVCC snapshots</td></tr>
+      <tr><td><b>Next-key locks</b></td><td>Row + gap locking</td><td>Phantom prevention; deadlock source</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Scaling &amp; replication</h2>
+  <p>MySQL replication is built on the <b>binary log (binlog)</b> — an ordered record of every data-changing statement or row event, written on the primary.<a href="#c7" class="cite">[7]</a> Replicas connect, stream the primary's binlog events, and replay them locally. This single mechanism underpins read scaling, failover, and backups.</p>
+
+  <h3>Async vs semi-synchronous</h3>
+  <ul>
+    <li><b>Asynchronous (default):</b> the primary commits and returns without waiting for any replica. Lowest write latency, but a replica can lag, and a primary crash can lose the most recent commits that never reached a replica.<a href="#c7" class="cite">[7]</a></li>
+    <li><b>Semi-synchronous:</b> the primary waits until at least one replica acknowledges <em>receiving</em> (not applying) the event before the commit returns.<a href="#c8" class="cite">[8]</a> Stronger durability on failover, at the cost of one network round-trip of write latency.</li>
+  </ul>
+
+  <h3>Read replicas and the lag trap</h3>
+  <p>The standard scaling move is <b>one primary for writes, N read replicas</b> for reads.<a href="#c7" class="cite">[7]</a> This scales reads horizontally and gives you a failover candidate. The trap is <b>replication lag</b>: because replication is asynchronous, a user who writes then immediately reads from a replica may not see their own write. The fixes are "read-your-writes" routing (send a user's reads to the primary for a short window) or reading from the primary for consistency-critical paths.</p>
+
+  <h3>Sharding — when one primary isn't enough for writes</h3>
+  <p>Replicas scale reads, not writes; a single primary still absorbs all writes. When write volume or dataset size outgrows one node, you <b>shard</b>: partition rows across independent MySQL clusters by a shard key (e.g. <code>user_id</code>).</p>
+  <div class="box">
+    <b>Sharding patterns &amp; their costs</b>
+    <ul>
+      <li><b>Range sharding</b> — partition by key ranges. Simple, supports range scans, but prone to hotspots (e.g. newest IDs all on one shard).</li>
+      <li><b>Hash sharding</b> — hash the key to a shard. Even distribution, but range queries fan out to all shards.</li>
+      <li><b>Directory / lookup</b> — a lookup service maps key → shard. Flexible rebalancing, but the directory is a new dependency to keep available.</li>
+      <li><b>The real cost:</b> cross-shard joins and cross-shard transactions are hard or impossible — you lose the easy ACID and joins that made you pick MySQL. Shard late, and pick the shard key to keep hot queries single-shard.</li>
+    </ul>
+  </div>
+
+  <h2>MySQL vs PostgreSQL — when to pick which</h2>
+  <p>Both are mature, ACID, relational, and the "safe default" for a transactional core. For most interviews either is a defensible pick — what matters is that you can justify the choice. (We covered Postgres internals in <a href="0088-postgresql.html">Lesson 88</a>.)</p>
+  <table>
+    <thead><tr><th>Dimension</th><th>MySQL (InnoDB)</th><th>PostgreSQL</th></tr></thead>
+    <tbody>
+      <tr><td><b>Row storage</b></td><td>Clustered by PK (table is the index)</td><td>Heap + separate indexes; PK is just an index</td></tr>
+      <tr><td><b>Default isolation</b></td><td>REPEATABLE READ + gap locks</td><td>READ COMMITTED</td></tr>
+      <tr><td><b>MVCC cleanup</b></td><td>Old versions in undo log (purged)</td><td>Old versions in heap; needs <code>VACUUM</code></td></tr>
+      <tr><td><b>Write amplification</b></td><td>Update-in-place style</td><td>Update writes a new tuple (HOT mitigates)</td></tr>
+      <tr><td><b>Feature richness</b></td><td>Lean, fast, huge install base</td><td>Richer types, extensions, indexes (GIN/GiST)</td></tr>
+      <tr><td><b>Reach for it when</b></td><td>Read-heavy, simple OLTP, huge ecosystem, you'll shard</td><td>Complex queries, JSON/geo, extensions, strict standards</td></tr>
+    </tbody>
+  </table>
+  <p>One-liner for the whiteboard: <em>pick MySQL when you want a lean, battle-tested OLTP engine with a massive operational ecosystem and a clear sharding path; pick Postgres when you want richer query features, advanced index types, and stricter SQL semantics.</em> Don't litigate the religious war — state the requirement that decides it.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior says "MySQL, with read replicas." Staff connects the internals to the requirement: <em>"InnoDB clusters by primary key, so I'll use an auto-increment or time-ordered ID — not a random UUID — to keep inserts sequential and the buffer pool warm. Reads scale on async replicas, but checkout reads its own write, so I route that path to the primary to dodge replication lag. When write volume outgrows one primary, I shard by <code>user_id</code> and accept losing cross-shard joins — which is why I'd model to keep the hot path single-shard."</em> The move is refusing to treat the database as a black box: you reason about page layout, lock granularity, and lag the same way you'd reason about a cache hit rate.<a href="#c3" class="cite">[3]</a>
+  </div>
+
+  <h2>In the interview</h2>
+  <ul>
+    <li><b>Name the engine and the PK strategy together.</b> "MySQL/InnoDB, auto-increment PK" preempts the clustered-index follow-up.</li>
+    <li><b>Reach for a covering index</b> when a read-hot query is the bottleneck — it kills the secondary-index double lookup.</li>
+    <li><b>Scale reads with replicas first; call out lag</b> and how you route consistency-critical reads to the primary.</li>
+    <li><b>Treat sharding as a last resort</b> for writes, and name what you lose (cross-shard joins/transactions) when you propose it.</li>
+    <li><b>Mention semi-sync</b> when the prompt cares about not losing committed data on failover.</li>
+  </ul>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why does a random UUID make a poor InnoDB primary key?</p>
+      <button class="opt">UUID columns cannot be indexed by the storage engine</button>
+      <button class="opt">UUID values break the redo log crash-recovery process</button>
+      <button class="opt">Random inserts split pages in the clustered-index tree</button>
+      <button class="opt">UUID keys force every read to scan the whole table row</button>
+      <p class="fb">The table IS the PK B+tree, so random keys insert at random leaves, causing page splits and fragmentation.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. A lookup via a secondary index in InnoDB normally does what?</p>
+      <button class="opt">One search, because rows live beside the index leaf</button>
+      <button class="opt">Two searches: index gives PK, then clustered fetch</button>
+      <button class="opt">Zero searches, since the buffer pool caches all rows</button>
+      <button class="opt">Three searches across redo, undo, and binlog files</button>
+      <p class="fb">Secondary leaves store the PK value, so InnoDB then walks the clustered index — a covering index avoids the second hop.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What does the redo log let InnoDB do on every commit?</p>
+      <button class="opt">Return after a fast sequential write, flush pages later</button>
+      <button class="opt">Flush all dirty data pages to disk before it returns</button>
+      <button class="opt">Send the change to every read replica synchronously</button>
+      <button class="opt">Rebuild the buffer pool from the table data on disk</button>
+      <p class="fb">Write-ahead logging means commits write the sequential redo log; random data-page flushes happen lazily in the background.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. A user writes, then reads from an async replica and misses it. Why?</p>
+      <button class="opt">The replica rejected the write due to a gap-lock clash</button>
+      <button class="opt">The redo log on the replica had not yet been created</button>
+      <button class="opt">The buffer pool on the replica node was still too cold</button>
+      <button class="opt">The replica lags the primary that has not shipped binlog</button>
+      <p class="fb">Async replication means the replica trails the primary; route read-your-writes paths to the primary to avoid the lag.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Quiz me on what happens to inserts, secondary indexes, and the buffer pool if I switch my PK from auto-increment to a v4 UUID." · "Walk me through a deadlock caused by gap locks under REPEATABLE READ, step by step." · "Given a write-heavy feed, when do I move from replicas to sharding, and what do I lose?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-storage-engine.html">MySQL Reference Manual — The InnoDB Storage Engine</a>. The canonical source for everything here; read the "InnoDB Architecture," "Clustered and Secondary Indexes," and "InnoDB Locking and Transaction Model" chapters once, then use this lesson for recall.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/key-technologies">Hello Interview — Key Technologies for System Design Interviews</a> (relational DB as the transactional default; breadth-then-depth guidance). See also <a href="0009-key-technologies-tour.html">Lesson 09</a>.</p>
+    <p id="c2">[2] <a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-introduction.html">MySQL Manual — Introduction to InnoDB</a> (InnoDB as the default transactional, crash-safe, row-locking engine since 5.5).</p>
+    <p id="c3">[3] <a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-index-types.html">MySQL Manual — Clustered and Secondary Indexes</a> (table stored as the clustered PK B+tree; secondary indexes store the PK value).</p>
+    <p id="c4">[4] <a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-architecture.html">MySQL Manual — InnoDB Architecture</a> (buffer pool, redo log / write-ahead logging, background flushing).</p>
+    <p id="c5">[5] <a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-multi-versioning.html">MySQL Manual — InnoDB Multi-Versioning (MVCC)</a> (undo log, consistent snapshot reads, default REPEATABLE READ).</p>
+    <p id="c6">[6] <a href="https://dev.mysql.com/doc/refman/8.0/en/innodb-locking.html">MySQL Manual — InnoDB Locking</a> (record, gap, and next-key locks; phantom prevention).</p>
+    <p id="c7">[7] <a href="https://dev.mysql.com/doc/refman/8.0/en/replication.html">MySQL Manual — Replication</a> (binlog-based replication, asynchronous default, read replicas). See also <a href="0006-replication-and-cap.html">Lesson 06</a>.</p>
+    <p id="c8">[8] <a href="https://dev.mysql.com/doc/refman/8.0/en/replication-semisync.html">MySQL Manual — Semisynchronous Replication</a> (primary waits for a replica to acknowledge receipt before commit returns).</p>
+    <p>Glossary terms (FR, NFR, MVCC, replication lag): <a href="../reference/glossary.html">course glossary</a>.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0088-postgresql.html">← Lesson 88</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 90 · Cassandra</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 103 — Deep Dive: MapReduce, Hadoop &amp; HBase</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 103 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: MapReduce, Hadoop &amp; HBase</h1>
+  <p class="sub">The idea that started big data — move the compute to the data — and why disk round-trips later handed the crown to Spark.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> MapReduce is the ancestor every modern batch engine descends from.
+    A senior candidate can recite "map then reduce." The staff answer explains <em>why</em> the model exists — moving
+    computation to data so a thousand commodity machines can chew through petabytes — names the phase that dominates the
+    cost (<em>shuffle &amp; sort</em>), and explains exactly why MapReduce's per-step disk round-trips made Spark
+    inevitable. You learn this not to deploy it, but so that when you say "Spark" or "a batch DAG" you can defend the
+    lineage and know what problem it actually solved.
+  </div>
+
+  <h2>The big idea — move compute to the data</h2>
+  <p>Before 2004, processing a petabyte meant pulling data <em>to</em> a few big, expensive machines — and the network
+    became the wall. Google's <b>MapReduce</b> inverted it: store the data spread across thousands of cheap machines, then
+    <b>ship the small program to wherever each chunk already lives</b> and run it locally.<a href="#c1" class="cite">[1]</a>
+    Compute is light; data is heavy; so you move the light thing. This single inversion is the foundation of all of big data.</p>
+  <p>The programmer writes just two pure functions and the framework handles the terrifying parts — distribution,
+    parallelism, machine failure, and data movement:<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Function</th><th>Signature (conceptually)</th><th>Job</th></tr>
+    <tr><td><b>map</b></td><td><code>(k1, v1) → list(k2, v2)</code></td><td>Process one input record, emit zero+ intermediate key/value pairs.</td></tr>
+    <tr><td><b>reduce</b></td><td><code>(k2, list(v2)) → list(v3)</code></td><td>Receive all values for one key, aggregate them into the result.</td></tr>
+  </table>
+  <p>Between them sits the part the framework owns and the programmer never writes: <b>shuffle &amp; sort</b> — grouping
+    every value by its key and routing it to the right reducer.<a href="#c1" class="cite">[1]</a> The whole model is just
+    <b>map → shuffle/sort → reduce</b>. That rigidity is its strength (trivially parallel, trivially recoverable) and,
+    later, its fatal weakness.</p>
+
+  <h2>Internals — the meat</h2>
+
+  <h3>1 · The map phase</h3>
+  <p>Input lives on <b>HDFS</b> (Hadoop's distributed file system) split into large blocks — typically 128&nbsp;MB.
+    MapReduce assigns one <b>map task per input split</b>, and the scheduler tries to place that task on the very machine
+    holding the block — <b>data locality</b>, the practical payoff of "move compute to data."<a href="#c1" class="cite">[1]</a>
+    Each map task runs your <code>map()</code> over its records and emits intermediate <code>(k2, v2)</code> pairs to a
+    local in-memory buffer that spills to <b>local disk</b> (not HDFS) as it fills.</p>
+
+  <h3>2 · Partitioning — deciding who reduces what</h3>
+  <p>Every intermediate key must reach exactly one reducer, and all values for a key must reach the <em>same</em> one. A
+    <b>partitioner</b> decides which: by default <code>hash(key) mod R</code>, where <code>R</code> is the reducer
+    count.<a href="#c1" class="cite">[1]</a> Each map task therefore writes its output already split into <code>R</code>
+    partitions on local disk. Choose the partition function badly — or have one hot key — and one reducer gets a mountain
+    while the rest idle: classic <b>data skew</b>, the same enemy you fight in Spark.</p>
+
+  <h3>3 · Shuffle &amp; sort — the expensive part</h3>
+  <p>This is the heart of the cost. Once maps finish (or begin finishing), each reducer must <b>pull its partition from
+    every map task across the network</b> — an all-to-all transfer.<a href="#c1" class="cite">[1]</a> As the data lands,
+    the framework <b>merge-sorts it by key</b> so that each reducer sees keys in order with all values for a key grouped
+    together. Shuffle &amp; sort is what makes <code>reduce</code> possible, and it is the single most expensive thing
+    MapReduce does: it touches local disk on the map side, crosses the network, and merges on the reduce side. If you
+    remember one cost model: <em>the shuffle is the bill.</em></p>
+
+  <h3>4 · The reduce phase</h3>
+  <p>Each reduce task receives its keys in sorted order and calls your <code>reduce(k2, list(v2))</code> once per key,
+    with an iterator over all that key's values. The output is written <b>to HDFS</b> (replicated for durability), one
+    output file per reducer.<a href="#c1" class="cite">[1]</a> A job with <code>R</code> reducers produces <code>R</code>
+    output files — often the input to the next MapReduce job in a chain.</p>
+
+  <h3>5 · Combiners — shrinking the shuffle early</h3>
+  <p>The key optimization. A <b>combiner</b> is a "mini-reduce" that runs on the <em>map</em> side before the shuffle,
+    pre-aggregating a map task's output so less data crosses the network.<a href="#c1" class="cite">[1]</a> For word
+    count, instead of shipping <code>("the", 1)</code> ten thousand times, the combiner emits <code>("the", 10000)</code>
+    once. It only works when the reduce operation is <b>commutative and associative</b> (sum, max, count — yes; average —
+    not directly). This is the direct ancestor of Spark's <code>reduceByKey</code>-over-<code>groupByKey</code> advice.</p>
+
+  <h3>6 · Fault tolerance via re-execution</h3>
+  <p>With thousands of commodity machines, failure is routine, not exceptional — so the design assumes it. The master
+    pings workers; a silent worker is presumed dead and its tasks are simply <b>re-executed elsewhere</b>.<a href="#c1" class="cite">[1]</a>
+    This is cheap precisely because map/reduce are <b>deterministic pure functions over immutable input</b>: re-running a
+    task gives the same answer. Completed map output sits on a failed node's local disk, so completed maps are re-run on
+    failure; completed reduce output is safe on replicated HDFS. The master also runs <b>backup ("speculative") tasks</b>
+    for the last few stragglers and takes whichever finishes first — taming the long tail.<a href="#c1" class="cite">[1]</a></p>
+
+  <h3>7 · Why disk round-trips make it slower than Spark</h3>
+  <p>Here is the defining weakness. MapReduce materializes <b>every</b> stage boundary to disk: map output to local disk,
+    reduce output to replicated HDFS.<a href="#c1" class="cite">[1]</a> A single map→reduce pass tolerates that. But real
+    analytics and ML are <b>iterative and multi-stage</b> — chains of jobs, loops that reuse a dataset. MapReduce has no
+    way to keep a working set in memory between steps, so <b>every iteration pays a full round-trip to disk plus
+    three-way replication</b>. Spark's answer (last lesson) was to keep intermediates <b>in memory</b> across steps and
+    recompute lost partitions from <em>lineage</em> instead of re-reading replicated disk — the same fault-tolerance
+    guarantee, an order of magnitude less I/O.<a href="#c4" class="cite">[4]</a> That one difference is the whole story
+    of why Spark replaced MapReduce for most jobs. See <a href="0101-spark.html">Lesson 101 — Apache Spark</a>.</p>
+
+  <h3>Word-count walkthrough</h3>
+  <div class="box">
+    <b>Counting words across a corpus — the "hello world" of MapReduce.</b>
+    <ul>
+      <li><b>Input split:</b> the corpus is blocks on HDFS; one map task per block, placed for data locality.</li>
+      <li><b>Map:</b> for each line, emit <code>(word, 1)</code> for every word → <code>("the",1) ("cat",1) ("the",1)…</code></li>
+      <li><b>Combine (map side):</b> sum locally → <code>("the",2) ("cat",1)</code>, shrinking what gets shuffled.</li>
+      <li><b>Partition:</b> <code>hash("the") mod R</code> picks the reducer; all "the" pairs head to the same one.</li>
+      <li><b>Shuffle &amp; sort:</b> each reducer pulls its partition from every mapper; framework merge-sorts by key.</li>
+      <li><b>Reduce:</b> <code>reduce("the", [2, 5, 3, …])</code> sums to <code>("the", 4217)</code>, written to HDFS.</li>
+    </ul>
+  </div>
+
+  <h2>The Hadoop ecosystem</h2>
+  <p>MapReduce is the paper; <b>Hadoop</b> is the open-source implementation, and over time it grew into a stack. Google's
+    GFS, MapReduce, and Bigtable papers map almost one-to-one onto Hadoop's HDFS, MapReduce/YARN, and HBase.</p>
+  <table>
+    <tr><th>Layer</th><th>What it is</th><th>Google ancestor</th></tr>
+    <tr><td><b>HDFS</b></td><td>Distributed file system — durable storage for huge files on commodity disks.</td><td>GFS<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td><b>YARN</b></td><td>Cluster resource manager — schedules compute (CPU/RAM) across the cluster.</td><td>(borg-era schedulers)</td></tr>
+    <tr><td><b>MapReduce / Hive</b></td><td>Batch compute engine; Hive adds SQL on top.</td><td>MapReduce<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td><b>HBase</b></td><td>Low-latency wide-column store for random reads/writes on HDFS.</td><td>Bigtable<a href="#c3" class="cite">[3]</a></td></tr>
+  </table>
+
+  <h3>HDFS — the storage layer</h3>
+  <p>HDFS splits each file into large blocks (default 128&nbsp;MB) and spreads them across the cluster. The architecture is
+    <b>one master, many workers</b>:<a href="#c2" class="cite">[2]</a></p>
+  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
+    <li><b>NameNode</b> — the master. Holds all metadata (the directory tree, which blocks make up each file, where each
+      block lives) <em>in memory</em>. It never touches file data. Historically a single point of failure, later made
+      highly available with a standby NameNode.</li>
+    <li><b>DataNodes</b> — the workers. Store the actual blocks on local disk and serve reads/writes directly to clients,
+      reporting block health back to the NameNode via heartbeats.</li>
+    <li><b>Block replication</b> — each block is replicated (default ×3) across DataNodes, ideally across racks, so a disk
+      or whole rack can die without data loss. This is durability-by-replication — and exactly the disk cost Spark's
+      lineage model avoids paying on intermediate data.</li>
+  </ul>
+
+  <h3>YARN — the resource layer</h3>
+  <p>Original Hadoop bolted scheduling onto MapReduce itself. <b>YARN (Yet Another Resource Negotiator)</b> split that
+    out into a general cluster manager: a <b>ResourceManager</b> hands out containers (CPU/RAM) and a per-application
+    <b>ApplicationMaster</b> negotiates and oversees its tasks. Decoupling resource management from the compute model is
+    what let Spark, Flink, and others run on the same Hadoop cluster — YARN is one of the cluster managers Spark targets.</p>
+
+  <h3>Hive — SQL over MapReduce</h3>
+  <p>Almost nobody wants to hand-write map and reduce functions. <b>Hive</b> lets analysts write <b>SQL</b> against data in
+    HDFS and compiles each query into one or more MapReduce (later Tez/Spark) jobs underneath. It brought a schema
+    (the <em>Hive metastore</em>) and the familiar table abstraction to raw files — the conceptual seed of the modern
+    SQL-on-the-lake / data-warehouse-on-object-storage pattern.</p>
+
+  <h3>HBase — Bigtable-style wide-column store</h3>
+  <p>MapReduce is batch: great throughput, terrible for a single random read. <b>HBase</b> fills that gap as an open-source
+    <b>Bigtable</b>: a distributed, sorted, <b>wide-column</b> store layered on top of HDFS for low-latency random reads
+    and writes.<a href="#c3" class="cite">[3]</a> Its data model is a sparse, multidimensional sorted map — rows keyed by a
+    sorted <b>row key</b>, grouped into <b>column families</b>, with cell versions by timestamp. Tables are split into
+    <b>regions</b> by row-key range and served by RegionServers; writes hit a write-ahead log plus an in-memory
+    <em>memstore</em>, then flush to immutable <b>SSTable/HFile</b> files compacted over time — the LSM-tree pattern
+    Bigtable introduced.<a href="#c3" class="cite">[3]</a> HBase is the random-access companion to HDFS's batch bulk store.</p>
+
+  <h2>When it still matters — and why Spark replaced it for most jobs</h2>
+  <div class="box">
+    <b>MapReduce still earns its keep when…</b>
+    <ul>
+      <li>The job is a <b>single, enormous, one-pass batch</b> over data far bigger than cluster RAM — a giant sort, a
+        massive ETL scan — where in-memory caching buys nothing and rock-solid disk-spilling matters.</li>
+      <li>You're on a <b>legacy Hadoop estate</b>: existing Hive/MR pipelines, petabytes already on HDFS, jobs that simply
+        work and aren't worth rewriting.</li>
+      <li><b>HDFS and HBase</b> themselves remain widely deployed even where the MapReduce <em>compute</em> engine is gone.</li>
+    </ul>
+    <b>…but Spark replaced it for most jobs because…</b>
+    <ul>
+      <li><b>In-memory beats disk:</b> iterative/multi-stage jobs (ML, graphs, chained ETL) avoid the per-step disk +
+        replication round-trip — often an order of magnitude faster.<a href="#c4" class="cite">[4]</a></li>
+      <li><b>Richer model:</b> a general DAG of operators, not rigid map→reduce; plus SQL, streaming, and ML on one engine.</li>
+      <li><b>Better ergonomics:</b> high-level DataFrame/SQL APIs vs hand-written Java map/reduce classes.</li>
+    </ul>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Don't treat MapReduce as a relic to skip. Use it to <em>justify your batch choice from first principles</em>:
+    "the model is map → shuffle/sort → reduce, and the cost concentrates in the shuffle, so I minimize data movement with
+    a combiner / pre-aggregation." Then name the boundary: "MapReduce materializes every step to disk, so for our
+    iterative feature pipeline I'd use Spark to keep working sets in memory and recover via lineage instead of paying the
+    round-trip." Knowing that GFS→HDFS, MapReduce→Spark, and Bigtable→HBase are the same ideas re-implemented — and that
+    HDFS/HBase outlived the MR compute engine — is the breadth that separates "I've used Spark" from "I understand why the
+    field landed here." Re-explaining "map then reduce" is not the staff move; reasoning about the disk-vs-memory tradeoff is.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>You'll rarely <em>propose</em> MapReduce in a 2024-era design — but it's the lens that proves you understand batch
+    processing rather than name-dropping Spark. It shows up in data-processing designs like the
+    <a href="0036-ad-click-aggregator.html">ad click aggregator (Lesson 36)</a> as the conceptual model for the
+    pre-aggregation layer. When it comes up:</p>
+  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
+    <li><b>Lead with the principle.</b> "Move compute to data, express it as map → shuffle/sort → reduce." One sentence,
+      then go to the hard part.</li>
+    <li><b>Name the shuffle.</b> The interesting depth is "where does data cross the network, and how do I shrink it" —
+      combiners, partitioning, skew. Same answer as Spark; show you know it's universal.</li>
+    <li><b>Justify Spark by the disk tradeoff.</b> If asked why not MapReduce, say "iterative job → keep it in memory,
+      recover via lineage" — not "Spark is newer."</li>
+    <li><b>Place HDFS/HBase correctly.</b> HDFS = durable bulk store; HBase = low-latency random access; MapReduce/Spark =
+      compute. Don't make a batch engine serve point reads. See the <a href="../reference/glossary.html">glossary</a>.</li>
+  </ul>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What is the core idea that makes the MapReduce model scale to petabytes?</p>
+      <button class="opt">Pull all of the data into one very large machine and then process it locally there</button>
+      <button class="opt">Keep every intermediate result cached in cluster memory across iterative job steps</button>
+      <button class="opt">Move the small computation out to wherever each large chunk of data already lives</button>
+      <button class="opt">Replace disk storage with a network of fast in-memory caches across the whole rack</button>
+      <p class="fb">MapReduce ships the small program to the data (data locality) rather than moving heavy data to compute.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Which phase of a MapReduce job is the dominant cost, and why?</p>
+      <button class="opt">The map phase, because reading the input splits saturates each local disk controller</button>
+      <button class="opt">The shuffle and sort, because data is moved across the network and merged by key</button>
+      <button class="opt">The reduce phase, because writing one output file per key overwhelms the NameNode</button>
+      <button class="opt">The combine phase, because aggregating on the map side blocks every later network read</button>
+      <p class="fb">Shuffle &amp; sort is the all-to-all network transfer plus merge-sort by key — the expensive part to minimize.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why is Spark usually faster than classic MapReduce on iterative jobs?</p>
+      <button class="opt">It keeps working sets in memory between steps and rebuilds lost data from lineage</button>
+      <button class="opt">It removes fault tolerance entirely so that no single step pays for data redundancy</button>
+      <button class="opt">It forbids the shuffle stage so that data never has to move across the network at all</button>
+      <button class="opt">It writes every stage to replicated disk so that reduce reads always stay sequential</button>
+      <p class="fb">MapReduce writes every step to disk; Spark caches in memory and recovers via lineage, not disk replicas.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. In the Hadoop stack, what is HBase's role relative to HDFS?</p>
+      <button class="opt">It replaces HDFS as the durable bulk file store for the very largest archived datasets</button>
+      <button class="opt">It adds Bigtable-style low-latency random reads and writes on top of HDFS-backed storage</button>
+      <button class="opt">It schedules cluster CPU and memory containers so many compute engines can coexist</button>
+      <button class="opt">It compiles analyst SQL queries down into the chained MapReduce jobs that run beneath</button>
+      <p class="fb">HBase is an open-source Bigtable: a wide-column store on HDFS for low-latency random access (YARN schedules; Hive does SQL).</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this technology — push on the internals. Try:
+    "Walk me through what physically happens during shuffle &amp; sort for a skewed key, and how a combiner helps."
+    "Why exactly do MapReduce's disk round-trips hurt iterative ML, and how does Spark's lineage avoid them?"
+    "How do GFS/HDFS, Bigtable/HBase, and MapReduce/Spark map onto each other, and which parts are still used today?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://research.google/pubs/pub62/">Dean &amp; Ghemawat, "MapReduce: Simplified Data Processing on Large Clusters," OSDI 2004</a>.
+    The original paper — the programming model, the master/worker execution flow, partitioning, the combiner, fault
+    tolerance via re-execution, backup tasks, and data locality. Pair it with the GFS and Bigtable papers to see the full
+    storage-plus-compute trilogy that Hadoop, HDFS, and HBase re-implemented.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://research.google/pubs/pub62/">Dean &amp; Ghemawat, "MapReduce: Simplified Data Processing on Large Clusters," OSDI 2004</a> (the map/reduce model, shuffle &amp; sort, partitioning, combiners, data locality, fault tolerance via task re-execution, backup tasks).</p>
+    <p id="c2">[2] <a href="https://research.google/pubs/pub51/">Ghemawat, Gobioff &amp; Leung, "The Google File System," SOSP 2003</a> (single-master/chunkserver design and block replication — the model HDFS NameNode/DataNode implements).</p>
+    <p id="c3">[3] <a href="https://research.google/pubs/pub27898/">Chang et al., "Bigtable: A Distributed Storage System for Structured Data," OSDI 2006</a> (sorted wide-column data model, row keys, column families, SSTable/LSM storage — the model HBase implements on HDFS).</p>
+    <p id="c4">[4] <a href="https://www.usenix.org/system/files/conference/nsdi12/nsdi12-final138.pdf">Zaharia et al., "Resilient Distributed Datasets," NSDI 2012</a> (lineage-based in-memory recovery and the order-of-magnitude speedup over MapReduce's disk round-trips on iterative jobs).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0102-flink.html">← Lesson 102</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 104 · Kubernetes</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

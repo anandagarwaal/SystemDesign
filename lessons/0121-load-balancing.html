@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 121 — Deep Dive: Load Balancing</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 121 · Phase 1 — Core Concept · Deep Dive</p>
+  <h1>Deep Dive: Load Balancing</h1>
+  <p class="sub">The box that sits in front of your servers, hides them behind one address, and decides which one handles each request — without it, "just add more servers" doesn't actually scale.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Almost every L6/L7 design starts with a client, a load balancer, and a fleet of stateless app servers — the LB is the first box you draw and the one interviewers probe hardest. A senior candidate says "put a load balancer here" and moves on. A staff candidate says <em>which layer</em> (L4 vs L7), <em>why</em> (do you need to route on URL or terminate TLS, or just spray packets fast?), picks an algorithm with a reason, and then — unprompted — points out that the load balancer is itself a single point of failure and explains how they'd make it redundant. This lesson gives you that full mental model so the LB stops being a black box you wave at and becomes a place you can show depth.
+  </div>
+
+  <h2>What load balancing is</h2>
+  <p>A <b>load balancer (LB)</b> is a reverse proxy that sits between clients and a pool of backend servers and distributes incoming traffic across them.<a href="#c1" class="cite">[1]</a> It exists to deliver two things you can't get from a single machine: <b>scalability</b> (spread load so you can add servers horizontally instead of buying a bigger one) and <b>availability</b> (if one backend dies, route around it so users never notice).<a href="#c1" class="cite">[1]</a></p>
+
+  <p>Two roles matter beyond just spreading traffic. First, the LB is a <b>single entry point</b>: clients connect to one stable address (a DNS name or virtual IP), and the LB hides the fleet behind it. You can add, remove, deploy, or restart backends without clients knowing — they only ever see the LB.<a href="#c1" class="cite">[1]</a> Second, the LB runs <b>health checks</b>: it periodically probes each backend and removes any that fail from rotation, sending new requests only to healthy nodes.<a href="#c2" class="cite">[2]</a> Spreading traffic across a pool that includes a dead server isn't load balancing — it's load balancing plus an outage. The health check is what turns a list of servers into a self-healing pool.</p>
+
+  <p>Because the LB owns the entry point, it's also the natural home for cross-cutting concerns: TLS termination, basic rate limiting, and routing — which is exactly where the L4-vs-L7 distinction comes in.</p>
+
+  <h2>L4 vs L7 — the distinction that matters</h2>
+  <p>Load balancers operate at one of two layers of the network stack (see <a href="0002-networking-and-apis.html">Networking &amp; APIs, Lesson 2</a>). This is the single most important thing to get right in an interview, because it determines what the LB <em>can</em> and <em>can't</em> do.</p>
+
+  <p>A <b>Layer-4 (transport)</b> load balancer routes at the level of TCP/UDP connections. It sees source/destination IP and port — not the contents.<a href="#c2" class="cite">[2]</a> It picks a backend when the connection opens and forwards every packet of that connection to the same server, without ever parsing the bytes inside. Because it does almost no work per packet, it's extremely fast and cheap, and it works for any protocol (it doesn't need to understand HTTP).</p>
+
+  <p>A <b>Layer-7 (application)</b> load balancer actually terminates the connection, reads the HTTP request, and routes based on its <em>content</em> — URL path, hostname, headers, cookies, method.<a href="#c2" class="cite">[2]</a> This unlocks <b>content-based routing</b>: send <code>/api/*</code> to one fleet and <code>/images/*</code> to another, or route by <code>Host</code> header for multi-tenant apps. Because it terminates the connection, it's also where you do <b>TLS termination</b> — decrypt HTTPS once at the edge so backends speak plain HTTP — plus header rewriting, sticky cookies, and request-level observability. The cost: parsing every request is more CPU and slightly more latency than L4.</p>
+
+  <table>
+    <thead><tr><th></th><th>Layer 4 (transport)</th><th>Layer 7 (application)</th></tr></thead>
+    <tbody>
+      <tr><td><b>Routes by</b></td><td>IP + port; opaque to payload</td><td>URL, host, header, cookie, method</td></tr>
+      <tr><td><b>Sees content?</b></td><td>No — forwards packets blindly</td><td>Yes — reads the full HTTP request</td></tr>
+      <tr><td><b>TLS</b></td><td>Pass-through (backend decrypts)</td><td>Terminates TLS at the edge</td></tr>
+      <tr><td><b>Speed / cost</b></td><td>Very fast, low CPU, any protocol</td><td>Higher CPU, slight added latency</td></tr>
+      <tr><td><b>Content routing</b></td><td>No — one undifferentiated pool</td><td>Yes — path/host based routing</td></tr>
+      <tr><td><b>AWS example</b></td><td>Network Load Balancer (NLB)<a href="#c2" class="cite">[2]</a></td><td>Application Load Balancer (ALB)<a href="#c2" class="cite">[2]</a></td></tr>
+    </tbody>
+  </table>
+
+  <div class="box">
+    <b>When to pick which</b>
+    <ul>
+      <li><b>Reach for L7</b> by default for HTTP/HTTPS web traffic — you almost always want TLS termination, path-based routing, and per-request visibility. It's the standard front door for an API or website.</li>
+      <li><b>Reach for L4</b> when you need raw throughput and ultra-low latency, a non-HTTP protocol (databases, gRPC streams, game traffic), end-to-end TLS the backend must terminate, or long-lived connections like <b>WebSockets</b> where there's no per-request routing to do anyway.</li>
+      <li><b>Common real setup:</b> an L4 LB at the very edge for raw scale, fronting an L7 layer (or per-region L7 LBs) that does the smart HTTP routing — breadth at L4, depth at L7.</li>
+    </ul>
+  </div>
+
+  <h2>Balancing algorithms</h2>
+  <p>Once the LB knows the healthy pool, it needs a rule for picking <em>which</em> backend gets the next request. The common ones, in order of how often they come up:</p>
+
+  <table>
+    <thead><tr><th>Algorithm</th><th>How it picks</th><th>Best for</th></tr></thead>
+    <tbody>
+      <tr><td><b>Round robin</b></td><td>Next server in rotation, one by one.<a href="#c1" class="cite">[1]</a></td><td>Uniform requests &amp; identical servers; the simple default.</td></tr>
+      <tr><td><b>Weighted round robin</b></td><td>Rotation biased by a per-server weight.<a href="#c1" class="cite">[1]</a></td><td>Heterogeneous hardware; canary/gradual rollouts.</td></tr>
+      <tr><td><b>Least connections</b></td><td>Server with the fewest active connections.<a href="#c1" class="cite">[1]</a></td><td>Variable request durations (long-lived/slow requests).</td></tr>
+      <tr><td><b>IP / consistent hash</b></td><td>Hash of client IP (or key) maps to a server.<a href="#c1" class="cite">[1]</a></td><td>Sticky sessions; cache locality (see below).</td></tr>
+    </tbody>
+  </table>
+
+  <p><b>Round robin</b> is the honest default — cheap and fair when requests cost about the same. But if one request takes 10ms and the next takes 10s, round robin will happily pile slow requests onto a server that's already drowning. <b>Least connections</b> fixes that by tracking live load and steering away from busy nodes — the right call when request durations vary widely. <b>Weighted</b> variants let a beefier box (or a freshly deployed canary) take a deliberately larger or smaller share.</p>
+
+  <h3>Hashing, sticky sessions, and the link to Lesson 5</h3>
+  <p><b>IP hash / hash-based</b> routing sends the same client (or the same key) to the same backend every time. That gives you <b>sticky sessions</b> (session affinity): useful when a server holds in-memory session state, or when routing the same key to the same node maximizes cache hits. The naive version — <code>hash(client_ip) % N</code> — has a fatal flaw: change <code>N</code> (add or lose a server) and <em>almost every</em> key remaps to a different backend, blowing away every cache and session at once. The fix is <b>consistent hashing</b>, which remaps only the small fraction of keys near the node that changed.<a href="#c1" class="cite">[1]</a> This is the exact mechanism you learned in <a href="0005-sharding-and-consistent-hashing.html">Sharding &amp; Consistent Hashing (Lesson 5)</a> — the same ring that keeps shard movement minimal also keeps a hashing load balancer's affinity stable as the pool scales.</p>
+
+  <div class="box">
+    <b>Prefer stateless backends over sticky sessions.</b> Stickiness is a crutch: it pins users to a node, so a deploy or crash drops their session, and load skews toward whoever holds the heavy sessions. The staff-default is to make app servers <b>stateless</b> — push session state into a shared store (Redis) or a signed token — so <em>any</em> backend can serve <em>any</em> request and plain round robin just works. Reach for stickiness only when you truly can't externalize state.
+  </div>
+
+  <h2>Scaling &amp; availability — including the LB itself</h2>
+  <p>Health checks (above) handle a backend dying. But the LB introduces its own risk, and this is the deep-dive interviewers love.</p>
+
+  <h3>The load balancer is a single point of failure</h3>
+  <p>You put the LB in front so a backend failure is invisible — but now <em>everything</em> flows through the LB. If it dies, your entire service is down, no matter how healthy the backends are.<a href="#c1" class="cite">[1]</a> You never run a single LB in production. The standard answers:</p>
+  <ul>
+    <li><b>Active-passive (failover) pair:</b> two LBs share a floating virtual IP; the passive one health-checks the active and takes over the VIP within seconds if it fails.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Active-active + DNS / anycast:</b> run multiple LBs and spread clients across them via DNS round robin or <b>anycast</b> (many LBs announce the same IP; the network routes each client to the nearest healthy one). More capacity and no idle standby.</li>
+    <li><b>Managed redundancy:</b> cloud LBs (AWS ELB/ALB/NLB) are themselves horizontally scaled, multi-AZ services — the provider handles LB redundancy for you, which is why "use a managed LB" is a perfectly good interview answer.<a href="#c2" class="cite">[2]</a></li>
+  </ul>
+
+  <h3>Connection draining and graceful changes</h3>
+  <p>When you remove a backend (deploy, scale-down), don't cut its live connections. <b>Connection draining</b> (a.k.a. deregistration delay) stops sending the node <em>new</em> requests while letting in-flight ones finish, then removes it.<a href="#c2" class="cite">[2]</a> This is what makes zero-downtime deploys possible.</p>
+
+  <h3>Why WebSockets want L4 / sticky</h3>
+  <p>A <b>WebSocket</b> (see <a href="0120-real-time-delivery.html">Real-Time Delivery, Lesson 120</a>) is a single long-lived TCP connection, not a stream of independent requests. There's no per-request routing decision to make after the upgrade, so an L4 LB (or an L7 LB with sticky routing) that pins the whole connection to one backend is the natural fit — and that backend must stay in rotation for the connection's lifetime, so draining matters even more.</p>
+
+  <h3>Global server load balancing (GSLB)</h3>
+  <p>Everything above balances within one region. To balance <em>across</em> regions — for latency and for surviving a whole-region outage — you use <b>GSLB</b>, typically via <b>GeoDNS</b>: the DNS resolver returns the IP of the closest or healthiest regional LB based on the client's location.<a href="#c1" class="cite">[1]</a> It's the same geo-routing idea that powers a <a href="0109-cdn.html">CDN (Lesson 109)</a> — get the user to the nearest edge — applied to your origin load balancers.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior candidates draw a box labeled "LB" and stop. Staff candidates do four things without being asked. <b>First, they choose a layer with a reason:</b> "L7 here because I want path-based routing and TLS termination at the edge; if this were raw WebSocket traffic I'd drop to L4." <b>Second, they pick an algorithm to match the workload:</b> "requests here vary from 5ms to 5s, so least-connections beats round robin." <b>Third — the move that separates levels — they flag the LB as a SPOF before the interviewer can:</b> "this LB is now my single point of failure, so it's an active-active pair behind anycast (or a managed multi-AZ LB)." <b>Fourth, they keep backends stateless</b> so they can use the simplest algorithm and avoid sticky sessions entirely. Naming the LB's own failure mode and reaching for the simplest-by-default stateless design is the whole signal.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When you place a load balancer, deliver it in this arc: (1) <b>say why</b> — "stateless app servers behind an LB so I can scale horizontally and survive a node failure." (2) <b>Pick the layer with a reason</b> — L7 for HTTP routing + TLS termination, L4 for raw throughput or WebSockets. (3) <b>Name an algorithm</b> tied to the workload — round robin for uniform requests, least-connections for variable ones. (4) <b>Pre-empt the SPOF</b> — "the LB itself is redundant: active-active behind anycast, or a managed multi-AZ LB." (5) If the design is multi-region, <b>add GSLB/GeoDNS</b> for cross-region routing and failover. That's breadth-then-depth: a fast justified placement, then 60% depth on layer choice, statelessness, and the LB's own availability.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What can an L7 load balancer do that an L4 one cannot?</p>
+      <button class="opt">Forward packets to a chosen backend without ever parsing them</button>
+      <button class="opt">Balance non-HTTP protocols such as raw database or game traffic</button>
+      <button class="opt">Route on the request URL or header and terminate TLS at the edge</button>
+      <button class="opt">Pin a long-lived TCP connection to one backend for its lifetime</button>
+      <p class="fb">L7 terminates the connection and reads the HTTP request, so it can route by URL/header/cookie and terminate TLS — L4 only sees IP and port.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. Why prefer consistent hashing over <code>hash(ip) % N</code> for affinity?</p>
+      <button class="opt">Changing the server count remaps only a small fraction of keys</button>
+      <button class="opt">Hashing the client address spreads traffic far more uniformly</button>
+      <button class="opt">It lets the balancer read the request body before choosing a node</button>
+      <button class="opt">It removes the need to run periodic health checks on the backends</button>
+      <p class="fb">With modulo hashing, changing N remaps nearly every key (dropping all caches/sessions); consistent hashing only moves keys near the changed node — same as Lesson 5.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. When does <b>least connections</b> beat plain <b>round robin</b>?</p>
+      <button class="opt">When every backend runs on identical hardware and equal weight</button>
+      <button class="opt">When the client must always reach the same backend repeatedly</button>
+      <button class="opt">When the balancer needs to route requests purely by the URL path</button>
+      <button class="opt">When request durations vary widely so some servers stay busier</button>
+      <p class="fb">Round robin ignores live load; with highly variable request times it can pile slow requests onto a busy node, so least-connections steers around them.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why is a single load balancer a problem you must address?</p>
+      <button class="opt">It cannot terminate TLS, so every backend must decrypt traffic</button>
+      <button class="opt">All traffic flows through it, so if it dies the whole service is</button>
+      <button class="opt">It forces every backend server to hold sticky in-memory sessions</button>
+      <button class="opt">It can only ever balance traffic inside one single cloud region</button>
+      <p class="fb">The LB hides backend failures but becomes the single point of failure itself; you make it redundant (active-passive, active-active + anycast, or a managed multi-AZ LB).</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Draw the full request path for an HTTPS API with TLS terminated at an L7 LB fronted by an L4 edge — where does each thing happen?" · "Walk me through exactly how an active-passive LB pair fails over a virtual IP, and how anycast differs." · "When would you accept sticky sessions instead of externalizing state to Redis, and what breaks on deploy?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/what-is-load-balancing.html">AWS Elastic Load Balancing — User Guide</a>. The clearest concrete grounding for L4 (NLB) vs L7 (ALB), health checks, connection draining, and multi-AZ redundancy; pair it with <a href="https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/">NGINX's HTTP load balancing guide</a> for the algorithms (round robin, least-connections, hash) in practice.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://docs.nginx.com/nginx/admin-guide/load-balancer/http-load-balancer/">NGINX, "HTTP Load Balancing" (Admin Guide)</a> (balancing methods — round robin, weighted, least-connections, IP/consistent hash — plus session persistence and the role of the reverse proxy as a single entry point).</p>
+    <p id="c2">[2] <a href="https://docs.aws.amazon.com/elasticloadbalancing/latest/userguide/what-is-load-balancing.html">AWS Elastic Load Balancing User Guide</a> (L4 Network Load Balancer vs L7 Application Load Balancer, content-based routing, TLS termination, health checks, connection draining/deregistration delay, and managed multi-AZ redundancy).</p>
+    <p id="c3">Glossary: <a href="../reference/glossary.html">course glossary</a> — L4/L7, sticky sessions, anycast, GSLB, connection draining.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0120-real-time-delivery.html">← Lesson 120</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 122 · Idempotency &amp; Delivery Semantics</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

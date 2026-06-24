@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 74 — Design a Digital Wallet / P2P Payments</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 74 · Phase 4 — Case Study · Hard</p>
+  <h1>Design a Digital Wallet / P2P Payments (Venmo / PayPal)</h1>
+  <p class="sub">Hold a balance, move money between two accounts atomically, and prove every cent from an immutable ledger.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A wallet is the purest test of "money correctness" because there is
+    no external provider to blame — <em>you</em> are the source of truth. A senior candidate stores a <code>balance</code>
+    column and updates it; a staff candidate recognizes that a balance is a <b>derived view of an append-only double-entry
+    ledger</b>, that a transfer is an <b>atomic debit+credit</b>, and that concurrent transfers on the same balance will
+    double-spend unless you defend it. The whole bar is reasoning about consistency, atomicity, and idempotency on data
+    where being off by a cent is a bug that ends up in an audit.
+  </div>
+
+  <p>This is the wallet/ledger sibling of <a href="../lessons/0037-payment-system.html">Lesson 37 (Payment System)</a>.
+  That lesson is about integrating an <em>external</em> processor (Stripe) exactly-once. Here the money already lives
+  <em>inside</em> our system, so the focus shifts to <b>balances + a double-entry ledger + internal transfers</b>. We reuse
+  the idempotency and outbox machinery from there, but the hard part is now internal consistency, not the provider.</p>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope tightly to what exercises the hard parts: holding value and moving it between two of our own accounts.</p>
+  <table>
+    <thead><tr><th>#</th><th>Requirement</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>A user can <b>check their balance</b> — see current available funds in their wallet.</td></tr>
+      <tr><td>2</td><td>A user can <b>add money</b> to their wallet (a top-up that credits the wallet from a funding source).</td></tr>
+      <tr><td>3</td><td>A user can <b>transfer money (P2P)</b> to another user — an atomic debit of the sender and credit of the receiver.</td></tr>
+      <tr><td>4</td><td>A user can <b>view transaction history</b> — a chronological list of debits and credits on their wallet.</td></tr>
+    </tbody>
+  </table>
+  <p><b>Out of scope</b> (name it, then drop it): card-network/processor integration (that's
+  <a href="../lessons/0037-payment-system.html">Lesson 37</a>), currency conversion / FX, interest &amp; lending,
+  KYC onboarding, and fraud scoring. We keep <em>add money</em> as a thin credit entry rather than re-deriving the whole
+  processor flow.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>A wallet inverts the usual priority order, just like payments: <b>correctness beats durability beats availability beats
+  latency</b>. It is always better to reject a transfer than to let a balance go wrong.</p>
+  <table>
+    <thead><tr><th>Property</th><th>Target / priority</th></tr></thead>
+    <tbody>
+      <tr><td>Correctness / consistency</td><td><b>Highest.</b> No double-spend, no money created or destroyed. Every transfer is all-or-nothing (debit and credit both commit or neither does).</td></tr>
+      <tr><td>Durability &amp; auditability</td><td>No committed transaction is ever lost; every money movement is permanently recorded and re-derivable for audit.</td></tr>
+      <tr><td>Availability</td><td>High for reads (balance, history); writes may briefly reject under contention rather than risk a wrong balance.</td></tr>
+      <tr><td>Latency</td><td>Soft: a transfer should confirm in well under a second. Acceptable to serialize writes per account to protect correctness.</td></tr>
+    </tbody>
+  </table>
+  <p>The headline tension: money writes want <b>strong consistency</b> (a single, agreed-upon balance), which fights the
+  availability/latency story you'd reach for in a feed. See <a href="../lessons/0006-replication-and-cap.html">Lesson 06
+  (Replication &amp; CAP)</a> — for money you pick C over A on the write path.</p>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only the numbers that change the design.</p>
+  <div class="box">
+    <ul>
+      <li><b>Throughput:</b> assume ~100M users, ~10 wallet ops/user/month ≈ <code>~1B ops/month</code> ≈ <code>~400 writes/s</code>
+        average, ~<code>4K writes/s</code> at peak. Modest — the bottleneck is <b>not</b> aggregate QPS, it's <b>per-account
+        contention</b> on hot wallets (a merchant, a giveaway), which is what forces the concurrency deep dive.</li>
+      <li><b>Storage:</b> double-entry means ≥2 ledger rows per transfer. ~1B transfers/month × 2 rows × ~0.3 KB ≈
+        <code>~600 GB/month</code> of ledger, growing forever (append-only). Cheap per row, but it compounds — drives partitioning by account and archival of cold history.</li>
+      <li><b>Retention:</b> financial records are kept for <b>years</b> (often 7+ for compliance) and are <b>never mutated or
+        deleted</b>. This alone forces an append-only ledger with snapshotting rather than an in-place balance column.</li>
+    </ul>
+  </div>
+  <p>Design implications: aggregate load is small, so we optimize for <b>per-account correctness under contention</b> and
+  for an <b>immutable, ever-growing, auditable ledger</b> — not for raw QPS.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p>Three entities carry the weight. The caller's identity comes from the auth token, never the request body.</p>
+  <ul>
+    <li><b>Account / Wallet</b> — one per user. Holds <code>accountId</code>, <code>ownerId</code>, currency, and a
+      <em>snapshotted</em> <code>balance</code> + <code>version</code> (the balance is a cache of the ledger, not the truth).</li>
+    <li><b>LedgerEntry</b> — an immutable debit or credit: <code>(transferId, accountId, direction, amount, createdAt)</code>.
+      Append-only; the source of truth for "what happened".</li>
+    <li><b>Transfer</b> — one logical money movement linking exactly two entries (one debit, one credit) that must sum to zero,
+      with a client <code>idempotencyKey</code> and a status.</li>
+  </ul>
+  <table>
+    <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /v1/wallet/balance</code></td><td>Return the caller's current balance (served from the snapshot, re-derivable from the ledger).</td></tr>
+      <tr><td><code>GET /v1/wallet/transactions?cursor=</code></td><td>Paginated transaction history (the caller's ledger entries, newest first).</td></tr>
+      <tr><td><code>POST /v1/wallet/topups</code><br><code>{amount, idempotencyKey}</code></td><td>Add money — credits the caller's wallet idempotently.</td></tr>
+      <tr><td><code>POST /v1/transfers</code><br><code>{toAccountId, amount, idempotencyKey}</code></td><td>P2P transfer. Atomic debit of caller + credit of <code>toAccountId</code>; retry with same key returns the original result.</td></tr>
+      <tr><td><code>GET /v1/transfers/{id}</code></td><td>Read a transfer's status (pending / completed / failed).</td></tr>
+    </tbody>
+  </table>
+
+  <h2>High-Level Design</h2>
+  <p>Request flow for <code>POST /v1/transfers</code>: the client hits the <b>Wallet API</b> behind a load balancer. The
+  service first checks the <b>idempotency store</b> for the key; if seen, it returns the stored result. Otherwise, inside a
+  <em>single ACID transaction</em> on the ledger DB, it: (1) verifies the sender has sufficient funds, (2) appends a
+  <b>debit</b> entry to the sender and a matching <b>credit</b> entry to the receiver, (3) updates both account snapshots
+  (guarded by a version check), and (4) records the transfer + idempotency key. Either all of that commits or none of it
+  does. Balance reads and history reads go straight to the snapshot / ledger and can be served from read replicas.</p>
+  <table>
+    <thead><tr><th>Component</th><th>Role</th><th>Store</th></tr></thead>
+    <tbody>
+      <tr><td>Wallet API</td><td>Validates, dedupes on idempotency key, owns the transfer state machine.</td><td>—</td></tr>
+      <tr><td>Ledger DB</td><td>Append-only entries + account snapshots, written in one ACID transaction.</td><td>SQL (ACID)</td></tr>
+      <tr><td>Idempotency store</td><td>Maps <code>idempotencyKey → result</code>; conditional insert dedupes retries.</td><td>SQL / KV</td></tr>
+      <tr><td>Snapshot / balance cache</td><td>Per-account running balance + version; derived from the ledger.</td><td>SQL row / Redis</td></tr>
+      <tr><td>Read replicas</td><td>Serve balance + history reads; lag is fine for reads, not for the write check.</td><td>SQL replica</td></tr>
+      <tr><td>Reconciliation job</td><td>Re-sums ledger entries and asserts snapshots match + all transfers net to zero.</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p>Crucially, because both sides of the transfer live in <em>our</em> DB, we can put debit and credit in one local
+  transaction — we don't have the dual-write problem of <a href="../lessons/0037-payment-system.html">Lesson 37</a>. The
+  difficulty moves to concurrency, idempotency, and ledger design.</p>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1 · The double-entry ledger as the source of truth</h3>
+  <p>The single most important decision: <b>the balance is not a column you mutate; it is a value you derive.</b> Money lives
+  as an <b>append-only, immutable</b> stream of <b>double-entry</b> ledger entries — every transfer writes at least two
+  entries, a debit on one account and an equal credit on another, and the entries of a transfer <b>must sum to zero</b>.<a href="#c2" class="cite">[2]</a>
+  Nothing is ever updated or deleted in place; a correction is a new compensating entry, not an edit.</p>
+  <div class="box">
+    <b>Why money demands this (and strong consistency):</b>
+    <ul>
+      <li><b>Auditability.</b> Every cent traces to a transfer; you can replay history to recompute any balance at any past instant.</li>
+      <li><b>Conservation.</b> If all entries sum to zero, money is never silently created or destroyed — bugs become visible imbalances.</li>
+      <li><b>Tamper-evidence.</b> Append-only means a changed past entry breaks the running totals; you can't quietly rewrite history.</li>
+      <li><b>Strong consistency on writes.</b> A balance check that decides "do you have enough?" must read a single agreed-upon
+        truth. An eventually-consistent/stale read here lets two transfers both see "enough" and overspend.</li>
+    </ul>
+  </div>
+  <p>Re-summing the entire ledger on every balance read is too slow, so we keep a <b>snapshot</b>: a materialized running
+  balance per account (a row, or periodic checkpoint + recent entries). The snapshot is an optimization; the ledger remains
+  the truth, and reconciliation re-derives the snapshot from entries to prove they agree. This is the same append-only,
+  derive-don't-mutate discipline you saw in <a href="../lessons/0037-payment-system.html">Lesson 37</a>, and it rests on the
+  transactions/consistency fundamentals in <a href="../lessons/0006-replication-and-cap.html">Lesson 06</a>.</p>
+
+  <h3>2 · A transfer as an atomic debit + credit (idempotent)</h3>
+  <p>A P2P transfer is two writes that must be <b>all-or-nothing</b>: debit sender, credit receiver. If only one lands, money
+  vanishes or is conjured. Because both accounts are in our DB, the clean answer is a <b>single ACID transaction</b> wrapping
+  both entries + both snapshot updates — atomicity comes for free from the database.<a href="#c1" class="cite">[1]</a>
+  This is the wallet's advantage over the external-provider case.</p>
+  <p>When sender and receiver live on <b>different shards/databases</b> (you partition by account), one local transaction no
+  longer spans both. Then you orchestrate a <b>two-phase / saga</b> flow: <code>pending</code> debit on the sender (funds
+  reserved) → credit the receiver → <code>complete</code>; if the credit fails, a <b>compensating</b> entry refunds the
+  sender. This is the saga pattern from <a href="../lessons/0010-common-patterns.html">Lesson 10 (Common Patterns)</a>.</p>
+  <p>Either way, retries must not double-charge. The client sends an <b>idempotency key</b> per logical transfer; on arrival
+  the API does a conditional insert keyed on it, so the first request executes and any retry returns the <em>stored</em>
+  result instead of moving money twice<a href="#c1" class="cite">[1]</a> — the exact discipline from
+  <a href="../lessons/0037-payment-system.html">Lesson 37</a>.</p>
+  <table>
+    <thead><tr><th>Approach</th><th>Use when</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td>Single ACID transaction</td><td>Both accounts on the same DB/shard.</td><td>Limits how you can shard; simplest and safest.</td></tr>
+      <tr><td>Saga (reserve → credit → confirm)</td><td>Sender &amp; receiver on different shards.</td><td>Must design a compensation; transient <code>pending</code> state.</td></tr>
+      <tr><td>Idempotency key (always)</td><td>Every mutating call.</td><td>Store keys + results; expire carefully.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>3 · Concurrency on a single balance — locking vs. optimistic</h3>
+  <p>The classic bug: two transfers from the same wallet run at once, both read balance = $100, both think the $80 they want
+  to send is covered, both commit — now the balance is &minus;$60. This is a <b>lost-update / double-spend</b> race. Two
+  standard defenses:</p>
+  <table>
+    <thead><tr><th>Strategy</th><th>How</th><th>Best for</th></tr></thead>
+    <tbody>
+      <tr><td><b>Pessimistic lock</b></td><td><code>SELECT ... FOR UPDATE</code> the account row; the second transfer blocks until the first commits.</td><td>Hot accounts with real contention; guarantees serial debits.</td></tr>
+      <tr><td><b>Optimistic (version)</b></td><td>Read balance + <code>version</code>; on write, <code>UPDATE ... WHERE version = N</code>; if 0 rows, retry.</td><td>Low-contention accounts; avoids holding locks, but retries under load.</td></tr>
+    </tbody>
+  </table>
+  <p>The staff move is to pick per access pattern: optimistic for the long tail of cold wallets, pessimistic (or a serialized
+  per-account queue) for hot ones. Either way the funds check and the debit happen in the <b>same transaction</b> at a
+  serializable-enough isolation level, so "check then act" can't interleave. A pure stale read from a replica must never gate
+  a debit — that's the strong-consistency requirement from deep dive 1 in action.</p>
+
+  <h3>4 · Exactly-once, reconciliation &amp; security</h3>
+  <p><b>Exactly-once.</b> At-least-once delivery (clients/queues retry) plus idempotent processing (the key) equals effectively
+  exactly-once — the same equation as <a href="../lessons/0010-common-patterns.html">Lesson 10</a>. The transfer state machine
+  (<code>pending → completed | failed</code>, terminal states) makes illegal re-execution impossible.</p>
+  <p><b>Reconciliation.</b> A periodic job re-sums every account's ledger entries and asserts (a) the recomputed total equals
+  the stored snapshot, and (b) every transfer's entries net to zero across the system. Any drift is flagged for
+  investigation<a href="#c2" class="cite">[2]</a> — the append-only ledger is what makes this diff trustworthy.</p>
+  <p><b>Security.</b> Always derive the sender from the auth token, never the body, or one user drains another's wallet.
+  Authorize that the caller owns the source account. Enforce idempotency to stop replayed transfer requests, validate amounts
+  are positive and within limits, and rate-limit transfers to blunt abuse — these are the standard input-trust and
+  authorization rules, applied to money.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Four moves separate staff from senior here: (1) state up front that the <b>balance is derived from an append-only
+    double-entry ledger</b>, not a mutable column, and that <b>money writes need strong consistency</b>; (2) model a transfer
+    as an <b>atomic debit+credit</b> — one ACID transaction same-shard, a <b>saga with compensation</b> cross-shard; (3) name
+    the <b>concurrent double-spend race</b> unprompted and choose locking vs. optimistic per access pattern; (4) add
+    <b>idempotency keys + reconciliation</b> as the exactly-once and audit backstop. Bonus: saying you'd rather reject a
+    transfer than corrupt a balance, and reusing — not re-deriving — the
+    <a href="../lessons/0037-payment-system.html">payment system</a> patterns.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. In a correct wallet design, the authoritative source of a user's balance is:</p>
+      <button class="opt">A single mutable balance column updated on each write</button>
+      <button class="opt">An append-only double-entry ledger of every movement</button>
+      <button class="opt">A cached value in Redis refreshed on a fixed timer</button>
+      <p class="fb">The balance is derived from the immutable ledger; the snapshot/cache is only an optimization.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. A P2P transfer must debit the sender and credit the receiver as:</p>
+      <button class="opt">Two independent writes retried until both of them land</button>
+      <button class="opt">One credit now and a debit deferred to a nightly batch</button>
+      <button class="opt">One atomic unit so both commit together or neither does</button>
+      <button class="opt">One debit only, since the credit can be inferred later</button>
+      <p class="fb">All-or-nothing: same-shard uses one ACID transaction; cross-shard uses a saga with compensation.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Two transfers from one wallet run at once and overspend it. The fix is:</p>
+      <button class="opt">Lock the row or use a version check so writes serialize</button>
+      <button class="opt">Read the balance from a replica to spread the load out</button>
+      <button class="opt">Cache the balance so both requests see the same number</button>
+      <p class="fb">Pessimistic <code>FOR UPDATE</code> or optimistic version checks stop the lost-update double-spend race.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. A client retries the same transfer after a timeout. What prevents a double-send?</p>
+      <button class="opt">A faster retry path so the original request finishes first</button>
+      <button class="opt">An idempotency key that returns the first stored result</button>
+      <button class="opt">A larger timeout so the client simply waits much longer</button>
+      <p class="fb">A conditional insert on the key makes the retry return the original outcome instead of moving money again.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — push on it:
+    "Walk me through a cross-shard transfer as a saga, step by step with the compensating entry." ·
+    "When would you choose optimistic concurrency over <code>SELECT ... FOR UPDATE</code> for a hot wallet?" ·
+    "How does this wallet ledger differ from the external-provider flow in Lesson 37?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/payment-system">HelloInterview — Payment System</a>.
+  The closest matching walkthrough for the delivery framework, idempotency, and the double-entry ledger; read it alongside
+  <a href="../lessons/0037-payment-system.html">Lesson 37</a> and treat this wallet as the "money lives inside our own system"
+  variant focused on balances, ledger, and internal transfers.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/payment-system">HelloInterview — Payment System</a> (delivery framework, idempotency keys to dedupe retries, atomic recording of money movements).</p>
+    <p id="c2">[2] <a href="https://newsletter.pragmaticengineer.com/p/designing-a-payment-system">Pragmatic Engineer — Designing a Payment System</a> &amp; <a href="https://www.martinfowler.com/eaaDev/AccountingNarrative.html">Martin Fowler — Accounting/Ledger patterns</a> (double-entry: matching debit and credit per transaction, append-only ledger, reconciliation).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0073-stock-exchange.html">← Lesson 73</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 75 · Real-time Analytics</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

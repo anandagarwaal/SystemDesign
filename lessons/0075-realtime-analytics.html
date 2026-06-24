@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 75 — Design Real-Time Analytics / Event Tracking (Amplitude)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 75 · Phase 4 — Case Study · Hard</p>
+  <h1>Design Real-Time Analytics / Event Tracking (Amplitude)</h1>
+  <p class="sub">A write-firehose pipeline where billions of raw events become sub-second dashboard queries — ingest cheaply, aggregate in flight, read pre-cooked.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Product analytics (Amplitude, Mixpanel, Heap, GA4) is the
+    canonical "ingest a firehose, serve fast aggregates" interview. It tests four staff-level muscles at once:
+    <em>reliable high-throughput ingestion</em>, the <em>streaming-vs-batch</em> (lambda/kappa) decision,
+    <em>columnar OLAP</em> over row stores, and <em>approximation</em> (HyperLogLog) when exact distinct counts are
+    too expensive. The senior answer stores events and queries them. The staff answer never scans raw events on the
+    read path at all — it decides up front what to pre-aggregate, what to approximate, and what to keep exact.
+  </div>
+
+  <h2>1 · Functional Requirements</h2>
+  <p>Strip product analytics to the flows that actually shape the design — the write path (SDK → us) and the read
+  path (dashboard → us).</p>
+  <table>
+    <tr><th>#</th><th>Requirement</th></tr>
+    <tr><td>1</td><td>Client <b>SDKs emit events</b> (<code>page_view</code>, <code>signup</code>, <code>purchase</code>…) with properties; we ingest them <b>reliably</b> (no silent loss, survives offline/retries).</td></tr>
+    <tr><td>2</td><td>We <b>durably store</b> the raw event stream so it can be re-processed and explored later.</td></tr>
+    <tr><td>3</td><td>Users can <b>query &amp; aggregate</b>: event counts, unique users (DAU/MAU), funnels, retention — sliced by property/time, <b>near real time</b>.</td></tr>
+    <tr><td>4</td><td>Users view <b>dashboards</b> that issue many of those aggregate queries with sub-second latency.</td></tr>
+  </table>
+  <p><b>Out of scope (say so):</b> SDK auto-instrumentation internals, A/B experiment assignment, identity-resolution/stitching across devices, GDPR deletion workflows, and billing. Name them to bank breadth credit, then defer to spend your time on the pipeline and storage depth.</p>
+
+  <h2>2 · Non-Functional Requirements</h2>
+  <p>The "-ilities" here are in productive tension: write volume is enormous, but reads must feel instant, and
+  freshness fights cost. Rank them out loud.</p>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th><th>Why it bites</th></tr>
+    <tr><td>Write throughput</td><td>~1M events/sec peak, bursty</td><td>No single DB write path survives; need a partitioned log buffer.</td></tr>
+    <tr><td>Freshness</td><td>Near real time, ~seconds to low minutes</td><td>"Live" dashboards; forces a streaming layer, not nightly batch.</td></tr>
+    <tr><td>Query latency</td><td>p99 &lt; 1s for aggregates</td><td>Can't <code>GROUP BY</code> trillions of raw rows; pre-aggregate + columnar.</td></tr>
+    <tr><td>Durability</td><td>No silent event loss</td><td>Analytics drives decisions; at-least-once ingest with replay.</td></tr>
+    <tr><td>Scale / cost</td><td>Trillions of stored events, cheaply</td><td>Raw to object storage; hot rollups stay small in OLAP.</td></tr>
+  </table>
+  <div class="box">
+    <b>The tension to name.</b> Streaming gives you seconds of freshness but can drift (late events, processor
+    bugs). Batch over the immutable raw lake gives you correctness but lags. And exact distinct-count (unique users)
+    is memory-murderous at this scale. You resolve all three with the same instinct: <b>do expensive work once on
+    write, approximate where the product tolerates it, keep the raw truth to recompute.</b> That instinct drives
+    every deep dive below.
+  </div>
+
+  <h2>3 · Capacity Estimation</h2>
+  <p>Only the numbers that change a decision. (Estimates are my own back-of-envelope, not vendor figures.)</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Peak events/sec</td><td>~1M/s</td><td>One DB can't accept this; need Kafka-class partitioned ingest + backpressure.</td></tr>
+    <tr><td>Daily events</td><td>~50–100B/day</td><td>Raw must live in cheap object storage, not the query DB.</td></tr>
+    <tr><td>Raw size</td><td>~1 KB/event ⇒ ~50–100 TB/day</td><td>Compress columnar (~5–10×); tier old data; never scan raw on reads.</td></tr>
+    <tr><td>Distinct users</td><td>100s of millions</td><td>Exact <code>COUNT(DISTINCT)</code> per slice is too costly — use HyperLogLog (Deep Dive 4).</td></tr>
+    <tr><td>Cooked rollups</td><td>tiny vs. raw</td><td>(events × dims × time-buckets) collapses to MBs/GBs — fits hot OLAP.</td></tr>
+  </table>
+  <p>Takeaway: <b>ingest needs a buffer</b>, <b>raw goes to a lake</b>, <b>reads hit pre-aggregated columnar rollups</b>,
+  and <b>uniques get approximated</b>. Everything else is detail.</p>
+
+  <h2>4 · Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>Event</code> (eventId, userId, deviceId, name, timestamp, properties{}, projectId),
+  <code>User</code> (userId, identify-properties), <code>Rollup</code> (projectId, eventName, dims, windowStart,
+  granularity, count, hllSketch).</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/events:batch</code></td><td>SDK uploads a <b>batch</b> of events (gzipped). Carries client-generated <code>eventId</code> for dedup; project derived from the API key/auth token. Returns <code>202 Accepted</code> fast.</td></tr>
+    <tr><td><code>POST /v1/identify</code></td><td>Attach/merge user properties (the <code>User</code> dimension joined into queries).</td></tr>
+    <tr><td><code>GET /v1/insights/count?event=&amp;from=&amp;to=&amp;groupBy=&amp;granularity=</code></td><td>Aggregated event counts over a time range, sliced by a property.</td></tr>
+    <tr><td><code>GET /v1/insights/uniques?event=&amp;from=&amp;to=&amp;granularity=</code></td><td>Unique-user counts (served from merged HLL sketches — approximate).</td></tr>
+    <tr><td><code>GET /v1/insights/funnel?steps=&amp;window=&amp;from=&amp;to=</code></td><td>Ordered-step conversion over a session window.</td></tr>
+  </table>
+  <p>Two design tells live here. <b>(a) Batching</b>: SDKs buffer events locally and flush in gzipped batches so a flaky
+  mobile network never drops data and we amortize request overhead. <b>(b) Fast <code>202</code></b>: the collector
+  acknowledges as soon as the batch is durably buffered — it never blocks on aggregation.</p>
+
+  <h2>5 · Data Flow</h2>
+  <p>Follow one event from a tap to a dashboard tile:</p>
+  <ol style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
+    <li><b>Emit</b> → SDK records an event, buffers it on-device, and flushes a batch to <code>POST /v1/events:batch</code> (retries on failure).</li>
+    <li><b>Collect</b> → a stateless <b>Collector</b> validates schema/API key, dedups on <code>eventId</code>, appends to <b>Kafka</b> (partitioned by <code>projectId</code>/<code>userId</code>), and returns <code>202</code>.</li>
+    <li><b>Archive</b> → a sink writes the raw stream to an <b>object-storage lake</b> (S3/GCS) — the immutable source of truth for replay &amp; batch recompute.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Aggregate (speed)</b> → <b>Flink</b><a href="#c3" class="cite">[3]</a> consumes Kafka, maintains <b>tumbling windows</b> per (event, dims), and emits counts + <b>HLL sketches</b> for uniques.</li>
+    <li><b>Store cooked</b> → rollups are upserted into a <b>columnar OLAP store</b> (ClickHouse/Druid).<a href="#c4" class="cite">[4]</a></li>
+    <li><b>Reconcile (batch)</b> → periodic Spark jobs re-aggregate the lake and overwrite rollups for accuracy (lambda).<a href="#c5" class="cite">[5]</a></li>
+    <li><b>Serve</b> → the Query service answers <code>GET /insights/*</code> from cooked buckets — never a raw scan.</li>
+  </ol>
+  <p>This is the same <b>two-tier write, pre-aggregated read</b> shape as the <a href="0036-ad-click-aggregator.html">Ad Click Aggregator</a> — but here events are <em>not money</em>, so we trade a little accuracy (approximate uniques) for far cheaper reads.</p>
+
+  <h2>6 · High-Level Design</h2>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+    <tr><td>SDK</td><td>Buffer on-device, batch, gzip, retry; carries <code>eventId</code> for dedup.</td><td>Local queue</td></tr>
+    <tr><td>Collector / ingest API</td><td>Validate, authn, dedup, append to log, ack <code>202</code>. Stateless behind LB.</td><td>Redis (dedup)</td></tr>
+    <tr><td>Event log</td><td>Durable, replayable buffer; absorbs bursts; decouples ingest from processing.</td><td>Kafka / Kinesis</td></tr>
+    <tr><td>Raw lake</td><td>Immutable copy of every event for replay &amp; batch recompute.</td><td>S3 / GCS</td></tr>
+    <tr><td>Stream processor</td><td>Windowed counts + HLL per (event, dims); checkpoints offsets.</td><td>Flink state</td></tr>
+    <tr><td>Batch layer</td><td>Periodic Spark re-aggregation of the lake; corrects the speed layer.</td><td>Lake → OLAP</td></tr>
+    <tr><td>Query service</td><td>Serves <code>GET /insights</code> from rollups; merges granularities + HLL sketches.</td><td>ClickHouse / Druid</td></tr>
+  </table>
+  <p>Two paths leave the log: the <b>speed layer</b> (Flink, seconds-fresh) and the <b>batch layer</b> (Spark, authoritative). Both write the same OLAP store; batch overwrites speed-layer estimates. For the storage foundations this leans on, cross-link <a href="0042-time-series-databases.html">Lesson 42</a> (time-series databases) and the probabilistic structures in <a href="0041-data-structures-for-big-data.html">Lesson 41</a>.</p>
+
+  <h2>7 · Deep Dives</h2>
+
+  <h3>Deep Dive 1 — High-throughput, reliable ingestion (SDK → Collector → Kafka)</h3>
+  <p>At ~1M events/sec the ingest path's only job is to <b>accept fast and lose nothing</b> — aggregation happens
+  downstream. Three mechanisms make that hold:</p>
+  <table>
+    <tr><th>Concern</th><th>Mechanism</th><th>Guarantee</th></tr>
+    <tr><td>Flaky clients</td><td>SDK buffers on-device, batches + gzips, retries with backoff.<a href="#c1" class="cite">[1]</a></td><td>Survives offline; amortizes overhead.</td></tr>
+    <tr><td>Overload</td><td><b>Backpressure</b>: collector returns <code>429</code>/<code>503</code>; SDK backs off &amp; keeps its buffer.</td><td>No data dropped under spikes.</td></tr>
+    <tr><td>Durability</td><td>Append to Kafka (replicated), ack only after; <b>at-least-once</b> delivery.<a href="#c2" class="cite">[2]</a></td><td>Crash ⇒ replay, never a silent gap.</td></tr>
+  </table>
+  <p><b>At-least-once + dedup, not exactly-once-at-ingest.</b> Forcing exactly-once on the write path would slow ingest.
+  Instead accept duplicates (a retried batch re-sends events) and <b>dedup on the client-generated <code>eventId</code></b>
+  — the collector checks a recent-id set in Redis, and the aggregation layer is idempotent per <code>eventId</code> within
+  its window. This is the deliberate contrast with the Ad Click Aggregator, where each event was billable and demanded
+  strict exactly-once; here events are cheap, so at-least-once + idempotent dedup is the right, simpler call.</p>
+  <p><b>Why a log, not direct-to-DB.</b> Kafka decouples a bursty 1M/s producer from slower, stateful consumers, gives
+  bounded <b>retention for replay</b> (reprocess after a bug), and lets you add new consumers (a new metric, a new
+  warehouse sink) without touching ingest.<a href="#c2" class="cite">[2]</a></p>
+
+  <h3>Deep Dive 2 — Lambda vs. kappa: streaming for freshness, batch for accuracy</h3>
+  <p>Freshness and correctness pull in opposite directions, so name the architecture explicitly. The <b>speed layer</b>
+  (Flink tumbling windows) gives seconds-fresh counts; the <b>batch layer</b> (Spark over the immutable lake) recomputes
+  authoritative numbers and overwrites drift.<a href="#c5" class="cite">[5]</a></p>
+  <table>
+    <tr><th>Architecture</th><th>Shape</th><th>Tradeoff</th></tr>
+    <tr><td>Lambda</td><td>Speed (Flink) + batch (Spark) layers, reconciled in OLAP.<a href="#c5" class="cite">[5]</a></td><td>Two codebases to keep in sync, but maximally robust.</td></tr>
+    <tr><td>Kappa</td><td>One stream path; reprocess by replaying the log.<a href="#c6" class="cite">[6]</a></td><td>Simpler ops; replaying long ranges can be slow/costly.</td></tr>
+  </table>
+  <p><b>Late events.</b> Mobile reconnects mean an event can arrive long after its window closed. Use Flink
+  <b>watermarks + bounded allowed-lateness</b> so windows finalize promptly; anything later than the bound is repaired
+  by the batch layer.<a href="#c3" class="cite">[3]</a> State the lateness bound — it's a correctness knob, not a default.</p>
+  <p><b>Pick.</b> Lead with <b>kappa</b> for its operational simplicity (one pipeline; replay the log to backfill), and
+  add a <b>batch reconciliation</b> only where the product demands ledger-grade accuracy. For most analytics, slightly
+  approximate-but-fresh beats perfectly-accurate-but-late — the opposite of the billing system.</p>
+
+  <h3>Deep Dive 3 — Columnar OLAP storage vs. row stores</h3>
+  <p>A dashboard query is "sum/count over millions of rows, touching 2–3 columns, filtered by time." Row stores
+  (Postgres/MySQL) read whole rows off disk and choke; <b>columnar OLAP</b> (ClickHouse, Druid, Pinot) stores each
+  column contiguously, so a query reads only the columns it needs and skips the rest.<a href="#c4" class="cite">[4]</a></p>
+  <table>
+    <tr><th>Property</th><th>Row store (OLTP)</th><th>Columnar OLAP</th></tr>
+    <tr><td>I/O per aggregate</td><td>Reads full rows</td><td>Reads only needed columns<a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td>Compression</td><td>Modest</td><td>High (like-typed columns compress 5–10×)<a href="#c4" class="cite">[4]</a></td></tr>
+    <tr><td>Best at</td><td>Point reads / updates</td><td>Scans, <code>GROUP BY</code>, time-range rollups</td></tr>
+    <tr><td>Time pruning</td><td>Index lookups</td><td>Partition by time; skip non-matching blocks<a href="#c7" class="cite">[7]</a></td></tr>
+  </table>
+  <p>Partition rollups by <code>(projectId, eventName, day)</code> and sort within partition by timestamp so a time-range
+  query scans only the relevant blocks. This is also where the <a href="0042-time-series-databases.html">time-series
+  database</a> concepts (downsampling, retention tiers) apply directly.</p>
+
+  <h3>Deep Dive 4 — Pre-aggregation/rollups + approximate distinct counts (HyperLogLog)</h3>
+  <p>Two compounding tricks make reads trivial. <b>(a) Multi-granularity rollups</b>: Flink emits minute buckets in real
+  time; cron jobs roll those into hour/day/week. A "last 90 days" query reads ~90 day-rows, not 130k minute-rows — the
+  planner picks the coarsest bucket that satisfies the requested granularity. <b>(b) Approximate uniques</b>: exact
+  <code>COUNT(DISTINCT userId)</code> per slice would need a full id-set per bucket — hundreds of MB each. Instead store a
+  <b>HyperLogLog sketch</b> (~12–16 KB, ~2% error) per (event, dims, window).<a href="#c8" class="cite">[8]</a></p>
+  <p>HLL's superpower is that sketches are <b>mergeable</b>: union the per-minute sketches to answer a per-day or
+  arbitrary-range unique-user count without re-reading raw events.<a href="#c8" class="cite">[8]</a> That mergeability is
+  exactly why it fits the rollup model — see the deeper treatment in <a href="0041-data-structures-for-big-data.html">Lesson 41 (data structures for big data)</a>. Keep counts <em>exact</em> (cheap, additive) but uniques
+  <em>approximate</em> (HLL) — and tell the interviewer the product tolerates ~2% on DAU/MAU but never on revenue.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Say the quiet part: <em>"Events here aren't money, so I'll optimize for cheap, fresh reads — at-least-once ingest
+    with <code>eventId</code> dedup, approximate uniques via mergeable HLL, and exact counts only where they're cheap."</em>
+    Then contrast it explicitly with the <a href="0036-ad-click-aggregator.html">Ad Click Aggregator</a>, where billing
+    forced strict exactly-once and zero approximation. Choosing <em>where</em> to be approximate, pre-aggregating on
+    write so reads never scan raw, and defaulting to kappa-with-optional-batch instead of reflexively bolting on a
+    second pipeline — that judgment is what separates staff from senior.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why is at-least-once + dedup preferred over exactly-once on the ingest path here?</p>
+      <button class="opt">Exactly-once delivery is technically impossible across any real network link at all</button>
+      <button class="opt">Columnar storage engines reject events that arrive more than once per minute window</button>
+      <button class="opt">Events are cheap, so accepting fast and deduping by eventId beats slowing ingest down</button>
+      <button class="opt">Kafka partitions can only guarantee ordering when producers send each event one time</button>
+      <p class="fb">Events aren't billable, so the simpler at-least-once path plus eventId dedup keeps ingest fast without inflating counts.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Why store a HyperLogLog sketch instead of exact distinct user-id sets?</p>
+      <button class="opt">Sketches return perfectly exact unique counts while using slightly less disk space</button>
+      <button class="opt">Sketches are tiny and mergeable, so range uniques union without rescanning raw</button>
+      <button class="opt">Sketches let the database skip the streaming layer and read directly from object</button>
+      <button class="opt">Sketches encrypt user identifiers so distinct counts never expose any real userid</button>
+      <p class="fb">HLL trades ~2% error for kilobyte-sized, mergeable sketches — union per-minute sketches to get range uniques cheaply.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What makes columnar OLAP beat a row store for dashboard aggregates?</p>
+      <button class="opt">It reads only the columns a query needs and compresses like-typed data heavily</button>
+      <button class="opt">It keeps every single raw event permanently cached inside fast main memory pages</button>
+      <button class="opt">It replays the whole Kafka commit log on demand for each incoming user query</button>
+      <button class="opt">It updates individual rows in place far faster than any normal index would allow</button>
+      <p class="fb">Columnar stores read only needed columns and compress them well, so wide scans and GROUP BY are dramatically cheaper.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. In the lambda model, what job does the batch layer do for the speed layer?</p>
+      <button class="opt">It is the single only component allowed to write any rollups into the OLAP store</button>
+      <button class="opt">It recomputes from the immutable lake to correct drift and repair very late events</button>
+      <button class="opt">It performs the windowed streaming aggregation that Flink itself cannot ever handle</button>
+      <button class="opt">It serves every dashboard query directly so the columnar store stays totally idle</button>
+      <p class="fb">The speed layer gives freshness; the batch layer re-aggregates the immutable raw lake for authoritative, drift-free numbers.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on the hard parts. Try:
+    "Walk me through what happens to a duplicated event batch from end to end."
+    "When would you drop the batch layer and run pure kappa here?"
+    "How do HLL sketches get merged to answer an arbitrary 90-day unique-users query?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ad-click-aggregator">Hello Interview — Ad Click Aggregator breakdown</a>. The closest canonical walkthrough: same Kafka→Flink→OLAP pipeline, windowing, hot-key handling, and lambda reconciliation. Read it for the streaming mechanics, then apply this lesson's twist — events here are cheap, so you trade exactness for cheap, fresh reads (batching/backpressure, approximate uniques).</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] Amplitude / Mixpanel SDK behavior — client-side event buffering, batching, and retry are the standard reliable-ingest pattern for product-analytics SDKs (vendor SDK docs).</p>
+    <p id="c2">[2] <a href="https://kafka.apache.org/documentation/">Apache Kafka documentation</a> (partitioned durable log, replication, retention/replay, at-least-once delivery, consumer decoupling).</p>
+    <p id="c3">[3] <a href="https://nightlies.apache.org/flink/flink-docs-stable/docs/concepts/time/">Apache Flink — event time, windows &amp; watermarks</a> (tumbling windows, watermarks, allowed lateness).</p>
+    <p id="c4">[4] <a href="https://clickhouse.com/docs/en/intro">ClickHouse documentation</a> (columnar storage, per-column compression, fast aggregation/scans).</p>
+    <p id="c5">[5] N. Marz &amp; J. Warren, <a href="https://www.manning.com/books/big-data">Big Data</a> (the lambda architecture: speed + batch layers reconciled in a serving store).</p>
+    <p id="c6">[6] J. Kreps, <a href="https://www.oreilly.com/radar/questioning-the-lambda-architecture/">Questioning the Lambda Architecture</a> (the kappa alternative: one stream path, reprocess by replaying the log).</p>
+    <p id="c7">[7] <a href="https://druid.apache.org/docs/latest/design/">Apache Druid documentation</a> (time-partitioned segments, block pruning for time-range queries).</p>
+    <p id="c8">[8] Flajolet, Fusy, Gandouet, Meunier, <a href="https://en.wikipedia.org/wiki/HyperLogLog">HyperLogLog</a> (near-optimal cardinality estimation; small, mergeable sketches with ~2% error).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0074-digital-wallet-p2p.html">← Lesson 74</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 76 · Logging &amp; Tracing</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

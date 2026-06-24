@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 120 — Deep Dive: Real-Time Delivery</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 120 · Phase 1 — Core Concept · Deep Dive</p>
+  <h1>Deep Dive: Real-Time Delivery (WebSockets, SSE, Polling)</h1>
+  <p class="sub">Plain HTTP only lets the client pull — but chat, live scores, notifications, and collaborative editing need the server to push. These four options are how you bend a pull protocol into push, and choosing among them is a staple staff-level decision.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> The moment a design needs "the other user sees my message instantly," the interviewer is testing whether you understand that HTTP is request/response — the server can't speak unless spoken to. A senior candidate says "use WebSockets" reflexively. A staff candidate names the four options (short poll, long poll, SSE, WebSocket), picks the <em>cheapest one that meets the requirement</em> (one-way notifications don't need a full-duplex socket), and then — the real signal — talks about the part everyone forgets: <em>scaling millions of persistent connections</em> across a fleet, which is a fundamentally different problem from scaling stateless request/response. This lesson gives you both the menu and the hard scaling story behind it.
+  </div>
+
+  <h2>The problem: HTTP is client-pull</h2>
+  <p>HTTP is a <b>request/response</b> protocol: the client asks, the server answers, the exchange ends.<a href="#c1" class="cite">[1]</a> There is no built-in way for a server to wake up later and say "hey, something changed." That's fine for fetching a page or calling an API (see <a href="0002-networking-and-apis.html">Networking &amp; APIs, Lesson 2</a>) — the client always initiates.</p>
+
+  <p>But a huge class of systems needs the opposite direction: the <em>server</em> has new data and must push it to clients it isn't currently being asked by. Chat messages arriving (<a href="0019-whatsapp.html">WhatsApp, Lesson 19</a>), live sports scores, a notification badge incrementing, the live comment feed under a stream (<a href="0024-fb-live-comments.html">FB Live Comments, Lesson 24</a>), a cursor moving in a collaborative doc — all of these are <b>server→client push</b>. The whole topic of "real-time delivery" is a set of techniques for getting push-like behavior out of a protocol that was designed for pull. There are four, and they trade off latency, overhead, direction, and complexity.</p>
+
+  <h2>The four options</h2>
+  <p>From cheapest/dumbest to most powerful: <b>short polling</b> (ask repeatedly on a timer), <b>long polling</b> (ask, but the server holds the request open until it has something), <b>Server-Sent Events</b> (one persistent HTTP stream, server→client only), and <b>WebSockets</b> (one persistent TCP connection, full-duplex both ways).</p>
+
+  <table>
+    <thead><tr><th>Option</th><th>Latency</th><th>Overhead</th><th>Direction</th><th>Complexity</th></tr></thead>
+    <tbody>
+      <tr><td><b>Short polling</b></td><td>Poor — up to one interval of delay</td><td>High — most requests return empty</td><td>Client-pull (faked push)</td><td>Trivial — a timer + normal API</td></tr>
+      <tr><td><b>Long polling</b></td><td>Near real-time on each event</td><td>Medium — reconnect after each msg</td><td>Client-pull, server holds open</td><td>Low — works on plain HTTP</td></tr>
+      <tr><td><b>SSE</b></td><td>Real-time, low</td><td>Low — one stream, text frames<a href="#c2" class="cite">[2]</a></td><td>One-way: server→client<a href="#c2" class="cite">[2]</a></td><td>Medium — <code>EventSource</code>, auto-reconnect<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><b>WebSocket</b></td><td>Real-time, lowest</td><td>Low — tiny frames after handshake<a href="#c3" class="cite">[3]</a></td><td>Full-duplex: both ways<a href="#c3" class="cite">[3]</a></td><td>High — stateful, you build framing/reconnect</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Short polling</h3>
+  <p>The client hits a normal endpoint on a fixed timer — <code>GET /messages?since=…</code> every few seconds. Dead simple, no special infra, works through any proxy. The costs are brutal at scale: latency is bounded by your interval (poll every 5s → up to 5s late), and the vast majority of requests return "nothing new," burning bandwidth, server CPU, and battery for empty answers. Fine for low-frequency, latency-tolerant updates (a dashboard that refreshes every 30s); wrong for chat.</p>
+
+  <h3>Long polling</h3>
+  <p>A smarter twist: the client sends a request, and the server <em>does not respond</em> until it actually has data (or a timeout fires). The instant an event occurs, the held request returns with it, and the client immediately opens a new one. This gives near-real-time latency over ordinary HTTP, with no empty responses in the steady state — its big virtue is that it works <em>everywhere</em> HTTP works, no protocol upgrade needed. The downsides: each message costs a full request/response cycle (re-establish, headers), it ties up a server connection slot while idle-waiting, and it's awkward for high-frequency bidirectional traffic. Long polling is the classic fallback when WebSockets are blocked by a proxy.</p>
+
+  <h3>Server-Sent Events (SSE)</h3>
+  <p><b>SSE</b> is a standardized, one-way <em>server→client</em> stream layered on a single long-lived HTTP response.<a href="#c2" class="cite">[2]</a> The client opens an <code>EventSource</code> connection; the server keeps the response open and writes UTF-8 text "events" down the pipe as they happen.<a href="#c2" class="cite">[2]</a> Because it's just HTTP, it passes through most proxies and load balancers, and the browser <code>EventSource</code> API gives you <b>automatic reconnection</b> and a <b>last-event-ID</b> resume mechanism for free.<a href="#c2" class="cite">[2]</a> The trade-off is right in the name: it's <em>one-way and text-only</em>. The client still sends its own actions via ordinary HTTP requests. That's a perfect fit for fan-out feeds — notifications, live scores, a stock ticker, a comment stream — where the server does nearly all the talking.</p>
+
+  <h3>WebSockets</h3>
+  <p>A <b>WebSocket</b> starts as an HTTP request with an <code>Upgrade: websocket</code> header; once the server agrees, that same TCP connection is "upgraded" into a <b>persistent, full-duplex</b> channel where both sides can send small binary/text frames at any time with minimal per-message overhead.<a href="#c3" class="cite">[3]</a> This is the only option that gives true low-latency <em>bidirectional</em> communication, which is why it's the default for chat, multiplayer games, and collaborative editing where both parties push constantly. The price is complexity and cost: the connection is <b>stateful</b> and long-lived, you typically build your own message framing / heartbeats / reconnect logic, and — the big one — you now have to <b>scale millions of open connections</b>, which is the next section and the actual hard part.</p>
+
+  <div class="box">
+    <b>Mental model.</b> Short poll = "Are we there yet? … Are we there yet?" Long poll = "Tell me when we're there" (and ask again the moment you're told). SSE = a one-way radio the server broadcasts on. WebSocket = a phone call — either side talks whenever. Pick the <b>least powerful tool that meets the requirement</b>: don't open a duplex socket to push a notification badge.
+  </div>
+
+  <h2>Scaling persistent connections — the hard part</h2>
+  <p>Stateless request/response scales trivially: any server can handle any request, so you put them behind a load balancer and add boxes. <b>Persistent connections break that assumption.</b> Once a client holds an open WebSocket (or SSE stream) to <em>one specific server</em>, all the interesting problems follow from the fact that the connection — and the knowledge of "who is connected where" — is <b>state living on a particular machine</b>.</p>
+
+  <h3>Connection state &amp; routing to the right server</h3>
+  <p>Say Alice's socket terminates on server <code>S3</code> and Bob's on <code>S7</code>. When Bob sends "hi Alice," <code>S7</code> receives it — but the connection that can <em>deliver</em> it lives on <code>S3</code>. No amount of load balancing helps here, because the destination isn't "any server," it's "the exact server holding Alice's connection." So you need two things: a way to keep a client pinned to its server, and a way to route a message to whichever server holds the recipient.</p>
+  <ul>
+    <li><b>Sticky sessions / connection-id routing:</b> the load balancer must keep each client on the same backend for the life of the connection. For a WebSocket there's nothing to re-route after the upgrade anyway, so this is natural — but it means the LB can't freely rebalance, and a backend dying drops every connection it held.</li>
+    <li><b>A connection registry:</b> a shared store (e.g. Redis) maps <code>user_id → server_id</code> so any server can discover where a given user is currently connected.</li>
+  </ul>
+
+  <h3>The pub/sub backplane (Redis)</h3>
+  <p>The standard fan-out solution is a <b>pub/sub backplane</b>. Every app server subscribes to the messaging layer (commonly Redis Pub/Sub, or Kafka for durability). When <code>S7</code> receives Bob's message, it doesn't try to find Alice itself — it <b>publishes</b> the message to a channel (say, the channel for Alice's user-id or her chat room). The backplane delivers it to whichever server(s) hold subscribers for that channel; <code>S3</code> sees it on its subscription and writes it down Alice's socket. This decouples "which server received the message" from "which server holds the recipient," so you can add app servers freely — they all share one logical message bus. (This is the same fan-out machinery behind <a href="0024-fb-live-comments.html">FB Live Comments, Lesson 24</a> and chat delivery in <a href="0019-whatsapp.html">WhatsApp, Lesson 19</a>.)</p>
+
+  <h3>C10K → C10M</h3>
+  <p>The classic <b>C10K problem</b> was the early-2000s realization that handling 10,000 simultaneous connections on one box required moving off thread-per-connection to event-driven I/O (epoll/kqueue, non-blocking sockets). Modern servers push toward <b>C10M</b> — millions of connections per node — but every idle connection still costs memory (socket buffers, app-level state) and file descriptors, so capacity planning for a real-time system is dominated by <em>connection count and memory</em>, not request QPS. This reframes your estimation: "100M users, 5% concurrent = 5M live sockets; at a few KB each plus headroom, that's the box count," not "X requests per second."</p>
+
+  <h3>Load balancer &amp; lifecycle concerns</h3>
+  <ul>
+    <li><b>L4 for WebSockets:</b> there's no per-request routing once the connection is upgraded, so an <b>L4 (transport) load balancer</b> that pins the whole TCP connection to one backend is the natural fit — see <a href="0121-load-balancing.html">Load Balancing, Lesson 121</a>. An L7 LB can carry WebSockets too, but you're paying for HTTP parsing you don't use after the handshake.</li>
+    <li><b>Heartbeats:</b> idle connections get silently killed by NATs, proxies, and timeouts, so both sides send periodic <b>ping/pong</b> heartbeats to keep the path alive and to detect a dead peer quickly.</li>
+    <li><b>Reconnection &amp; resume:</b> connections <em>will</em> drop (deploys, network blips, mobile handoffs). Clients need exponential-backoff reconnect, and the server needs a way to replay anything missed during the gap (SSE's last-event-ID, or a per-user message cursor) so a reconnect doesn't lose messages.</li>
+    <li><b>Graceful deploys:</b> because connections are pinned and stateful, restarting a server drops thousands of sockets at once. Drain slowly and lean on client reconnect + resume so a deploy is a blip, not an outage.</li>
+  </ul>
+
+  <h2>Choosing — a decision rubric</h2>
+  <p>Match the direction and frequency of the data to the cheapest option that satisfies it:</p>
+  <div class="box">
+    <b>Pick by what the traffic actually needs</b>
+    <ul>
+      <li><b>Low-frequency, latency-tolerant updates</b> (dashboard refresh, "any new orders?") → <b>short polling.</b> No infra, good enough.</li>
+      <li><b>One-way, server-driven, real-time</b> (notifications, live scores, ticker, live comment feed) → <b>SSE</b> (or long polling as the no-upgrade fallback). Don't pay for a duplex socket you won't use.</li>
+      <li><b>Two-way, high-frequency, low-latency</b> (chat, collaborative editing, presence, multiplayer) → <b>WebSockets.</b> This is the case that justifies the connection-scaling complexity.</li>
+      <li><b>Constraint check:</b> if a corporate proxy/old client blocks WebSocket upgrades, fall back to long polling. If you only need server→client, prefer SSE over WS for the simpler, HTTP-native operational story.</li>
+    </ul>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior candidates jump straight to "WebSockets" for anything labeled real-time. Staff candidates do three things. <b>First, they pick the least-powerful sufficient tool:</b> "this is one-way notifications, so SSE — I don't need full-duplex, and SSE gives me auto-reconnect and resume over plain HTTP for free; I'd only reach for WebSockets if the client also pushed at high frequency." <b>Second — the move that separates levels — they pivot from the protocol to the scaling problem nobody asked about yet:</b> "the protocol choice is the easy 20%; the real work is that a persistent connection is state on one box, so I need sticky/L4 routing, a connection registry, and a Redis pub/sub backplane to fan a message to the exact server holding the recipient." <b>Third, they re-frame capacity</b> around concurrent connections and memory (C10K/C10M), not request QPS, and they pre-empt reconnect/heartbeat/graceful-deploy as first-class concerns. Naming the backplane and the connection-as-state problem unprompted is the whole signal.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>When a design needs push, deliver it in this arc: (1) <b>name why HTTP isn't enough</b> — "this is server→client push and HTTP is client-pull." (2) <b>Choose with a reason from the menu</b> — "notifications are one-way, so SSE; chat is bidirectional and high-frequency, so WebSockets." (3) <b>Immediately go to scaling persistent connections</b> — "each socket is state on one server, so I pin clients with sticky/L4 routing and use a Redis pub/sub backplane plus a <code>user→server</code> registry to deliver to the right box." (4) <b>Re-frame capacity</b> as concurrent connections × memory, not QPS. (5) <b>Pre-empt the lifecycle</b> — heartbeats, reconnect-with-resume, graceful drain on deploy. That's breadth-then-depth: a fast justified protocol pick, then 60% depth on the backplane and connection scaling, which is where the L6/L7 conversation actually lives.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why can't plain HTTP push data to a client on its own?</p>
+      <button class="opt">Because HTTP responses are always far too small to carry events</button>
+      <button class="opt">Because every HTTP proxy on the path blocks all server traffic</button>
+      <button class="opt">Because HTTP is request/response, so the client must ask first</button>
+      <button class="opt">Because HTTP connections close instantly after the TCP handshake</button>
+      <p class="fb">HTTP is a client-pull, request/response protocol — the server cannot speak until the client initiates, which is exactly why real-time delivery techniques exist.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. For one-way server→client notifications, which option fits best?</p>
+      <button class="opt">SSE — a single server-to-client stream that auto-reconnects</button>
+      <button class="opt">WebSockets — a full duplex socket for both ends to push on</button>
+      <button class="opt">Short polling — repeated timed requests that mostly return void</button>
+      <button class="opt">Raw UDP datagrams — connectionless packets sprayed at clients</button>
+      <p class="fb">SSE is one-way (server→client) over HTTP with built-in reconnect and resume — you don't pay for a full-duplex WebSocket when the client never pushes.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. A user's socket lives on server S3. How does S7 reach them?</p>
+      <button class="opt">S7 reopens the connection directly onto its own local memory</button>
+      <button class="opt">The L4 load balancer rewrites the packet to redeliver onto S3</button>
+      <button class="opt">Every server broadcasts the message to all clients and filters it</button>
+      <button class="opt">S7 publishes to a pub/sub backplane that S3 is subscribed onto</button>
+      <p class="fb">A persistent connection is state pinned to one box; a Redis-style pub/sub backplane fans the message to whichever server holds the recipient (here S3) via a shared channel.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. How should you size a system built on persistent connections?</p>
+      <button class="opt">By peak requests per second alone, exactly like stateless APIs</button>
+      <button class="opt">By concurrent connection count and per-socket memory overhead</button>
+      <button class="opt">By the total disk storage that all chat history will consume here</button>
+      <button class="opt">By the raw CPU clock speed of one single backend server alone</button>
+      <p class="fb">Idle sockets still cost memory and file descriptors, so capacity for real-time systems is dominated by concurrent connections × per-socket memory (C10K→C10M), not request QPS.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Walk me through the exact path of a chat message from Bob's socket on S7 to Alice's socket on S3 through a Redis pub/sub backplane." · "When would you choose long polling over SSE, and over WebSockets, for the same notification feature?" · "How do heartbeats, reconnect-with-resume, and connection draining keep a WebSocket fleet healthy through a deploy?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API">MDN — WebSockets API</a>, paired with <a href="https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events">MDN — Using Server-Sent Events</a>. The clearest concrete grounding for the WebSocket upgrade handshake and full-duplex framing vs. the one-way <code>EventSource</code> stream with auto-reconnect; read both, then think about how each behaves when you have millions of them open at once.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview">MDN, "An overview of HTTP"</a> (HTTP as a stateless client-initiated request/response protocol — the reason server push needs extra techniques).</p>
+    <p id="c2">[2] <a href="https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events/Using_server-sent_events">MDN, "Using server-sent events"</a> (SSE: one-way server→client text stream over HTTP via <code>EventSource</code>, with automatic reconnection and last-event-ID resume).</p>
+    <p id="c3">[3] <a href="https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API">MDN, "The WebSocket API"</a> (WebSocket HTTP <code>Upgrade</code> handshake and persistent full-duplex framing for low-overhead bidirectional messaging).</p>
+    <p id="c4">Glossary: <a href="../reference/glossary.html">course glossary</a> — short/long polling, SSE, WebSocket, pub/sub backplane, sticky sessions, C10K.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0119-aws-core-services.html">← Lesson 119</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 121 · Load Balancing</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

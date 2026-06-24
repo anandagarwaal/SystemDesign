@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 113 — Deep Dive: Change Data Capture (CDC)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 113 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Change Data Capture (CDC)</h1>
+  <p class="sub">Your database just changed a row. How do search, the cache, the warehouse, and three other regions find out — reliably, in order, without you bolting on a second write?</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> The moment a system has more than one place that needs the same data — Postgres for the source of truth, Elasticsearch for search, Redis for the cache, a warehouse for analytics — you face the synchronization problem. The naive answer ("write to the DB, then also write to Elasticsearch") is the <em>dual-write bug</em>, and it silently corrupts data on every crash. CDC is the staff-level answer interviewers hope you'll reach for in feed, search, cache-invalidation, and migration designs. Knowing it lets you say "I'll stream changes off the WAL" instead of "I'll keep them in sync somehow."
+  </div>
+
+  <h2>What it is &amp; why you need it</h2>
+  <p><b>Change Data Capture</b> is the practice of <b>streaming row-level changes (inserts, updates, deletes) out of a database</b> as an ordered event stream, so downstream systems can react to every change without polling and without the source application doing extra writes.<a href="#c2" class="cite">[2]</a></p>
+  <p>It exists to kill the <b>dual-write problem</b>. Suppose your service must update Postgres <em>and</em> index the document in Elasticsearch. Doing both from application code means two independent systems and no shared transaction: if the process crashes after the Postgres commit but before the Elasticsearch write, the two stores disagree forever — and no try/catch fixes it, because the crash can land between any two lines.<a href="#c2" class="cite">[2]</a> CDC inverts the flow: the application writes to <b>one</b> database, and that database's own change log becomes the single, ordered source of truth that everyone else follows. Consistency becomes "downstreams converge to the DB," not "hope two writes both succeed."</p>
+
+  <h2>Internals: three ways to capture changes</h2>
+  <table>
+    <thead><tr><th>Approach</th><th>How</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td><b>Query-based (polling)</b></td><td>Periodically <code>SELECT … WHERE updated_at &gt; last_seen</code>.</td><td>Simple but adds DB load, misses deletes, and can skip changes between polls; coarse latency.</td></tr>
+      <tr><td><b>Trigger-based</b></td><td>DB triggers write change rows to an audit table on every mutation.</td><td>Captures everything but doubles write load and couples to schema; heavy.</td></tr>
+      <tr><td><b>Log-based</b> ✅</td><td>Tail the DB's write-ahead log / binlog (Postgres WAL, MySQL binlog) directly.</td><td>The preferred method — near-zero overhead, captures <em>every</em> change in commit order, including deletes.<a href="#c1" class="cite">[1]</a></td></tr>
+    </tbody>
+  </table>
+
+  <div class="box">
+    <b>Why log-based CDC wins (the Debezium model)</b>
+    <ul>
+      <li>Every durable database already writes a <b>write-ahead log</b> for crash recovery and replication (see <a href="0088-postgresql.html">Postgres, Lesson 88</a>). That log is an authoritative, totally-ordered record of every committed change — CDC just <em>reads a log that already exists</em>.<a href="#c1" class="cite">[1]</a></li>
+      <li>A connector (e.g. <b>Debezium</b>) registers as a replication consumer, reads the WAL, and emits a structured event per row change: <code>{op, before, after, table, ts, lsn}</code>.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Snapshot + stream:</b> on first start it takes a consistent snapshot of existing rows, then switches to streaming the log from that point — so downstreams get the full dataset, then live deltas.</li>
+      <li><b>Offsets:</b> the connector checkpoints its position (the log sequence number / LSN). After a restart it resumes from the last committed offset, giving <b>at-least-once</b> delivery — which is why every consumer must be <b>idempotent</b>.</li>
+      <li><b>Schema changes (DDL)</b> flow through the log too and must be handled (schema registry / evolving event shape) — a common real-world gotcha.</li>
+    </ul>
+  </div>
+
+  <h2>Patterns CDC unlocks</h2>
+  <ul>
+    <li><b>DB → Kafka → consumers:</b> the canonical pipeline. CDC publishes changes to a <a href="0099-kafka.html">Kafka</a> topic; search indexers, cache updaters, and analytics jobs each subscribe independently and stay in sync. One source, many materialized views.<a href="#c2" class="cite">[2]</a></li>
+    <li><b>Transactional outbox:</b> the application writes business state <em>and</em> an <code>outbox</code> row in one local transaction; CDC tails the outbox table and publishes the events, eliminating the dual write (the robust backbone of the Saga pattern — see <a href="0112-distributed-transactions.html">Lesson 112</a>).</li>
+    <li><b>Cache invalidation:</b> when a row changes, the CDC stream tells the cache layer to evict or update the affected key — no more stale reads from a cache the writer forgot to bust.</li>
+    <li><b>Zero-downtime migration &amp; cross-region replication:</b> snapshot the old store, then stream ongoing changes via CDC into the new store / other regions until they're caught up, then cut over — the basis of online schema migrations and replicating ~30 regional DBs into one central warehouse.</li>
+  </ul>
+
+  <h2>When NOT to use it / pitfalls</h2>
+  <p>CDC adds operational weight — a connector to run, a broker to feed, offsets to monitor, and replication slots that, if a consumer stalls, can pin WAL on the source and fill its disk (a classic Postgres outage). For a single small service with one datastore, you don't need it. Other traps: it's <b>eventually consistent</b> (downstreams lag the source by the pipeline latency), <b>at-least-once</b> (design idempotent consumers), and <b>ordering</b> is only guaranteed per-key/partition, not globally.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    When a design needs the same data in two places, a junior says "I'll keep them in sync" or "write to both." A staff candidate names the <b>dual-write problem</b> out loud — "writing to Postgres and Elasticsearch separately means a crash between them corrupts state forever" — and reaches for <b>log-based CDC</b>: "I'll stream the WAL with Debezium into Kafka; the search indexer and cache updater consume it idempotently."<a href="#c1" class="cite">[1]</a> The deeper signal is naming the failure modes unprompted: at-least-once delivery (hence idempotency), per-key ordering only, and the replication-slot-fills-the-disk risk if a consumer falls behind. That's the difference between having heard of CDC and having operated it.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>Reach for CDC whenever your design has a <b>source of truth plus derived stores</b>: a feed that needs search, a write DB that feeds a cache, an analytics pipeline, or a migration. Say it in one arc: "There's a sync problem here — writing to both stores from the app is a dual-write bug. I'll make Postgres the single writer and stream its WAL via CDC into Kafka; downstream search/cache/warehouse consumers apply changes idempotently and in per-key order." Then flag the cost (eventual consistency, an extra moving part) so it's clear you're choosing it, not cargo-culting it.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What core problem does CDC primarily solve?</p>
+      <button class="opt">It encrypts every row at rest inside the source database</button>
+      <button class="opt">It shards a single large table across many database nodes</button>
+      <button class="opt">The dual-write bug when two stores must reflect one change</button>
+      <button class="opt">It compresses the write-ahead log to save disk on the source</button>
+      <p class="fb">By making the DB the single writer and streaming its changes, CDC removes the corruption risk of writing to two systems independently.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. Why is log-based CDC preferred over polling or triggers?</p>
+      <button class="opt">It reads the existing WAL with low overhead and catches deletes</button>
+      <button class="opt">It avoids ever needing an initial snapshot of the table</button>
+      <button class="opt">It guarantees exactly-once delivery without idempotent consumers</button>
+      <button class="opt">It lets clients query historical state at any past timestamp</button>
+      <p class="fb">The WAL already exists for recovery, is totally ordered, and records every change including deletes — far cheaper than polling or triggers.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. Why must CDC consumers be idempotent?</p>
+      <button class="opt">Because the source database commits in random order</button>
+      <button class="opt">Because triggers fire twice for every single row change</button>
+      <button class="opt">Because GraphQL resolvers replay each field on error</button>
+      <button class="opt">Because offset-based resume gives at-least-once delivery</button>
+      <p class="fb">After a restart the connector resumes from its last checkpoint and may re-emit events, so each change can arrive more than once.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. How does CDC enable zero-downtime data migration?</p>
+      <button class="opt">It locks the source table until the new store is fully built</button>
+      <button class="opt">Snapshot the old store, then stream live changes until caught up</button>
+      <button class="opt">It rewrites every application query to target both stores at once</button>
+      <button class="opt">It pauses all writes globally while the cutover takes place</button>
+      <p class="fb">A snapshot seeds the new store and the change stream keeps it current, so you can cut over once the new store has caught up — no downtime.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Design a CDC pipeline that keeps Elasticsearch in sync with Postgres, end to end." · "Show exactly how the outbox pattern uses CDC to avoid the dual write in a Saga." · "What happens to the source database if a CDC consumer stalls for a day?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://debezium.io/documentation/reference/stable/architecture.html">Debezium architecture documentation</a> for the log-based connector model (snapshot + stream, offsets, event envelope), paired with the "Deriving current state" and "Streams &amp; Materialized Views" discussion in <em>Designing Data-Intensive Applications</em>.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://debezium.io/documentation/reference/stable/architecture.html">Debezium Documentation — Architecture</a> (log-based CDC: reading the DB transaction log, snapshot-then-stream, change-event structure, offsets, and at-least-once delivery).</p>
+    <p id="c2">[2] <a href="https://martin.kleppmann.com/2017/03/27/designing-data-intensive-applications.html">Kleppmann, <em>Designing Data-Intensive Applications</em> (O'Reilly)</a> (the dual-write problem, change capture as a stream, and using logs to keep derived data systems in sync).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0112-distributed-transactions.html">← Lesson 112</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 114 · Database Internals</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

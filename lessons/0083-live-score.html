@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 83 — Design a Live Score / Sports Updates System</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 83 · Phase 4 — Case Study · Medium</p>
+  <h1>Design a Live Score / Sports Updates System</h1>
+  <p class="sub">Pushing the latest score to millions of phones the instant a goal is scored — and surviving the moment ten million of them refresh at kickoff of the World Cup final.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> This is a read-fan-out problem wearing a sports jersey. The write side is tiny — a few events per match per minute. The entire interview is the read side: deliver one tiny piece of state (the score) to a colossal, spiky audience, cheaply. An L6/L7 candidate spots immediately that this is the <a href="0024-fb-live-comments.html">Live Comments</a><a href="#c1" class="cite">[1]</a> fan-out pattern with one crucial simplification — the payload is a single latest value, not a stream — and that simplification unlocks <a href="0004-caching.html">CDN/edge caching</a> as the dominant tool. Reaching for the edge before the interviewer asks "what about the World Cup final?" is the move.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Keep the core list tight. A live-score product is small in surface area — the difficulty is entirely in scale and latency, not features.</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th><th>Why it shapes the design</th></tr>
+    <tr><td>1</td><td>Ingest match events (goal, card, period end)</td><td>Write path — trickle of events, but the source of truth</td></tr>
+    <tr><td>2</td><td>Receive live score updates while watching a match</td><td>The fan-out / broadcast problem — the whole interview</td></tr>
+    <tr><td>3</td><td>View a single match's current score &amp; timeline</td><td>Read path — the hot object that must be cacheable</td></tr>
+    <tr><td>4</td><td>List today's / live matches</td><td>The discovery surface that funnels everyone into hot matches</td></tr>
+  </table>
+  <div class="box">
+    <b>Out of scope (say it out loud):</b> betting odds, full play-by-play video, user accounts/social, comments, push notifications to closed apps. We model a match as a small state object — <code>{score, clock, status, recent events}</code> — and broadcast changes to it. We do <i>not</i> own the cameras or the officiating.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>This system is defined by its NFRs far more than its features. State the target and the priority, not just the "-ility."</p>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th></tr>
+    <tr><td>Low-latency updates</td><td>Score change visible to viewers in ~1–2s (humans tolerate a small lag here; sub-200ms is not required)</td></tr>
+    <tr><td>Huge read fan-out</td><td>Tens of millions of concurrent viewers on a single marquee match; reads dwarf writes by ~10⁶:1</td></tr>
+    <tr><td>Spike handling</td><td>Survive kickoff/goal "thundering herd" — load can 100× in seconds<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Availability over consistency</td><td>Always show <i>a</i> score; a viewer being 1–2s behind beats an error page (AP, not CP)<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Cost efficiency</td><td>Serving the same byte to 10M people must not cost 10M DB reads</td></tr>
+  </table>
+  <div class="box">
+    <b>The key tension:</b> the data is tiny and changes rarely, but is wanted by everyone, all at once, the instant it changes. That profile — small hot object + enormous read multiplier + bursty — is the textbook case for <b>edge caching</b>. The architecture optimizes read distribution, not write throughput. Internalize that the score is just one cacheable object per match.
+  </div>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute numbers that change a decision. Two matter: how spiky the read load is, and how trivial the write load is.</p>
+  <div class="box">
+    <ul>
+      <li><b>Write rate (events):</b> a football match has maybe <b>~10–30 meaningful events</b> over 90 minutes — well under <b>1 event/sec</b> even across <i>thousands</i> of simultaneous matches. The write path is effectively free; do not scale for it.</li>
+      <li><b>Read fan-out:</b> <b>10M concurrent viewers</b> of one match each wanting the latest score. If they polled every 5s naively, that's <b>2M req/sec to origin</b> for a single match — impossible to serve from a DB, trivial to serve from a CDN as one cached object.</li>
+      <li><b>Payload size:</b> a score snapshot is <b>~1–2 KB</b> of JSON. 10M viewers × 2KB = ~20 GB per fetch wave — a rounding error for a CDN, a meltdown for an origin.</li>
+      <li><b>Spike shape:</b> at kickoff and after a goal, near-simultaneous demand. The design must collapse N identical requests into <b>one</b> origin fetch (cache + request coalescing).</li>
+    </ul>
+    <b>Design implication:</b> you never scale the database for reads — you push the latest score to the <b>edge</b> and let the CDN absorb the fan-out and the spikes. The origin only ever serves cache misses, which you can count on one hand per match per update.
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <h3>Entities</h3>
+  <table>
+    <tr><th>Entity</th><th>Fields (sketch)</th></tr>
+    <tr><td>Match</td><td><code>matchId</code>, <code>homeTeam</code>, <code>awayTeam</code>, <code>startTime</code>, <code>status</code> (scheduled/live/final)</td></tr>
+    <tr><td>MatchState</td><td><code>matchId</code>, <code>score</code>, <code>clock</code>, <code>version</code> (monotonic), <code>updatedAt</code> — the hot cacheable object</td></tr>
+    <tr><td>Event</td><td><code>eventId</code>, <code>matchId</code>, <code>type</code> (goal/card/sub), <code>team</code>, <code>minute</code>, <code>seq</code></td></tr>
+  </table>
+  <h3>API</h3>
+  <p>Ingest is authenticated to trusted feed providers (the data-entry team or an automated feed), never the public. Reads are public, anonymous, and aggressively cacheable.</p>
+  <div class="box">
+    <ul>
+      <li><code>POST /v1/matches/{id}/events</code> — feed-provider auth; body <code>{ type, team, minute }</code>. Appends an event and recomputes <code>MatchState</code>.</li>
+      <li><code>GET /v1/matches/{id}</code> — the latest <code>MatchState</code>. Returns <code>Cache-Control: max-age=1</code> + <code>ETag</code>; this is the object the CDN holds.<a href="#c2" class="cite">[2]</a></li>
+      <li><code>GET /v1/matches?status=live</code> — today's live matches list (also CDN-cached, short TTL).</li>
+      <li><code>GET /v1/matches/{id}/stream</code> — <b>SSE/WebSocket subscription</b>; server pushes each new <code>MatchState</code> version for engaged viewers.</li>
+      <li><code>GET /v1/matches/{id}/events?since={seq}</code> — backfill the timeline (cursor by <code>seq</code>).</li>
+    </ul>
+  </div>
+
+  <h2>Data Flow</h2>
+  <p>This is a data-processing system: raw events in, a clean broadcastable state out. The pipeline is short but worth naming.</p>
+  <div class="box">
+    <b>Event → broadcastable state, end to end:</b>
+    <ul>
+      <li>1. A goal happens. The feed (manual operator or automatic provider) calls <code>POST /events</code>.</li>
+      <li>2. The <b>Ingest Service</b> validates, appends the event to the durable event log, and recomputes <code>MatchState</code> (bumps <code>version</code>).</li>
+      <li>3. It writes the new <code>MatchState</code> to the fast store and <b>publishes</b> it to the match's channel.</li>
+      <li>4. Two readers consume it: the <b>edge cache</b> is invalidated/updated so the next pull is fresh, and the <b>connection servers</b> push it to subscribed viewers.</li>
+    </ul>
+    One write event becomes one cache update plus one publish — both O(1). The 10M deliveries happen at the edge and the connection fleet, not in the pipeline.
+  </div>
+
+  <h2>High-Level Design</h2>
+  <p>Two paths, deliberately separated: a tiny <b>ingest path</b> (events → state → publish) and a massive <b>read path</b> dominated by the CDN, with a push fleet layered on top for engaged viewers.</p>
+  <table>
+    <tr><th>Component</th><th>Responsibility</th></tr>
+    <tr><td>Ingest Service</td><td>Authenticates feeds, validates &amp; appends events, recomputes &amp; versions <code>MatchState</code>, publishes the change</td></tr>
+    <tr><td>Event Log + State Store</td><td>Durable append-only event log (source of truth) + fast key-value <code>MatchState</code> by <code>matchId</code> (Redis/DynamoDB)</td></tr>
+    <tr><td>CDN / Edge</td><td>Caches <code>GET /matches/{id}</code> as one object per match with a ~1s TTL; absorbs the read fan-out and spikes<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Read API (origin)</td><td>Serves cache misses only — reads <code>MatchState</code> from the fast store; stateless, lightly scaled</td></tr>
+    <tr><td>Pub/Sub backplane</td><td>One channel per match; the fan-out primitive feeding the connection fleet<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Connection (Realtime) servers</td><td>Hold open SSE/WebSocket connections for engaged viewers; push each new <code>MatchState</code> version</td></tr>
+  </table>
+  <div class="box">
+    <b>The mental model:</b> the score is one small object per match. Most of the world reads it <i>pulled</i> through the CDN; a smaller set of actively-engaged viewers get it <i>pushed</i>. Both are fed by the same versioned <code>MatchState</code>, so they never disagree by more than one update.
+  </div>
+
+  <h2>Deep Dives</h2>
+
+  <h3>Deep Dive 1 — Ingesting match events: manual &amp; automatic feeds into one pipeline</h3>
+  <p>Scores come from heterogeneous, sometimes-unreliable sources: a human operator tapping a tablet at a lower-league game, an official league data feed (Opta/Stats Perform-style) for the big ones, sometimes redundant providers for the same match. The job is to fold all of them into <i>one</i> authoritative, monotonic <code>MatchState</code>.</p>
+  <table>
+    <tr><th>Concern</th><th>Approach</th><th>Why</th></tr>
+    <tr><td>Multiple/duplicate feeds</td><td>Idempotent ingest keyed on <code>(matchId, eventId)</code>; dedupe before applying</td><td>Two providers reporting the same goal must not make it 2–0</td></tr>
+    <tr><td>Out-of-order / corrections</td><td>Append-only event log + recompute state from events; support a <code>correction</code> event type</td><td>Refs disallow goals; you must be able to walk the score <i>back</i></td></tr>
+    <tr><td>Source of truth</td><td>Event log is canonical; <code>MatchState</code> is a derived, cached projection</td><td>You can always rebuild the snapshot by replaying events</td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Treat ingest as <b>event sourcing</b>, not "UPDATE the score." Modeling state as a projection of an idempotent, append-only event log is what makes corrections, late events, and dueling feeds <i>tractable</i> instead of a tangle of mutation bugs. The versioned <code>MatchState</code> projection is also exactly the artifact your CDN and your push fleet both consume — one derivation, two delivery channels. Naming idempotency and corrections unprompted signals you've shipped a real ingest system. (The score itself is a tiny <a href="0048-distributed-counter.html">distributed counter</a><a href="#c3" class="cite">[3]</a>, but here counting is trivial — distribution is the hard part.)
+  </div>
+
+  <h3>Deep Dive 2 — Read fan-out to millions: push vs pull, and the hybrid</h3>
+  <p>How does the new score reach 10M viewers? Two families, and the right answer is to use both for different audiences.</p>
+  <table>
+    <tr><th>Model</th><th>How</th><th>Trade-off</th></tr>
+    <tr><td>Pure push (SSE/WS)</td><td>Persistent connection per viewer; pub/sub fans new versions out<a href="#c1" class="cite">[1]</a></td><td>~Instant, but you hold 10M live connections — a huge, spiky connection fleet to provision and rebalance</td></tr>
+    <tr><td>Pure pull (polling)</td><td>Clients <code>GET /matches/{id}</code> every ~1–5s through the <b>CDN</b><a href="#c2" class="cite">[2]</a></td><td>~1–5s lag, but the object is cached at the edge — one origin fetch serves millions, scales for almost nothing</td></tr>
+    <tr><td><b>Hybrid (the pick)</b></td><td>Default everyone to CDN-cached polling; upgrade <i>actively engaged</i> viewers (match page in foreground) to a pushed stream</td><td>Cheap at rest, instant where it matters; bounded connection fleet</td></tr>
+  </table>
+  <div class="box">
+    <b>Why CDN-cached pull is the workhorse:</b> the score is one tiny object with a ~1s TTL. The CDN serves the same cached bytes to every viewer at the edge, close to them, and only forwards a request to origin on a miss — roughly <i>once per second per match per POP</i>, regardless of whether 10K or 10M people are watching.<a href="#c2" class="cite">[2]</a> A 2M-req/sec match becomes a handful of origin reads. This is the same insight as the <a href="0024-fb-live-comments.html">Live Comments</a> CDN-snapshot trick<a href="#c1" class="cite">[1]</a>: turn an impossible per-connection push into a trivially-cached static object.
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior answer is "use WebSockets." The staff answer is "<b>polling is not a dirty word when the payload is one cacheable object</b>." Recognizing that a 1–2s NFR lets you serve the masses from the edge for pennies — and reserving the expensive persistent-connection fleet only for engaged foreground viewers — is the judgement call that separates levels. You're matching delivery cost to how much each viewer actually cares.
+  </div>
+
+  <h3>Deep Dive 3 — The thundering herd at kickoff (and after every goal)</h3>
+  <p>At kickoff of the final, 10M clients may request the match within the same second; after a goal, every cached copy expires at once and they all re-fetch. If those misses reach origin simultaneously, you've built a self-inflicted DDoS.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Technique</th><th>How</th><th>Effect</th></tr>
+    <tr><td>Request coalescing</td><td>CDN collapses concurrent misses for the same key into <b>one</b> origin request (e.g. <code>proxy_cache_lock</code>)</td><td>10M simultaneous misses → 1 origin fetch per POP</td></tr>
+    <tr><td>Stale-while-revalidate</td><td>Serve the slightly-stale cached score instantly while one background fetch refreshes it</td><td>Nobody waits on the miss; origin sees a trickle, not a flood</td></tr>
+    <tr><td>Jittered TTL / client poll</td><td>Randomize TTLs and client poll intervals slightly so expiries don't align</td><td>Smears the spike across the second instead of a single wall of traffic</td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The thundering herd is the <i>specific</i> failure this system invites, and an L6/L7 candidate names it before being asked. The fix isn't "more origin servers" — it's <b>request coalescing + stale-while-revalidate at the edge</b> so that synchronized demand still costs one origin fetch. Saying "the masses are eventually consistent on purpose, so I can serve stale-while-revalidate and coalesce misses" demonstrates you understand the herd is a caching problem, not a capacity problem.
+  </div>
+
+  <h3>Deep Dive 4 — Eventual consistency of the displayed score</h3>
+  <p>We chose availability over consistency, so different viewers will briefly see different scores: a pushed viewer sees 1–0 at t+0.5s, a CDN-cached viewer at t+1.5s, someone behind a stale edge maybe t+3s. That's acceptable — but only if it never goes <i>backwards</i> or shows nonsense.</p>
+  <div class="box">
+    <b>Guardrails that make eventual consistency safe:</b>
+    <ul>
+      <li><b>Monotonic versions:</b> every <code>MatchState</code> carries a monotonic <code>version</code>; clients ignore any update with a lower version than they've seen, so the score never appears to regress.</li>
+      <li><b>Last-writer-wins on a single projection:</b> all channels derive from the same versioned projection, so push and pull can differ in <i>recency</i> but not in <i>content</i> for a given version.</li>
+      <li><b>Bounded staleness:</b> short TTLs (~1s) cap how far behind any viewer can be; the final whistle gets a forced invalidation so nobody is stuck on a non-final score.</li>
+    </ul>
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Eventual consistency is fine; <b>non-monotonic</b> consistency is not. The staff move is to allow viewers to disagree on <i>how fresh</i> the score is while guaranteeing it never flickers 1–0 → 0–0 → 1–0. A version number on the projection is a one-line idea that makes a wildly distributed, multi-path delivery system feel correct to a human watching their team. Calling out the "score went backwards" bug before it bites is the kind of failure-mode foresight L6/L7 rewards.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why is CDN-cached polling the workhorse for delivering the score to the masses?</p>
+      <button class="opt">Polling guarantees every single viewer sees the exact same score at the exact same moment</button>
+      <button class="opt">The CDN rewrites each score event into a durable log that the database can later replay back</button>
+      <button class="opt">The score is one tiny object, so the edge serves millions from one origin fetch per interval</button>
+      <button class="opt">Persistent sockets are cheaper than caching once the audience grows beyond several thousand</button>
+      <p class="fb">A small hot object with a ~1s TTL caches at the edge; one origin miss per match per interval serves everyone, regardless of audience size.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. What collapses 10M simultaneous cache misses at kickoff into a single origin fetch?</p>
+      <button class="opt">Sharding the match state across many databases so each one absorbs a small slice of reads</button>
+      <button class="opt">Request coalescing plus stale-while-revalidate, so synchronized misses share one refresh</button>
+      <button class="opt">Switching every viewer onto a WebSocket so no cache lookups ever reach the busy origin</button>
+      <button class="opt">Raising the cache TTL to many minutes so the score effectively stops changing at kickoff</button>
+      <p class="fb">The edge coalesces concurrent misses for one key into a single origin request and serves stale-while-revalidate, so the herd costs one fetch.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. How is the displayed score kept from ever appearing to go backwards across viewers?</p>
+      <button class="opt">Each MatchState carries a monotonic version, and clients ignore updates older than what they hold</button>
+      <button class="opt">Every viewer opens a strongly consistent transaction against the primary database on each refresh</button>
+      <button class="opt">The system blocks all reads worldwide until the very last edge node confirms the newest score</button>
+      <button class="opt">Pushed updates are disabled entirely so that only one slow polling path can ever show the score</button>
+      <p class="fb">A monotonic version on the projection lets viewers differ in freshness while guaranteeing the score never regresses on any client.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why model ingest as an append-only event log rather than updating the score in place?</p>
+      <button class="opt">Append-only logs are the only storage format that a content delivery network is able to cache</button>
+      <button class="opt">Idempotent appendable events make dedup, corrections, and dueling feeds tractable to reconcile</button>
+      <button class="opt">Writing events instead of state removes the need for any authentication on the ingest endpoint</button>
+      <button class="opt">An event log lets each viewer recompute the entire score independently on their own device</button>
+      <p class="fb">State becomes a derived projection of an idempotent log, so duplicate feeds, late events, and ref corrections are reconciled by replay, not mutation.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this one — push on it:
+    <ul>
+      <li>"Walk me through what happens to the CDN, the connection fleet, and the origin in the 2 seconds after a goal in the World Cup final."</li>
+      <li>"When would you raise the score's TTL or switch more viewers to push — what signal tells you a match is 'hot'?"</li>
+      <li>"Quiz me as the interviewer: a redundant feed reports a goal that the referee then disallows — design the correction path end to end."</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/fb-live-comments">Hello Interview — Facebook Live Comments breakdown</a>. The closest canonical walkthrough: the same real-time read-fan-out problem, push-vs-pull reasoning, the pub/sub-per-channel primitive, and the CDN-snapshot trick that maps directly onto caching the latest score for spike-proof delivery.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/fb-live-comments">Hello Interview — Design Facebook Live Comments</a> (real-time read fan-out, AP over CP, channel-per-entity pub/sub, push transports, CDN tail-snapshot for mega-audiences). Mapped here onto live scores.</p>
+    <p id="c2">[2] <a href="0004-caching.html">Course Lesson 4 — Caching &amp; CDNs</a> (edge caching, TTLs/<code>Cache-Control</code>, request coalescing, stale-while-revalidate, thundering-herd mitigation) — grounded in well-established CDN fundamentals.</p>
+    <p id="c3">[3] <a href="0048-distributed-counter.html">Course Lesson 48 — Distributed Counter</a> (the score as a small monotonic counter; here distribution, not counting, dominates).</p>
+    <p>Capacity numbers (event rates, viewer counts, payload sizes) are the author's own back-of-envelope estimates for instructional purposes.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0082-figma-collaboration.html">← Lesson 82</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 84 · Post Privacy / Access Control</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

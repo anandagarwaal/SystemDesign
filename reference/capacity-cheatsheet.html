@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>System Design — Capacity Estimation Cheat Sheet</title>
+<style>
+  :root{--ink:#1a1a1a;--paper:#fffefb;--muted:#6b6356;--rule:#e3ddd0;--accent:#7a2e1d;--accent-soft:#f3ece1;--staff:#1f4d3f;--staff-soft:#e7f0ec;}
+  *{box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font-family:Georgia,"Iowan Old Style",serif;line-height:1.5;margin:0;}
+  .wrap{max-width:760px;margin:0 auto;padding:3.5rem 1.5rem 5rem;}
+  .kicker{font-family:-apple-system,sans-serif;font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 .5rem;}
+  h1{font-size:2.1rem;margin:0 0 .3rem;}
+  .sub{color:var(--muted);font-style:italic;margin:0 0 1.5rem;}
+  h2{font-size:1.2rem;font-family:-apple-system,sans-serif;margin:2.4rem 0 .5rem;border-bottom:1px solid var(--rule);padding-bottom:.3rem;color:var(--accent);}
+  h3{font-size:1rem;font-family:-apple-system,sans-serif;margin:1.4rem 0 .3rem;}
+  p{margin:.6rem 0;font-size:.95rem;}
+  code{font-family:"SF Mono",Menlo,monospace;font-size:.85em;background:#f3ece1;padding:.08rem .3rem;border-radius:3px;}
+  a{color:var(--accent);}
+  table{border-collapse:collapse;width:100%;margin:1rem 0;font-size:.86rem;font-family:-apple-system,sans-serif;}
+  th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--rule);vertical-align:top;}
+  th{font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);}
+  td.n{font-family:"SF Mono",Menlo,monospace;white-space:nowrap;}
+  .note{background:var(--accent-soft);border-left:3px solid var(--accent);padding:.8rem 1rem;font-size:.88rem;margin:1.2rem 0;}
+  .staff{background:var(--staff-soft);border-left:3px solid var(--staff);padding:.8rem 1rem;font-size:.88rem;margin:1.2rem 0;}
+  .staff b{color:var(--staff);}
+  .box{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:1rem 1.2rem;margin:1.2rem 0;font-family:-apple-system,sans-serif;font-size:.88rem;}
+  .box b{color:var(--accent);}
+  @media print{body{font-size:10.5pt}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="kicker">System Design · Reference</p>
+  <h1>Capacity Estimation Cheat Sheet</h1>
+  <p class="sub">The back-of-envelope numbers and one-line formulas for the math you do out loud in an interview. Memorize the bold rows.</p>
+
+  <div class="note">
+    <b>The point of estimation:</b> not precision — it's to <em>decide the design</em>. Do the math only when a number changes an answer ("does this fit on one machine?", "do I need a cache/CDN/shards?"). Round aggressively, use powers of 10, and state assumptions out loud.
+  </div>
+
+  <h2>Powers of 2 → data sizes</h2>
+  <table>
+    <thead><tr><th>Power</th><th>≈ Value</th><th>Name</th></tr></thead>
+    <tbody>
+      <tr><td class="n">2^10</td><td class="n">~1 Thousand</td><td>1 KB</td></tr>
+      <tr><td class="n">2^20</td><td class="n">~1 Million</td><td>1 MB</td></tr>
+      <tr><td class="n">2^30</td><td class="n">~1 Billion</td><td>1 GB</td></tr>
+      <tr><td class="n">2^40</td><td class="n">~1 Trillion</td><td>1 TB</td></tr>
+      <tr><td class="n">2^50</td><td class="n">~1 Quadrillion</td><td>1 PB</td></tr>
+    </tbody>
+  </table>
+  <p>ASCII char = <b>1 byte</b>; typical UUID = 16 B; a "row" of metadata ≈ <b>0.1–1 KB</b>; a typed message/tweet ≈ 100–300 B; a web page ≈ 100 KB–1 MB; a photo ≈ 200 KB–2 MB; a minute of HD video ≈ 50 MB.</p>
+
+  <h2>Time → seconds (for QPS math)</h2>
+  <table>
+    <thead><tr><th>Window</th><th>Seconds</th><th>Memorize</th></tr></thead>
+    <tbody>
+      <tr><td>1 day</td><td class="n">86,400</td><td><b>~10^5 (100k)</b></td></tr>
+      <tr><td>1 month</td><td class="n">2.6 million</td><td>~2.5 × 10^6</td></tr>
+      <tr><td>1 year</td><td class="n">31.5 million</td><td><b>~3 × 10^7</b></td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <b>The one QPS shortcut everyone uses:</b> <code>1 million requests/day ≈ 12 QPS</code> (since a day ≈ 86,400 s ≈ 10^5). So <b>1 billion/day ≈ 12,000 QPS</b>. Scale linearly from there.
+  </div>
+
+  <h2>Latency numbers every engineer should know</h2>
+  <p style="font-size:.85rem;color:var(--muted)">Order-of-magnitude (Jeff Dean's classic list, rounded). Know the <b>relative</b> gaps, not exact ns.</p>
+  <table>
+    <thead><tr><th>Operation</th><th>≈ Latency</th></tr></thead>
+    <tbody>
+      <tr><td>L1 cache reference</td><td class="n">~1 ns</td></tr>
+      <tr><td>Branch mispredict</td><td class="n">~3 ns</td></tr>
+      <tr><td>L2 cache reference</td><td class="n">~4 ns</td></tr>
+      <tr><td>Mutex lock/unlock</td><td class="n">~17 ns</td></tr>
+      <tr><td>Main memory (RAM) reference</td><td class="n">~100 ns</td></tr>
+      <tr><td>Compress 1 KB (Zippy/Snappy)</td><td class="n">~2 µs</td></tr>
+      <tr><td>Read 1 MB sequentially from RAM</td><td class="n">~10–250 µs</td></tr>
+      <tr><td>SSD random read</td><td class="n">~16–100 µs</td></tr>
+      <tr><td>Round trip within same datacenter</td><td class="n">~500 µs</td></tr>
+      <tr><td>Read 1 MB sequentially from SSD</td><td class="n">~1 ms</td></tr>
+      <tr><td>Disk (HDD) seek</td><td class="n">~3–10 ms</td></tr>
+      <tr><td>Read 1 MB sequentially from disk</td><td class="n">~20–30 ms</td></tr>
+      <tr><td>Round trip CA ↔ Netherlands</td><td class="n">~150 ms</td></tr>
+    </tbody>
+  </table>
+  <div class="staff">
+    <b>The three takeaways that win arguments:</b> (1) <b>memory is ~100× faster than SSD, SSD ~10–100× faster than disk</b> → cache hot data. (2) <b>A cross-continent round trip (~150 ms) dwarfs everything</b> → put data/CDN near users, minimize round trips. (3) <b>Sequential ≫ random</b> on every medium → why LSM-trees, logs, and batching win.
+  </div>
+
+  <h2>Availability — the "nines"</h2>
+  <table>
+    <thead><tr><th>Availability</th><th>Downtime / year</th><th>Downtime / day</th></tr></thead>
+    <tbody>
+      <tr><td>99% (two nines)</td><td class="n">3.65 days</td><td class="n">14.4 min</td></tr>
+      <tr><td>99.9% (three nines)</td><td class="n">8.76 hours</td><td class="n">86 s</td></tr>
+      <tr><td><b>99.99% (four nines)</b></td><td class="n">52.6 min</td><td class="n">8.6 s</td></tr>
+      <tr><td>99.999% (five nines)</td><td class="n">5.26 min</td><td class="n">0.86 s</td></tr>
+    </tbody>
+  </table>
+  <p>Availability multiplies across hard dependencies: two 99.9% services in series ≈ 99.8%. Redundancy (parallel paths) adds nines; serial dependencies subtract them.</p>
+
+  <h2>Single-machine rules of thumb</h2>
+  <table>
+    <thead><tr><th>Resource</th><th>Rough ceiling on one modern box</th></tr></thead>
+    <tbody>
+      <tr><td>RAM</td><td>~64–512 GB (so a dataset under ~100 GB may fit in memory)</td></tr>
+      <tr><td>QPS — simple app server</td><td>~1k–10k QPS</td></tr>
+      <tr><td>QPS — Redis / in-memory</td><td>~100k+ ops/s</td></tr>
+      <tr><td>QPS — single SQL primary (writes)</td><td>~1k–10k writes/s (the usual first bottleneck)</td></tr>
+      <tr><td>Persistent connections (tuned)</td><td>~10k–100k+ per node (C10K/C10M)</td></tr>
+      <tr><td>Network</td><td>~10–25 Gbps NIC</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Use these to trigger decisions: writes &gt; ~10k/s → shard or switch to an LSM store; dataset &gt; one box's RAM → cache tier + sharding; reads ≫ writes → replicas + cache; global users → CDN + multi-region.</p>
+
+  <h2>The estimation workflow (say this out loud)</h2>
+  <div class="box">
+    <ol style="margin:.2rem 0 .2rem 1rem;padding:0;">
+      <li><b>Traffic:</b> DAU × actions/user/day → requests/day → ÷ 10^5 → average QPS. Then <b>peak ≈ 2–10× average</b>.</li>
+      <li><b>Read:write ratio:</b> state it (e.g. 100:1 for a feed) — it decides caching/replication.</li>
+      <li><b>Storage:</b> writes/day × bytes/write × retention (years × ~3×10^7 s if per-second). Add replication factor (×3).</li>
+      <li><b>Bandwidth:</b> QPS × payload size, both ingress and egress (egress often dominates for media).</li>
+      <li><b>Memory (cache):</b> apply the 80/20 rule — cache the hot ~20% of data; size = hot set × object size.</li>
+    </ol>
+  </div>
+
+  <h3>Worked micro-example</h3>
+  <p>Twitter-like feed, 200M DAU, each posts 2× and reads 100×/day. Writes = 400M/day ≈ <b>~4.6k QPS</b> (peak ~10–46k). Reads = 20B/day ≈ <b>~230k QPS</b> → <b>read-heavy → cache + fan-out + replicas</b>. Tweet ≈ 300 B → 400M × 300 B ≈ 120 GB/day raw; ×3 replication ≈ 360 GB/day → multi-TB/year → <b>shard it</b>. The numbers <em>told us the architecture</em>.</p>
+
+  <div class="staff">
+    <b>Interview tell:</b> don't compute for its own sake. Estimate, then immediately say what the number <em>decides</em>: "~230k read QPS, so a single DB can't serve reads — I'll add a cache and read replicas." That conversion of math → design choice is the whole point at L6/L7.
+  </div>
+
+  <p style="margin-top:2.5rem;font-size:.85rem;">
+    <a href="../lessons/0008-capacity-estimation.html">← Lesson 08 · Capacity Estimation</a> ·
+    <a href="../index.html">🏠 Course home</a> ·
+    <a href="glossary.html">📖 Glossary</a>
+  </p>
+</div>
+</body>
+</html>

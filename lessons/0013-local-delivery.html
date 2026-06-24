@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 13 — Design a Local Delivery Service (Gopuff)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 13 · Phase 4 — Case Study · Easy</p>
+  <h1>Design a Local Delivery Service (Gopuff)</h1>
+  <p class="sub">Browse is a read-heavy proximity-plus-inventory join; checkout is a strongly-consistent decrement. Two paths, two consistency choices.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Gopuff looks like a simple e-commerce CRUD problem, and that is the trap. The L6/L7 signal here is recognizing that <em>availability browse</em> and <em>order checkout</em> have opposite requirements — one wants fast, slightly-stale, fan-out reads; the other wants serializable correctness so you never sell the same physical can of Cheetos twice. Picking different consistency models for the two paths is the whole game.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Gopuff delivers convenience-store goods from 500+ micro-fulfillment centers (we'll call them distribution centers, DCs) within roughly an hour.<a href="#c2" class="cite">[2]</a> Two operations dominate; everything else is out of scope.</p>
+  <table>
+    <thead><tr><th>#</th><th>Requirement</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>A customer can <b>query item availability</b> deliverable within ~1hr near their location. Availability is the <em>union</em> of inventory across all nearby DCs.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>2</td><td>A customer can <b>place an order for multiple items at once</b> without double-booking the same physical units.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>3</td><td>The order is fulfilled (delivered) within the 1-hour window the availability promised.</td></tr>
+    </tbody>
+  </table>
+  <p><b>Explicitly out of scope:</b> payments, driver routing and dispatch, search/ranking, cancellations and returns.<a href="#c1" class="cite">[1]</a> Stating scope crisply is itself a senior signal — it stops you boiling the ocean.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <thead><tr><th>Property</th><th>Target / priority</th></tr></thead>
+    <tbody>
+      <tr><td>Availability-read latency</td><td>&lt;100ms — browse feels like search; users won't wait.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Freshness of availability</td><td>Seconds-to-a-minute stale is acceptable on browse; perfect freshness is not required.</td></tr>
+      <tr><td>Consistency at checkout</td><td><b>Strong</b> — two customers must never buy the same physical inventory.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Scale</td><td>~10k DCs, ~100k catalog items, ~10M orders/day.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Read &gt;&gt; write</td><td>Reads (browse) dwarf writes (orders) by orders of magnitude — design for the read path first.</td></tr>
+    </tbody>
+  </table>
+  <p>Notice the deliberate split: <b>availability tolerates staleness</b> (you can show a stale "in stock" and reconcile at checkout), but <b>checkout cannot tolerate overselling</b>. That asymmetry justifies different storage and consistency choices per path.</p>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only estimate numbers that change the design. The headline derivation:</p>
+  <div class="box">
+    <b>Availability QPS.</b> 10M orders/day ÷ 86,400 s ≈ <b>~115 orders/sec</b>. But browse fans out: assume ~10 availability checks per purchase and a ~5% conversion rate. That inflates reads to roughly <b>~20k availability queries/sec</b>.<a href="#c1" class="cite">[1]</a>
+    <ul>
+      <li><b>Implication of 20k read QPS:</b> a single primary can't serve this. You need read replicas and/or a cache in front — the read path must scale independently of writes.</li>
+      <li><b>Implication of ~115 write QPS:</b> orders are <em>low</em> volume. A single strongly-consistent primary (e.g. Postgres) can comfortably absorb writes, so you can afford expensive serializable transactions on the order path.</li>
+      <li><b>Implication of 100k items × 10k DCs:</b> the inventory table is ~1B rows worst case — small enough for one well-partitioned database, not "needs a special datastore" territory.</li>
+    </ul>
+  </div>
+  <p>The numbers themselves tell the story: <em>read-heavy browse, light-but-correct writes</em>. That is the entire architectural thesis.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <h3>Entities</h3>
+  <table>
+    <thead><tr><th>Entity</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td><b>Item</b></td><td>Product type in the catalog (e.g. "Cheetos") — the abstraction the user browses.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>DistributionCenter</b></td><td>A physical micro-fulfillment center with <code>lat/long</code> coordinates.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Inventory</b></td><td>A physical item instance held at a specific DC — the thing that actually gets decremented.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Order</b></td><td>A collection of reserved inventory plus user + shipping detail.<a href="#c1" class="cite">[1]</a></td></tr>
+    </tbody>
+  </table>
+  <h3>API</h3>
+  <p>Both calls carry location because both must verify delivery feasibility. User identity comes from the auth token, not the body.</p>
+  <table>
+    <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /v1/items?lat=&amp;long=&amp;page=</code></td><td>Returns paginated item availability near the caller — the union over nearby DCs.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><code>POST /v1/orders</code><br>body: <code>{lat, long, items[]}</code></td><td>Atomically reserves inventory and records the order, or fails wholesale.<a href="#c1" class="cite">[1]</a></td></tr>
+    </tbody>
+  </table>
+
+  <h2>High-Level Design</h2>
+  <p>Two services, split along the consistency seam.</p>
+  <table>
+    <thead><tr><th>Component</th><th>Responsibility</th><th>Data store</th></tr></thead>
+    <tbody>
+      <tr><td><b>Availability Service</b></td><td>Resolves nearby DCs, sums their inventory for the requested items, returns the union.</td><td>Inventory DB <em>read replicas</em> + cache.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Nearby Service</b></td><td>Maps a (lat,long) to the set of DCs that can deliver within 1hr.</td><td>In-memory DC table, refreshed periodically.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Orders Service</b></td><td>Runs the strongly-consistent reserve-and-record transaction.</td><td>Inventory DB <em>leader</em> (Postgres).<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Travel-Time Service</b></td><td>External RPC: validates true drive time to candidate DCs.</td><td>—<a href="#c1" class="cite">[1]</a></td></tr>
+    </tbody>
+  </table>
+  <p><b>Browse flow:</b> <code>GET /v1/items</code> → Availability Service asks Nearby Service for DCs → reads their inventory from a replica (cache-first) → sums and returns. <b>Order flow:</b> <code>POST /v1/orders</code> → Orders Service opens one serializable transaction against the leader → checks + decrements + records → commit-or-abort. The replica/leader split is what lets browse scale to 20k QPS while orders stay correct.</p>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1. Computing availability by location</h3>
+  <p>Availability = "which DCs can reach me?" joined with "what do those DCs hold?". The naive move — scan all 10k DCs and compute distance per request — is too slow at 20k QPS. Hello Interview's refined approach is a two-phase prune:<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <b>Phase A — coarse filter (cheap, in-memory).</b> Periodically (e.g. every 5 minutes) sync the DC table from the database into the service's memory. On each request, apply a hard radius cutoff — about a 60-mile "most optimistic drive distance" — to throw away the vast majority of DCs with simple math.<a href="#c1" class="cite">[1]</a><br><br>
+    <b>Phase B — precise filter (expensive, external).</b> For the handful of survivors, call the Travel-Time Service to confirm true drive time ≤ 1hr. Pruning first means you make a few RPC calls, not thousands.<a href="#c1" class="cite">[1]</a><br><br>
+    <b>Then aggregate:</b> query Inventory + Item for the surviving DCs, <em>sum</em> the quantities, and return the union to the client.<a href="#c1" class="cite">[1]</a>
+  </div>
+  <p><b>Precompute vs. query-time.</b> You could precompute a DC-set per geohash/zip and store it, refreshing as DCs open/close — great for read latency, but the precompute is stale and the join to live inventory still happens at read time. Query-time geo (the prune above) keeps the DC mapping fresh and is cheap once the coarse filter does its job. The pragmatic answer: precompute the slow-changing geometry (DC → coverage area), compute the fast-changing inventory sum live. Geospatial indexes (geohash, quadtree, PostGIS) are the standard tool if you push Phase A into the database instead of memory.</p>
+
+  <h3>2. Keeping availability reads fast and fresh</h3>
+  <p>At 20k QPS, summing inventory across DCs on every request hammers the database. Two complementary moves:<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <thead><tr><th>Technique</th><th>How</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td><b>Redis cache, short TTL</b></td><td>Key on (location-bucket, filters, page). Hit → return. Miss → DB lookup, then write back. TTL ~1 minute bounds staleness.<a href="#c1" class="cite">[1]</a></td><td>Cache invalidation: the Orders Service should evict affected entries on write.</td></tr>
+      <tr><td><b>Read replicas</b></td><td>Browse reads hit replicas; orders write the leader. Distributes the 20k QPS off the write path.<a href="#c1" class="cite">[1]</a></td><td>Replication lag → browse can show slightly stale stock.</td></tr>
+    </tbody>
+  </table>
+  <p>This is where the <b>read/write tradeoff</b> becomes a feature, not a bug. A 1-minute-stale "in stock" is fine <em>because checkout re-validates against the leader</em>. The cache is allowed to lie a little; the transaction in deep dive 3 is the safety net. That layering — eventually-consistent browse fronting a strongly-consistent buy — is the staff-level insight the problem is testing.</p>
+
+  <h3>3. Inventory consistency at checkout (no overselling)</h3>
+  <p>The hard part. Two customers click "buy" on the last unit at the same DC in the same millisecond. Exactly one must win. The clean solution is a single atomic transaction on the leader:<a href="#c1" class="cite">[1]</a></p>
+  <div class="box">
+    <b>One SERIALIZABLE transaction:</b>
+    <ul>
+      <li>Check every requested item has quantity &gt; 0 at a reachable DC.</li>
+      <li>If any item is unavailable → abort the whole order.</li>
+      <li>Otherwise atomically: record the <code>Order</code> and flip that <code>Inventory</code> from <code>available</code> → <code>ordered</code>.</li>
+      <li>Commit or fail as a unit.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+    Under serializable isolation, the two concurrent transactions conflict; one commits, the other <em>fails to commit because the inventory is no longer available</em> and is cleanly rejected.<a href="#c1" class="cite">[1]</a>
+  </div>
+  <p><b>Alternatives and the tradeoff:</b></p>
+  <table>
+    <thead><tr><th>Mechanism</th><th>How it prevents oversell</th><th>When</th></tr></thead>
+    <tbody>
+      <tr><td><b>Serializable transaction</b></td><td>DB serializes conflicting orders; loser aborts.<a href="#c1" class="cite">[1]</a></td><td>Default pick — simplest, correct, low write volume affords it.</td></tr>
+      <tr><td><b>Atomic decrement</b></td><td><code>UPDATE … SET qty=qty-1 WHERE qty&gt;0</code>; check rows-affected.</td><td>Counter-style stock; avoids full serializable cost.</td></tr>
+      <tr><td><b>Optimistic concurrency</b></td><td>Version column; retry on version mismatch.</td><td>Low contention, want high throughput.</td></tr>
+      <tr><td><b>Reservation / hold</b></td><td>Reserve units with a TTL at "add to cart", confirm at pay.</td><td>Long checkouts; protects scarce stock from cart-hoarding.</td></tr>
+    </tbody>
+  </table>
+  <p>The stated tradeoff of the all-or-nothing transaction: simplicity and ACID guarantees, at the cost of flexibility — if one item goes out of stock mid-order the <em>entire</em> order fails rather than partially fulfilling.<a href="#c1" class="cite">[1]</a> Naming that tradeoff out loud is the senior-to-staff move.</p>
+
+  <h3>4. Scaling reads</h3>
+  <p>Cache + replicas handle volume; <b>partitioning</b> handles the per-query scope. Partition the inventory data by region — e.g. the first 3 digits of the zipcode — so a location-scoped availability query touches "mostly 1 or 2 partitions rather than the entire inventory dataset."<a href="#c1" class="cite">[1]</a> Combined with replicas per partition, reads scale horizontally by region while writes still funnel to that region's leader.</p>
+  <div class="box">
+    <b>The full read-scaling stack, cheapest layer first:</b>
+    <ul>
+      <li>Redis cache (1-min TTL) absorbs the hottest repeated queries.<a href="#c1" class="cite">[1]</a></li>
+      <li>Read replicas spread surviving reads off the write leader.<a href="#c1" class="cite">[1]</a></li>
+      <li>Regional partitioning shrinks each query's footprint to 1–2 partitions.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    A senior candidate builds two services and scales the reads. A staff candidate <em>names the seam</em>: availability is a read-heavy proximity-plus-inventory join that should be precomputed and cached with relaxed freshness, while checkout is a write that demands serializable correctness — so they get <b>different consistency models on purpose</b>. The cache is permitted to be stale precisely because the order transaction re-validates against the leader and aborts cleanly on conflict. If you can articulate why eventual consistency on browse and strong consistency on buy compose safely, you've shown the judgment the level requires.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why can the availability browse path tolerate slightly stale data?</p>
+      <button class="opt">Inventory at distribution centers basically never changes during a day</button>
+      <button class="opt">Checkout re-validates against the leader, so stale browse is corrected</button>
+      <button class="opt">Customers rarely notice when an item shows as available wrongly</button>
+      <button class="opt">Redis guarantees the cache is always within a second of the leader</button>
+      <p class="fb">The strongly-consistent order transaction is the safety net; browse may show stale stock because the buy path re-checks and aborts on conflict.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. How does the two-phase DC lookup avoid thousands of travel-time RPCs?</p>
+      <button class="opt">It caches every travel-time result forever and never recomputes routes</button>
+      <button class="opt">It precomputes the full delivery time from each DC to each address</button>
+      <button class="opt">A cheap in-memory radius cutoff prunes before the expensive RPC runs</button>
+      <button class="opt">It queries the external travel-time service for all DCs in parallel</button>
+      <p class="fb">Phase A applies a ~60-mile radius filter in memory; only the few survivors get a real travel-time RPC in Phase B.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What prevents two customers from buying the same last physical unit?</p>
+      <button class="opt">A serializable transaction lets one commit and aborts the conflicting one</button>
+      <button class="opt">A short Redis TTL ensures both customers see the same inventory data</button>
+      <button class="opt">Read replicas serialize all incoming writes into one ordered stream now</button>
+      <button class="opt">The radius cutoff routes the two customers to two different centers</button>
+      <p class="fb">Under serializable isolation the two orders conflict; one commits, the other fails to commit because inventory is gone, cleanly rejected.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why does regional partitioning (e.g. by zip prefix) help read scaling?</p>
+      <button class="opt">It lets every order write to all partitions for stronger durability now</button>
+      <button class="opt">A location-scoped query then touches only one or two partitions</button>
+      <button class="opt">It removes the need for any read replicas across the whole fleet</button>
+      <button class="opt">It guarantees each distribution center maps to exactly one zip code</button>
+      <p class="fb">A location-bound availability query lands in the partition(s) for that region rather than scanning the entire inventory dataset.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on the hard parts. Try: <em>"Walk me through the SQL for the order transaction and show how the conflict aborts."</em> · <em>"When would you switch from a serializable transaction to a reservation-with-TTL model, and what breaks?"</em> · <em>"Sketch how you'd add a geospatial index instead of an in-memory DC table, and the tradeoff."</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/answer-keys/gopuff">Hello Interview — Design a Local Delivery Service like Gopuff</a>. The canonical breakdown: it derives the 20k-QPS read estimate, walks the two-phase DC lookup, and gives the serializable order transaction in full. Read it alongside this lesson.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/answer-keys/gopuff">Hello Interview — Gopuff Local Delivery breakdown</a> (FRs/NFRs, 20k QPS estimate, entities &amp; API, two-phase DC lookup, Redis 1-min TTL, read replicas, zip-prefix partitioning, serializable order transaction).</p>
+    <p id="c2">[2] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/gopuff">Hello Interview — Gopuff problem overview</a> (Gopuff delivers convenience goods from 500+ micro-fulfillment centers within ~1 hour).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0012-dropbox.html">← Lesson 12</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 14 · News Aggregator</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

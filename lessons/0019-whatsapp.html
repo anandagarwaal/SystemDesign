@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 19 — Design WhatsApp</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 19 · Phase 4 — Case Study · Medium</p>
+  <h1>Design WhatsApp</h1>
+  <p class="sub">A real-time messenger is a routing problem dressed as a storage problem — the hard part is millions of stateful sockets, not the messages themselves.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> WhatsApp is the canonical "real-time delivery" interview. At L6/L7 the bar is not "draw a chat server" — it is to <em>separate the stateful connection layer from the durable message store</em>, route through a connection registry, and guarantee delivery to offline users via per-user inboxes with ACKs. Get those three right and the rest is detail.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Scope tightly. State three core capabilities and explicitly defer the rest (calls, status/stories, payments).</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td>Send and receive 1:1 messages in <b>real time</b>, with delivery and read receipts.</td></tr>
+    <tr><td>2</td><td>Participate in <b>group chats</b> (the source models 2–100 participants <a href="#c1" class="cite">[1]</a>).</td></tr>
+    <tr><td>3</td><td>Receive messages sent while <b>offline</b> once they reconnect — no message is lost <a href="#c1" class="cite">[1]</a>.</td></tr>
+  </table>
+  <p style="font-size:.9rem;color:var(--muted);">Out of scope (say so out loud): voice/video calls, media is mentioned but the deep dive is text, end-to-end encryption is acknowledged but not designed.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>The "-ilities" drive every design decision below. Lead with latency and deliverability.</p>
+  <table>
+    <tr><th>Property</th><th>Target / priority</th><th>Why it shapes the design</th></tr>
+    <tr><td>Low latency</td><td>Real-time delivery, &lt;500ms <a href="#c1" class="cite">[1]</a></td><td>Forces <b>persistent connections</b> (WebSocket), not request polling.</td></tr>
+    <tr><td>Reliability</td><td>No lost messages; guaranteed delivery</td><td>Forces a <b>durable inbox</b> + client ACKs, not fire-and-forget.</td></tr>
+    <tr><td>Ordering</td><td>Consistent order within a chat</td><td>Forces a single sequencing point (server-side timestamp / sequence).</td></tr>
+    <tr><td>Scale</td><td>Billions of users, ~200M concurrent <a href="#c1" class="cite">[1]</a></td><td>Forces sharded connection servers + a routing layer.</td></tr>
+    <tr><td>Availability</td><td>Resilient to host failure</td><td>Forces reconnect + inbox re-sync on failover; connection state is cheap to rebuild.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Estimate only what changes the design. For messaging, the load-bearing number is <b>concurrent connections</b>, not total storage.</p>
+  <div class="box">
+    <ul>
+      <li><b>Concurrent connections (the big one):</b> ~200M concurrent users out of ~1B total <a href="#c1" class="cite">[1]</a>. WhatsApp historically packed <b>1–2M connections per host</b> <a href="#c1" class="cite">[1]</a>, so even at that density you need ~100–200 connection servers just to hold the sockets — and a way to find which one holds a given user.</li>
+      <li><b>Messages:</b> ~4B messages/day ≈ <b>40K msg/s</b> average <a href="#c1" class="cite">[1]</a>. Peak is several × higher.</li>
+      <li><b>Fan-out write amplification:</b> a 100-person group message becomes 100 inbox writes. The source budgets ~<b>100K writes/s</b> once group fan-out is included <a href="#c1" class="cite">[1]</a>.</li>
+      <li><b>Heartbeats:</b> with 200M sockets and a ping every 10–30s, that's ~<b>20M ping/pong exchanges/s</b> <a href="#c1" class="cite">[1]</a> — itself a non-trivial load the connection layer must absorb.</li>
+    </ul>
+    <p style="margin:.6rem 0 0;"><b>Implication:</b> message payloads are tiny and storage is bounded by a 30-day TTL; the design's whole difficulty lives in the <i>connection</i> and <i>routing</i> tiers.</p>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>User</code>, <code>Client</code> (a device — a user has several), <code>Chat</code>, <code>ChatParticipant</code>, <code>Message</code>, and <code>Inbox</code> (per-client queue of undelivered messages) <a href="#c1" class="cite">[1]</a>.</p>
+  <p>Messaging is bidirectional and latency-sensitive, so the hot path is a <b>persistent WebSocket</b>, not REST. REST is reserved for things that are fine to pull on demand (history, chat management).</p>
+
+  <h3>WebSocket (the real-time path)</h3>
+  <table>
+    <tr><th>Direction</th><th>Frame</th><th>Meaning</th></tr>
+    <tr><td>C → S</td><td><code>sendMessage { chatId, clientMsgId, body }</code></td><td>Send; <code>clientMsgId</code> is the idempotency key.</td></tr>
+    <tr><td>C → S</td><td><code>createChat</code>, <code>modifyChatParticipants</code></td><td>Group setup / add-remove members <a href="#c1" class="cite">[1]</a>.</td></tr>
+    <tr><td>S → C</td><td><code>newMessage { messageId, chatId, body }</code></td><td>Server pushes a message to the recipient.</td></tr>
+    <tr><td>C → S</td><td><code>ack { messageId, state: RECEIVED|READ }</code></td><td>Confirms receipt; releases the inbox entry <a href="#c1" class="cite">[1]</a>.</td></tr>
+  </table>
+
+  <h3>REST (the cold path)</h3>
+  <p><code>GET /v1/chats/{chatId}/messages?before={cursor}&limit=50</code> — paginated history. <code>POST /v1/chats</code>, <code>POST /v1/media</code> (returns a pre-signed blob URL so attachments never traverse the chat server <a href="#c1" class="cite">[1]</a>). The user is always derived from the auth token, never passed in the body.</p>
+
+  <h2>High-Level Design</h2>
+  <p>The defining move is separating two tiers that beginners conflate: the <b>stateful connection layer</b> (who is online, on which socket) and the <b>stateless message store</b> (the durable record).</p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>State</th></tr>
+    <tr><td>L4 Load Balancer</td><td>Distributes WebSocket connections; L4 chosen over L7 for long-lived socket efficiency <a href="#c1" class="cite">[1]</a>.</td><td>Stateless</td></tr>
+    <tr><td>Chat / Connection servers</td><td>Hold the persistent WebSockets; keep an in-memory map of which local users are connected <a href="#c1" class="cite">[1]</a>.</td><td><b>Stateful</b></td></tr>
+    <tr><td>Connection registry</td><td>Maps <code>userId → server</code> so any message can be routed to the recipient's socket.</td><td>Coordination</td></tr>
+    <tr><td>Pub/sub backplane</td><td>Carries a message from the sender's server to the recipient's server.</td><td>Transient</td></tr>
+    <tr><td>Message / Inbox / Chat stores</td><td>Durable record + per-client undelivered queue (DynamoDB tables in the source) <a href="#c1" class="cite">[1]</a>.</td><td>Durable</td></tr>
+    <tr><td>Blob storage</td><td>Media via pre-signed URLs.</td><td>Durable</td></tr>
+  </table>
+  <p><b>Send-message flow:</b> client → WebSocket → its chat server persists the message + writes an inbox entry per recipient client → looks the recipient up in the connection registry → routes via pub/sub to the recipient's chat server → that server pushes <code>newMessage</code> over the recipient's socket → recipient replies <code>ack</code>, which deletes the inbox entry. If the recipient is offline, the message simply waits in the inbox until reconnect.</p>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1. Real-time delivery: persistent sockets + a connection registry</h3>
+  <p>Polling for new messages every few seconds is the senior-level wrong answer — it adds latency and crushes the server with empty checks. The right primitive (recap Lesson 02 on the network and Lesson 10 on long-lived connections) is a <b>WebSocket over TLS</b>: one bidirectional connection per device, held open, so the server can <i>push</i> the instant a message arrives <a href="#c1" class="cite">[1]</a>.</p>
+  <p>That creates a new problem. Alice's socket lives on chat server A; Bob's on chat server B. When A receives Alice's message for Bob, A has no idea where Bob is. You need a <b>connection registry</b>: a lookup of <code>userId → which server holds the socket</code>. A writes the message to the store, queries the registry, finds Bob is on B, and forwards the message to B over the backplane; B does the local push. This <em>connection-registry routing</em> is the load-bearing idea, and naming it explicitly is the difference between a senior and a staff answer.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The single most important sentence you can say: <b>"Connection state and message state are different systems with different properties."</b> Connection state (who's online, on which socket) is volatile, rebuildable, and lives in memory + a registry. Message state is durable and lives in a replicated store. Conflating them — e.g. treating "delivered" as "online" — is the classic senior mistake. Separating them is what lets a chat server die without losing a single message: clients reconnect, re-register, and re-sync their inbox.
+  </div>
+
+  <h3>2. Offline delivery: the durable per-user (per-client) inbox</h3>
+  <p>The reliability NFR says no message is lost even if the recipient is offline. A push-only design can't satisfy that — if Bob's offline, the push evaporates. The fix is a durable <b>Inbox</b>: when a message is accepted, the server writes one inbox entry <i>per recipient client</i> <a href="#c1" class="cite">[1]</a>.</p>
+  <ul style="font-size:.92rem;">
+    <li><b>Delivery:</b> push from the inbox; the entry stays until the client returns an <code>ack</code> (<code>RECEIVED</code>), then it is deleted. ACK-then-delete is what makes delivery <i>at-least-once</i> and guaranteed.</li>
+    <li><b>Reconnect:</b> on reconnect the client syncs its inbox and drains everything queued while it was gone <a href="#c1" class="cite">[1]</a>.</li>
+    <li><b>TTL:</b> entries auto-expire after 30 days so the inbox never grows unbounded — this keeps server-side storage minimal, a stated NFR <a href="#c1" class="cite">[1]</a>.</li>
+    <li><b>Multi-device:</b> the inbox is keyed <i>per client</i>, not per user. A user with 3 devices <a href="#c1" class="cite">[1]</a> gets fan-out to all active sockets and an independent ACK per device, so each device converges independently.</li>
+  </ul>
+
+  <h3>3. Group message fan-out</h3>
+  <p>A 1:1 message produces one inbox write; a group message produces one per member. With groups up to 100 <a href="#c1" class="cite">[1]</a>, this is the write-amplification that pushes you from ~40K to ~100K writes/s <a href="#c1" class="cite">[1]</a>. The chat server looks up <code>ChatParticipant</code> (partitioned by <code>chatId</code>, with a GSI on <code>participantId</code> for the reverse lookup) <a href="#c1" class="cite">[1]</a>, then writes an inbox entry for each participant's clients and routes a push to whichever are online. Because groups are bounded at 100, <b>write-time fan-out</b> is fine — you do not need the read-time fan-in you'd use for a celebrity-scale feed (contrast with the news-feed problem). Calling out that the bounded group size justifies fan-on-write is exactly the judgement an interviewer wants.</p>
+
+  <h3>4. Ordering, receipts, and idempotency</h3>
+  <table>
+    <tr><th>Concern</th><th>Mechanism</th></tr>
+    <tr><td>Ordering within a chat</td><td>The receiving server stamps each message with a <b>server timestamp on receipt</b> and clients display by server time, not send time; NTP keeps server clocks aligned <a href="#c1" class="cite">[1]</a>. A monotonic per-chat sequence is the stronger variant when clock skew matters.</td></tr>
+    <tr><td>Delivery / read receipts</td><td>The <code>ack</code> frame carries a state (<code>RECEIVED</code> → one tick, <code>READ</code> → blue ticks). The ACK both updates the sender's UI and releases the inbox entry — the same signal does double duty.</td></tr>
+    <tr><td>Idempotency / dedup</td><td>The client attaches a <code>clientMsgId</code>; a retried send (after a flaky network) is deduped on that key so it isn't stored or delivered twice. At-least-once delivery <i>requires</i> the receiver to dedupe on <code>messageId</code> too.</td></tr>
+  </table>
+
+  <h3>5. Managing millions of stateful connections</h3>
+  <p>This is the scale deep dive, and the interviewer is watching you reject the naive options before landing on a good one.</p>
+  <table>
+    <tr><th>Approach</th><th>Verdict</th></tr>
+    <tr><td>Naive horizontal scaling, no routing</td><td><b>Bad</b> — a server can't reach a recipient on another box <a href="#c1" class="cite">[1]</a>.</td></tr>
+    <tr><td>A Kafka topic per user</td><td><b>Bad</b> — ~50KB overhead × 1B users ≈ <b>50TB+</b> just for empty topics <a href="#c1" class="cite">[1]</a>.</td></tr>
+    <tr><td>Consistent hashing user → server, coordinated by ZooKeeper/etcd</td><td><b>Good</b> — deterministic routing; minimal reshuffle when a server joins/leaves <a href="#c1" class="cite">[1]</a>.</td></tr>
+    <tr><td>Redis Pub/Sub sharded by <code>userId</code></td><td><b>Great</b> — lightweight in-memory channels; servers subscribe to the recipients they hold, messages flow over the backplane with at-most-once semantics (durability comes from the inbox, not the bus) <a href="#c1" class="cite">[1]</a>.</td></tr>
+  </table>
+  <p><b>Failure handling:</b> application-level heartbeats — ping every 10–30s, pong required within ~5s; a missed pong tears down the socket and the client reconnects and re-syncs its inbox <a href="#c1" class="cite">[1]</a>. <code>LastSeen</code> is written only on disconnect (not per heartbeat) to keep write load down, and "online?" is answered by querying the target's chat server, not the database <a href="#c1" class="cite">[1]</a>.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Notice the layering of durability: the <b>pub/sub bus is allowed to be lossy</b> (at-most-once) because the <b>inbox is the source of truth</b>. If a push is dropped, the inbox entry simply isn't ACKed, so it's redelivered on the next sync. Designing a fast, lossy transport <i>on top of</i> a slow, durable store — and being explicit about which layer owns each guarantee — is the staff move. A senior often over-engineers the bus to be exactly-once; a staff engineer puts the guarantee where it's cheap (the inbox) and keeps the hot path light.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why does WhatsApp need a connection registry on top of WebSockets?</p>
+      <button class="opt">To compress message payloads before they are sent across regional links</button>
+      <button class="opt">To rank messages by relevance the same way a feed ranks content by score</button>
+      <button class="opt">To find which chat server holds the recipient's socket so a message can route</button>
+      <button class="opt">To encrypt every message end to end before it reaches the recipient device</button>
+      <p class="fb">Sender and recipient sockets live on different servers; the registry maps userId → server for routing.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. How does the design guarantee delivery to a user who was offline?</p>
+      <button class="opt">It pushes the message repeatedly on a timer until the recipient eventually replies</button>
+      <button class="opt">A durable per-client inbox holds the message until the client ACKs it back</button>
+      <button class="opt">It blocks the sender until the recipient comes online and confirms receipt</button>
+      <button class="opt">It mirrors the entire message store onto each connected device on connect</button>
+      <p class="fb">The inbox persists the message; the ACK releases it. Offline clients drain the inbox on reconnect.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why is a Kafka topic per user the wrong scaling choice here?</p>
+      <button class="opt">Per-topic overhead times a billion users balloons into tens of terabytes wasted</button>
+      <button class="opt">Kafka cannot preserve the ordering of messages within a single given chat</button>
+      <button class="opt">Kafka topics are unable to push data to a connected WebSocket client</button>
+      <button class="opt">Kafka does not replicate its partitions and so loses messages on failure</button>
+      <p class="fb">~50KB × 1B users ≈ 50TB+ just for mostly-empty topics. Sharded Redis Pub/Sub is far lighter.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Why is it acceptable for the pub/sub backplane to be at-most-once (lossy)?</p>
+      <button class="opt">Because users rarely notice when a small number of their messages go missing</button>
+      <button class="opt">Because the load balancer retransmits any frame the backplane happens to drop</button>
+      <button class="opt">Because the durable inbox is the source of truth and redelivers any unACKed entry</button>
+      <button class="opt">Because messages are tiny so the cost of an exactly-once bus is not worth it</button>
+      <p class="fb">Durability lives in the inbox; a dropped push just stays unACKed and is resent on the next sync.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it:
+    <ul style="margin:.4rem 0 0;">
+      <li>"Walk me through what happens to in-flight messages when a chat server crashes."</li>
+      <li>"How would multi-device sync change if a user reads on phone but the message is unACKed on laptop?"</li>
+      <li>"When would you switch group delivery from fan-out-on-write to fan-in-on-read?"</li>
+    </ul>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/whatsapp">Hello Interview — WhatsApp System Design</a>. The cleanest end-to-end walkthrough of the connection-layer / inbox split, the scaling options table, and the per-level (E4/E5/L7) expectations.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/whatsapp">Hello Interview — WhatsApp System Design Breakdown</a> (requirements, ~200M concurrent users, 4B msgs/day, 1–2M conns/host, inbox + TTL, connection registry, consistent hashing / Redis Pub/Sub, heartbeats, ordering via server timestamp).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0018-leetcode.html">← Lesson 18</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 20 · Yelp</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

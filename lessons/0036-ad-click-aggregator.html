@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 36 — Design an Ad Click Aggregator</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 36 · Phase 4 — Case Study · Hard</p>
+  <h1>Design an Ad Click Aggregator</h1>
+  <p class="sub">A write-firehose streaming pipeline where every event is billable — accuracy is the whole game.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> This is the canonical "streaming analytics" interview.
+    It tests whether you can stand up a windowed-aggregation pipeline (Kafka → Flink → OLAP) and — the staff
+    differentiator — whether you treat clicks as <em>money</em>. Unlike Top-K, where approximation is fine,
+    here a double-counted click is a double-charged advertiser. The senior answer aggregates; the staff answer
+    aggregates <em>exactly once</em> and reconciles against a batch layer.
+  </div>
+
+  <h2>1 · Functional Requirements</h2>
+  <p>Strip it to the two flows that actually shape the design — the click path and the query path.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Requirement</th></tr>
+    <tr><td>1</td><td>Users can <b>click an ad</b>; we record the click event and redirect them to the advertiser's site.</td></tr>
+    <tr><td>2</td><td>Advertisers can <b>query aggregated metrics</b> (clicks per ad) at <b>1-minute granularity</b>, near real time.</td></tr>
+    <tr><td>3</td><td>Advertisers can run <b>time-range queries</b> ("clicks for ad X from 09:00–17:00, hourly") and roll up across minute/hour/day.</td></tr>
+  </table>
+  <p><b>Out of scope (say so):</b> ad serving / targeting, billing settlement itself, fraud/bot detection (mention it exists, defer it). Naming these earns breadth credit without spending depth budget.</p>
+
+  <h2>2 · Non-Functional Requirements</h2>
+  <p>The "-ilities" here are unusually sharp because two of them are in direct tension: accuracy vs. latency.</p>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th><th>Why it bites</th></tr>
+    <tr><td>Write throughput</td><td>~10k clicks/sec peak<a href="#c1" class="cite">[1]</a></td><td>Bursty; the ingest path can't block on aggregation.</td></tr>
+    <tr><td>Read latency</td><td>Sub-second analytics queries<a href="#c1" class="cite">[1]</a></td><td>Forces pre-aggregation; can't <code>GROUP BY</code> raw rows live.</td></tr>
+    <tr><td>Accuracy</td><td>Correctness &gt; freshness<a href="#c1" class="cite">[1]</a></td><td>Clicks are billable — no double-counting, no silent loss.</td></tr>
+    <tr><td>Idempotency</td><td>Exactly-once counting</td><td>Retries, replays, and double-clicks must not inflate counts.</td></tr>
+    <tr><td>Fault tolerance</td><td>No data loss; replayable</td><td>A crashed processor must resume without dropping events.</td></tr>
+  </table>
+  <div class="box">
+    <b>The core tension to name out loud.</b> A streaming layer gives you seconds of freshness but can drift
+    (late events, processor bugs). A batch layer gives you correctness but minutes-to-hours of lag. You cannot
+    maximize both with one path — which is exactly why the <b>lambda/kappa</b> conversation (Deep Dive 2) is the
+    heart of this problem.
+  </div>
+
+  <h2>3 · Capacity Estimation</h2>
+  <p>Only compute the numbers that <em>change a decision</em>.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Peak clicks/sec</td><td>~10k/s<a href="#c1" class="cite">[1]</a></td><td>Single DB write path won't hold; need a partitioned log (Kafka).</td></tr>
+    <tr><td>Daily clicks</td><td>~100M/day<a href="#c1" class="cite">[1]</a></td><td>Raw retention is cheap in object storage; cooked rollups are tiny.</td></tr>
+    <tr><td>Dedup key set</td><td>100M × ~16 B ≈ <b>1.6 GB/day</b><a href="#c1" class="cite">[1]</a></td><td>Fits in a Redis cluster — exactly-once dedup is affordable.</td></tr>
+    <tr><td>Cooked rollups</td><td>#ads × buckets/day</td><td>1M ads × 1440 min ≈ 1.4B rows/day if dense — but ads are sparse, so far less. Columnar store crushes this.</td></tr>
+  </table>
+  <p>Takeaway: writes need a buffer and partitioning; dedup is cheap enough to do properly; reads must be served from <em>pre-rolled buckets</em>, never raw scans.</p>
+
+  <h2>4 · Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>ClickEvent</code> (adId, impressionId, timestamp, userMeta), <code>Ad</code> (adId, advertiserId), <code>AggregateBucket</code> (adId, windowStart, granularity, count).</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/clicks</code></td><td>Ingest a click. Body carries <code>adId</code> + signed <code>impressionId</code>; returns <code>302</code> redirect to the advertiser URL.</td></tr>
+    <tr><td><code>GET /v1/ads/{id}/metrics?from=&amp;to=&amp;granularity=</code></td><td>Return aggregated counts for an ad over a time range at minute/hour/day granularity.</td></tr>
+    <tr><td><code>GET /v1/advertisers/{id}/metrics?from=&amp;to=</code></td><td>Roll up across all of an advertiser's ads (advertiser derived from auth token).</td></tr>
+  </table>
+  <p>The <b>server-side redirect</b> on <code>POST /v1/clicks</code> matters: routing the click through our processor before the <code>302</code> guarantees we capture every click, rather than trusting a fire-and-forget browser beacon.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>5 · Data Flow (the streaming pipeline)</h2>
+  <p>Follow one click from tap to dashboard:</p>
+  <ol style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
+    <li><b>Click</b> → user taps ad; browser hits <code>POST /v1/clicks</code>.</li>
+    <li><b>Verify &amp; dedup</b> → Click Processor checks the signed <code>impressionId</code> against Redis (Deep Dive 2), then <code>302</code>-redirects the user.</li>
+    <li><b>Stream</b> → event is appended to <b>Kafka</b>, partitioned by <code>adId</code>, and persisted in parallel to an <b>S3 raw lake</b> (the source of truth for reconciliation).</li>
+    <li><b>Aggregate</b> → a stream processor (<b>Flink</b>) consumes partitions and maintains <b>tumbling 1-minute windows</b> per <code>adId</code>, emitting a count when each window closes.</li>
+    <li><b>Store cooked</b> → rollups are upserted into an <b>OLAP / time-series store</b> (Druid, ClickHouse, Pinot, or Redshift/BigQuery).<a href="#c1" class="cite">[1]</a></li>
+    <li><b>Serve</b> → <code>GET /metrics</code> reads pre-aggregated buckets directly — no raw scan.</li>
+  </ol>
+  <p>This is the classic <b>two-tier write, pre-aggregated read</b> shape: the hot path buffers and rolls up; the read path touches only cooked, columnar data.</p>
+
+  <h2>6 · High-Level Design</h2>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+    <tr><td>Click Processor</td><td>Verify HMAC, dedup, write to log, issue redirect. Stateless, behind a load balancer.</td><td>Redis (dedup)</td></tr>
+    <tr><td>Event log</td><td>Durable, replayable buffer; absorbs bursts; decouples ingest from processing.</td><td>Kafka / Kinesis</td></tr>
+    <tr><td>Raw lake</td><td>Immutable copy of every event for batch re-computation.</td><td>S3</td></tr>
+    <tr><td>Stream processor</td><td>Windowed aggregation per <code>adId</code>; emits minute rollups; checkpoints offsets.</td><td>Flink state</td></tr>
+    <tr><td>Batch layer</td><td>Periodic Spark re-aggregation of the raw lake; corrects the speed layer.</td><td>S3 → OLAP</td></tr>
+    <tr><td>Query service</td><td>Serves <code>GET /metrics</code> from cooked buckets; merges granularities.</td><td>OLAP / TSDB</td></tr>
+  </table>
+  <p>Two paths leave the log: the <b>speed layer</b> (Flink, seconds-fresh) and the <b>batch layer</b> (Spark, correct). Both write to the same OLAP store; the batch result is authoritative and overwrites speed-layer estimates. Cross-link <a href="0010-common-patterns.html">Lesson 10</a> (batch vs. stream) and <a href="0095-clickhouse-olap.html">Lesson 95</a> (OLAP vs. OLTP) for the foundations this leans on.</p>
+
+  <h2>7 · Deep Dives</h2>
+
+  <h3>Deep Dive 1 — The real-time windowed-aggregation pipeline</h3>
+  <p>The naive design — write raw clicks to a DB and <code>GROUP BY adId, minute</code> at query time — collapses
+  at 10k writes/sec and turns every dashboard load into a full scan.<a href="#c1" class="cite">[1]</a> The progression:</p>
+  <table>
+    <tr><th>Approach</th><th>Mechanism</th><th>Freshness</th></tr>
+    <tr><td>Bad</td><td>One OLTP DB, <code>GROUP BY</code> at read time.</td><td>Dies under load.</td></tr>
+    <tr><td>Good</td><td>Raw events to Cassandra; Spark batch job rolls up every ~5 min into OLAP.<a href="#c1" class="cite">[1]</a></td><td>Minutes.</td></tr>
+    <tr><td>Great</td><td>Kafka → Flink tumbling windows → OLAP. Aggregate in flight.<a href="#c1" class="cite">[1]</a></td><td>Seconds.</td></tr>
+  </table>
+  <p><b>Tumbling vs. sliding windows.</b> Use <b>tumbling</b> (fixed, non-overlapping 1-minute windows) — they map cleanly to
+  the "clicks per minute" rollup, each event belongs to exactly one bucket, and they're cheap to checkpoint. Sliding
+  windows duplicate events across overlapping frames and are only worth it for moving-average style metrics, which
+  advertisers don't need here.</p>
+  <p><b>Late events.</b> A click may arrive after its window closed (mobile reconnects, processing lag). Configure a
+  <b>watermark + small allowed-lateness</b> so Flink holds windows briefly before finalizing; anything later than that
+  is the batch layer's job to repair (Deep Dive 2). State the bound explicitly — it's a correctness knob.</p>
+
+  <h3>Deep Dive 2 — Accuracy vs. latency: exactly-once, dedup, and reconciliation</h3>
+  <p>This is where you earn the offer. <b>Clicks are money</b>, so "roughly right" is unacceptable — the looser
+  approximation you'd accept in a Top-K / trending-items design does not apply here. Two failure modes to kill:</p>
+  <p><b>(a) Double-counting → dedup with idempotency keys.</b> The ad-placement service mints a unique
+  <code>impressionId</code> per rendered ad and signs <code>(impressionId, adId)</code> with an <b>HMAC</b>.<a href="#c1" class="cite">[1]</a>
+  On <code>POST /v1/clicks</code> the processor (1) verifies the signature, (2) checks the <code>impressionId</code> in Redis,
+  (3) if unseen, <b>writes to the log first, then records the id in Redis</b> — that ordering means a crash between the
+  two steps causes a harmless re-write, never a lost click.<a href="#c1" class="cite">[1]</a> A duplicate id is silently dropped.
+  At ~1.6 GB/day the key set fits comfortably in a Redis cluster.<a href="#c1" class="cite">[1]</a></p>
+  <p><b>(b) Drift / loss → lambda (or kappa) reconciliation.</b> The speed layer can still drift from bugs, very late
+  events, or partial failures. So run a <b>batch layer</b>: periodically re-aggregate the immutable S3 raw lake with
+  Spark and overwrite the OLAP rollups, treating the batch result as the source of truth.<a href="#c1" class="cite">[1]</a>
+  Kafka's <b>7-day retention</b> lets a failed processor replay from its last checkpointed offset rather than losing the gap.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Architecture</th><th>Shape</th><th>Tradeoff</th></tr>
+    <tr><td>Lambda</td><td>Speed (Flink) + batch (Spark) layers, reconciled in OLAP.</td><td>Two codebases to keep in sync, but maximally robust.</td></tr>
+    <tr><td>Kappa</td><td>One stream path; reprocess by replaying the log.</td><td>Simpler ops; reprocessing huge ranges is slow.</td></tr>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Say the quiet part: <em>"Because each click is billable, I'll spend my correctness budget here, not on freshness."</em>
+    Then propose exactly-once via signed idempotency keys <em>and</em> a batch reconciliation layer — and explicitly
+    contrast it with the approximate counting you'd tolerate in a trending/Top-K system. Naming the
+    accuracy-vs-latency tradeoff and resolving it with lambda/kappa is the move that separates staff from senior.
+  </div>
+
+  <h3>Deep Dive 3 — The write firehose and hot ads</h3>
+  <p>Two scaling axes. <b>Volume:</b> partition Kafka by <code>adId</code> and run Flink consumers in parallel per
+  partition; the Click Processor is stateless and scales horizontally behind a load balancer.<a href="#c1" class="cite">[1]</a>
+  <b>Skew:</b> a viral ad (the "LeBron/Nike" case) overwhelms a single partition.<a href="#c1" class="cite">[1]</a> Fix it by
+  <b>salting the key</b> — append a random suffix <code>adId:0..N</code> to spread the hot ad across partitions; Flink
+  pre-aggregates each shard, strips the suffix, and <b>upserts with a SUM</b> so the shards recombine into one correct
+  total.<a href="#c1" class="cite">[1]</a> This is pre-aggregation buying you headroom: you reduce 10k events/sec to a
+  handful of per-minute rollup writes before they ever touch the serving store.</p>
+
+  <h3>Deep Dive 4 — Fast range queries</h3>
+  <p>Reads must be sub-second over arbitrary time ranges. Two levers: <b>columnar storage</b> and
+  <b>pre-rolled time buckets</b>. A columnar/OLAP store (Druid, Pinot, ClickHouse, Redshift, BigQuery) scans only the
+  <code>count</code> column for matching <code>adId</code>/time keys, which is dramatically faster than a row store for
+  aggregations.<a href="#c1" class="cite">[1]</a> On top of that, materialize <b>multiple granularities</b>: Flink emits
+  minute buckets in real time, and nightly cron jobs roll those up into hour/day/week tables.<a href="#c1" class="cite">[1]</a>
+  A query for "last 90 days" then reads ~90 day-rows instead of 130k minute-rows — the query planner picks the coarsest
+  bucket that satisfies the requested granularity. Pre-aggregation is the recurring theme of this whole design: do the
+  work once on write so reads are trivial.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why is exactly-once counting non-negotiable here, unlike in a Top-K design?</p>
+      <button class="opt">Streaming systems cannot ever tolerate any small amount of event loss</button>
+      <button class="opt">Each counted click is billable, so a duplicate overcharges an advertiser</button>
+      <button class="opt">Columnar storage engines refuse to accept approximate aggregate values</button>
+      <button class="opt">Kafka partitions require every message to carry a unique sequence id</button>
+      <p class="fb">Clicks map to money; double-counting means double-billing, so approximation is unacceptable.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. How does the design prevent a single viral ad from overwhelming one partition?</p>
+      <button class="opt">It drops a fraction of clicks for hot ads to keep the partition load even</button>
+      <button class="opt">It moves the popular ad onto a dedicated single high-throughput broker node</button>
+      <button class="opt">It salts the key as adId:0..N, then upserts with SUM to recombine shards</button>
+      <button class="opt">It caches the hot ad counts in Redis and skips the streaming layer for it</button>
+      <p class="fb">Salting spreads the hot key across partitions; Flink strips the suffix and SUMs the shards back together.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. What makes sub-second time-range queries possible at this scale?</p>
+      <button class="opt">Columnar OLAP storage plus pre-rolled minute, hour, and day buckets</button>
+      <button class="opt">Running a GROUP BY across the raw click table at every read request</button>
+      <button class="opt">Replaying the entire Kafka log on demand for each advertiser query</button>
+      <button class="opt">Keeping all raw click events permanently resident in a Redis cluster</button>
+      <p class="fb">Reads touch pre-aggregated buckets in a columnar store; the planner picks the coarsest granularity that fits.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why keep a batch layer when the Flink stream layer is already fast?</p>
+      <button class="opt">The batch layer is the only path that can ever write into the OLAP store</button>
+      <button class="opt">It re-aggregates the raw lake to correct any drift in the speed layer</button>
+      <button class="opt">Flink cannot perform windowed aggregation without a batch job alongside</button>
+      <button class="opt">Advertisers legally require two fully independent vendors for all metrics</button>
+      <p class="fb">Lambda architecture: the speed layer gives freshness, the batch layer re-computes from the immutable lake for correctness.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on the hard parts. Try:
+    "Walk me through exactly-once if the Click Processor crashes between writing to Kafka and updating Redis."
+    "When would you choose kappa over lambda here?"
+    "How would late-arriving clicks past the watermark actually get corrected?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ad-click-aggregator">Hello Interview — Ad Click Aggregator breakdown</a>. The clearest walkthrough of the bad/good/great pipeline progression, HMAC-signed idempotency, hot-shard salting, and lambda reconciliation. Read it alongside this lesson.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ad-click-aggregator">Hello Interview — Ad Click Aggregator</a> (scale targets, redirect-based ingest, Kafka→Flink→OLAP pipeline, HMAC dedup + Redis sizing, hot-shard salting, lambda reconciliation, multi-granularity rollups).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0035-web-crawler.html">← Lesson 35</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 37 · Payment System</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 23 — Design an Online Auction</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 23 · Phase 4 — Case Study · Medium</p>
+  <h1>Design an Online Auction</h1>
+  <p class="sub">A bid is a compare-and-set. Get the contention right and the rest is fan-out.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> An auction looks simple — post an item, take bids,
+    pick a winner. The staff-level move is to recognize that the entire problem reduces to one hard primitive:
+    <em>accept a bid only if it beats the current max, with zero lost or out-of-order writes</em>. Frame that as
+    an atomic compare-and-set under contention, separate it cleanly from the eventually-consistent read/broadcast
+    path, and you have demonstrated exactly the judgement L6/L7 interviewers probe for.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Three core flows. Anchor the whole design on these and defer everything else.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td>Create an auction for an item with a starting price and an end time.</td></tr>
+    <tr><td>2</td><td>Place a bid — accepted only if it exceeds the current highest bid.</td></tr>
+    <tr><td>3</td><td>View an auction and see the current highest bid in real time.</td></tr>
+    <tr><td>4</td><td>Have the auction close at the end time, awarding the item to the highest bidder.</td></tr>
+  </table>
+  <p><b>Out of scope</b> (say it out loud, then drop it): search, filtering, sorting, recommendations,
+  payments/settlement, and full bid history.<a href="#c1" class="cite">[1]</a></p>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>These are the constraints that actually shape the architecture. Lead with consistency — it is the spine of the problem.</p>
+  <table>
+    <tr><th>NFR</th><th>Target / priority</th><th>Why it drives the design</th></tr>
+    <tr><td>Strong consistency on bids</td><td>The recorded highest bid must always be correct — no lost, duplicated, or out-of-order accepted bids</td><td>Forces a single serialization point per auction (atomic compare-and-set), not eventual consistency</td></tr>
+    <tr><td>Real-time price updates</td><td>Viewers see new highest bid within ~1s</td><td>Push channel (WebSocket) + pub/sub fan-out, not polling</td></tr>
+    <tr><td>High read fan-out</td><td>A hot auction may have 100k+ concurrent viewers</td><td>Reads must not touch the bid-write path; cache + broadcast</td></tr>
+    <tr><td>Durability</td><td>An accepted bid is never lost, even on node failure</td><td>Replicated, persisted store as the source of truth for bids</td></tr>
+    <tr><td>Availability for reads</td><td>Viewing degrades gracefully under load</td><td>Stale-but-available reads are acceptable; bid writes are not</td></tr>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The split-brain insight to voice early: <b>the write path and the read path have opposite requirements.</b>
+    Bids demand strong, linearizable consistency on a single key. Viewing demands cheap, massively-replicated,
+    eventually-consistent reads. A senior candidate builds one system and tries to make it do both. A staff
+    candidate explicitly draws the seam between them and optimizes each independently.
+  </div>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only estimate the numbers that change a decision. Two facts matter here.</p>
+  <div class="box">
+    <ul>
+      <li><b>Viewers ≫ bidders.</b> On a popular auction, the read:write ratio can be 1000:1 — thousands watch,
+      a handful bid. <em>Implication:</em> never let a read contend with the bid lock; serve reads from cache/broadcast.</li>
+      <li><b>Bids burst near close.</b> The last few seconds of a hot auction concentrate the contention — say a
+      single item taking <code>~100–1000 bids/s</code> in the final window. <em>Implication:</em> the per-auction
+      compare-and-set must stay fast and lock-light, or the close turns into a thundering herd of failed writes.</li>
+    </ul>
+    Aggregate scale (e.g. 10M concurrent auctions<a href="#c1" class="cite">[1]</a>) is handled by sharding by
+    <code>auctionId</code> — contention is always <em>per-auction</em>, so the system scales horizontally as long as
+    no single auction is itself a hotspot.
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>Auction</code> (id, itemId, sellerId, startPrice, endTime, status, <code>highestBid</code>,
+  <code>highestBidderId</code>, <code>version</code>) · <code>Bid</code> (id, auctionId, bidderId, amount, createdAt) ·
+  <code>User</code> (derived from the auth token, never passed in the body).</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/auctions</code></td><td>Create an auction. Body: itemId, startPrice, endTime → returns auctionId.</td></tr>
+    <tr><td><code>POST /v1/auctions/{id}/bids</code></td><td>Place a bid. Body: amount. Returns 201 accepted, or 409 if outbid / auction closed.</td></tr>
+    <tr><td><code>GET /v1/auctions/{id}</code></td><td>Fetch auction state including current highest bid (cache-served).</td></tr>
+    <tr><td><code>WS /v1/auctions/{id}/live</code></td><td>WebSocket subscription pushing each new highest bid to the viewer.</td></tr>
+  </table>
+  <p>Note the bid endpoint returns <code>409 Conflict</code> on a losing bid — the client learns it was beaten and
+  the user can decide to re-bid. The amount is the only field; the bidder is the authenticated caller.</p>
+
+  <h2>High-Level Design</h2>
+  <p>Trace each FR through the boxes. The seam between write and read paths is visible in the wiring.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>API gateway / LB</td><td>Auth, routing; terminates HTTP and WebSocket connections.</td></tr>
+    <tr><td>Bid Service</td><td>The <em>write path</em>. Owns the atomic compare-and-set against the auction store. Single serialization point per auction.</td></tr>
+    <tr><td>Auction store (e.g. Postgres/DynamoDB)</td><td>Source of truth. Holds auction row + highest bid; bids appended to a bid log. Replicated &amp; durable.</td></tr>
+    <tr><td>Pub/Sub (e.g. Redis / Kafka)</td><td>On an accepted bid, the Bid Service publishes <code>(auctionId, newHigh)</code>. Decouples write from broadcast.</td></tr>
+    <tr><td>Connection / Broadcast Service</td><td>The <em>read path</em>. Holds WebSocket connections, subscribes to pub/sub, fans out new highs to viewers.</td></tr>
+    <tr><td>Cache (Redis)</td><td>Serves <code>GET</code> with current highest bid; updated on each accepted bid. Absorbs the read fan-out.</td></tr>
+    <tr><td>Scheduler / Close worker</td><td>Closes auctions at <code>endTime</code> and finalizes the winner.</td></tr>
+  </table>
+  <p><b>Flow of a bid:</b> client → API → Bid Service does compare-and-set on the auction row → on success, persist
+  the bid, update cache, publish to pub/sub → Broadcast Service pushes the new high over every open WebSocket →
+  viewers' prices tick up. On failure (someone bid higher first), return 409 and the broadcast never fires.</p>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1 · Accepting bids correctly under contention</h3>
+  <p>This is the heart of the problem and where most candidates leak correctness. The requirement: a bid is valid
+  <em>only if</em> <code>amount &gt; current highest</code>, and concurrent bids must not lose updates. That is
+  textbook <a href="../lessons/0010-common-patterns.html">contention</a> — an atomic read-modify-write on a single
+  key.<a href="#c1" class="cite">[1]</a><a href="#c2" class="cite">[2]</a> Three ways to get it right:</p>
+  <table>
+    <tr><th>Approach</th><th>Mechanism</th><th>Tradeoff</th></tr>
+    <tr><td><b>Optimistic concurrency (OCC)</b></td><td>Read row + <code>version</code>; <code>UPDATE … SET highest=$amt, version=version+1 WHERE id=$id AND version=$v AND $amt&gt;highest</code>. 0 rows affected ⇒ reject, client retries.<a href="#c2" class="cite">[2]</a><a href="#c3" class="cite">[3]</a></td><td>No locks held; cheap under low contention. Retries spike near close when many bids collide.</td></tr>
+    <tr><td><b>Pessimistic lock</b></td><td><code>SELECT … FOR UPDATE</code> on the auction row, compare, update, commit.<a href="#c2" class="cite">[2]</a></td><td>Always correct; serializes bids per auction. Lock held for the txn → throughput ceiling on a hot item.</td></tr>
+    <tr><td><b>Atomic counter</b></td><td>Redis Lua script (or DynamoDB conditional write) that checks-and-sets the max in one atomic op.<a href="#c4" class="cite">[4]</a></td><td>Fastest for celebrity-item bursts; must still durably persist to the source of truth.</td></tr>
+  </table>
+  <div class="box">
+    <b>Justified pick:</b> <b>OCC as the default</b> — a conditional <code>UPDATE</code> guarded on both
+    <code>version</code> and <code>amount &gt; highest</code> is atomic at the database, lost-update-proof, and
+    holds no locks. For the rare <em>celebrity</em> auction with extreme last-second contention, route that single
+    <code>auctionId</code> through a <b>Redis atomic compare-and-set</b> and stream the accepted bids to the durable
+    store. Either way, the key property is the same: <b>one atomic compare-and-set per bid; losers are rejected, never silently dropped.</b>
+  </div>
+
+  <h3>2 · Broadcasting the new highest bid in real time</h3>
+  <p>Once a bid is accepted, thousands of viewers must see it within ~1s — but the broadcast must never sit on the
+  write path. The pattern: the Bid Service <em>publishes</em> the new high to a pub/sub channel keyed by
+  <code>auctionId</code>; a fleet of Broadcast Services subscribes and pushes over the WebSocket connections it
+  holds.<a href="#c1" class="cite">[1]</a><a href="#c5" class="cite">[5]</a> This is the same
+  <a href="../lessons/0002-networking-and-apis.html">real-time-updates</a> machinery as
+  <a href="../lessons/0002-networking-and-apis.html">live feeds and chat</a>.</p>
+  <table>
+    <tr><th>Choice</th><th>Why</th></tr>
+    <tr><td>WebSocket over polling</td><td>Bid arrivals are bursty and latency-sensitive; polling 100k viewers per second wastes the read tier.</td></tr>
+    <tr><td>Pub/Sub between write and fan-out</td><td>Decouples a single durable write from N delivery sockets across many servers; the write commits in O(1), delivery scales out.</td></tr>
+    <tr><td>Eventually consistent on read</td><td>If a viewer misses a tick, the next bid or a periodic snapshot corrects it. The <em>price display</em> need not be linearizable — only the recorded bid is.</td></tr>
+  </table>
+  <p>Scaling the socket tier: shard viewers across Broadcast nodes; each node subscribes only to the auctions its
+  connected clients watch. A consistent-hash on <code>auctionId</code> keeps subscriptions cheap.</p>
+
+  <h3>3 · Closing the auction exactly at end time</h3>
+  <p>The auction must stop accepting bids at <code>endTime</code> and award the item to the highest bidder. Two parts:
+  the <em>trigger</em> and the <em>race</em>.</p>
+  <div class="box">
+    <b>Trigger — don't poll every row.</b> Scanning all auctions for expiry is wasteful at 10M auctions. Instead use a
+    <b>delay queue / scheduled job</b>: when an auction is created, enqueue a close-event with a visibility delay equal
+    to its duration (e.g. SQS delay, a Redis sorted-set keyed by <code>endTime</code>, or a durable timer/cron worker).
+    At fire time, a close worker flips <code>status = CLOSED</code> and finalizes the winner.<a href="#c1" class="cite">[1]</a>
+  </div>
+  <div class="box">
+    <b>The bid-vs-close race.</b> A bid arriving in the same instant as the close must be unambiguously in or out. Make
+    the close an <em>atomic state transition</em> on the same row the bids contend on: the close worker does a
+    conditional update to <code>CLOSED</code>, and the bid's compare-and-set additionally guards on
+    <code>status = OPEN AND now &lt; endTime</code>. Because both go through the same single serialization point as the
+    bid write, the database decides the order — there is no window for a "bid after close" to slip in. Tie-break by
+    server-received timestamp recorded inside the same transaction, never by client clock.
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Naming the close as <b>just another atomic write on the contended key</b> — rather than a separate, racy "stop the
+    auction" action — shows you understand that correctness comes from <em>one serialization point</em>, and that the
+    same primitive that makes bids safe also makes the close safe. That unification is the senior→staff jump.
+  </div>
+
+  <h3>4 · Read scaling for popular auctions</h3>
+  <p>A viral auction is a classic <b>hot key</b>: one <code>auctionId</code> drawing massive read traffic and a
+  fan-out storm on every bid. Keep the read path entirely off the write path.</p>
+  <table>
+    <tr><th>Technique</th><th>Effect</th></tr>
+    <tr><td>Cache the current price in Redis</td><td>Every <code>GET</code> hits cache, not the bid store. Updated synchronously on each accepted bid.</td></tr>
+    <tr><td>Broadcast push replaces polling</td><td>Active viewers get pushed updates, so they never re-read; the cache absorbs only cold/first loads.</td></tr>
+    <tr><td>Hot-key replication / local cache</td><td>For a single mega-auction, replicate its key across cache shards or add a short-TTL in-process cache on the read tier to spread the load.</td></tr>
+    <tr><td>Local fan-out aggregation</td><td>A Broadcast node receives one pub/sub message and fans it to all its local sockets — N deliveries cost one cross-service message.</td></tr>
+  </table>
+  <p>The result: bid <em>writes</em> stay strongly consistent and lock-light on one key, while bid <em>reads</em>
+  scale to millions via cache and push — the two paths never contend.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. What is the core correctness primitive for accepting a bid?</p>
+      <button class="opt">A queue that orders every incoming bid by the client-side timestamp value</button>
+      <button class="opt">An atomic compare-and-set that accepts only when above the current high</button>
+      <button class="opt">A nightly batch job that reconciles all bids and removes the duplicate ones</button>
+      <p class="fb">A bid is valid only if it beats the current max; that read-modify-write must be atomic to avoid lost updates.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. Why split the bid-write path from the read/broadcast path?</p>
+      <button class="opt">Because writing bids is far cheaper than reading them on every request</button>
+      <button class="opt">Because the read path needs stronger consistency than the bid writes</button>
+      <button class="opt">Because writes need strong consistency while reads can be eventual</button>
+      <button class="opt">Because the broadcast path must hold the database lock for each viewer</button>
+      <p class="fb">Bids must be linearizable on one key; views can be stale-but-cheap. Opposite requirements → separate paths.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. How should the system know an auction has reached its end time?</p>
+      <button class="opt">A delay queue or scheduled timer fires a close event at the end time</button>
+      <button class="opt">A tight loop scans every auction row repeatedly to check the clock</button>
+      <button class="opt">The next bidder triggers the close when they happen to submit a bid</button>
+      <button class="opt">The viewer client closes the auction once its countdown reaches zero</button>
+      <p class="fb">Enqueue a delayed close-event per auction; polling all rows does not scale and client clocks are untrustworthy.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. How is the bid-vs-close race resolved safely?</p>
+      <button class="opt">Trust the client clock and reject any bid stamped after the listed end</button>
+      <button class="opt">Make close an atomic write on the same row the bids contend on</button>
+      <button class="opt">Pause all writes for a buffer window on both sides of the close</button>
+      <button class="opt">Let the broadcast service decide which bids arrived before closing</button>
+      <p class="fb">Routing close through the same single serialization point as bids lets the database order them — no slip-through window.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this one — push on it. Try:
+    "Walk me through the exact SQL for the OCC conditional update and what happens on a tie." ·
+    "When would you choose <code>SELECT FOR UPDATE</code> over OCC for bids, and how do you detect that case?" ·
+    "Design the close worker so it survives the scheduler crashing right at <code>endTime</code>."
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/online-auction">Hello Interview — Design an Online Auction Platform Like eBay</a>.
+  The canonical breakdown: FRs, the four deep dives (bid consistency, durability, real-time updates, scaling to 10M
+  auctions), and the pattern links to <em>Dealing with Contention</em> and <em>Real-time Updates</em>.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/online-auction">Hello Interview — Online Auction breakdown</a> (FRs, deep dives, close mechanism, 10M-auction scaling).</p>
+    <p id="c2">[2] <a href="https://www.hellointerview.com/learn/system-design/patterns/dealing-with-contention">Hello Interview — Dealing with Contention pattern</a> (OCC vs. pessimistic locking for concurrent updates).</p>
+    <p id="c3">[3] <a href="https://en.wikipedia.org/wiki/Optimistic_concurrency_control">Optimistic concurrency control</a> (version-column read-validate-update).</p>
+    <p id="c4">[4] <a href="https://algomaster.io/learn/system-design-interviews/design-online-auction-system">AlgoMaster — Design an Online Auction System</a> (Redis atomic counter for high-contention items).</p>
+    <p id="c5">[5] <a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/patterns">Hello Interview — System Design Patterns</a> (real-time updates via pub/sub + WebSocket fan-out).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0022-rate-limiter.html">← Lesson 22</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 24 · FB Live Comments</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

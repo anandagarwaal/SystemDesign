@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 59 — Design a Food Delivery App (DoorDash / UberEats)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 59 · Phase 4 — Case Study · Hard</p>
+  <h1>Design a Food Delivery App (DoorDash / UberEats)</h1>
+  <p class="sub">Three actors, one order that crosses three systems, and a menu read path that dwarfs everything else by orders of magnitude.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Food delivery is the three-sided marketplace that pulls together everything Phase 4 has taught — the geospatial matching of <a href="../lessons/0029-uber.html">Uber</a>, the read-heavy/strong-write split of <a href="../lessons/0013-local-delivery.html">Gopuff</a>, and the live-tracking of any realtime system. The breadth is deceptively easy to draw. The L6/L7 signal lives in four deep dives: dispatching a courier to an order as a geospatial-plus-optimization problem, holding the order together as a <em>saga</em> across restaurant, courier, and payment, serving menus at extreme read scale, and pushing live tracking to three phones at once. Name those tradeoffs and the rest is plumbing.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Three actors — customer, restaurant, courier — but you scope to the <b>customer's order journey</b>. Four flows carry the whole interview; loyalty, ratings, promotions, and group orders are non-goals you name and defer.</p>
+  <table>
+    <thead><tr><th>#</th><th>Users should be able to…</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>Browse nearby restaurants and view a menu</b> — the discovery surface, filtered by deliverable location.</td></tr>
+      <tr><td>2</td><td><b>Place an order</b> from a single restaurant and pay for it, atomically.</td></tr>
+      <tr><td>3</td><td>Have the platform <b>match a courier</b> to the order and dispatch them to pick up and deliver.</td></tr>
+      <tr><td>4</td><td><b>Track the order and courier live</b> — status (placed → preparing → picked up → delivered) and the courier's position on a map.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <p>State a target for each — vague "scalable and reliable" reads as junior. These are the constraints the deep dives keep returning to.</p>
+  <table>
+    <thead><tr><th>NFR</th><th>Target &amp; why it shapes the design</th></tr></thead>
+    <tbody>
+      <tr><td><b>Low-latency menu reads</b></td><td>Browse and menu render in <b>&lt; 200ms</b> p99. Reads dominate by ~100&times;; forces caching + CDN, not per-request DB joins.</td></tr>
+      <tr><td><b>High availability at peak</b></td><td>Dinner rush (Fri/Sat 6–8pm) is multiples of average. Browse/track must degrade gracefully, never go dark. Availability &gt; perfect freshness for reads.</td></tr>
+      <tr><td><b>Consistency on orders &amp; payment</b></td><td><b>Strong.</b> An order is charged once, never double-charged, never silently lost. This is the strong-consistency island in an availability-first system.</td></tr>
+      <tr><td><b>Dispatch latency</b></td><td>Courier assigned within <b>seconds</b> of the restaurant accepting. Forces an in-memory geo index — no table scan per order.</td></tr>
+      <tr><td><b>Per-city scalability</b></td><td>A delivery is intrinsically local. Geo-shard so a NYC dinner spike never touches Chicago's capacity.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only compute numbers that change a decision. The headline here is the asymmetry between menu reads and order writes.</p>
+  <div class="box">
+    <b>The read/write gap.</b> Assume ~20M orders/day. That's 20M ÷ 86,400s ≈ <b>~230 orders/sec</b> average, perhaps <b>~1–2k/sec</b> at dinner peak. But every order is preceded by heavy browsing — say ~50 menu/restaurant-list reads per order placed (people window-shop). Menu reads land near <b>~12k/sec average, ~50k+/sec at peak</b><a href="#c1" class="cite">[1]</a>.
+    <ul>
+      <li><b>Implication of ~50k menu read QPS:</b> a relational join per request would melt the primary. Menus are read-mostly and change rarely — push them to a cache + CDN and serve precomputed blobs (Deep Dive 3).</li>
+      <li><b>Implication of ~1–2k order write QPS:</b> orders are <em>low</em> volume. A single strongly-consistent primary can absorb writes, so you can afford an expensive multi-step transaction / saga on the order path (Deep Dive 2).</li>
+      <li><b>Implication of courier pings:</b> ~1M active couriers at peak pinging every ~4s → <b>~250k location writes/sec</b>. This is a firehose — keep it in an in-memory geo index, never a durable table (mirrors <a href="../lessons/0029-uber.html">Uber</a>).</li>
+    </ul>
+  </div>
+  <p>The numbers <em>are</em> the thesis: <b>read-heavy menus, light-but-correct orders, a courier-location firehose.</b> Three load profiles, three different storage choices.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <h3>Entities</h3>
+  <table>
+    <thead><tr><th>Entity</th><th>Key fields</th></tr></thead>
+    <tbody>
+      <tr><td><b>Restaurant</b></td><td>id, <code>lat/lng</code>, hours, status (open/busy/closed), prep-time estimate.</td></tr>
+      <tr><td><b>Menu</b></td><td>restaurantId, items[], prices, availability flags — read-mostly, versioned.</td></tr>
+      <tr><td><b>Order</b></td><td>id, customerId, restaurantId, courierId, items[], total, <code>status</code>, timestamps.</td></tr>
+      <tr><td><b>Courier</b></td><td>id, vehicle, <code>status</code> (available / assigned / delivering / offline), current location.</td></tr>
+    </tbody>
+  </table>
+  <h3>API</h3>
+  <p>Six endpoints; the customer's identity comes from the auth token, never the body.</p>
+  <table>
+    <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /v1/restaurants?lat=&amp;lng=&amp;page=</code></td><td>Paginated list of deliverable restaurants near the caller.</td></tr>
+      <tr><td><code>GET /v1/restaurants/{id}/menu</code></td><td>Returns the restaurant's menu — the hot read path; cache/CDN-served.</td></tr>
+      <tr><td><code>POST /v1/orders</code><br>body: <code>{restaurantId, items[]}</code></td><td>Creates the order, charges payment, kicks off the fulfillment saga.</td></tr>
+      <tr><td><code>GET /v1/orders/{id}</code></td><td>Current order status + courier summary.</td></tr>
+      <tr><td><code>POST /v1/couriers/location</code><br>body: <code>{lat, lng}</code></td><td>High-frequency courier ping → updates the geo index. (Lightweight, not full REST.)</td></tr>
+      <tr><td><code>WS /v1/orders/{id}/track</code></td><td>WebSocket — pushes status changes + courier position during the delivery.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Data Flow</h2>
+  <p>The order's lifecycle crosses three independent systems, so it helps to trace it once end-to-end before drawing boxes:</p>
+  <div class="box">
+    <b>1. Discover →</b> customer browses nearby restaurants (cache/CDN), opens a menu (cache/CDN).<br>
+    <b>2. Order →</b> <code>POST /orders</code> creates the order in <code>PENDING</code>, charges payment, notifies the restaurant.<br>
+    <b>3. Accept →</b> restaurant confirms and gives a prep-time ETA → order goes <code>CONFIRMED</code>.<br>
+    <b>4. Dispatch →</b> matching service finds a nearby available courier and assigns them (timed to arrive as food is ready).<br>
+    <b>5. Fulfill →</b> courier picks up (<code>PICKED_UP</code>), delivers (<code>DELIVERED</code>); each transition pushes to the customer's tracking socket.
+  </div>
+  <p>Steps 2–5 are a distributed transaction spanning payment, restaurant, and courier — which is exactly why the order needs a saga, not a single DB transaction (Deep Dive 2).</p>
+
+  <h2>High-Level Design</h2>
+  <p>Split the system along its three load profiles: a <b>read path</b> (menus/browse — huge volume, tolerates staleness), an <b>order path</b> (low volume, needs correctness), and a <b>location path</b> (courier firehose, needs throughput).</p>
+  <table>
+    <thead><tr><th>Component</th><th>Responsibility</th><th>Data store</th></tr></thead>
+    <tbody>
+      <tr><td>API Gateway</td><td>Auth, rate limiting, routing; terminates client REST/WS.</td><td>—</td></tr>
+      <tr><td>Restaurant / Menu Service</td><td>Serves browse + menu reads; owns catalog writes.</td><td>SQL primary + read replicas, Redis cache, CDN.</td></tr>
+      <tr><td>Order Service</td><td>Creates orders, owns the order state machine + saga orchestration.</td><td>SQL leader (orders are durable + consistent).</td></tr>
+      <tr><td>Payment Service</td><td>Charges via external PSP (Stripe); idempotent.</td><td>Ledger DB.</td></tr>
+      <tr><td>Dispatch / Matching Service</td><td>Finds &amp; assigns nearby couriers; runs the optimization.</td><td>Reads Geo Index; writes assignment to Order.</td></tr>
+      <tr><td>Location Service + Geo Index</td><td>Ingests courier pings into an in-memory geo index.</td><td>Redis GEO (ephemeral, TTL).</td></tr>
+      <tr><td>Connection Service</td><td>Holds customer/courier WebSockets; relays status + position.</td><td>Socket map in Redis.</td></tr>
+    </tbody>
+  </table>
+  <p><b>Request flow:</b> <code>GET /restaurants</code> &amp; <code>/menu</code> hit the cache/CDN almost always. <code>POST /orders</code> → Order Service charges payment → on success notifies the restaurant and creates the order saga → on restaurant accept, Dispatch queries the Geo Index for nearby couriers and assigns one → courier and customer open tracking WebSockets → each status transition is persisted and pushed. Durable facts (orders, payments) live in SQL; courier positions live in Redis with TTL.</p>
+
+  <h2>Deep Dive 1 — Courier matching &amp; dispatch</h2>
+  <p>"Assign the best courier to this order" is two problems stacked: a <b>geospatial nearby-search</b> (who's close?) and an <b>optimization</b> (who's <em>best</em>, accounting for the whole fleet?). Solve them in that order.</p>
+  <p><b>The nearby search.</b> Finding available couriers near the restaurant is the identical 2-D range query from <a href="../lessons/0029-uber.html">Uber</a> and the proximity filter from <a href="../lessons/0020-yelp.html">Yelp</a>. A B-tree on <code>lat</code> and <code>lng</code> separately can't prune in two dimensions at once. The fix: a spatial index that maps 2-D into a sortable 1-D key — <code>GEOADD</code>/<code>GEOSEARCH</code> over Redis (geohash encoded as a sorted-set score) answers "couriers within radius R" in milliseconds and absorbs the ping firehose. Only index <em>available</em> couriers so every candidate is actually dispatchable.</p>
+  <table>
+    <thead><tr><th>Dispatch strategy</th><th>Idea</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td>Greedy nearest</td><td>Assign the single closest free courier the instant the order is ready.</td><td>~ Simple, low-latency, but globally suboptimal — strands far orders, ignores batching.</td></tr>
+      <tr><td>First-accept broadcast</td><td>Offer to N nearby couriers; first to tap wins.</td><td>~ Self-balancing, but noisy and can leave low-demand orders unclaimed.</td></tr>
+      <tr><td><b>Batched optimization</b></td><td>Briefly buffer orders + couriers, solve an assignment that minimizes total wait/idle miles, allow multi-pickup batching.</td><td>✓ Higher fleet efficiency &amp; fairness — DoorDash's real approach<a href="#c1" class="cite">[1]</a>; costs a few seconds of latency.</td></tr>
+    </tbody>
+  </table>
+  <p><b>The optimization tradeoff.</b> Greedy minimizes <em>this order's</em> wait but maximizes total miles across the fleet. Batched assignment (run every few seconds as a min-cost matching) trades a small latency hit for big gains in courier utilization, on-time rate, and the ability to batch two pickups from the same restaurant. The staff move is timing the dispatch to the food's readiness — assign so the courier arrives as the food comes up, not the moment the order is placed, minimizing both food-cold time and courier idle time.</p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Senior candidates do greedy-nearest and stop. Staff candidates name dispatch as a <em>global optimization under a latency budget</em>: you buffer for a few seconds, solve a min-cost assignment over the current order/courier set, and tune the objective (wait time vs. miles vs. batching) to the business. Crucially, you tie assignment to <em>predicted food-ready time</em>, not order-placed time — recognizing that the real objective is system throughput and on-time delivery, not minimizing one courier's distance. That reframe is the whole signal.
+  </div>
+
+  <h2>Deep Dive 2 — Order state machine &amp; the fulfillment saga</h2>
+  <p>An order touches three systems that can each fail independently: <b>payment</b> (external PSP), the <b>restaurant</b> (may reject), and the <b>courier</b> (may not exist nearby). A single ACID transaction can't span them — they're separate services with separate datastores. This is the canonical <b>saga</b> from <a href="../lessons/0010-common-patterns.html">Lesson 10 — Common Patterns</a>: a sequence of local transactions, each with a compensating action if a later step fails.</p>
+  <table>
+    <thead><tr><th>Approach</th><th>Mechanism</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td>One distributed (2PC) txn</td><td>Lock payment + restaurant + courier, commit together.</td><td>✗ Cross-service locks; the external PSP can't enlist; poor availability.</td></tr>
+      <tr><td>Choreographed saga</td><td>Each service emits events; others react via a bus.</td><td>~ Decoupled, but the global flow is implicit and hard to reason about / debug.</td></tr>
+      <tr><td><b>Orchestrated saga</b></td><td>Order Service drives steps explicitly; a durable workflow (Temporal/Step Functions) owns timeouts + compensation.</td><td>✓ Explicit state, crash-safe resume, clear compensations — the staff pick.</td></tr>
+    </tbody>
+  </table>
+  <p><b>The state machine.</b> Model the order as explicit states — <code>PENDING → PAID → CONFIRMED → DISPATCHED → PICKED_UP → DELIVERED</code>, plus terminal <code>CANCELLED/REFUNDED</code>. Transitions are the only legal way to mutate an order; persist each one durably so the order survives any crash. <b>Compensations:</b> restaurant rejects after charge → refund payment, mark <code>CANCELLED</code>; no courier found in time → refund or re-queue. Make every external call <b>idempotent</b> (an idempotency key on the charge) so a retry after a timeout never double-charges<a href="#c1" class="cite">[1]</a>.</p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The junior answer wraps everything in "a transaction." The staff answer states plainly: <em>you cannot 2PC across an external payment processor and a restaurant tablet</em>, so the order is a saga of idempotent local steps with explicit compensations, driven by a durable orchestrator that survives crashes mid-flow. Pointing out that the charge needs an idempotency key — so a retried <code>POST /orders</code> after a network blip doesn't bill the customer twice — is the failure-mode judgment that separates a correct design from a plausible-looking one.
+  </div>
+
+  <h2>Deep Dive 3 — Serving menus at very high read scale</h2>
+  <p>Menus are the ~50k-QPS hot path, yet they're <b>read-mostly</b> (a restaurant edits a menu a few times a day) and naturally <b>cacheable</b>. The discipline: never do a live relational join across menu/item/price tables on the request path. (Caching tiers come from <a href="../lessons/0010-common-patterns.html">Lesson 10 — Common Patterns</a>.)</p>
+  <div class="box">
+    <b>Read-scaling stack, cheapest layer first:</b>
+    <ul>
+      <li><b>CDN at the edge.</b> A rendered menu is a near-static document keyed by <code>(restaurantId, version)</code>. Serve it from a CDN POP near the user — most menu reads never reach your origin at all.</li>
+      <li><b>Redis cache at origin.</b> Cache misses hit Redis (the precomputed menu blob), not the SQL primary. TTL bounds staleness; an edit bumps the version and invalidates.</li>
+      <li><b>Read replicas.</b> Replica reads absorb the rare cache miss so the primary is reserved for writes.</li>
+      <li><b>Denormalized blob.</b> Store the menu as one precomputed JSON document, not a join — assembling it once on write beats assembling it 50k times/sec on read.</li>
+    </ul>
+  </div>
+  <p><b>Invalidation.</b> The interview gotcha is freshness: when a restaurant 86's a dish, the cached menu is stale. Fix with <b>version-bumped keys</b> — a menu edit writes a new version and the client/CDN fetches it; the old blob ages out by TTL. Per-item availability that changes fast (sold-out) can be overlaid from a small, separately-cached availability map rather than re-rendering the whole menu. Browse/list reads near a location reuse the same proximity prune as <a href="../lessons/0013-local-delivery.html">Gopuff</a>.</p>
+
+  <h2>Deep Dive 4 — Live order &amp; courier tracking</h2>
+  <p>After dispatch, the customer's phone needs the courier's moving position and the order's status changes — a server-push problem identical to the realtime pattern in <a href="../lessons/0010-common-patterns.html">Lesson 10</a> and the live trip streaming in <a href="../lessons/0029-uber.html">Uber</a>. Polling wastes battery and lags; use a persistent connection.</p>
+  <table>
+    <thead><tr><th>Option</th><th>Fit for live tracking</th></tr></thead>
+    <tbody>
+      <tr><td>Short polling</td><td>✗ Per-request overhead, laggy, drains battery at a few-second cadence.</td></tr>
+      <tr><td>SSE (server→client)</td><td>✓ One-way push fits customer tracking well; simpler than WebSockets.</td></tr>
+      <tr><td><b>WebSocket</b></td><td>✓ Full-duplex — needed where the courier app also streams up; one primitive for both.</td></tr>
+    </tbody>
+  </table>
+  <p>The Connection Service holds sockets keyed by orderId. The courier's location ping enters via the Location Service (updating the geo index); for an active delivery it's also relayed to the customer's socket, and status transitions from the Order Service are pushed the same way. The connection tier is a stateless fan-out/relay layer — keep the socket map in Redis so any node can route, and scale it independently of the order path. On disconnect the client reconnects and resumes; brief position gaps are acceptable, so this path favors availability over perfect ordering.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why is courier dispatch modeled as a batched optimization rather than greedy-nearest?</p>
+      <button class="opt">Greedy nearest cannot read the in-memory geospatial index of free couriers</button>
+      <button class="opt">Batched solving is the only method that prevents two orders sharing a courier</button>
+      <button class="opt">Greedy minimizes one order's wait but raises total fleet miles and idle time</button>
+      <button class="opt">Batched matching removes the need for any geospatial nearby search to run</button>
+      <p class="fb">Greedy is locally optimal but globally wasteful; a buffered min-cost assignment trades seconds of latency for fleet efficiency, on-time rate, and batching.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. Why is the order fulfillment flow a saga instead of one ACID transaction?</p>
+      <button class="opt">Payment, restaurant, and courier are separate services that cannot share one txn</button>
+      <button class="opt">Sagas are always faster than transactions because they never lock any database</button>
+      <button class="opt">A single transaction would force the menu reads to bypass the edge CDN cache</button>
+      <button class="opt">Saga steps run fully in parallel so the order completes in a single network hop</button>
+      <p class="fb">You can't 2PC across an external PSP and a restaurant tablet; the order becomes idempotent local steps with explicit compensations, driven by a durable orchestrator.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">3. Why can the high-volume menu read path be served from a CDN and cache?</p>
+      <button class="opt">Menus must be perfectly fresh, so only an edge CDN can guarantee that today</button>
+      <button class="opt">Menus are read-mostly and change rarely, so a versioned blob caches cleanly</button>
+      <button class="opt">Menu reads are lower volume than orders, so the primary database handles them</button>
+      <button class="opt">A live relational join per request is cheaper than precomputing a JSON blob</button>
+      <p class="fb">Menus are read ~100&times; more than they're written; precompute a versioned denormalized blob and serve it from CDN/Redis, invalidating by version bump.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. Why must the payment charge in the order saga be idempotent?</p>
+      <button class="opt">Idempotency lets the courier and the restaurant accept the same order at once</button>
+      <button class="opt">Idempotency keys are what map a 2-D courier location into a sortable geohash</button>
+      <button class="opt">Without it the menu cache would serve a stale price to the paying customer</button>
+      <button class="opt">A retried request after a timeout must not charge the same customer twice</button>
+      <p class="fb">Network timeouts trigger retries; an idempotency key on the charge ensures a re-sent <code>POST /orders</code> bills the customer exactly once.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on the hard parts. Try: <em>"Walk me through the saga step-by-step when the restaurant rejects an order after the card is already charged."</em> · <em>"Sketch the batched dispatch objective function and how you'd tune wait-time vs. miles vs. batching."</em> · <em>"How would I handle a restaurant 86'ing a dish without re-rendering and re-caching the whole menu?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/food-delivery">Hello Interview — Food Delivery (DoorDash / UberEats) System Design</a>. The reference breakdown for the delivery framework on this problem; read it for the bad/good/great progression on dispatch, the order saga, and menu caching, plus per-seniority expectations.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/food-delivery">Hello Interview — Food Delivery System Design Breakdown</a> (FRs/NFRs, menu read scale, batched courier dispatch, order saga + idempotency, menu caching). Capacity figures (~20M orders/day, ~50k menu QPS, ~250k courier pings/sec) are this lesson's own back-of-envelope estimates, grounded in CS fundamentals.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0058-slack.html">← Lesson 58</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 60 · Hotel Booking (Airbnb)</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

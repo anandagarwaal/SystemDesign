@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 55 — Design Spotify (Music Streaming)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 55 · Phase 4 — Case Study · Medium</p>
+  <h1>Design Spotify (Music Streaming)</h1>
+  <p class="sub">Spotify isn't YouTube with smaller files — it's a fixed, write-rarely catalog where instant playback and personalization carry the design.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Music streaming looks like video streaming, and the trap is to copy the YouTube answer wholesale. At L6/L7 the signal is recognizing what's <em>different</em>: the catalog is finite and read-mostly, files are tiny, and the hard parts shift from a transcoding pipeline to <b>sub-second start latency</b>, <b>catalog search</b>, and <b>recommendations</b>. Name that delta early and the interview is yours.
+  </div>
+
+  <h2>1. Functional Requirements</h2>
+  <p>Pick the four flows that define the product and say the rest — social, lyrics, podcasts, offline downloads — is out of scope so you can spend depth where it counts.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th><th>Note</th></tr>
+    <tr><td>1</td><td>Stream a song</td><td>Tap play, hear audio in &lt;~250&nbsp;ms; skip/seek freely</td></tr>
+    <tr><td>2</td><td>Search the catalog</td><td>By track, artist, album; typeahead and ranked results</td></tr>
+    <tr><td>3</td><td>Create &amp; manage playlists</td><td>Add/remove/reorder tracks; save songs to a library</td></tr>
+    <tr><td>4</td><td>Get recommendations</td><td>Personalized home, radio, and Discover Weekly</td></tr>
+  </table>
+  <p>The contrast with <a href="0033-youtube.html">Lesson 33 (YouTube)</a> is the whole point: there is no user upload flow. Content is ingested once by labels, not by millions of creators — which collapses the write path and reshapes everything downstream.</p>
+
+  <h2>2. Non-Functional Requirements</h2>
+  <p>State the target, not the adjective. The headline NFR is start latency.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>NFR</th><th>Target</th><th>Drives</th></tr>
+    <tr><td>Low start latency</td><td>Playback in &lt;~250&nbsp;ms after tap</td><td>CDN edge + pre-buffering + first segment low-bitrate</td></tr>
+    <tr><td>Availability</td><td>HA &gt; strong consistency for reads</td><td>Replicated catalog cache; eventual counts</td></tr>
+    <tr><td>Read scalability</td><td>~Billions of streams/day, extreme read:write</td><td>CDN absorbs audio; cache hot metadata</td></tr>
+    <tr><td>Smooth playback</td><td>No rebuffer on network dips</td><td>Adaptive bitrate + client buffer ahead</td></tr>
+    <tr><td>Recommendation freshness</td><td>Weekly/daily, not real-time</td><td>Offline batch pipelines, precomputed</td></tr>
+  </table>
+  <p><b>Start latency</b> and <b>read scalability</b> are the load-bearing NFRs. Notice durability is <em>not</em> a headline: the master catalog is a recoverable, externally-sourced asset, not irreplaceable user data — the opposite emphasis from YouTube.</p>
+
+  <h2>3. Capacity Estimation</h2>
+  <p>Only the numbers that move a decision. The capacity story is the inverse of video: the catalog is <em>small</em>.<a href="#c1" class="cite">[1]</a> Figures below are my own back-of-envelope estimates.</p>
+  <table>
+    <tr><th>Quantity</th><th>Estimate</th><th>Design implication</th></tr>
+    <tr><td>Catalog size</td><td>~100M tracks × ~5&nbsp;MB (multi-bitrate) ≈ low PBs</td><td>Finite and static → fully CDN-cacheable; hot subset fits in RAM.</td></tr>
+    <tr><td>Catalog ingest</td><td>~tens of thousands of new tracks/day</td><td>Write QPS is trivial — <em>not</em> the bottleneck. No live pipeline.</td></tr>
+    <tr><td>Stream bandwidth</td><td>~500M users × ~20 songs/day × ~5&nbsp;MB</td><td><b>This is the cost.</b> ~50&nbsp;PB/day egress → must serve from CDN edge, never origin.</td></tr>
+  </table>
+  <div class="box">
+    <b>The number that reframes it.</b> Unlike YouTube's ever-growing, user-supplied library, Spotify's catalog is bounded and changes slowly — so the <em>entire</em> popular set can live at CDN edges and in cache indefinitely. The dominant axis is still egress <b>bandwidth</b>, but the read:write skew is even more extreme: a hit song is encoded once and streamed billions of times. Optimize the read path; the write path is an afterthought.
+  </div>
+
+  <h2>4. Core Entities &amp; API</h2>
+  <p>Three entities carry the design. <code>Track</code> separates immutable <em>metadata</em> from the <em>audio blob</em> — the split that lets metadata live in a DB and bytes live in blob storage + CDN.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Entity</th><th>Key fields</th></tr>
+    <tr><td>Track</td><td>id, title, artistId, albumId, durationMs, <b>audioManifestUrl</b>, bitrate variants</td></tr>
+    <tr><td>Playlist</td><td>id, ownerId, name, ordered list of trackIds, updatedAt</td></tr>
+    <tr><td>User</td><td>id, library (saved trackIds), listening history, taste profile</td></tr>
+  </table>
+  <p>The API is small and read-heavy. The user is always derived from the auth token, never a body param.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>GET /v1/search?q=</code></td><td>Typeahead + ranked track/artist/album results</td></tr>
+    <tr><td><code>GET /v1/tracks/{id}</code></td><td>Return metadata + <code>audioManifestUrl</code> (the streaming entry point)</td></tr>
+    <tr><td><code>POST /v1/playlists</code></td><td>Create a playlist; <code>PATCH</code> to add/reorder tracks</td></tr>
+    <tr><td><code>PUT /v1/me/library/{trackId}</code></td><td>Save/remove a track in the caller's library</td></tr>
+    <tr><td><code>GET /v1/me/recommendations</code></td><td>Personalized home rows + Discover Weekly</td></tr>
+    <tr><td><code>POST /v1/plays</code></td><td>Emit a lightweight play event for analytics</td></tr>
+  </table>
+  <p>Critical move: the client fetches a manifest, then pulls audio segments <em>directly from the CDN</em> — the app tier only ever serves small JSON and never proxies audio bytes (manifests &amp; blobs → see <a href="0045-blob-store-s3.html">Lesson 45, Blob Store (S3)</a>).</p>
+
+  <h2>5. High-Level Design</h2>
+  <p>Map each requirement to a component and trace a play request through.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>API Gateway / Streaming Service</td><td>Stateless; auth, serves metadata + manifest URLs. Load-balanced, scaled horizontally.</td></tr>
+    <tr><td>Metadata Store</td><td>Tracks/albums/artists; read-optimized, heavily cached. Partitioned by <code>trackId</code>.</td></tr>
+    <tr><td>Search Service (inverted index)</td><td>Elasticsearch-style index over catalog text for ranked typeahead.<a href="#c2" class="cite">[2]</a></td></tr>
+    <tr><td>Playlist / Library Service</td><td>User-owned ordered collections; the only meaningful write path.</td></tr>
+    <tr><td>Blob Storage (S3) + CDN</td><td>Encoded audio segments + manifests. CDN absorbs ~all read bandwidth.</td></tr>
+    <tr><td>Recommendation Service</td><td>Serves precomputed taste rows from an offline pipeline.<a href="#c3" class="cite">[3]</a></td></tr>
+    <tr><td>Analytics pipeline</td><td>Ingests play events → royalties, play counts, recsys features.</td></tr>
+  </table>
+  <p><b>Play path:</b> <code>GET /v1/tracks/{id}</code> → Streaming Service → metadata cache → returns <code>audioManifestUrl</code> → client fetches manifest from CDN → client requests segments from CDN, adapting bitrate as it goes. The app tier is touched once, for tiny JSON; all heavy bytes flow edge → client.</p>
+
+  <h2>6. Deep Dives</h2>
+  <p>This is 60% of the interview. Four hard parts, each with the alternative and a justified pick.</p>
+
+  <h3>Deep Dive 1 — Instant playback: blobs + CDN + ABR + pre-buffering</h3>
+  <p>The product promise is "tap and it plays." Audio is stored as immutable <b>blobs</b> in object storage, encoded once into a few bitrate variants (e.g., 96/160/320&nbsp;kbps), split into short segments and indexed by a manifest (HLS/DASH).<a href="#c2" class="cite">[2]</a> Like <a href="0033-youtube.html">YouTube</a>, segments are served from the <b>CDN edge</b>, not origin — but a 3–4&nbsp;MB song is small enough that the whole popular catalog stays cache-resident, so hit rates approach 100%.</p>
+  <p>Three tricks buy sub-250&nbsp;ms starts: (1) request the <b>first segment at a low bitrate</b> so the first bytes arrive instantly, then ramp up via <a href="0033-youtube.html">adaptive bitrate</a>; (2) <b>pre-buffer</b> the next track in a playlist before the current one ends, so transitions are gapless; (3) cache the manifest itself at the edge so even the index lookup is local.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>Choice</th><th>Pick &amp; why</th></tr>
+    <tr><td>Encode on play vs once</td><td><b>Once, at ingest.</b> Catalog is static — precompute all variants and never transcode on the request path.</td></tr>
+    <tr><td>Stream from origin vs CDN</td><td><b>CDN.</b> Bandwidth is the cost; bounded catalog means near-100% edge hit ratio.</td></tr>
+    <tr><td>Buffer on demand vs ahead</td><td><b>Pre-buffer next track.</b> Hides network latency at transitions; the key to "instant" feel.</td></tr>
+  </table>
+  <div class="box">
+    <b>Why this is easier than video.</b> Files are ~1000× smaller than a movie and the catalog doesn't grow on a user-upload curve, so there's no async transcoding pipeline to design and edge caching is almost free. Spend the time you save on search and recommendations — that's the staff-level reallocation of depth.
+  </div>
+
+  <h3>Deep Dive 2 — Catalog search</h3>
+  <p>Users search by track, artist, or album, expecting ranked typeahead as they type. The catalog is text-heavy and read-mostly — a textbook <b>inverted index</b> (Elasticsearch/OpenSearch).<a href="#c2" class="cite">[2]</a> Index the catalog once at ingest; updates are rare, so the index stays cheap to maintain.</p>
+  <table>
+    <tr><th>Concern</th><th>Approach</th></tr>
+    <tr><td>Typeahead latency</td><td>Edge/CDN-cached prefix results + in-memory completion for top queries.</td></tr>
+    <tr><td>Ranking</td><td>Blend text relevance with popularity (play counts) so hits surface first.</td></tr>
+    <tr><td>Fuzzy / typos</td><td>n-grams + edit-distance in the index; "biebr" still finds Bieber.</td></tr>
+  </table>
+  <p>Don't over-build: search is a solved pattern here. Name the inverted index, note that popularity signals come from the analytics pipeline, and move on — knowing it's <em>not</em> the hard part is the signal.</p>
+
+  <h3>Deep Dive 3 — Playlists &amp; library data model</h3>
+  <p>A playlist is an <b>ordered</b> list owned by a user, edited interactively, and potentially huge (10k+ tracks). The data-model question is how to store order cheaply while supporting insert/reorder. Store the playlist row with its track list, and store membership as rows keyed by <code>(playlistId, position)</code> — but use a fractional/rank <b>position key</b> so inserting between two tracks doesn't renumber the whole list.<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Approach</th><th>Tradeoff</th></tr>
+    <tr><td>Integer positions (1,2,3…)</td><td>Simple reads; every insert/reorder rewrites many rows. Poor for big lists.</td></tr>
+    <tr><td><b>Fractional rank keys (pick)</b></td><td>Insert = one row with a between-value key; O(1) reorder, no mass rewrite.</td></tr>
+    <tr><td>Linked-list (prev/next)</td><td>Cheap inserts but reads need traversal; awkward for paginated UIs.</td></tr>
+  </table>
+  <p>The library ("saved songs") is the degenerate case: an unordered set of <code>trackId</code>s keyed by user. Both are the only real write paths in the system, and both fit a simple partitioned key-value/relational store — modest scale compared to the read fleet.</p>
+
+  <h3>Deep Dive 4 — Recommendations &amp; Discover Weekly</h3>
+  <p>Personalization is what makes Spotify <em>Spotify</em>. The key insight: recommendations are <b>not real-time</b> — Discover Weekly refreshes weekly, home rows daily.<a href="#c3" class="cite">[3]</a> So compute them <b>offline in batch</b> and serve precomputed results, turning a hard ML-at-request-time problem into a cheap cache read. Full treatment in <a href="0050-recommendation-system.html">Lesson 50, Recommendation Systems</a>.</p>
+  <table>
+    <tr><th>Stage</th><th>What happens</th></tr>
+    <tr><td>Signals</td><td>Play events, skips, saves, playlist adds → features in a data lake.</td></tr>
+    <tr><td>Models</td><td>Collaborative filtering (users-like-you) + content/audio embeddings, run offline.</td></tr>
+    <tr><td>Serve</td><td>Write per-user rows to a fast store; <code>GET /me/recommendations</code> is a lookup.</td></tr>
+  </table>
+  <p>The staff move is the latency reframe: by deciding freshness can be daily/weekly, you move the heavy computation off the request path entirely. Mention <b>collaborative filtering</b> for the cold-start fallback and audio-content embeddings for new tracks with no play history.</p>
+
+  <h3>Deep Dive 5 — Play-count analytics pipeline</h3>
+  <p>Every <code>POST /v1/plays</code> matters: it drives royalties, popularity ranking, and recsys features — but a synchronous <code>UPDATE views = views + 1</code> on a hot song is a write hotspot, exactly the YouTube view-count trap.<a href="#c1" class="cite">[1]</a> Relax it: play counts are <b>approximate and eventually consistent</b>.</p>
+  <table>
+    <tr><th>Approach</th><th>Tradeoff</th></tr>
+    <tr><td>Sync increment in DB</td><td>Accurate but hot-row contention on popular tracks; doesn't scale.</td></tr>
+    <tr><td><b>Event stream → batch aggregate (pick)</b></td><td>Emit play events to a log (Kafka), window-aggregate, write rolled-up counts.</td></tr>
+    <tr><td>Probabilistic sketches</td><td>HyperLogLog for unique listeners; trade exactness for tiny memory.</td></tr>
+  </table>
+  <p>One subtlety music adds over video: royalty accounting needs <em>auditable, exactly-once-ish</em> counts, so the pipeline writes raw events durably to the lake (for the financial path) while serving fast approximate counts to the UI (for ranking). Two consumers, one event stream.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The senior-vs-staff tell is recognizing the <b>delta from YouTube</b> and reallocating depth accordingly: no user-upload flow, a <b>bounded read-mostly catalog</b> that lives almost entirely at the CDN edge, and tiny files — so the transcoding pipeline shrinks to a one-time ingest encode, and the genuinely hard parts become <b>sub-second start latency</b> (pre-buffering + low-bitrate first segment) and <b>personalization</b>. State that recommendations are batch-precomputed, not real-time, and that play counts must be async to dodge hot-row contention. Knowing which parts are <em>solved</em> (search, blob+CDN) and saying so is itself the staff move.<a href="#c1" class="cite">[1]</a>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What most distinguishes Spotify's design from YouTube's design?</p>
+      <button class="opt">Spotify must transcode every uploaded file asynchronously</button>
+      <button class="opt">Spotify needs far stronger durability for its master files</button>
+      <button class="opt">Spotify has a bounded, read-mostly catalog with no uploads</button>
+      <button class="opt">Spotify serves all of its audio bytes from the origin store</button>
+      <p class="fb">No user-upload flow and a finite, slow-changing catalog mean the whole popular set lives at the CDN edge.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. Which technique most directly enables sub-250&nbsp;ms playback starts?</p>
+      <button class="opt">Encoding every track on demand the moment a user taps play</button>
+      <button class="opt">A low-bitrate first segment plus pre-buffering the next track</button>
+      <button class="opt">Storing the entire song as one large object inside the origin</button>
+      <button class="opt">Running the recommendation model on the request path live</button>
+      <p class="fb">First bytes arrive instantly at low bitrate, then ABR ramps up; the next track is pre-buffered for gapless play.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why can recommendations be computed offline in batch jobs?</p>
+      <button class="opt">Because freshness is daily or weekly, not real-time per request</button>
+      <button class="opt">Because the inverted index already ranks every user library</button>
+      <button class="opt">Because the CDN edge nodes run the model close to listeners</button>
+      <button class="opt">Because playlists store the predicted next track for everyone</button>
+      <p class="fb">Discover Weekly refreshes weekly, so heavy ML runs offline and serving is just a precomputed cache lookup.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. Why are play counts aggregated asynchronously instead of incremented live?</p>
+      <button class="opt">Because the CDN cannot cache any track that is being counted</button>
+      <button class="opt">Because synchronous increments cause hot-row contention on hits</button>
+      <button class="opt">Because the manifest file already stores the running play total</button>
+      <button class="opt">Because search ranking requires exact counts before any reads</button>
+      <p class="fb">A live UPDATE on the hottest songs is a write hotspot; events stream to a log and counts are window-aggregated.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this design — push on it. Try: <em>"Walk me through the fractional-rank-key scheme when two clients reorder the same playlist concurrently."</em> · <em>"How would offline downloads change the blob, CDN, and DRM design?"</em> · <em>"How do royalty-grade exact counts and UI-grade approximate counts share one event stream?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/spotify">Hello Interview — Spotify / music streaming breakdown</a>. The clearest walkthrough of how a music-streaming design diverges from video, with explicit mid/senior/staff expectations. (Pair it with <a href="0033-youtube.html">Lesson 33</a> to see the delta.)</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/spotify">Hello Interview — Music streaming breakdowns</a> (FRs/NFRs framing, start-latency emphasis, read:write skew, async counting). Capacity numbers are the author's own estimates.</p>
+    <p id="c2">[2] <a href="0045-blob-store-s3.html">Lesson 45 — Blob Store (S3)</a> and inverted-index / data-model fundamentals (audio-as-blob, manifests, search index, playlist ordering).</p>
+    <p id="c3">[3] <a href="0050-recommendation-system.html">Lesson 50 — Recommendation Systems</a> (collaborative filtering, content embeddings, offline batch precomputation for Discover Weekly).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0054-tiktok.html">← Lesson 54</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 56 · Live Streaming (Twitch)</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

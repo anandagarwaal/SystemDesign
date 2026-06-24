@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 101 — Deep Dive: Apache Spark</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 101 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Apache Spark</h1>
+  <p class="sub">How an in-memory DAG engine buried MapReduce's disk round-trips — and where it still loses to a true streaming engine.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> The moment a design needs to chew through a day of raw events —
+    sessionize logs, train features, backfill a year of clickstream — someone says "run a Spark job." The senior answer
+    stops there. The staff answer explains <em>why</em> Spark's RDD lineage, lazy DAG, and in-memory caching beat
+    MapReduce's per-step disk writes, names the one operation that dominates the cost (<em>shuffle</em>), and knows when
+    a true streaming engine like Flink is the better pick. Knowing the internals lets you defend the batch layer instead
+    of name-dropping it.
+  </div>
+
+  <h2>What it is</h2>
+  <p>Apache Spark is a <b>distributed, in-memory engine for large-scale data processing</b> — batch jobs, SQL,
+    streaming, and ML over clusters of commodity machines.<a href="#c1" class="cite">[1]</a> It's the spiritual
+    successor to Hadoop <b>MapReduce</b>: same "ship the computation to the data, recover from machine failures"
+    philosophy, but it fixed MapReduce's defining weakness.</p>
+  <p>MapReduce wrote the output of <em>every</em> map and reduce step back to disk (HDFS) before the next step could
+    read it.<a href="#c2" class="cite">[2]</a> For a single pass that's tolerable; for the iterative and multi-stage
+    jobs that dominate real analytics and ML, each iteration paid a full round-trip to disk plus replication. Spark's
+    core idea was to keep intermediate results <b>in memory across steps</b> and recompute lost pieces from
+    <em>lineage</em> rather than re-reading replicated disk — reportedly an order of magnitude faster on iterative
+    workloads.<a href="#c2" class="cite">[2]</a> Same fault-tolerance guarantees, far less I/O.</p>
+
+  <h2>Internals — the meat</h2>
+
+  <h3>1 · RDDs and DataFrames: the core abstraction</h3>
+  <p>The original abstraction is the <b>RDD — Resilient Distributed Dataset</b>: a read-only, partitioned collection of
+    records spread across the cluster that you transform with functional operators (<code>map</code>,
+    <code>filter</code>, <code>reduceByKey</code>).<a href="#c2" class="cite">[2]</a> Two properties make it work:
+    it's <b>immutable</b> (a transformation produces a <em>new</em> RDD), and it remembers its <b>lineage</b> — the
+    exact sequence of operations that built it from stable input. If a partition is lost to a dead executor, Spark
+    recomputes <em>just that partition</em> from lineage instead of replicating data.<a href="#c2" class="cite">[2]</a>
+    That's the "resilient" in RDD — fault tolerance without the storage cost of replication.</p>
+  <p>Today you mostly write <b>DataFrames / Datasets</b> — a higher-level, schema-aware table API that compiles down to
+    the same execution machinery but lets the optimizer (Catalyst, below) reason about your query.<a href="#c1" class="cite">[1]</a>
+    Same engine, richer optimization surface; RDDs are the foundation you reach for only when you need raw control.</p>
+
+  <h3>2 · Lazy evaluation: transformations vs actions</h3>
+  <p>This is the most-missed Spark concept and a clean interview tell. Operations split into two kinds:</p>
+  <table>
+    <tr><th>Kind</th><th>Examples</th><th>What happens when you call it</th></tr>
+    <tr><td><b>Transformation</b></td><td><code>map</code>, <code>filter</code>, <code>join</code>, <code>groupBy</code></td><td>Nothing runs. Spark just records it onto the lineage graph.</td></tr>
+    <tr><td><b>Action</b></td><td><code>count</code>, <code>collect</code>, <code>save</code>, <code>show</code></td><td>Triggers execution of the whole graph built up so far.</td></tr>
+  </table>
+  <p>Transformations are <b>lazy</b>: calling <code>filter</code> then <code>map</code> builds a plan but executes
+    nothing.<a href="#c1" class="cite">[1]</a> Only an <b>action</b> forces Spark to actually run. Laziness isn't a
+    quirk — it's <em>why</em> the optimizer can fuse adjacent steps, push filters down to the source, and avoid
+    materializing intermediates you never asked for. The whole pipeline is optimized as one unit, not step by step.</p>
+
+  <h3>3 · The DAG, stages, and tasks</h3>
+  <p>When an action fires, Spark turns the lineage into a <b>DAG (directed acyclic graph) of transformations</b> and the
+    DAG scheduler splits it into <b>stages</b>.<a href="#c1" class="cite">[1]</a> The split point is the expensive
+    operation — a shuffle. Within a stage, work is divided into <b>tasks</b>, one task per <b>partition</b>, and tasks
+    are the unit Spark ships to executors to run in parallel.<a href="#c1" class="cite">[1]</a> The hierarchy:</p>
+  <div class="box">
+    <b>Job → Stages → Tasks → Partitions.</b>
+    <ul>
+      <li>An <b>action</b> launches a <b>job</b>.</li>
+      <li>A job is cut into <b>stages</b> at every shuffle boundary (operations that need data movement).</li>
+      <li>Each stage runs as a set of <b>tasks</b> — one per <b>partition</b> of the data.</li>
+      <li><b>Partitions</b> are the fundamental unit of parallelism: more partitions = more tasks = more concurrency
+        (up to the number of executor cores). Too few starves the cluster; too many adds scheduling overhead.</li>
+    </ul>
+  </div>
+
+  <h3>4 · Narrow vs wide dependencies — and the shuffle</h3>
+  <p>Why do stages break where they do? Because dependencies between RDD partitions come in two flavors:<a href="#c2" class="cite">[2]</a></p>
+  <table>
+    <tr><th>Dependency</th><th>Meaning</th><th>Examples</th><th>Cost</th></tr>
+    <tr><td><b>Narrow</b></td><td>Each parent partition feeds one child partition — no data crosses the network.</td><td><code>map</code>, <code>filter</code>, <code>union</code></td><td>Cheap; pipelined inside one stage.</td></tr>
+    <tr><td><b>Wide</b></td><td>Each child partition pulls from many parent partitions — data must be repartitioned across the cluster.</td><td><code>groupByKey</code>, <code>join</code>, <code>reduceByKey</code></td><td>A <b>shuffle</b>: the expensive part.</td></tr>
+  </table>
+  <p>A <b>shuffle</b> is Spark redistributing data across the network so that all records with the same key land on the
+    same partition — necessary for grouping, joining, and aggregating by key.<a href="#c1" class="cite">[1]</a> It is
+    the single most expensive thing Spark does: it writes intermediate map outputs to local disk, transfers them over
+    the network, and is the boundary that forces a new stage. Almost all Spark tuning — choosing
+    <code>reduceByKey</code> over <code>groupByKey</code>, broadcasting a small table to avoid a join shuffle,
+    fixing skew — is about <b>doing fewer/smaller shuffles</b>. If you remember one cost model for Spark, it's this:
+    <em>narrow is free, wide is a shuffle, shuffle is the bill.</em></p>
+
+  <h3>5 · The cluster model: driver, executors, cluster manager</h3>
+  <p>A Spark application has three roles:<a href="#c1" class="cite">[1]</a></p>
+  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
+    <li><b>Driver</b> — runs your <code>main()</code> and the <code>SparkContext</code>; builds the DAG, schedules
+      stages/tasks, and tracks where everything lives. The brain. If it dies, the app dies.</li>
+    <li><b>Executors</b> — worker JVM processes on cluster nodes that actually run tasks and hold cached partitions in
+      memory. Parallelism = executors × cores per executor.</li>
+    <li><b>Cluster manager</b> — allocates executors on the cluster: <b>YARN</b>, <b>Kubernetes</b>, <b>Mesos</b>, or
+      Spark's standalone manager. Spark is decoupled from it, so the same job runs anywhere.<a href="#c1" class="cite">[1]</a></li>
+  </ul>
+  <p><b>Why in-memory + DAG beats MapReduce.</b> MapReduce expressed everything as rigid map→shuffle→reduce steps,
+    materializing each step's output to replicated disk before the next began.<a href="#c2" class="cite">[2]</a> Spark
+    keeps working sets <b>in memory</b>, models the whole job as a DAG so it can <b>pipeline narrow transformations</b>
+    inside a stage without touching disk, and only spills/shuffles at wide boundaries. Fewer disk round-trips, fewer
+    materializations, and recompute-from-lineage instead of replication-for-safety. That's the entire performance
+    story in one sentence.</p>
+
+  <h2>Structured Streaming &amp; Spark SQL</h2>
+  <p><b>Spark SQL + Catalyst.</b> DataFrame/SQL queries don't execute as written — they pass through <b>Catalyst</b>,
+    Spark's query optimizer, which applies rule-based and cost-based rewrites (predicate pushdown, column pruning, join
+    reordering) and generates optimized JVM code.<a href="#c1" class="cite">[1]</a> This is why DataFrames usually beat
+    hand-written RDD code: the optimizer sees the whole logical plan and the engine doesn't.</p>
+  <p><b>Structured Streaming = micro-batch.</b> Spark's streaming model treats a live stream as an
+    <b>unbounded table</b> that grows, and processes it in small <b>micro-batches</b> — it runs the same batch engine
+    repeatedly over tiny slices of newly arrived data.<a href="#c1" class="cite">[1]</a> You get exactly-once semantics
+    and the full DataFrame/SQL API on streams, at the cost of latency bounded by the batch interval (typically hundreds
+    of milliseconds to seconds, not true per-event).</p>
+  <div class="box">
+    <b>Spark vs Flink — micro-batch vs true streaming.</b>
+    <ul>
+      <li><b>Spark Structured Streaming:</b> micro-batch — buffers events into small batches, then runs a batch job per
+        batch. Excellent throughput, unified batch+stream code, latency typically <b>sub-second to seconds</b>.</li>
+      <li><b>Flink:</b> a true <b>event-at-a-time</b> streaming engine with streaming as the native model. Lower,
+        more consistent latency (<b>single-digit to tens of milliseconds</b>) and richer event-time/windowing
+        semantics — the better pick when low latency is the hard requirement.</li>
+      <li><b>Rule of thumb:</b> Spark wins for <b>heavy batch + "good enough" streaming on one stack</b>; Flink wins
+        when <b>true low-latency streaming</b> is the headline NFR. (Next lesson covers Flink in depth.)</li>
+    </ul>
+  </div>
+  <p><b>Deployment modes.</b> Submit with <code>spark-submit</code> in <b>cluster mode</b> (driver runs inside the
+    cluster — production) or <b>client mode</b> (driver runs where you launched it — interactive/notebooks), onto
+    YARN, Kubernetes, or standalone.<a href="#c1" class="cite">[1]</a> Managed offerings (Databricks, EMR, Dataproc)
+    wrap all of this.</p>
+
+  <h2>When to reach for it — and when NOT</h2>
+  <div class="box">
+    <b>Reach for Spark when…</b>
+    <ul>
+      <li>You need <b>large-scale batch / ETL</b>: backfills, sessionization, joining huge datasets, feature pipelines.</li>
+      <li>The job is <b>iterative or multi-stage</b> (ML training, graph algorithms) where in-memory caching pays off.</li>
+      <li>You want <b>one engine for batch + SQL + streaming + ML</b> over data in a lake/warehouse.</li>
+      <li>Latency tolerance is <b>seconds-to-minutes</b>, not milliseconds — analytics, not request serving.</li>
+    </ul>
+    <b>Do NOT reach for it when…</b>
+    <ul>
+      <li>You need <b>true low-latency streaming</b> (single-digit ms per event) — that's <b>Flink</b>.</li>
+      <li>You need <b>low-latency point queries / serving</b> — that's an OLAP store or key-value DB, not a batch engine.</li>
+      <li>The data is <b>small enough for one machine</b> — a single node, Pandas, or DuckDB is simpler and faster.</li>
+      <li>You need <b>transactions / OLTP</b> — Spark is a processing engine, not a database of record.</li>
+    </ul>
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Don't say "we'll Spark it" and move on. Say <em>"this is an append-only event firehose we need to roll up daily, so
+    a batch DAG over partitioned data fits — but the cost lives in the shuffle on the <code>groupBy</code>, so I'll
+    pre-aggregate with <code>reduceByKey</code> and broadcast the small dimension table to avoid a wide join."</em> Then
+    show the boundary: if the requirement is sub-second per-event latency, you'd reach for Flink instead of forcing
+    Spark's micro-batch. Naming the shuffle as the bottleneck, reasoning about partitions, and knowing exactly where
+    Spark stops being the right tool is the staff move — re-explaining "Spark is in-memory MapReduce" is not.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>Spark almost always shows up as the <b>batch / pre-aggregation layer</b> in data-processing designs — the
+    "compute the rollups" half of a lambda or kappa architecture
+    (<a href="0036-ad-click-aggregator.html">Lesson 36 — ad click aggregator</a>), feeding cooked results into an OLAP
+    serving store (<a href="0095-clickhouse-olap.html">Lesson 95 — ClickHouse / OLAP</a>). When you get there:</p>
+  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
+    <li><b>Justify by workload.</b> "Large-scale multi-stage batch over event data → distributed DAG engine like
+      Spark." One sentence, then move to the hard part.</li>
+    <li><b>Lead with the shuffle.</b> The interesting depth is "where does data move across the network, and how do I
+      shrink it" — partitioning, pre-aggregation, broadcast joins, skew handling.</li>
+    <li><b>Place it correctly.</b> Spark cooks; an OLAP store serves; a queue buffers. Don't make Spark answer
+      low-latency reads — route those to the serving tier.</li>
+    <li><b>Name the Flink boundary.</b> If they push on streaming latency, flag micro-batch vs true streaming and when
+      you'd switch. Naming the alternative you rejected is the breadth signal.</li>
+  </ul>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. In Spark, when does the cluster actually start executing a chain of transformations?</p>
+      <button class="opt">Immediately, because each transformation runs eagerly the moment that you call it</button>
+      <button class="opt">After the driver process finishes recording the very last narrow dependency edge</button>
+      <button class="opt">Only when an action is called, which triggers the whole DAG built up so far</button>
+      <button class="opt">Once the cluster manager finishes allocating every executor the job will ever use</button>
+      <p class="fb">Transformations are lazy — they only build lineage; an action (count, save, collect) forces execution.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. What is the defining cost of a "wide" dependency compared to a "narrow" one?</p>
+      <button class="opt">It rewrites the query plan, so Catalyst must recompile the generated JVM bytecode</button>
+      <button class="opt">It forces a shuffle, moving data across the network so matching keys share a partition</button>
+      <button class="opt">It replicates each partition three times to disk before any child task can begin</button>
+      <button class="opt">It blocks the driver thread until every executor reports its cached memory usage</button>
+      <p class="fb">Wide deps (groupByKey, join) need a shuffle — repartitioning data over the network, the expensive operation.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why is Spark faster than classic MapReduce on iterative, multi-stage jobs?</p>
+      <button class="opt">It keeps working sets in memory and recomputes lost partitions from recorded lineage</button>
+      <button class="opt">It skips fault tolerance entirely, so no step ever pays for redundant data safety</button>
+      <button class="opt">It writes every intermediate stage to replicated disk so reduce reads stay sequential</button>
+      <button class="opt">It runs only a single map phase and forbids any reduce step that moves the data</button>
+      <p class="fb">MapReduce writes each step to disk; Spark caches in memory and rebuilds lost data from lineage, not replicas.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. How does Spark Structured Streaming differ from a true streaming engine like Flink?</p>
+      <button class="opt">Spark processes one event at a time while Flink groups events into hourly batches</button>
+      <button class="opt">Spark runs the batch engine on small micro-batches while Flink processes event-at-a-time</button>
+      <button class="opt">Spark guarantees exactly-once delivery while Flink can only ever promise at-most-once</button>
+      <button class="opt">Spark requires a Kafka source for streams while Flink reads only from static files</button>
+      <p class="fb">Spark's model is micro-batch (small batches, sub-second+ latency); Flink is native event-at-a-time, lower latency.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this technology — push on the internals. Try:
+    "Walk me through what physically happens during a shuffle when I call <code>groupByKey</code> on a skewed key."
+    "When would you pick Flink over Spark Structured Streaming, and what would you give up?"
+    "How do partitions, tasks, and executor cores relate — and how do I pick a partition count?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://spark.apache.org/docs/latest/">Apache Spark documentation — overview, RDD programming guide, and Structured Streaming guide</a>.
+    The canonical explanation of the RDD/DataFrame model, lazy transformations vs actions, the DAG/stage/task execution
+    model, shuffles, and the driver/executor/cluster-manager architecture. Pair it with the original RDD paper for the
+    "why" behind lineage-based fault tolerance.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://spark.apache.org/docs/latest/">Apache Spark documentation — cluster overview, RDD programming guide, Spark SQL/Catalyst, Structured Streaming (transformations vs actions, DAG/stages/tasks/partitions, shuffle, driver/executor/cluster-manager, micro-batch, deployment modes)</a>. Cross-referenced with standard distributed-systems fundamentals.</p>
+    <p id="c2">[2] <a href="https://www.usenix.org/system/files/conference/nsdi12/nsdi12-final138.pdf">Zaharia et al., "Resilient Distributed Datasets: A Fault-Tolerant Abstraction for In-Memory Cluster Computing," NSDI 2012</a> (RDDs, lineage-based recovery, narrow vs wide dependencies, in-memory advantage over MapReduce's disk round-trips).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0100-message-queues.html">← Lesson 100</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 102 · Apache Flink</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

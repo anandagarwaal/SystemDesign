@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 116 — Deep Dive: Geospatial Indexing (Geohashing &amp; Quadtrees)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 116 · Phase 2 — Key Technology · Deep Dive</p>
+  <h1>Deep Dive: Geospatial Indexing (Geohashing &amp; Quadtrees)</h1>
+  <p class="sub">"Find the 20 drivers nearest to me" sounds trivial — until you realize a normal index can't do it. Here's how maps actually answer proximity queries.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Proximity is one of the most common interview themes — Uber, Yelp, Tinder, a heat map, a food-delivery dispatch all hinge on "what's near this point?" The trap is that a B-tree on <code>(lat, lng)</code> can't answer it efficiently, and saying "I'll compute distance to every row" fails instantly at scale. A staff candidate names a real geospatial index — geohash, quadtree, or H3 — and explains the 2D-to-1D trick and the edge cases. This lesson hands you that vocabulary and the one tricky failure mode (boundary neighbors) interviewers love to probe.
+  </div>
+
+  <h2>Why a normal index fails</h2>
+  <p>A B-tree indexes <em>one</em> ordered dimension. You can index <code>lat</code> or <code>lng</code>, but a near-me query needs both <em>together</em>: a box around a point. Filtering <code>lat BETWEEN … AND lng BETWEEN …</code> uses at most one index and still scans a wide stripe of the planet, then computes distance to everything in it.<a href="#c2" class="cite">[2]</a> The core problem: <b>2D locality doesn't map onto 1D order</b> — two points can be close on Earth but far apart in any single-column sort. Geospatial indexes exist to encode 2D proximity into something a database <em>can</em> index efficiently.</p>
+
+  <h2>Geohashing — 2D into a 1D string</h2>
+  <p>A <b>geohash</b> recursively divides the world into a grid and encodes a lat/lng into a short base-32 string.<a href="#c1" class="cite">[1]</a> The mechanism:</p>
+  <ul>
+    <li>Interleave the bits of latitude and longitude, repeatedly halving the range (binary subdivision), then base-32 encode the result.<a href="#c1" class="cite">[1]</a></li>
+    <li><b>The magic property — shared prefix = spatial proximity:</b> the longer the common prefix of two geohashes, the closer the points. <code>9q8yy</code> and <code>9q8yz</code> are neighbors; <code>9q8</code> is a bigger box containing both.</li>
+    <li><b>Precision = length:</b> more characters → smaller cell. A 5-char hash is ~5 km; 6-char ~1 km; 7-char ~150 m. Pick the length to match your search radius.</li>
+  </ul>
+  <p>Now the near-me query is a <b>prefix match</b> on an ordinary B-tree/string index: <code>WHERE geohash LIKE '9q8yy%'</code> returns everything in that cell — fast, indexable, shardable. This is how <b>Redis geospatial commands</b> (<code>GEOADD</code>/<code>GEOSEARCH</code>) work under the hood: they encode locations as a 52-bit geohash score in a sorted set and range-scan it.<a href="#c1" class="cite">[1]</a></p>
+
+  <div class="box">
+    <b>The boundary problem — the edge case interviewers probe</b>
+    <ul>
+      <li>Two points can be physically adjacent but sit in different cells with <b>different prefixes</b> — your target is 10 m away but just across a cell border, so a single prefix query misses it.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Fix:</b> query the target cell <em>plus its 8 neighbors</em> (the surrounding 3×3 grid of geohash cells), union the results, then sort by true distance. Geohash neighbor computation is a standard, cheap operation.</li>
+      <li><b>Hot spots / skew:</b> a fixed-grid cell over Times Square holds millions of points while a rural cell holds three. Fixed grids don't adapt to density — which is exactly what quadtrees fix.</li>
+    </ul>
+  </div>
+
+  <h2>Quadtrees — a grid that adapts to density</h2>
+  <p>A <b>quadtree</b> is a tree where each node represents a square region and splits into <b>four quadrants</b> only when it exceeds a capacity (say 100 points).<a href="#c2" class="cite">[2]</a> Dense areas (a city) subdivide deeply into tiny cells; sparse areas (an ocean) stay as one big node. A near-me query descends the tree to the leaves overlapping your search box — <code>O(log n)</code> and naturally <b>load-balanced by density</b>, since every leaf holds a bounded number of points. The cost is that it's a dynamic in-memory structure that must be rebuilt/rebalanced as points move, vs. a geohash string you can drop in any database column.</p>
+  <p>Two more you should name: <b>R-trees</b> (used by PostGIS / Postgres <code>GiST</code> indexes — index bounding boxes, great for polygons and ranges, not just points)<a href="#c2" class="cite">[2]</a> and Uber's <b>H3</b> (hexagonal grid — hexagons have uniform distance to all neighbors, avoiding the corner-vs-edge distortion of squares).</p>
+
+  <table>
+    <thead><tr><th>Index</th><th>Strength</th><th>Watch out for</th></tr></thead>
+    <tbody>
+      <tr><td><b>Geohash</b></td><td>Just a string — index/shard anywhere; Redis-native</td><td>Boundary neighbors; fixed-grid hot spots</td></tr>
+      <tr><td><b>Quadtree</b></td><td>Adapts to density; balanced leaves</td><td>In-memory, needs rebalancing as points move</td></tr>
+      <tr><td><b>R-tree (PostGIS)</b></td><td>Polygons/ranges, mature SQL support</td><td>Heavier; in-DB rather than distributed cache</td></tr>
+    </tbody>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    A junior on a "find nearby" problem says "I'll query the database for locations near the user." A staff candidate immediately names <em>why that's hard</em> — "a B-tree can't index two dimensions, and scanning every row doesn't scale" — and reaches for a concrete index: "<b>Geohash</b> the locations, store them in a Redis sorted set or an indexed column, and do a prefix range query."<a href="#c1" class="cite">[1]</a> The deeper tell is volunteering the <b>boundary edge case</b> ("I'll also query the 8 neighbor cells so I don't miss a point just across a cell border") and the density trade-off ("if hot cells like a stadium are a problem, a <b>quadtree</b> or <b>H3</b> adapts to density where a fixed geohash grid doesn't"). Naming the failure mode before being asked is the signal.
+  </div>
+
+  <h2>In the interview</h2>
+  <p>For any proximity feature (<a href="0020-yelp.html">Yelp</a>, <a href="0029-uber.html">Uber</a>, Tinder, heat maps, dispatch): (1) call out that a plain index can't do 2D range; (2) pick <b>geohash</b> as the simple default — "encode each location, store in Redis/an indexed column, prefix-query the cell"; (3) immediately add "and the 8 neighboring cells, then re-rank by true distance" to handle boundaries; (4) if density skew or moving objects come up, upgrade to a <b>quadtree</b> (adaptive) or mention <b>PostGIS R-trees</b> / <b>H3</b>. That progression — name the problem, simple index, edge case, density upgrade — is a clean breadth-then-depth answer.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why can't a standard B-tree answer "find points near me"?</p>
+      <button class="opt">B-trees cannot store floating-point latitude values at all</button>
+      <button class="opt">B-trees require the table to fit entirely in main memory</button>
+      <button class="opt">It orders one dimension, but proximity needs both together</button>
+      <button class="opt">B-trees only support exact-match lookups, never any ranges</button>
+      <p class="fb">A B-tree sorts a single dimension; 2D nearness doesn't reduce to a single-column order, so a box query degrades to scanning a wide stripe.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. What property makes geohashes useful for proximity?</p>
+      <button class="opt">A longer shared prefix means the two points are closer</button>
+      <button class="opt">Every geohash cell always holds the same number of points</button>
+      <button class="opt">Adjacent points always share their entire geohash string</button>
+      <button class="opt">The hash length shrinks automatically as density increases</button>
+      <p class="fb">Geohashing interleaves lat/lng bits so nearby points share long prefixes, turning a near-me query into an indexable prefix range scan.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. How do you handle the geohash boundary problem?</p>
+      <button class="opt">Increase the hash length until every cell holds one point</button>
+      <button class="opt">Switch the database to a B-tree on latitude only instead</button>
+      <button class="opt">Compute the exact distance to every row in the table</button>
+      <button class="opt">Query the target cell plus its 8 neighbors, then re-rank</button>
+      <p class="fb">Adjacent points can fall in different-prefix cells, so you union the 3×3 grid of cells and sort by true distance to avoid missing close points.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">4. What advantage does a quadtree have over a fixed geohash grid?</p>
+      <button class="opt">It stores locations as a simple string in any column</button>
+      <button class="opt">It subdivides only dense regions, balancing leaf size</button>
+      <button class="opt">It never needs rebalancing when points move around</button>
+      <button class="opt">It requires no tree traversal to answer a near query</button>
+      <p class="fb">A quadtree splits a cell into four only when it's full, so dense areas get fine cells and leaves hold a bounded count — adapting to density.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Design the nearby-driver lookup for <a href="0029-uber.html">Uber</a> end to end with geohashing." · "Show me exactly how the 8-neighbor query is computed and unioned." · "When would you choose a quadtree or H3 over a geohash, and why?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://redis.io/docs/latest/develop/data-types/geospatial/">Redis Geospatial documentation</a> for the geohash-in-a-sorted-set model used in practice, paired with the PostGIS / R-tree and quadtree material in any computational-geometry or spatial-database reference.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://redis.io/docs/latest/develop/data-types/geospatial/">Redis Geospatial Indexes documentation</a> (geohash encoding of lat/lng into a sortable score, prefix/range proximity queries, and neighbor handling).</p>
+    <p id="c2">[2] <a href="https://postgis.net/docs/using_postgis_dbmanagement.html">PostGIS documentation — spatial indexing (GiST / R-tree)</a> (why ordinary indexes fail for 2D, and tree-based spatial indexes including R-trees and quadtree-style subdivision for points and polygons).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0115-auth-oauth-jwt.html">← Lesson 115</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 117 · Secure System Design</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

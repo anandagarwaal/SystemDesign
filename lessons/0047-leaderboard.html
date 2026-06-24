@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 47 — Design a Leaderboard</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 47 · Phase 4 — Case Study · Medium</p>
+  <h1>Design a Leaderboard</h1>
+  <p class="sub">Millions of score updates in, an instant "where do I rank — globally and among my friends?" out. One data structure does the heavy lifting; the hard parts are everything around it.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> A leaderboard looks trivial — "just sort by score" — and that is exactly the trap. The senior candidate reaches for a Redis sorted set and stops. The L6/L7 candidate names the sorted set in thirty seconds, then spends the rest of the interview on the parts that actually break at scale: the <em>friends</em> leaderboard, ranking across a sharded set, and keeping a fast in-memory index honest against a durable source of truth. Knowing which 20% is hard — and going there unprompted — is the whole signal.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Strip the prompt to what the system must do. A real-time game leaderboard has one write and three reads.</p>
+  <table>
+    <tr><th>#</th><th>Requirement</th></tr>
+    <tr><td>1</td><td>A player's score can be <b>submitted/updated</b> — set an absolute score or increment after a match.</td></tr>
+    <tr><td>2</td><td>Anyone can fetch the <b>global top-N</b> (e.g. top 100) with rank and score.</td></tr>
+    <tr><td>3</td><td>A player can fetch their own <b>global rank</b> and a window of players <b>around them</b> ("rank around me").</td></tr>
+    <tr><td>4</td><td>A player can fetch a <b>friends leaderboard</b> — their ranking restricted to people they follow.</td></tr>
+  </table>
+  <p><b>Explicitly out of scope</b> (scoping out loud is a staff move): anti-cheat/score validation, matchmaking, rewards payout, and arbitrary historical replays. We do support <em>time-windowed</em> boards (daily / weekly / all-time) because that's a near-free extension we'll cover in a deep dive.</p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>NFR</th><th>Target &amp; priority</th></tr>
+    <tr><td><b>Low-latency reads</b></td><td>Top-N, rank-around-me, and friends views return in <b>tens of milliseconds</b> at p99. Reads dominate; this is the primary constraint.</td></tr>
+    <tr><td><b>Fast writes</b></td><td>Score updates apply in <b>single-digit ms</b> and are reflected in rankings near-instantly — this is a "real-time" board.</td></tr>
+    <tr><td><b>Read-heavy &amp; scalable</b></td><td>Millions of users/day; read:write skews heavily toward reads. Must scale horizontally without a single global bottleneck.</td></tr>
+    <tr><td><b>Durability / correctness</b></td><td>Scores are the product — they must survive a cache crash. The ranking index may be approximate at the tail, but the underlying scores are exact.</td></tr>
+    <tr><td><b>Availability over strict consistency</b></td><td>A few seconds of rank staleness is fine; the board being <em>down</em> is not. Favor AP behavior on the read path.</td></tr>
+  </table>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The interviewer wants to see you separate <b>two different "correctness" claims</b>. The <em>scores</em> must be exact and durable — losing a player's points is unacceptable. The <em>global rank number</em> can be slightly stale or approximate once the set is sharded, and saying so up front is what licenses the cheap sharded design later. A senior candidate treats "the leaderboard" as one consistency problem; a staff candidate negotiates exact-scores / approximate-rank and designs straight to it.
+  </div>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that change the design. Three matter: total players, write rate, and the memory of the sorted index.</p>
+  <table>
+    <tr><th>Quantity</th><th>Back-of-envelope</th><th>Design implication</th></tr>
+    <tr><td>Players (all-time)</td><td>~50M registered, ~5M daily active</td><td>An all-time set of 50M members fits in memory but is the thing we'll have to shard for global rank.</td></tr>
+    <tr><td>Score writes/sec</td><td>5M DAU × ~10 matches/day ÷ ~50k active sec ≈ <b>~1k writes/sec</b> (peaky to ~10k)</td><td>Comfortable for one Redis primary; writes are <em>not</em> the bottleneck. Reads and the friends query are.</td></tr>
+    <tr><td>Index memory</td><td>50M members × ~(score + id + skiplist overhead) ≈ low tens of bytes each → <b>a few GB</b></td><td>One node holds an all-time board; sharding is driven by <em>rank-query cost and blast radius</em>, not raw size.</td></tr>
+    <tr><td>Reads/sec</td><td>5M DAU checking rank a few times/day → <b>tens of thousands of reads/sec</b></td><td>Read replicas + caching the hot top-N. Each read must be O(log n), never a scan.</td></tr>
+  </table>
+  <p>The punchline: writes are cheap and the data is small. The cost is concentrated in (a) answering rank queries in log time, and (b) the friends leaderboard, which doesn't map cleanly onto a single sorted set.</p>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>Player</code> (id, display name, friend/follow edges), <code>Score</code> (playerId → numeric score, the value we rank on), and <code>Leaderboard</code> (a named, optionally time-windowed board such as <code>global:alltime</code> or <code>global:2026-W24</code>).</p>
+  <p>The caller's identity comes from the auth token; we never trust a <code>playerId</code> in the body for "my rank" queries.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/scores</code></td><td>Submit/increment the authenticated player's score: <code>{ board, delta | score }</code>. Maps to <code>ZINCRBY</code> or <code>ZADD</code>.</td></tr>
+    <tr><td><code>GET /v1/leaderboards/{board}/top?n=100</code></td><td>Global top-N with rank + score. Maps to <code>ZREVRANGE … WITHSCORES</code>.</td></tr>
+    <tr><td><code>GET /v1/leaderboards/{board}/me</code></td><td>The caller's rank + score + a window around them. Maps to <code>ZREVRANK</code> + a ranged <code>ZREVRANGE</code>.</td></tr>
+    <tr><td><code>GET /v1/leaderboards/{board}/friends</code></td><td>The caller's ranking restricted to their friend set (the hard one — see deep dive 2).</td></tr>
+  </table>
+
+  <h2>High-Level Design</h2>
+  <p>Reads and writes share one core index but lean on different supporting components. Walk each path.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>Score API (stateless)</td><td>Authenticates, validates, and translates REST calls into Redis commands. Horizontally scaled behind a load balancer.</td></tr>
+    <tr><td>Redis sorted set (primary index)</td><td>The ranking engine. One ZSET per board holds <code>member=playerId, score=points</code> and answers add/rank/range in O(log n).<a href="#c1" class="cite">[1]</a></td></tr>
+    <tr><td>Redis replicas + top-N cache</td><td>Read replicas absorb the read fan-out; the hot global top-N is additionally cached (see <a href="0004-caching.html">caching</a>).</td></tr>
+    <tr><td>Durable score DB (source of truth)</td><td>A relational/NoSQL store holds the authoritative <code>(playerId, board, score)</code> rows. Redis is a <em>derived</em> index rebuilt from here.</td></tr>
+    <tr><td>Social graph service</td><td>Returns a player's friend ids for the friends leaderboard; owned elsewhere, queried here.</td></tr>
+  </table>
+  <p><b>Write path:</b> <code>POST /v1/scores</code> → API writes the authoritative row to the DB, then <code>ZADD</code>/<code>ZINCRBY</code> the sorted set (write-through). <b>Read path:</b> a rank query → API → Redis (replica) → O(log n) lookup → return. Because Redis is just an index over durable scores, we can always rebuild it; that's what makes treating it as memory-first safe.</p>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1 · The Redis sorted set — why it <em>is</em> the leaderboard</h3>
+  <p>A sorted set (ZSET) stores unique members each with a floating-point score, kept ordered by score; internally it's a skip list plus a hash, which is what gives logarithmic ordered operations alongside O(1) score lookup.<a href="#c1" class="cite">[1]</a> Every leaderboard primitive maps to exactly one command:</p>
+  <div class="box">
+    <ul>
+      <li><b><code>ZADD board score player</code></b> — set an absolute score. <b><code>ZINCRBY board delta player</code></b> — bump after a match. Both <b>O(log n)</b>.<a href="#c1" class="cite">[1]</a></li>
+      <li><b><code>ZREVRANGE board 0 99 WITHSCORES</code></b> — the global <b>top-100</b> with scores, highest first. O(log n + m) for m returned.<a href="#c1" class="cite">[1]</a></li>
+      <li><b><code>ZREVRANK board player</code></b> — the player's 0-based <b>rank</b> from the top. O(log n).<a href="#c1" class="cite">[1]</a></li>
+      <li><b>"Rank around me"</b> — <code>ZREVRANK</code> to get rank <em>r</em>, then <code>ZREVRANGE board r-5 r+5 WITHSCORES</code> for the surrounding window. Two O(log n) calls, no scan.</li>
+    </ul>
+  </div>
+  <p>This is why "use a sorted set" is the correct 30-second answer<a href="#c2" class="cite">[2]</a> — and why it is <em>not</em> a complete answer. Everything interesting is what these commands can't do directly: ranking a friend subset, ranking across shards, and surviving a crash. The sorted set was introduced in the <a href="0009-key-technologies-tour.html">key-technologies tour</a> and reused for approximate ranking in <a href="0028-youtube-top-k.html">Top-K</a>; here it's load-bearing.</p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Name the command <em>and its complexity</em> in the same breath: "<code>ZREVRANK</code> is O(log n), so even at 50M members rank is microseconds — no scan, no precomputed rank column." Then immediately pivot to what the ZSET <em>doesn't</em> solve. Dwelling on the obvious sorted-set basics is a junior tell; the staff move is to spend ten seconds there and bank the rest of your time on the friends query and sharding.
+  </div>
+
+  <h3>2 · The friends leaderboard — the part everyone underestimates</h3>
+  <p>"Rank me among my friends" has no single sorted set to point a command at. The friend set is per-user and overlapping, so the tempting fix — <b>materialize one sorted set per player's friends</b> — is a trap: with 50M players averaging hundreds of friends, you'd maintain billions of memberships, and a single score change would fan out a write into every friend's board. Per-user materialization is quadratic write amplification for data that's read sparsely. Reject it explicitly.</p>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Verdict</th></tr>
+    <tr><td><b>Fetch + sort in app</b></td><td>Get friend ids from the graph service, then <code>ZSCORE</code> (or one <code>ZMSCORE</code>) each against the global board, sort the (typically few hundred) results in memory.</td><td><b>Default pick.</b> Friend counts are small and bounded; a few hundred O(log n) lookups is still sub-ms. Simple, no extra state.</td></tr>
+    <tr><td><b><code>ZINTERSTORE</code> with a friend set</b></td><td>Build a temporary ZSET of the friend ids, intersect it against the global board into a result ZSET, then <code>ZREVRANGE</code> it.<a href="#c1" class="cite">[1]</a></td><td>Push the work into Redis when friend lists are large; cost scales with the smaller set. Watch the temp-key churn.</td></tr>
+    <tr><td><b>Per-user materialized board</b></td><td>One persistent ZSET per player holding their friends' live scores, updated on every score change via fan-out.</td><td><b>Avoid.</b> Billions of memberships and write amplification on every match. Only justified for a tiny set of "whales" read constantly.</td></tr>
+  </table>
+  <p>The friends "rank" you return is a rank <em>within the fetched subset</em> (1 of N friends), not the global rank — clarify which the product wants, since "you're #3 among friends" and "you're #41,902 globally" are different queries answered from the same scores.</p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The interviewer is watching whether you reach for the "obvious" per-user materialization and feel the write-amplification pain, or whether you reason from the access pattern first: friends lists are small and read infrequently, so <em>compute on read</em> beats <em>maintain on write</em>. Quantifying the rejected option ("hundreds of friends × 50M users = billions of edge writes per score update") is the depth that separates levels.
+  </div>
+
+  <h3>3 · Sharding the set and computing global rank across shards</h3>
+  <p>One ZSET on one primary is fine for tens of millions of members, but you shard when a single node's rank-query load, memory, or blast radius becomes unacceptable — or when the all-time board grows past one machine. Sharding a leaderboard breaks the one thing the ZSET gave us for free: a <b>single global ordering</b>. <code>ZREVRANK</code> on a shard returns rank <em>within that shard</em>, not globally.</p>
+  <div class="box">
+    <b>The core problem:</b> if players are hash-partitioned across <em>S</em> shards, a player ranked #1 on their shard could be #1 or #500,000 globally — you can't know without the other shards.
+    <ul style="margin-top:.5rem;">
+      <li><b>Top-N across shards:</b> ask each shard for its local top-N, merge the S×N lists, take the overall top-N. Same local-then-global merge as <a href="0028-youtube-top-k.html">Top-K</a> — a global winner must be in its own shard's top-N.</li>
+      <li><b>Exact global rank (expensive):</b> for "what's my exact global rank," fan out a <code>ZCOUNT(myScore, +inf)</code> to every shard and sum "how many beat me." Correct, but S round-trips per query — fine for the rare exact case.</li>
+      <li><b>Approximate rank via score bucketing (the scalable pick):</b> maintain a small, separate structure of <em>score histogram buckets</em> (e.g. count of players in each score range) aggregated across shards. To estimate a rank, sum the bucket counts above the player's score. O(buckets), not O(shards × log n), and accurate enough for "you're in the top 2%."</li>
+    </ul>
+  </div>
+  <p>This is where the NFR you negotiated pays off: because <em>approximate global rank</em> is acceptable, you ship bucketing for the common "top X%" display and reserve the exact <code>ZCOUNT</code> fan-out for the few places exactness matters. A senior design tries to keep exact global rank everywhere and drowns in cross-shard coordination.</p>
+
+  <h3>4 · Persistence, ties, and time-windowed boards</h3>
+  <p>Three smaller decisions that interviewers probe because they reveal whether you treat Redis as a database (wrong) or an index (right).</p>
+  <div class="box">
+    <b>Source of truth.</b> Redis holds the live ranking index, but the authoritative scores live in a durable DB; writes go DB-first (or to a durable log), then to the ZSET. If Redis dies, replay the DB to rebuild every board. Redis AOF/RDB persistence shortens recovery, but the <em>contract</em> is "Redis is a derived, rebuildable index" — that's what lets you run it memory-first without risking the product.<a href="#c2" class="cite">[2]</a> See <a href="0004-caching.html">caching</a> for the write-through pattern.<br><br>
+    <b>Ties.</b> Sorted sets order equal scores <em>lexicographically by member</em>,<a href="#c1" class="cite">[1]</a> which makes ties arbitrary and unstable. To break ties by "who reached the score first," encode time into the score itself: a 64-bit composite of <code>score</code> in the high bits and an inverted timestamp in the low bits, so earlier achievers sort ahead at equal points. One number, no secondary query.<br><br>
+    <b>Time windows.</b> Daily/weekly/all-time boards are just <b>a key per window</b>: <code>global:2026-06-16</code>, <code>global:2026-W24</code>, <code>global:alltime</code>. A score write fans out to the relevant live keys; expired windows get a Redis TTL and disappear with no cleanup job. Rotating periods cost nothing because each is an independent ZSET.
+  </div>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Encoding the tie-break into the score (composite score+timestamp) instead of doing a second sort is the kind of small, decisive trick that signals you've actually built one of these. Likewise, "key per time window + TTL" shows you get that the elegance of windowing is <em>no cleanup logic</em> — the same insight as fixed windows in <a href="0028-youtube-top-k.html">Top-K</a>.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Which command and complexity gives a player's global rank from a sorted set?</p>
+      <button class="opt">ZRANGE returning the player's rank in linear O(n) scan time</button>
+      <button class="opt">ZSCORE returning the player's rank in constant O(1) lookup time</button>
+      <button class="opt">ZREVRANK returning the player's rank in logarithmic O(log n) time</button>
+      <button class="opt">ZINCRBY returning the player's rank in amortized O(1) update time</button>
+      <p class="fb">ZREVRANK gives the 0-based rank from the top in O(log n) — no scan, fast even at tens of millions of members.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">2. Why reject a materialized sorted set per player for the friends leaderboard?</p>
+      <button class="opt">A score change fans out billions of edge writes across every friend board</button>
+      <button class="opt">A score change cannot be applied to sorted sets that store friend members</button>
+      <button class="opt">A friends query needs exact global rank that bucketing never approximates</button>
+      <button class="opt">A friends query must read every shard before any single friend is sorted</button>
+      <p class="fb">Friends lists are small and read rarely, so compute-on-read beats maintain-on-write; materializing means write amplification on every match.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">3. After hash-sharding players, how do you cheaply estimate a global rank?</p>
+      <button class="opt">Run ZREVRANK on one shard and trust that local rank as the global rank</button>
+      <button class="opt">Keep cross-shard score histogram buckets and sum counts above the score</button>
+      <button class="opt">Materialize one global sorted set holding every player on a single node</button>
+      <button class="opt">Fan out a full ZRANGE scan to all shards and merge the entire ordering</button>
+      <p class="fb">Bucketing sums histogram counts above the player's score in O(buckets) — approximate but enough for "top X%," reserving exact ZCOUNT fan-out for rare needs.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. How do you make equal scores break ties by who reached them first?</p>
+      <button class="opt">Run a second sorted set keyed only on the achievement timestamp values</button>
+      <button class="opt">Rely on the sorted set default order, which already favors early achievers</button>
+      <button class="opt">Encode score in high bits and inverted timestamp in low bits of one number</button>
+      <button class="opt">Store each player twice so the earlier write always wins the tie reliably</button>
+      <p class="fb">A composite score (points high bits + inverted time low bits) makes earlier achievers sort ahead at equal points with no secondary query.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic — push on it. Try: <em>"Walk me through the exact Redis commands for 'rank around me' with a 10-player window."</em> · <em>"Size the score-bucket histogram for 0.5% rank error across 8 shards."</em> · <em>"When would ZINTERSTORE beat fetch-and-sort for the friends board, with numbers?"</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://redis.io/docs/latest/develop/data-types/sorted-sets/">Redis — Sorted sets data type</a>. The canonical reference for ZADD/ZINCRBY/ZREVRANGE/ZREVRANK semantics, their O(log n) complexity, and the leaderboard use case the structure was practically built for. Read it alongside a worked leaderboard breakdown (Hello Interview style) for the system-level framing.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://redis.io/docs/latest/develop/data-types/sorted-sets/">Redis — Sorted sets data type</a> (ZADD/ZINCRBY/ZREVRANGE/ZREVRANK semantics and O(log n) complexity, ZINTERSTORE, lexicographic tie ordering). Canonical command reference; cited for stable, well-established command behavior.</p>
+    <p id="c2">[2] <a href="https://redis.io/glossary/leaderboard/">Redis — Leaderboards with sorted sets</a> (sorted sets as the standard leaderboard structure; Redis as a fast in-memory ranking index). Cited for the leaderboard design pattern.</p>
+    <p style="font-size:.78rem; margin-top:.4rem;">Note: capacity-estimation numbers above are the author's own back-of-envelope figures for teaching, not drawn from the cited pages.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0046-notification-service.html">← Lesson 46</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 48 · Distributed Counter</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

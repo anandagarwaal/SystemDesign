@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 76 — Design Distributed Logging &amp; Tracing</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 76 · Phase 4 — Case Study · Hard</p>
+  <h1>Design Distributed Logging &amp; Tracing (Jaeger / Datadog)</h1>
+  <p class="sub">Collect logs and request traces from thousands of services at petabyte scale, then make them searchable in seconds — observability from first principles.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Observability is the canonical "ingest-heavy, read-rarely, cost-dominated" system. The senior answer is "ship logs to Elasticsearch." The staff answer recognizes that at petabyte scale you cannot index or even keep everything — so you make <em>sampling</em> and <em>tiered storage</em> first-class design decisions, and you treat <em>cost per useful query</em>, not raw throughput, as the metric to optimize. This prompt rewards judgement over completeness.
+  </div>
+
+  <h2>Functional Requirements</h2>
+  <p>Two telemetry signals — logs and traces — sharing one pipeline. Scope tightly.<a href="#c1" class="cite">[1]</a></p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td><b>Ingest logs &amp; traces.</b> Thousands of services emit structured log lines and spans; the platform accepts both via lightweight agents.</td></tr>
+    <tr><td>2</td><td><b>Search logs.</b> Full-text and field queries (<code>service=checkout AND status=500</code>) over a time range, returning matching lines fast.</td></tr>
+    <tr><td>3</td><td><b>View a trace.</b> Look up one <code>trace_id</code> and see the full request waterfall — every span across every service that touched it.</td></tr>
+    <tr><td>4</td><td><b>Retention.</b> Keep recent data hot and searchable; age older data into cheap cold storage on a configurable schedule.</td></tr>
+  </table>
+  <p><b>Out of scope (say it):</b> metrics/dashboards (covered in <a href="0038-metrics-monitoring.html">Lesson 38</a>), alerting, and ML anomaly detection. Logs, metrics, and traces are the "three pillars," but conflating them in one answer is a red flag.<a href="#c2" class="cite">[2]</a></p>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>NFR</th><th>Target</th><th>Why it shapes the design</th></tr>
+    <tr><td>Write throughput</td><td>10M+ events/sec, GB/s sustained<a href="#c1" class="cite">[1]</a></td><td>Write path must be append-only and buffered — never block the app.</td></tr>
+    <tr><td>Query latency</td><td>seconds for recent; slower OK for cold<a href="#c2" class="cite">[2]</a></td><td>Index the hot window; cold tier can be scan-on-demand.</td></tr>
+    <tr><td>Cost at scale</td><td>petabytes/month, must stay affordable</td><td><b>The dominant constraint</b> → sampling + tiering, not "keep it all."</td></tr>
+    <tr><td>Availability</td><td>ingest highly available; loss-tolerant</td><td>Dropping 0.01% of logs is fine; blocking the app is not.</td></tr>
+    <tr><td>Durability</td><td>buffered, at-least-once to storage</td><td>Kafka absorbs spikes so a storage stall never drops the firehose.</td></tr>
+  </table>
+
+  <h2>Capacity Estimation</h2>
+  <p>Only the numbers that change a decision.</p>
+  <div class="box">
+    <ul>
+      <li><b>Event rate:</b> 10k services × ~1k events/sec ≈ <b>10M events/sec</b>. At ~1 KB/event that's <b>~10 GB/s</b> on the wire. → No single node ingests this; horizontally sharded agents + Kafka.</li>
+      <li><b>Raw volume:</b> 10 GB/s ≈ <b>~850 TB/day</b>, ~25 PB/month before sampling/compression. → You <em>cannot</em> index or even retain all of this on hot storage. This number alone forces sampling + cold tiering.</li>
+      <li><b>Trace sampling:</b> keeping 100% of spans is the cost killer. At 1% sampling, trace volume drops ~100× while still surfacing nearly all error/latency patterns.<a href="#c4" class="cite">[4]</a> → Sampling is a design decision, not an afterthought.</li>
+      <li><b>Index amplification:</b> an inverted index over logs costs <b>~1–2× the raw size</b> on top of storage. → You only index the hot window; cold data is unindexed object storage.</li>
+    </ul>
+  </div>
+
+  <h2>Core Entities &amp; API</h2>
+  <p><b>Entities:</b> <code>LogEvent</code> (timestamp, service, level, message, fields), <code>Span</code> (trace_id, span_id, parent_span_id, service, operation, start, duration, tags), <code>Trace</code> (a tree of spans sharing one trace_id).</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/logs</code></td><td>Ingest a batch of log events. Hot path — cheap, async, never blocks the caller.</td></tr>
+    <tr><td><code>POST /v1/spans</code></td><td>Ingest a batch of spans (OTLP). Hot path; spans of one trace may arrive separately.</td></tr>
+    <tr><td><code>GET /v1/logs?q=&amp;from=&amp;to=</code></td><td>Search logs by query expr over a time range; paginated results.</td></tr>
+    <tr><td><code>GET /v1/traces/:trace_id</code></td><td>Fetch and assemble all spans for one trace into a waterfall.</td></tr>
+    <tr><td><code>GET /v1/traces?service=&amp;minDuration=&amp;from=&amp;to=</code></td><td>Find traces matching criteria (slow, errored) for an entry point.</td></tr>
+  </table>
+  <p>Tenant/team is derived from the agent's auth token, never a body field.</p>
+
+  <h2>Data Flow — one event end to end</h2>
+  <ol style="font-family:-apple-system,sans-serif; font-size:.9rem;">
+    <li><b>Emit.</b> The app writes a log line or a span to a local <b>agent</b> (sidecar/daemonset) over a local socket — non-blocking, in-process buffering.<a href="#c3" class="cite">[3]</a></li>
+    <li><b>Buffer.</b> Agents batch and ship to a durable queue (<b>Kafka</b>), partitioned so spikes and a slow storage tier never back-pressure the app.</li>
+    <li><b>Process.</b> Stateless consumers parse, enrich (add service/host tags), apply <b>sampling</b> for traces, and route logs vs spans to their stores.</li>
+    <li><b>Store.</b> Logs go to an indexed hot store (Elasticsearch/columnar); spans go to a trace store keyed by <code>trace_id</code>. Both age into <a href="0045-blob-store-s3.html">object storage</a> as cold tiers.</li>
+    <li><b>Query.</b> The query service hits the hot index for recent data, or scans cold object storage for older ranges, then assembles traces from spans.</li>
+  </ol>
+
+  <h2>High-Level Design</h2>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+    <tr><td>Agent / collector</td><td>Local non-blocking capture, batch, ship</td><td>local buffer</td></tr>
+    <tr><td>Ingest buffer</td><td>Absorb spikes, decouple app from storage</td><td>Kafka</td></tr>
+    <tr><td>Processing tier</td><td>Parse, enrich, sample, route</td><td>stateless</td></tr>
+    <tr><td>Log store + index</td><td>Full-text/field search over hot window</td><td>Elasticsearch / columnar</td></tr>
+    <tr><td>Trace store</td><td>Spans keyed by trace_id, assemble on read</td><td>Cassandra / object store</td></tr>
+    <tr><td>Cold tier</td><td>Cheap long-term retention, scan-on-demand</td><td>S3 + manifest</td></tr>
+    <tr><td>Query service</td><td>Route hot vs cold; assemble traces</td><td>reads both</td></tr>
+  </table>
+  <p>A write flows <code>app → agent → Kafka → processor → store</code>. A log search flows <code>UI → query svc → hot index (or cold scan)</code>. A trace view flows <code>UI → query svc → fetch spans by trace_id → assemble tree</code>.</p>
+
+  <h2>Deep Dives</h2>
+
+  <h3>1. The ingestion pipeline at petabyte scale</h3>
+  <p>The non-negotiable rule: <b>telemetry must never slow the application it observes.</b> So the app only writes to a local agent over a fast local channel; everything else is asynchronous.<a href="#c3" class="cite">[3]</a> The agent batches and ships to <b>Kafka</b>, which is the load-bearing piece: it decouples a bursty 10 GB/s firehose from downstream storage, gives at-least-once durability, and lets you replay if a consumer or index falls over. Partition by service (or by <code>trace_id</code> for spans) so load spreads evenly and related data co-locates.</p>
+  <table>
+    <tr><th>Stage</th><th>Why it exists</th></tr>
+    <tr><td>Agent (local)</td><td>Non-blocking capture; protects the app even if the backend is down.</td></tr>
+    <tr><td>Kafka buffer</td><td>Absorbs spikes, smooths writes, enables replay and back-pressure isolation.</td></tr>
+    <tr><td>Stateless processors</td><td>Scale horizontally; parse/enrich/sample without holding state.</td></tr>
+  </table>
+  <div class="box">
+    <b>Why not write straight to storage?</b> A direct write couples app latency to index health: one slow Elasticsearch shard would stall request threads across the fleet. The buffer turns a hard dependency into a soft one — exactly the pattern from the metrics ingestion firehose in <a href="0038-metrics-monitoring.html">Lesson 38</a>.
+  </div>
+
+  <h3>2. Sampling — head vs tail (the cost lever)</h3>
+  <p>Keeping every span is the single biggest cost. Sampling decides <em>which traces to keep</em>. The hard tradeoff is <b>when</b> you decide.<a href="#c4" class="cite">[4]</a></p>
+  <table>
+    <tr><th></th><th>Head sampling</th><th>Tail sampling</th></tr>
+    <tr><td>Decision point</td><td>At trace start, before spans run</td><td>After the full trace completes</td></tr>
+    <tr><td>Cost</td><td>Cheap — drop early, never collected</td><td>Expensive — buffer all spans first</td></tr>
+    <tr><td>Quality</td><td>Random; may drop the rare error trace</td><td>Keeps slow/errored traces by policy</td></tr>
+    <tr><td>State</td><td>Stateless per service</td><td>Needs a collector holding spans by trace_id</td></tr>
+  </table>
+  <p>Head sampling is a coin-flip at the root, propagated via the trace context so the whole trace is consistently kept or dropped — simple and cheap but blind to outcomes. Tail sampling buffers all spans of a trace in a collector, waits for completion, then keeps it only if it errored or was slow — far more useful for debugging, but it must hold spans in memory and route every span of a trace to the same collector.<a href="#c4" class="cite">[4]</a> <b>Staff move:</b> propose a hybrid — aggressive head sampling for the common case, tail-based keep-rules for errors and high latency, so you pay full price only for the traces worth keeping.</p>
+
+  <h3>3. The distributed tracing model — context propagation &amp; assembling a trace</h3>
+  <p>A trace is a tree of spans. Each request gets one <b>trace_id</b> at the edge; every operation creates a <b>span_id</b> and records its <b>parent_span_id</b>. The magic is <b>context propagation</b>: when service A calls service B, it injects <code>trace_id</code> + parent <code>span_id</code> into the outbound request headers (the W3C <code>traceparent</code> header is the standard), and B reads them to attach its spans to the same tree.<a href="#c3" class="cite">[3]</a><a href="#c5" class="cite">[5]</a></p>
+  <div class="box">
+    <b>Assembling a trace on read.</b> Spans are written independently, often out of order, by different services at different times. To view a trace you <b>fetch all spans with that <code>trace_id</code></b> (hence trace_id is the storage key), then rebuild the tree by linking each <code>span_id</code> to its <code>parent_span_id</code> and sort by start time into a waterfall.<a href="#c5" class="cite">[5]</a> This is why the trace store is keyed and partitioned by <code>trace_id</code> — a single point lookup returns the whole request's spans together.
+  </div>
+  <p>Clock skew across hosts means you display relative offsets within a trace, not absolute cross-host timestamps. A missing parent span (sampled out, or a service not instrumented) leaves a gap — render it as an orphan rather than failing the view.</p>
+
+  <h3>4. Log storage, indexing, and hot/cold tiering</h3>
+  <p>Search needs an index; petabytes can't all be indexed. So you split by age and access pattern.</p>
+  <table>
+    <tr><th>Approach</th><th>Strength</th><th>Cost</th></tr>
+    <tr><td>Inverted index (Elasticsearch)</td><td>Fast full-text + field search</td><td>~1–2× storage overhead; expensive at PB</td></tr>
+    <tr><td>Columnar (ClickHouse/Parquet)</td><td>Cheap storage, fast field scans/aggregations</td><td>Weaker arbitrary full-text search</td></tr>
+    <tr><td>Object storage (S3)</td><td>Cheapest durable bulk store</td><td>No index — scan-on-demand only</td></tr>
+  </table>
+  <div class="box">
+    <b>Hot/cold tiering.</b> Keep the recent window (hours–days) in an <b>indexed hot store</b> for second-level search; roll older data into <b>columnar files on <a href="0045-blob-store-s3.html">object storage</a></b> with lightweight per-file metadata (time range, services) so queries skip irrelevant files. This is the same tiered-retention idea as the rollup tiers in the <a href="0038-metrics-monitoring.html">metrics TSDB</a> and the downsampling in <a href="0042-time-series-databases.html">time-series databases</a> — observability is fundamentally a time-partitioned, retention-tiered problem. <b>Retention/cost tradeoff:</b> shorter hot windows and lower sampling cut cost linearly; you tune them per signal and per team budget rather than treating "keep everything" as the default.
+  </div>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    Three things separate the staff answer: (1) you make <b>sampling a first-class decision</b> and can defend head vs tail vs hybrid by cost and debug value — not "keep everything"; (2) you treat <b>cost and tiering as the architecture</b>, indexing only the hot window and pushing the rest to columnar/object storage; (3) you explain <b>context propagation and trace_id-keyed assembly</b> precisely, including clock skew and orphan spans. Senior candidates wire up Elasticsearch; staff candidates decide what <em>not</em> to store and why.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. What is the dominant constraint in a petabyte-scale observability system?</p>
+      <button class="opt">The raw network bandwidth between the agents and the buffer</button>
+      <button class="opt">The number of engineers concurrently searching for log lines</button>
+      <button class="opt">Cost — you cannot affordably index and retain every event</button>
+      <button class="opt">The clock skew between hosts running the traced services</button>
+      <p class="fb">Raw volume (~25 PB/month) makes "keep and index everything" unaffordable, so sampling and tiering become core design decisions.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. How does tail sampling differ from head sampling for traces?</p>
+      <button class="opt">It decides at the trace root and so it costs far less</button>
+      <button class="opt">It decides after completion and keeps errored or slow ones</button>
+      <button class="opt">It indexes the spans before any sampling rule is applied</button>
+      <button class="opt">It samples the log lines instead of the spans of a trace</button>
+      <p class="fb">Tail sampling buffers all spans, waits for completion, then keeps high-value traces (errors/latency) — costlier but smarter than a coin-flip at the root.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. How are the spans of one request reassembled into a trace?</p>
+      <button class="opt">Fetch all spans by trace_id and link each to its parent</button>
+      <button class="opt">Scan the full log index for the matching service names</button>
+      <button class="opt">Replay the entire Kafka topic from the earliest offset</button>
+      <button class="opt">Query the cold object tier for the slowest stored files</button>
+      <p class="fb">Spans share a trace_id (the storage key); the tree is rebuilt by linking span_id to parent_span_id and sorting by start time.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Why index only the recent window and tier older logs to object storage?</p>
+      <button class="opt">Object storage is faster to search than any inverted index</button>
+      <button class="opt">Recent logs are far less useful than old archived log data</button>
+      <button class="opt">An index costs ~1–2× storage, too much across petabytes</button>
+      <button class="opt">Kafka cannot retain spans beyond a few minutes of buffer</button>
+      <p class="fb">An inverted index roughly doubles storage cost; at PB scale you index only the hot window and scan cheap columnar/object cold tiers on demand.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this topic. Try: <em>"Walk me through what breaks if I use head sampling and an incident's error traces all get dropped."</em> · <em>"How would you route every span of one trace to the same tail-sampling collector?"</em> · <em>"Compare Jaeger's Cassandra trace store against a columnar store like ClickHouse for this design."</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://opentelemetry.io/docs/concepts/">OpenTelemetry — Concepts (traces, spans, context propagation, sampling)</a>. The vendor-neutral standard underpinning Jaeger and Datadog; pair it with the Jaeger architecture docs for the storage/assembly model.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/ad-click-aggregator">Hello Interview — System Design Problem Breakdowns</a> (interview framing for ingest-heavy, scale-driven pipelines).</p>
+    <p id="c2">[2] <a href="https://opentelemetry.io/docs/concepts/observability-primer/">OpenTelemetry — Observability Primer</a> (the three pillars: logs, metrics, traces, and their distinct query patterns).</p>
+    <p id="c3">[3] <a href="https://opentelemetry.io/docs/concepts/signals/traces/">OpenTelemetry — Traces &amp; Spans</a> (agents/collectors, span model, context propagation).</p>
+    <p id="c4">[4] <a href="https://opentelemetry.io/docs/concepts/sampling/">OpenTelemetry — Sampling</a> (head vs tail sampling, cost vs fidelity tradeoffs).</p>
+    <p id="c5">[5] <a href="https://www.jaegertracing.io/docs/latest/architecture/">Jaeger — Architecture</a> (trace_id-keyed storage, assembling spans into a trace).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0075-realtime-analytics.html">← Lesson 75</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 77 · Voting System</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 27 — Design Instagram</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 27 · Phase 4 — Case Study · Hard</p>
+  <h1>Design Instagram</h1>
+  <p class="sub">A photo-sharing feed at billion-user scale — where blob storage meets fan-out.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Instagram is two hard systems fused into one:
+    a <em>News Feed</em> (Lesson 16) and a <em>media-heavy upload/delivery pipeline</em> (Lesson 12).
+    The staff move is to recognize this immediately, then spend your depth budget on the two
+    load-bearing decisions — how media flows (never through your app servers) and how the feed
+    is assembled (hybrid fan-out). Everything else is plumbing.
+  </div>
+
+  <h2>1 · Functional Requirements</h2>
+  <p>Scope ruthlessly. Three core capabilities, then a couple of supporting ones. Likes, comments,
+  search, Stories, DMs, and ranking are explicitly out of scope <a href="#c1" class="cite">[1]</a> —
+  name them so the interviewer knows you saw them, then set them aside.</p>
+  <table>
+    <tr><th>#</th><th>Users should be able to…</th></tr>
+    <tr><td>1</td><td>Post a photo with a caption.</td></tr>
+    <tr><td>2</td><td>Follow other users.</td></tr>
+    <tr><td>3</td><td>View a home feed of photos from the users they follow.</td></tr>
+    <tr><td>4</td><td>View any user's profile grid (their own posts, reverse-chronological).</td></tr>
+  </table>
+  <p><b>Out of scope (state and park):</b> likes &amp; comments, search, Stories, DMs, ML feed ranking,
+  live video.</p>
+
+  <h2>2 · Non-Functional Requirements</h2>
+  <p>These are the constraints that actually shape the architecture. Attach a target to each — vague
+  "-ilities" are a senior tell; specific numbers are a staff one.</p>
+  <table>
+    <tr><th>Property</th><th>Target</th><th>Why it shapes the design</th></tr>
+    <tr><td>Low-latency feed</td><td>&lt; 200&nbsp;ms feed read; &lt; 500&nbsp;ms media render <a href="#c1" class="cite">[1]</a></td><td>Precompute feeds; serve media from a CDN edge, not origin.</td></tr>
+    <tr><td>Read-heavy</td><td>~100:1 reads:writes</td><td>Optimize the read path hard; writes can be async.</td></tr>
+    <tr><td>Media durability</td><td>11 nines (object store)</td><td>Photos are irreplaceable user data → S3-class blob storage.</td></tr>
+    <tr><td>High availability</td><td>Feed/read &gt; consistency</td><td>Stale-but-up beats consistent-but-down. Replicate, degrade gracefully.</td></tr>
+    <tr><td>Eventual consistency</td><td>Seconds OK</td><td>A new post appearing in followers' feeds a few seconds late is fine.</td></tr>
+    <tr><td>Scale</td><td>500M DAU, 100M posts/day <a href="#c1" class="cite">[1]</a></td><td>Horizontal everything; no single-node bottleneck on the hot paths.</td></tr>
+  </table>
+
+  <h2>3 · Capacity Estimation</h2>
+  <p>Only compute the numbers that change a decision. Two matter here: feed read QPS (drives the
+  read architecture) and media storage/bandwidth (drives the blob + CDN decision).</p>
+  <div class="box">
+    <b>Writes (posts).</b> 100M posts/day ÷ 86,400s ≈ <b>~1,150 posts/sec</b> average, call it
+    ~3,000/sec at peak. Modest — writes are not the bottleneck.<br><br>
+    <b>Reads (feed).</b> 500M DAU each opening the app ~10×/day, each pulling a feed page ≈
+    5B feed reads/day ÷ 86,400 ≈ <b>~58K reads/sec</b> average, ~150–200K/sec peak.
+    <b>Reads dominate by ~50–100×</b> → precompute, cache, never recompute a feed on the hot path.<br><br>
+    <b>Media storage.</b> 100M photos/day × ~2&nbsp;MB original + ~4 derived resolutions (~1&nbsp;MB total)
+    ≈ <b>~300&nbsp;TB/day</b> ≈ ~100&nbsp;PB/year. Far too large for a database → <b>object storage</b>.<br><br>
+    <b>Media bandwidth.</b> Reads × image size dwarfs everything else. Serving this from origin servers
+    is economically impossible → <b>CDN does the heavy lifting</b>; origin (S3) is a cold backstop.
+  </div>
+  <p>Conclusion in one line: <em>writes are cheap, feed reads are huge but precomputable, and media
+  bytes are the real cost center.</em> That sentence justifies the whole design.</p>
+
+  <h2>4 · Core Entities &amp; API</h2>
+  <h3>Entities</h3>
+  <ul>
+    <li><b>User</b> — id, handle, displayName, followerCount.</li>
+    <li><b>Post</b> — id, authorId, caption, mediaIds[], createdAt.</li>
+    <li><b>Media</b> — id, ownerId, S3 keys per resolution, status (<code>pending</code>/<code>ready</code>).</li>
+    <li><b>Follow</b> — (followerId, followeeId) edge in the follow graph.</li>
+  </ul>
+  <h3>API</h3>
+  <p>The caller is always derived from the auth token, never passed in the body.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/media</code></td><td>Begin upload: returns a <b>presigned S3 URL</b> + mediaId. Client uploads bytes directly to S3.</td></tr>
+    <tr><td><code>POST /v1/posts</code></td><td>Create a post referencing <code>mediaIds</code> + caption. Triggers fan-out.</td></tr>
+    <tr><td><code>GET /v1/feed?cursor=</code></td><td>Return the cursor-paginated home feed (post + media URLs).</td></tr>
+    <tr><td><code>GET /v1/users/{id}/posts</code></td><td>Return a user's profile grid, reverse-chronological.</td></tr>
+    <tr><td><code>POST /v1/follow</code></td><td>Create a follow edge (followee in body, follower from token).</td></tr>
+  </table>
+
+  <h2>5 · Data Flow</h2>
+  <p>Instagram has a genuine write-side pipeline, so a flow is worth stating explicitly:</p>
+  <div class="box">
+    <b>1.</b> Client → <code>POST /v1/media</code> → app server returns presigned URL.<br>
+    <b>2.</b> Client → <b>uploads bytes straight to S3</b> (bypassing app servers entirely).<br>
+    <b>3.</b> S3 event → enqueues a <b>media-processing job</b> (transcode/thumbnail).<br>
+    <b>4.</b> Worker generates resolutions, writes them back to S3, flips Media → <code>ready</code>.<br>
+    <b>5.</b> Client → <code>POST /v1/posts</code> → writes Post metadata, enqueues a <b>fan-out job</b>.<br>
+    <b>6.</b> Fan-out worker pushes the postId into followers' precomputed feed lists.
+  </div>
+
+  <h2>6 · High-Level Design</h2>
+  <p>Boxes and arrows. Note that the media path and the metadata path are deliberately separate.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th></tr>
+    <tr><td>API Gateway / LB</td><td>Auth, rate-limit, route to stateless app servers.</td></tr>
+    <tr><td>Post / Feed service</td><td>Handles posts, follows, feed reads. Stateless, horizontally scaled.</td></tr>
+    <tr><td>Metadata DB</td><td>Users, Posts, Media rows, Follow edges. Sharded NoSQL (DynamoDB / Cassandra) — keyed by userId.</td></tr>
+    <tr><td>Object storage (S3)</td><td>Source of truth for media bytes. Client uploads/downloads direct.</td></tr>
+    <tr><td>CDN (CloudFront)</td><td>Caches media at the edge; serves ~99% of media bytes.</td></tr>
+    <tr><td>Message queue (Kafka/SQS)</td><td>Decouples media processing and feed fan-out from the request path <a href="#c2" class="cite">[2]</a>.</td></tr>
+    <tr><td>Media workers</td><td>Consume the queue; generate thumbnails/resolutions.</td></tr>
+    <tr><td>Feed cache</td><td>Per-user precomputed feed lists in Redis — the thing <code>GET /v1/feed</code> reads.</td></tr>
+  </table>
+  <p>The two flows: a <code>GET /v1/feed</code> hits app server → Redis feed list → hydrate Post metadata →
+  return CDN URLs (client fetches bytes from the edge). A <code>POST /v1/media</code> never touches an
+  app server with the bytes at all.</p>
+
+  <h2>7 · Deep Dives</h2>
+
+  <h3>Deep dive 1 — Media storage &amp; delivery (never through your app servers)</h3>
+  <p>The single biggest mistake here is routing photo bytes through your application tier. At 300&nbsp;TB/day
+  of uploads and far more downloads, your app servers would melt and your bandwidth bill would be absurd.</p>
+  <p><b>Upload:</b> the client asks for a <b>presigned URL</b> <a href="#c2" class="cite">[2]</a> and
+  <code>PUT</code>s bytes directly to S3. Your servers only ever see small JSON. This offloads CPU,
+  memory, and bandwidth, and lets the upload resume/retry against S3's own infrastructure.</p>
+  <p><b>Delivery:</b> all media is served through a <b>CDN</b> (CloudFront/Akamai) <a href="#c2" class="cite">[2]</a>.
+  The feed returns CDN URLs, not bytes; the client pulls each image from the nearest edge. S3 is the
+  origin of last resort. This is the mechanism that makes "render in &lt; 500&nbsp;ms globally" achievable.</p>
+  <p><b>Multiple resolutions:</b> store the original plus pre-generated thumbnail / feed / full-screen
+  sizes. A phone on cellular gets a 50&nbsp;KB thumbnail, not a 2&nbsp;MB original — this is where most of
+  the bandwidth saving actually comes from. See <a href="0045-blob-store-s3.html">Lesson 45</a> for the
+  blob + CDN pattern in full.</p>
+
+  <h3>Deep dive 2 — Feed generation: fan-out on write vs read vs hybrid</h3>
+  <p>This is the heart of the problem and where staff candidates separate themselves. Three strategies,
+  each a different placement of the work.</p>
+  <table>
+    <tr><th>Strategy</th><th>How</th><th>Wins</th><th>Loses</th></tr>
+    <tr><td><b>Fan-out on read</b><br>(pull)</td><td>On feed open, query all followees' recent posts and merge.</td><td>No write amplification; instant for new follows.</td><td>Expensive read; merges N timelines per request → slow at scale.</td></tr>
+    <tr><td><b>Fan-out on write</b><br>(push)</td><td>On post, write postId into every follower's precomputed feed list.</td><td>Feed read is one O(1) lookup → fast, cheap reads.</td><td>Write amplification: a post to 1M followers = 1M writes.</td></tr>
+    <tr><td><b>Hybrid</b> ★</td><td>Push for normal users; pull for celebrities.</td><td>Cheap reads for the common case; bounds the celebrity blast radius.</td><td>Read must merge two sources; more moving parts.</td></tr>
+  </table>
+  <p>Default to <b>fan-out on write</b>: it matches our 100:1 read-heavy profile — pay once at write
+  time so the billions of reads are trivial. A typical post fans out to a few hundred followers,
+  which is cheap.</p>
+  <p>The killer is the <b>celebrity problem</b>: a user with 100M followers would trigger 100M writes
+  per post and create massive hot-key pressure. The fix is the <b>hybrid</b> model
+  <a href="#c2" class="cite">[2]</a>: above a follower threshold, <em>do not</em> fan out. Instead, at
+  feed-read time, pull the celebrity's recent posts on demand and merge them into the precomputed feed.
+  Now a feed read = (your precomputed list from normal followees) ∪ (live fetch of the handful of
+  celebrities you follow). You get fast reads for 99.9% of content and a bounded, cacheable extra
+  query for the few mega-accounts. <a href="0016-fb-news-feed.html">Lesson 16</a> introduces fan-out;
+  this is the staff-depth version with the celebrity carve-out made explicit.</p>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The staff candidate names the threshold and what it protects: "I push for accounts under ~10K
+    followers and pull for the rest, because the cost is write-amplification vs. read-merge, and the
+    crossover is where a single post's fan-out would dominate write capacity." Don't just say "hybrid" —
+    state the knob, the failure it prevents (hot keys, write storms), and that the threshold is tunable.
+  </div>
+
+  <h3>Deep dive 3 — The follow graph &amp; storing posts</h3>
+  <p>The follow graph is an adjacency problem with extreme skew: most users have hundreds of edges,
+  a few have hundreds of millions. Store edges in a sharded store keyed by <code>followerId</code>
+  (for "who do I follow" on the read-merge path) with a secondary index by <code>followeeId</code>
+  (for "who follows me" on the fan-out path). Cache hot edge lists. Posts themselves live in the
+  metadata DB sharded by <code>authorId</code>, so a profile grid is a single-partition range scan —
+  this is why <code>GET /v1/users/{id}/posts</code> is cheap and can skip the feed cache entirely.</p>
+
+  <h3>Deep dive 4 — Async thumbnail / transcoding via a queue</h3>
+  <p>Generating four resolutions of an 8&nbsp;MB photo (or transcoding a 4&nbsp;GB video
+  <a href="#c1" class="cite">[1]</a>) is slow and bursty — never do it inline in the request. When the
+  upload lands in S3, an event drops a job onto a <b>message queue</b>, and a pool of workers processes
+  it asynchronously, writing derived assets back to S3 and flipping the Media row to <code>ready</code>.
+  This decouples a slow, CPU-heavy step from the user-facing latency, lets you scale workers
+  independently, and gives you natural retry/back-pressure on failure. See
+  <a href="0007-messaging-and-async.html">Lesson 07</a> for the queue-as-buffer pattern. The post can be
+  created immediately and simply show a placeholder until the media is ready — eventual consistency
+  in action.</p>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="c">
+      <p class="stem">1. Why should photo bytes never pass through the application servers?</p>
+      <button class="opt">Because object storage cannot generate any presigned upload URLs</button>
+      <button class="opt">Because the metadata database is the correct place to keep them</button>
+      <button class="opt">Because the bandwidth and CPU cost would overwhelm those servers</button>
+      <button class="opt">Because the content delivery network refuses very large request bodies</button>
+      <p class="fb">At 300 TB/day of uploads plus far larger downloads, routing bytes through the app tier melts servers and bandwidth — clients go direct to S3 and CDN.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. What problem does the hybrid fan-out model specifically solve?</p>
+      <button class="opt">It removes the need to ever precompute any per-user feed list</button>
+      <button class="opt">It avoids a celebrity post triggering millions of feed writes</button>
+      <button class="opt">It makes the follow graph fit inside a single database shard</button>
+      <button class="opt">It lets every single feed read become a strongly consistent read</button>
+      <p class="fb">Pure fan-out-on-write would write a celebrity's post to 100M follower lists. Hybrid pulls celebrity posts at read time, bounding the blast radius.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why is thumbnail generation done asynchronously through a queue?</p>
+      <button class="opt">It is slow and bursty, so it must not block the request path</button>
+      <button class="opt">It is the only way to write derived images back into S3 buckets</button>
+      <button class="opt">It guarantees the feed read path becomes strongly consistent always</button>
+      <button class="opt">It removes the requirement to store any original full resolution file</button>
+      <p class="fb">Transcoding/resizing is CPU-heavy and variable. A queue decouples it from user latency, lets workers scale independently, and gives retries.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">4. Given a 100:1 read-to-write ratio, which feed strategy is the sane default?</p>
+      <button class="opt">Fan-out on read, because merging timelines keeps every write extremely cheap</button>
+      <button class="opt">No precomputation, because the feed cache adds needless operational burden</button>
+      <button class="opt">Fan-out on write, because paying once per post makes the many reads trivial</button>
+      <button class="opt">Strong consistency first, because stale feeds are unacceptable to most users</button>
+      <p class="fb">Read-heavy workloads favor pushing work to write time: precompute once, then serve billions of reads as O(1) lookups.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this — try:
+    "Walk me through what happens end-to-end when I upload a photo and a follower opens their feed."
+    · "At exactly what follower threshold would you flip from push to pull, and how would you measure it?"
+    · "How would adding likes and comments (currently out of scope) change the storage and fan-out design?"
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/instagram">Hello Interview — Instagram system design breakdown</a>.
+  The canonical walkthrough of the requirements, scale targets, media path, and fan-out tradeoffs in interview-delivery order.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/instagram">Hello Interview — Design Instagram</a> (scope, 500M DAU / 100M posts/day, &lt;500ms render, 8MB photo / 4GB video limits).</p>
+    <p id="c2">[2] <a href="https://www.systemdesignhandbook.com/guides/design-instagram/">System Design Handbook & community breakdowns — Design Instagram</a> (presigned-URL direct upload, CDN delivery, Kafka fan-out, hybrid celebrity pull).</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0026-price-tracking.html">← Lesson 26</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 28 · YouTube Top K</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>
