@@ -41,6 +41,26 @@
   .box b{color:var(--accent);}
   .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
   .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
   .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
   .quiz h3{margin-top:0;}
   .q{margin:1.3rem 0;}
@@ -71,6 +91,17 @@
     <strong>Why this lesson, for your mission:</strong> Tinder looks deceptively simple — show profiles, swipe, match. The L6/L7 signal is recognizing that the simple-looking parts hide three hard problems: a <em>geospatial</em> candidate index, a write-heavy swipe store at billions of ops/day, and a correctness guarantee (a mutual like <em>must</em> become a match). Pick the right primitive for each, and justify when you can trade exactness for scale.
   </div>
 
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>“How many swipes per user per day?”</b> — Swipe volume, not profile reads, is the dominant write load.</li><li><b>“Must a match notify both users instantly?”</b> — Real-time notification changes the match detection path.</li><li><b>“Can a profile ever be shown again after a swipe?”</b> — A strict no-repeat rule requires a per-user seen filter.</li></ul>
+  </div>
   <h2>Functional Requirements</h2>
   <p>Scope tightly. Three core flows carry the whole interview; everything else (messaging, super-likes, boosts) is out of scope unless prompted.</p>
   <table>
@@ -94,6 +125,9 @@
   </table>
   <p>Note the tension: the swipe path wants <b>strong consistency</b> (matches), while the feed path wants <b>low latency</b> and tolerates <b>eventual consistency</b> (a slightly stale candidate is fine).</p>
 
+  <p class="transition"><span class="lbl">Say to move on →</span> “Low-latency geo-filtered stacks, no repeats, and no missed matches. The swipe rate drives storage, so let me size it.”</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only the numbers that change a decision. Anchor on swipe volume — it's the headline.</p>
   <div class="box">
@@ -105,6 +139,14 @@
     </ul>
   </div>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why not a single SQL primary for swipes?”</p>
+    <p><b>Staff answer:</b> 70k writes/s at peak and ~40 GB/day of append-only rows is exactly what LSM stores like Cassandra do well; a single SQL primary would be the bottleneck.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “~70k swipes/s at peak needs a write-optimized store. Let me define entities and endpoints.”</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities & API</h2>
   <p>Three entities. The user is always derived from the auth token, never passed in the body.</p>
   <table>
@@ -122,6 +164,47 @@
     <tr><td><code>GET /v1/matches</code></td><td>List the current user's matches.</td></tr>
   </table>
 
+  <h2>Data Model</h2>
+  <p>Four stores, each chosen for one access pattern. The load-bearing key is the <b>canonical pair key</b> <code>swipe:{min(a,b)}:{max(a,b)}</code>: both users' swipes land on the same key, so the match check is a single-key atomic operation instead of a distributed transaction.</p>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>users</b> (user_id, name, birthdate, gender, prefs, photo_keys[], lat, lng, last_active)</td><td>Postgres (profiles) → CDC to geo index</td><td>PK <code>user_id</code></td><td>Profile reads by id</td></tr>
+    <tr><td><b>Geo candidate index</b></td><td>Redis GEO per region/gender bucket (Elasticsearch <code>geo_point</code> for filtered fallback)</td><td><code>geo:{region}:{gender}</code> member = user_id</td><td>GEOSEARCH radius, then filter age/prefs</td></tr>
+    <tr><td><b>swipes</b> (actor_id, target_id, dir, ts)</td><td>Cassandra — ~23k–70k writes/s, ~100 GB/day</td><td>Partition <code>actor_id</code> · clustering <code>target_id</code></td><td>"Did I swipe X?"; TTL / archive after 1 year</td></tr>
+    <tr><td><b>Pair decision key</b></td><td>Redis (Lua), 30-day TTL</td><td><code>swipe:{min}:{max}</code> hash {a: dir, b: dir}</td><td>Set my side + read other side atomically</td></tr>
+    <tr><td><b>matches</b> (user_id, matched_at, other_id)</td><td>Cassandra</td><td>Partition <code>user_id</code> · clustering <code>matched_at DESC</code>; written for both users</td><td>GET /matches; idempotent insert keyed by pair</td></tr>
+    <tr><td><b>Seen filter</b></td><td>RedisBloom <code>bf:{userId}</code> (rebuildable from swipes)</td><td>per-user Bloom, ~1% FP</td><td>Filter candidates before returning a stack</td></tr>
+    <tr><td><b>Precomputed stack</b></td><td>Redis list <code>stack:{userId}</code>, TTL 1 h</td><td>ordered candidate ids</td><td>LPOP a page on app open</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why is Match a separate entity instead of a query over swipes?”</p>
+    <p><b>Staff answer:</b> Matches are read constantly for the chat list; materializing them on the mutual right swipe avoids a join over billions of swipe rows.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Swipes and matches are separate entities. Now the recommendation read path and swipe write path.”</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+  <h2>Component Diagram</h2>
+<pre class="diagram">
+ [Mobile client] --photo GETs--&gt; [CDN + S3 photos]
+        |
+        v
+ [API Gateway: auth, rate limit]
+        | GET /recs       | POST /v1/swipes
+        v                 v
+ [Rec Svc]          [Swipe Service: persist, check reverse, match]
+        |               |             |             |
+        |               | append      | atomic Lua  | mutual right
+        v               v             |             |
+ [Redis GEO+Bloom] [Cassandra swipes] |             |
+                                      v             |
+                              [Redis pair keys]     |
+                                                    v
+                                              [Matches DB] --&gt; [Push: APNS / FCM]
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">Read path: stacks precomputed from the geo index and filtered by a per-user Bloom filter. Write path: durable swipe log in Cassandra, match decided atomically on the pair key, then persisted and pushed.</p>
+
   <h2>High-Level Design</h2>
   <p>Trace each request through the boxes. Two clear paths: the <b>read path</b> (recommendations) and the <b>write path</b> (swipes → match).</p>
   <table>
@@ -136,6 +219,14 @@
   </table>
   <p><b>Read path:</b> client → Gateway → Recommendation Service → geo index (nearby IDs) → filter by prefs + seen-set → stack returned. <b>Write path:</b> client → Gateway → Swipe Service → persist swipe → check reverse swipe → on mutual-right, write Match + fire notification.</p>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why precompute stacks instead of querying the geo index on each request?”</p>
+    <p><b>Staff answer:</b> Precomputing a stack of candidates in the background keeps GET /recommendations under 300 ms, and we refresh it when location or preferences change.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “The three hard parts are building stacks, detecting mutual matches and never repeating profiles.”</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dive 1 — Generating the recommendation stack</h2>
   <p>The naive query is the trap: <code>SELECT * FROM users WHERE age BETWEEN ? AND ? AND lat BETWEEN ? AND ?</code> scans far too much and is slow.<a href="#c1" class="cite">[1]</a> We need a real geospatial index plus precompute decisions.</p>
   <h3>Geo filtering: pick the primitive</h3>
@@ -199,6 +290,112 @@
     </ul>
   </div>
   <p>Separating the two stores is the point: the <b>Swipe log</b> (Cassandra) optimizes for throughput and durability; the <b>match-decision structure</b> (atomic, canonically-keyed) optimizes for correctness. Different requirements, different tools.</p>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. Geo index + precomputed stacks; Cassandra log + Redis pair key</b> (chosen)</td><td>As drawn</td><td>Each path uses the cheapest correct primitive; matches never missed</td><td>Several stores; Bloom filters must be rebuilt if Redis is lost</td><td>Default at 2B swipes/day</td></tr>
+    <tr><td><b>B. Single Postgres + PostGIS</b></td><td>Profiles with a GiST geo index; swipes table with UNIQUE (actor, target); match via transaction on both rows</td><td>One system, strong consistency everywhere, easy to build</td><td>70k writes/s and 36 TB/yr swipes outgrow one primary; geo + age + NOT IN (seen) queries get slow</td><td>Early-stage app, &lt; ~1M DAU</td></tr>
+    <tr><td><b>C. Batch-recommendation pipeline + DynamoDB conditional writes</b></td><td>Nightly/hourly Spark job computes ranked stacks per user; swipes and matches in DynamoDB using a pair-keyed conditional write</td><td>Rich ML ranking offline; fully managed storage</td><td>Stacks stale when users travel; per-request DynamoDB cost at 60B swipes/month is high</td><td>Ranking quality matters more than freshness; small ops team</td></tr>
+  </table>
+  <p><b>Pick A:</b> it keeps the swipe path cheap and correct at scale while the feed stays fresh as users move — B stops scaling and C trades freshness for ranking we've scoped out.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Two users swipe right at the same moment on different servers. Do you miss the match?”</p>
+    <p><b>Staff answer:</b> Store both swipes under a canonical pair key (min(id), max(id)) in one partition and check atomically, e.g. a Redis Lua script. Order no longer matters, so no distributed transaction is needed.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Now operating, securing and protecting user data.”</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+  <h2>Observability</h2>
+  <table>
+    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+    <tr><td>Swipe path (RED)</td><td>Swipes/sec, p99 write latency, Lua script latency, Cassandra write timeouts</td><td>Write throughput is the headline load</td></tr>
+    <tr><td>Match correctness</td><td>Matches created/sec; reconciliation job count of mutual right swipes in Cassandra without a match row</td><td>Proves "never miss a match" rather than assuming it</td></tr>
+    <tr><td>Recommendations</td><td>Stack serve p99, stack cache hit rate, empty-stack rate by region, Bloom false-positive estimate, candidates filtered per request</td><td>Empty stacks in sparse regions are a product failure</td></tr>
+    <tr><td>Business</td><td>Right-swipe rate, match rate, time-to-first-match</td><td>Detect ranking or index regressions</td></tr>
+    <tr><td>Logs &amp; traces</td><td>Pair key and user ids hashed in logs; traces 1% on recs, 1% on swipes, 100% on match creation</td><td>Debug a disputed "we both liked each other"</td></tr>
+  </table>
+
+  <h2>Monitoring</h2>
+  <table>
+    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+    <tr><td>Stack served p99 &lt; 300 ms, 99.9% success</td><td>Burn rate over 1 h / 6 h</td><td>Page</td></tr>
+    <tr><td>Swipe write success 99.95%</td><td>Write error / timeout rate &gt; 0.1% for 5 min</td><td>Page</td></tr>
+    <tr><td>Zero missed matches</td><td>Reconciliation job finds any mutual right without a match</td><td>Page</td></tr>
+    <tr><td>No repeat profiles</td><td>Client-reported "already seen" events above baseline</td><td>Ticket</td></tr>
+  </table>
+  <p><b>Synthetic probes:</b> two test accounts in a test region swipe right on each other every 5 minutes and assert a match plus push notification arrive. <b>Dashboards:</b> swipe throughput, match funnel, empty-stack rate by region.</p>
+
+  <h2>Authentication &amp; Authorization</h2>
+  <table>
+    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+    <tr><td>User → all APIs</td><td>Phone-number OTP or Apple/Google/Facebook sign-in → short-lived JWT + rotating refresh token</td><td>Actor always from token, never body</td></tr>
+    <tr><td>User → another profile</td><td>—</td><td>Only profiles surfaced in your stack or matches are viewable; blocked/unmatched users are hidden both ways</td></tr>
+    <tr><td>User → matches / chat</td><td>—</td><td>Must be a participant of the match</td></tr>
+    <tr><td>Moderators (trust &amp; safety)</td><td>SSO + MFA</td><td>RBAC; every profile view by staff is audited</td></tr>
+    <tr><td>Service → service</td><td>mTLS</td><td>Only Swipe Service writes matches</td></tr>
+  </table>
+
+  <h2>Security</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>Trilateration / stalking via distance</td><td>Rounded distances, coarse location cells, random jitter; rate-limit location changes (anti-"teleport")</td></tr>
+    <tr><td>Bots and romance scammers</td><td>Photo verification, device fingerprinting, swipe-velocity limits (humans don't right-swipe 1,000/min), ML scam detection on profiles</td></tr>
+    <tr><td>Profile scraping</td><td>Stacks are the only discovery surface; per-account profile-view quotas; no search by id</td></tr>
+    <tr><td>Harassment after unmatch/block</td><td>Blocks enforced in candidate filter and on every profile/chat read</td></tr>
+    <tr><td>Swipe forgery / match spoofing</td><td>Actor from token; server-side match decision only</td></tr>
+    <tr><td>Baseline</td><td>TLS, encryption at rest, secrets manager, WAF, private S3 with signed CDN URLs</td></tr>
+  </table>
+
+  <h2>Privacy</h2>
+  <p>Dating data is <b>highly sensitive</b>: sexual orientation (via <code>interestedIn</code>), precise location, photos, and who liked whom. <b>Location:</b> never expose exact coordinates or exact distance to other users — round distance to whole miles/km and snap stored location to a coarse cell to defeat trilateration attacks. <b>Minimization:</b> the geo index stores the coarse cell, not raw GPS history. <b>Encryption:</b> preference and orientation fields encrypted at the field level. <b>Retention:</b> swipe log archived after a year; left swipes need not be kept at all beyond the Bloom filter. <b>Deletion:</b> account deletion removes profile, photos (S3 + CDN purge), geo entries, swipes and matches; the other party's match disappears. <b>Special-category data</b> under GDPR requires explicit consent.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you prevent location triangulation attacks?”</p>
+    <p><b>Staff answer:</b> Never return exact distance or coordinates: round distances, snap locations to a coarse grid with jitter, and rate-limit profile views.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Last, 10× and cost.”</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <p>10× = 200M DAU, 20B swipes/day (~700k writes/s peak), ~1 TB/day of swipe log.</p>
+  <table>
+    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+    <tr><td>Cassandra swipes</td><td>~40 nodes</td><td>~400 nodes</td><td>Add nodes (partition by actor keeps load even); shorten hot TTL to 6 months</td></tr>
+    <tr><td>Redis pair keys + Bloom</td><td>A few shards</td><td>~10× shards</td><td>Redis Cluster; pair key hashes spread evenly</td></tr>
+    <tr><td>Geo index</td><td>Buckets per region/gender</td><td>10× members</td><td>Finer buckets (region → city) so each GEOSEARCH stays small</td></tr>
+    <tr><td>Swipe / Rec services</td><td>~50 nodes</td><td>~500 nodes</td><td>Stateless autoscale; stack precompute workers scale with DAU</td></tr>
+    <tr><td>Photo CDN</td><td>~18 PB/month</td><td>~180 PB/month</td><td>CDN capacity; smaller photo renditions</td></tr>
+  </table>
+  <p><b>First bottleneck:</b> dense-city geo buckets (millions of candidates in one radius) — handled by finer cells and precompute. <b>What forces a redesign:</b> ML-ranked recommendations as a hard requirement, adding a feature store and ranking service to the read path.</p>
+
+  <h2>Cost of Running</h2>
+  <p>Assumptions: 20M DAU, 2B swipes/day, ~100 swipes × ~2 photos × 150 KB viewed per user per day (~18 PB/month via CDN), 100M total profiles × 6 photos; list prices from the course price sheet.</p>
+  <table>
+    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+    <tr><td>Photo CDN egress</td><td>~18 PB × $20/TB</td><td>$360,000</td></tr>
+    <tr><td>Photo storage (S3)</td><td>~300 TB</td><td>$7,000</td></tr>
+    <tr><td>Cassandra (swipes + matches)</td><td>~40 nodes, ~110 TB with RF 3</td><td>$30,000</td></tr>
+    <tr><td>Redis (GEO, Bloom, stacks, pair keys)</td><td>~1.2 TB RAM incl. replicas</td><td>$20,000</td></tr>
+    <tr><td>Services + stack precompute</td><td>~50 × 8 vCPU</td><td>$12,000</td></tr>
+    <tr><td>Postgres profiles + Elasticsearch fallback</td><td>Managed primary/replicas + 6 ES nodes</td><td>$6,000</td></tr>
+    <tr><td><b>Total</b></td><td></td><td><b>≈ $435,000</b></td></tr>
+  </table>
+  <p><b>Unit cost:</b> ≈ $0.02 per DAU per month, ≈ $7 per million swipes. <b>Dominant driver:</b> photo delivery (~80%) — the "hard" swipe infrastructure is cheap by comparison. <b>Lever:</b> serve right-sized WebP/AVIF renditions, preload only the next 2–3 cards' photos, and long CDN cache TTLs on immutable photo URLs.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“What costs the most?”</p>
+    <p><b>Staff answer:</b> Photo delivery through the CDN, not the databases. Adaptive image sizes and prefetch limits are the biggest levers.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “To summarize:”</p>
+
+  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+  <h2>Closing Summary (60 seconds)</h2>
+  <div class="summary"><p>Tinder is a geo-filtered read path paired with a high-volume swipe write path. Candidate stacks are precomputed from a geospatial index with preference filters and served in under 300 ms. A per-user Bloom filter guarantees swiped profiles never reappear. Swipes (~70k/s peak) go to Cassandra partitioned by user, and a canonical pair key checked atomically makes mutual matches impossible to miss. At 10× we add Cassandra nodes and Redis shards; photo CDN egress is the dominant cost.</p></div>
 
   <h2>Check yourself — retrieval practice</h2>
   <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>

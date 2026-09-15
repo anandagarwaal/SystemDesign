@@ -41,6 +41,26 @@
   .box b{color:var(--accent);}
   .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
   .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
   .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
   .quiz h3{margin-top:0;}
   .q{margin:1.3rem 0;}
@@ -71,6 +91,17 @@
     <strong>Why this lesson, for your mission:</strong> Web search is the hardest read-path interview there is: an enormous, sharded inverted index, a brutal latency budget, and ranking that has to be both <em>good</em> and <em>cheap</em>. The L6/L7 signal is whether you can derive the mechanics under "just use a search cluster" — the inverted index built from the crawl, why the index is partitioned by document, the scatter-gather fan-out it forces, and multi-stage retrieve-then-rerank — rather than naming a product. Crawling is its own problem; here we assume the corpus exists (<a href="0035-web-crawler.html">Lesson 35</a>) and focus on <b>indexing, serving, and ranking</b>.
   </div>
 
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Data flow, component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>“How large is the corpus and how fresh must the index be?”</b> — Tens of billions of documents and freshness goals drive index tiers and update pipelines.</li><li><b>“Keyword search only, or also semantic/answer features?”</b> — Semantic retrieval adds embedding indexes and GPU cost.</li><li><b>“What latency target at p99?”</b> — A 200 ms target shapes fan-out and tail-latency techniques.</li></ul>
+  </div>
   <h2>Functional Requirements</h2>
   <p>State the scope tightly, then defend the boundary. The corpus arrives from the crawler<a href="#c1" class="cite">[1]</a> — we do not crawl here.</p>
   <table>
@@ -99,6 +130,9 @@
     </ul>
   </div>
 
+  <p class="transition"><span class="lbl">Say to move on →</span> “Under 200 ms at p99 over tens of billions of documents. Let me size corpus, index and QPS.”</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only the numbers that <em>change a decision</em>. (Back-of-envelope assumptions — state them aloud, don't quote them as fact.)</p>
   <table>
@@ -111,6 +145,14 @@
   </table>
   <p>The punchline: read-heavy + brutal latency + a corpus too big for one node. That trio forces a sharded, mostly-in-memory inverted index served by scatter-gather, and ranking split into cheap-then-expensive stages.</p>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Can't we just add more replicas for QPS?”</p>
+    <p><b>Staff answer:</b> Replicas scale throughput but not corpus size. Size needs more shards, and each query fans out to all shards, which adds tail latency.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “The index is sharded across thousands of nodes and the query head is Zipfian. Let me define the API.”</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p><b>Entities:</b> <code>Document</code> (docId, URL, title, text, plus static signals like <code>pageRank</code>), <code>Term</code> → <code>PostingList</code> (the inverted index entry: docIds + positions + per-doc weight), and the transient <code>Query</code>.</p>
   <table>
@@ -122,6 +164,28 @@
   </table>
   <p>Note <code>cursor</code>, not <code>page</code>: with an index changing under you and ranking that varies, offset pagination double-shows or skips results. Encode the last (score, docId) seen into an opaque cursor — the staff-correct choice for a live, ranked corpus, exactly as in <a href="0025-fb-post-search.html">Lesson 25</a>.</p>
 
+  <h2>Data Model</h2>
+  <p>The core structure is an <b>immutable, per-shard index segment</b>: a lexicon, compressed posting lists sorted by doc id, and per-document lengths — built offline and swapped in atomically. Documents are assigned to shards by <code>hash(doc_id)</code> <em>within a tier</em>, and the tier (hot RAM vs cold SSD) is chosen by the document's static score. Query-independent signals live in a separate per-doc store so they can be recomputed in batch without rebuilding postings.</p>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>documents</b> (doc_id, url, title, lang, fetched_at, content_hash, tier)</td><td>Distributed KV / Bigtable-class store</td><td>PK <code>doc_id</code></td><td>Secondary lookup <code>url_hash → doc_id</code> for updates and deletes</td></tr>
+    <tr><td><b>Doc text</b> (doc_id → cleaned text, section offsets)</td><td>Blob/columnar store, compressed</td><td><code>doc_id</code></td><td>Snippet generation for the final top N only</td></tr>
+    <tr><td><b>Lexicon</b> (term → term_id, document frequency)</td><td>Per segment, in memory</td><td><code>term</code></td><td>Resolve query terms; IDF for BM25</td></tr>
+    <tr><td><b>Posting lists</b> (term_id → [doc_id gap, tf, positions])</td><td>Per segment: hot tier in RAM, cold tier on SSD</td><td><code>(shard, segment, term_id)</code></td><td>Sorted by doc id for linear intersection; delta + varint compressed</td></tr>
+    <tr><td><b>static_signals</b> (doc_id, pagerank, spam_score, quality, freshness)</td><td>Columnar store, loaded alongside shards</td><td><code>doc_id</code></td><td>Joined at scoring time</td></tr>
+    <tr><td><b>link_graph</b> (src_doc_id, dst_doc_id, anchor_text)</td><td>Lake (batch)</td><td>—</td><td>PageRank and anchor-text features in batch jobs</td></tr>
+    <tr><td><b>Tombstones</b> (shard, doc_id)</td><td>Per shard</td><td>doc_id</td><td>Filter deleted docs until compaction</td></tr>
+    <tr><td><b>Result cache</b></td><td>Distributed cache + CDN for anonymous queries</td><td><code>(normalized query, locale, cursor)</code></td><td>TTL minutes (freshness budget)</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why is pagination by cursor and not page number?”</p>
+    <p><b>Staff answer:</b> Deep offsets would force every shard to compute and discard many results; a cursor with a bounded result depth is cheaper and stable.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “A search endpoint with a cursor, fed by an offline index. Now indexing plane and serving plane.”</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Data Flow — the indexing pipeline (doc → searchable)</h2>
   <p>This is a data-processing system, so trace one crawled page from the corpus to being queryable. Indexing is offline/streaming and decoupled from serving.</p>
   <ol style="font-size:.92rem;">
@@ -132,6 +196,20 @@
     <li><b>Publish segments:</b> build immutable index <b>segments</b> and ship them to the document shards; deletes are tombstones, merged away during compaction.<a href="#c2" class="cite">[2]</a></li>
   </ol>
   <p>Because indexing is offline and append-mostly, the serving path never blocks on writes — fresh segments are swapped in. PageRank is computed in <em>batch</em> over the whole link graph, so it lags the crawl by design; freshness for new pages comes from the streaming indexer, not from recomputing global signals.</p>
+
+  <h2>Component Diagram</h2>
+<pre class="diagram">
+ SERVING
+ [Browser] --GET /v1/search--&gt; [Query coordinator + result cache]
+                                    |         |         |
+                                    v scatter v         v
+                              [Doc shards: hot tier RAM | cold tier SSD]
+                                        ^
+                                        | new segments (atomic swap)
+ INDEXING (offline / streaming)         |
+ [Crawl corpus] --&gt; [Indexers + PageRank batch]
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">Serving: the coordinator checks the cache, scatters to every shard of the hot tier (and the cold tier only if needed), merges per-shard BM25 top-K, re-ranks a few thousand candidates with the expensive model, and fetches snippets for the final page. Indexing: crawled documents become immutable segments and static scores, published into shards without blocking queries.</p>
 
   <h2>High-Level Design</h2>
   <p>Map the requirements to components, separating the <b>offline indexing</b> plane from the <b>online serving</b> plane.</p>
@@ -146,6 +224,14 @@
   </table>
   <p><b>Read path:</b> <code>GET /search</code> → coordinator → cache check → scatter to index shards → per-shard top-K → gather/merge → phase-2 re-rank → snippet fetch → respond. <b>Write path:</b> crawled doc → indexer → new index segment → swapped into the relevant shard.</p>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why separate offline indexing from online serving?”</p>
+    <p><b>Staff answer:</b> Index building is heavy batch work; serving must be low latency. Swapping in new immutable segments keeps them independent.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: the inverted index, sharding and scatter-gather, ranking and the latency budget.”</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dive 1 — The inverted index, built from the crawl</h2>
   <p>Don't say "use a search cluster" and move on — explain what it's doing. A <b>forward index</b> maps <code>document → terms</code>; searching it means scanning every doc, impossible at tens of billions. An <b>inverted index</b> flips it to <code>term → posting list</code>, the set of docIds containing that term, usually with term positions and a per-doc weight.<a href="#c2" class="cite">[2]</a> Brin &amp; Page's original Google design stored exactly this — posting lists in "barrels" plus a lexicon of terms.<a href="#c1" class="cite">[1]</a></p>
   <pre style="font-family:'SF Mono',Menlo,monospace; font-size:.78rem; background:#f3ece1; padding:.9rem 1rem; border-radius:6px; overflow:auto;">"search"  → [(d12, tf=4, pos=[3,40,..]), (d88, tf=1), (d903, tf=7), ...]
@@ -205,6 +291,111 @@
     <tr><td>Hedged requests / N-of-M</td><td>p99 decoupled from the single slowest shard.</td></tr>
     <tr><td>Query-result cache + CDN</td><td>Popular-query latency in ms; massive QPS relief on the index fleet.</td></tr>
   </table>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. Custom doc-partitioned tiered index + scatter-gather + multi-stage ranking</b> (chosen)</td><td>As drawn</td><td>Web-scale corpus at &lt; 200 ms; cost controlled by tiering and caching</td><td>Years of specialized engineering; huge serving fleet</td><td>You are building a general web search engine</td></tr>
+    <tr><td><b>B. Off-the-shelf search cluster</b> (Elasticsearch/OpenSearch/Vespa at large scale)</td><td>Shard documents into a managed/self-hosted engine; use built-in BM25, rescoring and vector search</td><td>Fast to build; mature tooling; hybrid retrieval included</td><td>Cluster-management limits at tens of billions of docs; less control over tiering and tail latency; higher cost per doc</td><td>Vertical or site search up to a few billion documents</td></tr>
+    <tr><td><b>C. Dense-retrieval-first engine</b> (embeddings + ANN as the primary index, lexical as a helper)</td><td>Encode every document into vectors, retrieve by ANN, then re-rank with a cross-encoder or LLM</td><td>Strong semantic matching and question-style queries</td><td>Vector memory for 50B docs is enormous; exact-match/rare-term queries suffer; expensive re-indexing when the encoder changes</td><td>Smaller, curated corpora or answer engines; usually combined with A as hybrid retrieval</td></tr>
+  </table>
+  <p><b>Pick A</b> with a semantic retriever added in parallel — lexical recall is still the cheapest way to cover tens of billions of documents, while B and C fit narrower corpora.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Document-sharded or term-sharded index?”</p>
+    <p><b>Staff answer:</b> Document sharding: even load, local scoring on each shard and simple updates, at the cost of querying every shard. Tame that with tiering, replicas and hedged requests.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, including spam and adversarial SEO.”</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+  <h2>Observability</h2>
+  <table>
+    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+    <tr><td>Latency waterfall</td><td>Per query: cache lookup, scatter wait, slowest-shard time, merge, re-rank, snippet; hedged-request rate; partial-result rate</td><td>The 200 ms budget and tail latency</td></tr>
+    <tr><td>Shard health</td><td>Per-shard QPS, CPU, memory, GC pauses, segment count, cold-tier fallthrough rate</td><td>Slow shards and tier sizing</td></tr>
+    <tr><td>Relevance</td><td>Click-through and long-click rate by position, query abandonment, human-rated relevance on sampled queries, A/B metrics</td><td>Relevance is a first-class NFR</td></tr>
+    <tr><td>Freshness</td><td>Crawl → searchable latency, segment publish lag per shard, fraction of index older than N days</td><td>Minutes–hours freshness target</td></tr>
+    <tr><td>Logs</td><td>Anonymized query logs with query id, result doc ids and clicks (training data for learning-to-rank)</td><td>Ranking improvement loop</td></tr>
+  </table>
+
+  <h2>Monitoring</h2>
+  <table>
+    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+    <tr><td>p99 &lt; 200 ms, 99.99% availability</td><td>Burn rate over 5 min / 1 h</td><td>Page</td></tr>
+    <tr><td>Completeness: partial results &lt; 0.5% of queries</td><td>Shards failing or timing out above threshold</td><td>Page</td></tr>
+    <tr><td>Freshness: news-tier docs searchable &lt; 15 min</td><td>Segment publish lag above target</td><td>Ticket (page for news tier)</td></tr>
+    <tr><td>Relevance guardrail</td><td>Click/abandonment metrics regress after an index or model rollout</td><td>Page / rollback</td></tr>
+  </table>
+  <p><b>Synthetic probes:</b> a fixed query set with known "must appear" results runs from many regions every minute; canary pages are published and polled until searchable. <b>Dashboards:</b> latency waterfall, shard heat map, freshness by tier, relevance metrics.</p>
+
+  <h2>Authentication &amp; Authorization</h2>
+  <table>
+    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+    <tr><td>Anonymous users → search</td><td>None (bot/abuse signals only)</td><td>Public results; SafeSearch policy applied per locale/account</td></tr>
+    <tr><td>Signed-in users</td><td>Session cookie / OIDC</td><td>Access to search history and settings; personalization opt-in</td></tr>
+    <tr><td>Developers → search API</td><td>API keys with quotas</td><td>Per-key rate limits and terms</td></tr>
+    <tr><td>Indexers, coordinators, shards</td><td>mTLS service identities</td><td>Only the index publisher can swap segments; internal index APIs never exposed publicly</td></tr>
+  </table>
+
+  <h2>Security</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>SEO spam and link farms manipulating ranking</td><td>Spam classifiers at index time, link-graph anomaly detection feeding spam_score, manual actions</td></tr>
+    <tr><td>Malicious sites in results (phishing, malware)</td><td>Safe-browsing signals demote or warn; interstitials</td></tr>
+    <tr><td>Query-of-death / expensive queries (huge OR, deep pagination, wildcard floods)</td><td>Query parser limits, cursor depth caps, per-client rate limits, early termination</td></tr>
+    <tr><td>Scraping of results at scale</td><td>Bot detection, CAPTCHAs, API as the sanctioned channel</td></tr>
+    <tr><td>Index poisoning via compromised pipeline</td><td>Signed segments, staged rollout of new index builds with quality checks</td></tr>
+    <tr><td>Baseline</td><td>TLS, encryption at rest, DDoS protection at edge</td></tr>
+  </table>
+
+  <h2>Privacy</h2>
+  <p>Two privacy surfaces. <b>Queries</b> are deeply personal (health, legal, identity) — log them with pseudonymous ids, strip or truncate IPs after a short period, aggregate for ranking training, and give signed-in users history controls and auto-delete. <b>Indexed content</b> contains personal data about third parties — honor <code>noindex</code>/robots, support removal requests (right to be forgotten in the EU) by delisting URLs for specified queries/regions via tombstones and a delisting table applied at serve time, and filter doxxing or non-consensual content under policy. <b>Caches</b> never store personalized result pages in shared layers.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you fight link farms and SEO spam?”</p>
+    <p><b>Staff answer:</b> Spam classifiers at index time, link-graph trust signals, manual actions, and demoting low-quality clusters in the ranking pipeline.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <p>10× = ~500B documents or ~1M queries/s.</p>
+  <table>
+    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+    <tr><td>Shards (corpus growth)</td><td>Thousands</td><td>Tens of thousands</td><td>More shards per tier; push more of the long tail into the cold tier</td></tr>
+    <tr><td>Replicas (QPS growth)</td><td>~3 per hot shard</td><td>~30</td><td>Add replicas; bigger result cache</td></tr>
+    <tr><td>Coordinators</td><td>Root + aggregators</td><td>Deeper aggregation tree</td><td>Extra aggregation level keeps merge fan-in bounded</td></tr>
+    <tr><td>Re-ranking</td><td>~few thousand candidates</td><td>Same per query</td><td>More accelerators; distilled models; cap candidates</td></tr>
+    <tr><td>Indexing</td><td>Streaming + batch</td><td>10× docs</td><td>More indexer workers; incremental PageRank</td></tr>
+  </table>
+  <p><b>First bottleneck:</b> serving CPU for fan-out on every query — the hot/cold tier boundary and cache hit rate are the main relief valves. <b>What forces a redesign:</b> generative answers (LLM summaries over results) on every query, which puts a GPU inference stage with far higher unit cost in the serving path.</p>
+
+  <h2>Cost of Running</h2>
+  <p>Assumptions: 50B documents, ~100k queries/s (~260B/month) with ~30% served from cache, ~0.5 CPU-seconds per uncached query across fan-out, ~20 TB hot index in RAM × 3 replicas, GPU re-ranking of ~1,000 candidates per uncached query, list prices from the course price sheet (a real search provider runs owned infrastructure far below these).</p>
+  <table>
+    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+    <tr><td>Serving CPU (shards + coordinators)</td><td>~35k vCPU</td><td>$1,050,000</td></tr>
+    <tr><td>Re-ranking accelerators</td><td>~300 GPUs</td><td>$900,000</td></tr>
+    <tr><td>Hot-tier RAM</td><td>~60 TB × $8/GB</td><td>$480,000</td></tr>
+    <tr><td>Indexing pipelines + PageRank batch</td><td></td><td>$200,000</td></tr>
+    <tr><td>Doc/snippet store + cold tier SSD</td><td>~500 TB text + ~600 TB SSD</td><td>$170,000</td></tr>
+    <tr><td>Result cache, front ends, CDN</td><td></td><td>$50,000</td></tr>
+    <tr><td><b>Total</b></td><td></td><td><b>≈ $2.85M</b></td></tr>
+  </table>
+  <p><b>Unit cost:</b> ≈ $11 per million queries. <b>Dominant drivers:</b> fan-out CPU and re-ranking. <b>Levers:</b> raise the cache hit rate on the Zipfian head, keep more queries inside the hot tier with early termination, shrink the candidate set before the expensive ranker, and distill the ranking model — each one cuts per-query compute directly.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“What dominates cost?”</p>
+    <p><b>Staff answer:</b> Serving compute and RAM for the hot index. Caching the Zipfian head and pushing the long tail to cheaper tiers are the levers.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
+
+  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+  <h2>Closing Summary (60 seconds)</h2>
+  <div class="summary"><p>Web search separates an offline indexing plane from an online serving plane. Crawled documents are tokenized into document-sharded inverted-index segments with query-independent signals like PageRank. A query goes to a root server that fans out to replicated leaf shards; each retrieves candidates with cheap BM25-style scoring. The root merges the top thousands, and an expensive model re-ranks a small set. Caching the head, tiering hot and cold indexes, and hedged requests keep p99 under 200 ms. At 10× we add shards and replicas.</p></div>
 
   <h2>Check yourself — retrieval practice</h2>
   <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>

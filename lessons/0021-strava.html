@@ -41,6 +41,26 @@
   .box b{color:var(--accent);}
   .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
   .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
   .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
   .quiz h3{margin-top:0;}
   .q{margin:1.3rem 0;}
@@ -71,6 +91,17 @@
     <strong>Why this lesson, for your mission:</strong> Strava looks like "another social feed," but the staff move is to name what it really is — a <em>high-frequency time-series ingestion</em> system. A run emits a GPS point every second or two; the feed is read-light by comparison. L6/L7 interviewers watch whether you anchor the design on the write path (batching, write-optimized store, offline durability) and downsample for reads, instead of burning your time on fan-out you've already solved elsewhere.
   </div>
 
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Data flow, component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>“Do followers need a live view during the activity, or only after it's saved?”</b> — Live tracking changes ingestion from batched sync to streaming.</li><li><b>“How often does the device capture GPS points?”</b> — Point frequency sets the write firehose.</li><li><b>“Must recording work offline?”</b> — Offline capture makes the phone the source of truth mid-activity.</li></ul>
+  </div>
   <h2>Functional Requirements</h2>
   <p>Strava's value is recording a workout, viewing it richly, and seeing what your friends did. Lock these three and explicitly punt the rest.<a href="#c1" class="cite">[1]</a></p>
   <table>
@@ -91,6 +122,9 @@
     <tr><td><b>Accurate aggregate stats</b></td><td>Distance/elevation/pace must match what the device computed locally — no drift between phone and server.<a href="#c1" class="cite">[1]</a></td></tr>
   </table>
 
+  <p class="transition"><span class="lbl">Say to move on →</span> “Never lose GPS points, always accept writes. The write rate dominates, so let me size it.”</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only estimate the numbers that change the design. Here, one number dominates: <b>write volume during an activity.</b></p>
   <div class="box">
@@ -112,6 +146,14 @@
   </div>
   <p><b>Design implication:</b> 10M writes/sec is the whole problem. You cannot send one HTTP request per point and you cannot do one row-insert per point through a relational primary. You need device-side <b>batching</b> + a <b>write-optimized store</b>. Everything downstream is comparatively easy.</p>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why not send each GPS point as its own request?”</p>
+    <p><b>Staff answer:</b> 10M requests per second of tiny payloads is wasteful and breaks offline. Batch on the device every ~10 s, which cuts requests 10× and makes offline sync free.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “~10M point-writes/s at peak rules out a relational primary. Let me define the entities and batch API.”</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p>Three entities. Note the deliberate split: lightweight activity <em>metadata</em> versus the bulky <em>track</em> (the ordered point stream).</p>
   <table>
@@ -130,6 +172,25 @@
     <tr><td><code>GET /v1/feed?cursor=…</code></td><td>Paginated feed of followed users' activities.</td></tr>
   </table>
 
+  <h2>Data Model</h2>
+  <p>Split by temperature and size. The hot, write-heavy point stream lives in Cassandra, one row <em>per uploaded batch</em> (not per point) so 10M points/s becomes ~1M row writes/s. On completion the track is compacted into an immutable object in S3 plus a small polyline on the activity row, and the Cassandra partition expires.</p>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>track_batches</b> (activity_id, first_ts, batch_seq, points blob — delta-encoded)</td><td>Cassandra, TTL 7 days after completion</td><td>Partition <code>activity_id</code> · clustering <code>(first_ts, batch_seq)</code></td><td>Append; single-partition range scan by the finalizer. <code>batch_seq</code> + idempotency key dedupe retries</td></tr>
+    <tr><td><b>activities</b> (activity_id, user_id, type, status, start_time, distance_m, elevation_m, moving_time_s, polyline, track_uri)</td><td>Postgres, sharded by <code>user_id</code></td><td>PK <code>activity_id</code> (embeds shard id)</td><td><code>(user_id, start_time DESC)</code> for profile pages</td></tr>
+    <tr><td><b>follows</b> (follower_id, followee_id)</td><td>Postgres</td><td>PK <code>(follower_id, followee_id)</code></td><td>Reverse index <code>(followee_id)</code> for fan-out</td></tr>
+    <tr><td><b>Raw track</b></td><td>S3 (→ Infrequent Access after 30 days)</td><td><code>tracks/{userId}/{activityId}.gz</code></td><td>Rare full-resolution reads (re-analysis, segments)</td></tr>
+    <tr><td><b>Feed</b></td><td>Redis sorted set <code>feed:{userId}</code></td><td>member = activity_id, score = start_time</td><td>Capped list; hydrated from activities (metadata + polyline only)</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why split TrackPoints from Activity?”</p>
+    <p><b>Staff answer:</b> Activity is small metadata read often by feeds; the track is millions of points written append-only and read rarely at full resolution. Different stores fit each.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Activity metadata and the bulky track are separate. Now the ingest, finalize and read paths.”</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Data Flow — the recording pipeline</h2>
   <p>Strava is a data-processing system, so the flow is worth tracing explicitly:</p>
   <ol style="font-family:-apple-system,sans-serif; font-size:.9rem;">
@@ -139,6 +200,27 @@
     <li>On <code>/complete</code>, a finalizer reads the full track, computes authoritative <b>aggregate stats</b>, builds an <b>encoded polyline</b>, and writes the immutable raw track to <b>object storage</b>.</li>
     <li>A feed worker fans the completed activity to followers.</li>
   </ol>
+
+  <h2>Component Diagram</h2>
+<pre class="diagram">
+ [Phone: GPS 1 Hz, local buffer + live stats, offline queue]
+    | POST /points (batch every ~10 s)            | POST /complete
+    v                                             v
+ [Ingest Svc (stateless, behind LB)]        [Activity Svc]
+    | append batch row                            | enqueue finalize
+    v                                             v
+ [Cassandra track_batches] &lt;--read full track-- [Finalizer workers]
+                                                  |           |
+                                                  | stats     | archive
+                                                  v           |
+                                        [Postgres activities] |
+                                                  |           v
+                                                  |       [S3 raw tracks]
+                                                  | activity completed event
+                                                  v
+                                            [Feed workers] --&gt; [Redis feeds] &lt;-- [Feed Svc]
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">The write path (left) is batch → stateless ingest → LSM store. Completion (right) computes canonical stats once, stores a polyline in Postgres, archives the raw track to S3, and fans the activity out to followers.</p>
 
   <h2>High-Level Design</h2>
   <p>Boxes and arrows, mapped to the APIs above:</p>
@@ -158,6 +240,14 @@
     The senior answer reaches for "feed = fan-out, use a graph/social DB." The staff answer reframes: <b>this is a time-series ingestion problem first.</b> Lead with the write path — batch on device, append to an LSM-tree store, never one row-per-point through a relational primary — and treat the feed as a familiar, secondary concern you can resolve in two minutes. Knowing <em>which</em> hard part deserves your 60% is the whole game.
   </div>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Where does the source of truth live during an activity?”</p>
+    <p><b>Staff answer:</b> On the device. The server accepts idempotent batches keyed by (activityId, seq), so retries and late offline syncs don't duplicate points.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: ingesting the firehose, computing stats, the feed and serving maps.”</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dive 1 — Ingesting the GPS firehose</h2>
   <p>The naïve design — <code>POST</code> one point per second per user — melts at 10M writes/sec: HTTP overhead dwarfs the 36-byte payload, and a relational primary fsyncing every insert chokes on write amplification. Two moves fix it:</p>
   <h3>Batch on the device</h3>
@@ -200,6 +290,111 @@
     </ul>
   </div>
   <p>The principle generalizes: the resolution you <em>capture</em> (every second) is not the resolution you <em>serve</em> (whatever the screen needs).</p>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. Device batching → stateless ingest → Cassandra; finalize to S3 + Postgres</b> (chosen)</td><td>As drawn</td><td>Simplest design meeting 10M points/s; offline sync free; hot store stays small</td><td>No server-side live view during an activity (the phone has it)</td><td>Default</td></tr>
+    <tr><td><b>B. Streaming pipeline: ingest → Kafka → Flink → stores</b></td><td>Batches published to Kafka; Flink computes rolling stats and live segments; sinks to Cassandra/S3</td><td>Live server-side stats (live tracking for friends/safety, real-time segment matching); replayable stream for new consumers</td><td>Another tier to operate; more cost and moving parts for a feature scoped out</td><td>Live tracking ("Beacon") or real-time leaderboards become requirements</td></tr>
+    <tr><td><b>C. Upload-on-completion only</b></td><td>Phone records the whole activity locally and uploads one compressed file (e.g. FIT/GPX) at the end</td><td>Cheapest possible: one request per activity; no hot point store at all</td><td>No server copy mid-activity (phone lost = activity lost); large uploads on poor connections; no live features ever</td><td>Watch/bike-computer uploads, or an MVP</td></tr>
+  </table>
+  <p><b>Pick A</b> for an app: incremental batches protect against device loss at modest cost. C is a legitimate path for wearables (and real Strava accepts file uploads); B earns its keep only when live features are in scope.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Compute stats while streaming or at completion?”</p>
+    <p><b>Staff answer:</b> At completion: one scan of the full track gives accurate stats off the hot path. The phone already shows live stats locally.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Production concerns, including location privacy.”</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+  <h2>Observability</h2>
+  <table>
+    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+    <tr><td>Ingest (RED)</td><td>Batches/s, points/s, p99 batch write latency, 4xx/5xx, duplicate-batch rate, batch size distribution</td><td>The firehose is the scaling pressure</td></tr>
+    <tr><td>Client durability</td><td>Offline queue depth and age on devices, upload retry counts, points recorded vs points acknowledged</td><td>"Never lose GPS points" is measured on the client</td></tr>
+    <tr><td>Cassandra</td><td>Write latency, pending compactions, dropped mutations, partition size outliers (ultra-long activities)</td><td>Dropped mutations = data loss</td></tr>
+    <tr><td>Finalization</td><td>Complete → stats-ready latency, finalizer failures, server-vs-device distance discrepancy</td><td>"Accurate stats" NFR</td></tr>
+    <tr><td>Logs &amp; traces</td><td>activity_id + batch_seq in every log line; coarse region only (no coordinates) in logs; traces 1% of batches, 100% of completes</td><td>Rebuild an activity's upload history without logging locations</td></tr>
+  </table>
+
+  <h2>Monitoring</h2>
+  <table>
+    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+    <tr><td>Batch ingest availability 99.99%</td><td>Burn rate over 1 h / 6 h (the phone buffers, but an outage grows queues fast)</td><td>Page</td></tr>
+    <tr><td>Zero lost points</td><td>Cassandra dropped mutations &gt; 0; recorded-vs-acknowledged gap from client telemetry above baseline</td><td>Page</td></tr>
+    <tr><td>Activity view / feed p99 &lt; 200 ms</td><td>p99 &gt; 200 ms for 10 min</td><td>Page</td></tr>
+    <tr><td>Stats ready within 60 s of complete (p95)</td><td>Finalizer backlog &gt; 5 min</td><td>Ticket</td></tr>
+  </table>
+  <p><b>Synthetic probes:</b> a simulated device replays a recorded 1-hour ride at 60× speed every 15 minutes, including a simulated offline gap, then asserts the final distance matches the known value. <b>Dashboards:</b> ingest firehose, Cassandra health, finalizer lag, weekend peak readiness (Sunday mornings).</p>
+
+  <h2>Authentication &amp; Authorization</h2>
+  <table>
+    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+    <tr><td>App → activities, points, feed</td><td>OAuth 2.0 (PKCE) → short-lived access token + refresh token; long-lived enough to survive an offline activity</td><td>Only the activity owner can append points or complete it</td></tr>
+    <tr><td>Viewer → activity</td><td>Token (or anonymous for public activities)</td><td>Per-activity visibility: everyone / followers / only me — checked on read and at fan-out</td></tr>
+    <tr><td>Third-party apps and devices (Garmin, Zwift)</td><td>OAuth scopes (<code>activity:write</code>, <code>activity:read_all</code>)</td><td>Scoped, user-revocable</td></tr>
+    <tr><td>Service → service</td><td>mTLS; IAM for S3</td><td>Only the finalizer writes stats and archives</td></tr>
+  </table>
+
+  <h2>Security</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>Stalking via public routes</td><td>Privacy zones, followers-only default, hide start/end points, block users</td></tr>
+    <tr><td>Fake / spoofed GPS activities (leaderboard cheating)</td><td>Physics plausibility checks (speed, acceleration, teleports), device attestation, flagging</td></tr>
+    <tr><td>Point-injection into someone else's activity</td><td>Owner check on every batch; activity ids unguessable</td></tr>
+    <tr><td>Ingest flooding</td><td>Per-token rate and batch-size limits at the gateway</td></tr>
+    <tr><td>Scraping of public activities / heatmaps</td><td>Auth required for detailed routes; rate limits; heatmap tiles only at coarse zooms for anonymous users</td></tr>
+    <tr><td>Baseline</td><td>TLS, encryption at rest (Cassandra, S3 SSE-KMS), secrets manager, WAF</td></tr>
+  </table>
+
+  <h2>Privacy</h2>
+  <p>GPS traces reveal <b>where people live, work and run alone at 6 am</b> — Strava's global heatmap famously exposed military bases. <b>Privacy zones:</b> users define hidden areas (e.g. 500 m around home); points inside are trimmed from anything shown to others, at finalization. <b>Defaults:</b> new activities default to followers-only; heatmap contribution is opt-out-able and aggregated with minimum-density thresholds. <b>Minimization:</b> coordinates never in logs; analytics use downsampled or aggregated tracks. <b>Deletion:</b> deleting an activity removes the Postgres row, S3 object, feed entries and heatmap contribution on next rebuild. <b>Health data:</b> heart rate and similar streams treated as sensitive, encrypted, excluded from public views.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you protect athletes' home addresses?”</p>
+    <p><b>Staff answer:</b> Privacy zones that hide route segments near chosen locations, private-by-default options for new users, and never exposing raw tracks of private activities through APIs or heatmaps.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Finally, 10× and cost.”</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <p>10× = 100M concurrent activities (~100M points/s, ~10M batch writes/s).</p>
+  <table>
+    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+    <tr><td>Ingest service</td><td>~200 nodes at peak</td><td>~2,000</td><td>Stateless autoscale; raise batch interval from 10 s to 30 s to cut request rate 3×</td></tr>
+    <tr><td>Cassandra</td><td>~40 nodes</td><td>~400</td><td>Add nodes; activity_id partitioning keeps load uniform; TTL bounds size</td></tr>
+    <tr><td>S3</td><td>~300 GB/day</td><td>~3 TB/day</td><td>Nothing structural; lifecycle tiering</td></tr>
+    <tr><td>Postgres activities</td><td>~8 shards</td><td>~80</td><td>More shards by user_id</td></tr>
+    <tr><td>Finalizers / feed workers</td><td>Queue-driven</td><td>10×</td><td>More workers</td></tr>
+  </table>
+  <p><b>First bottleneck:</b> the synchronized Sunday-morning peak overwhelming ingest autoscaling reaction time — pre-scale on schedule. <b>What forces a redesign:</b> live features (real-time tracking, live segments) that need a streaming layer (alternative B).</p>
+
+  <h2>Cost of Running</h2>
+  <p>Assumptions: ~10M activities/day, peak 10M concurrent for a few hours, batches every 10 s, ~30 KB compressed per archived track, list prices from the course price sheet. Map tiles excluded — a commercial tile provider can rival the whole infra bill at this scale.</p>
+  <table>
+    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+    <tr><td>Ingest service</td><td>~80 × 8 vCPU average (autoscaled)</td><td>$20,000</td></tr>
+    <tr><td>Cassandra (hot tracks, 7 d)</td><td>~40 nodes with SSD</td><td>$30,000</td></tr>
+    <tr><td>Postgres activities (sharded)</td><td>~8 shard pairs, ~10 TB/yr</td><td>$10,000</td></tr>
+    <tr><td>S3 raw tracks</td><td>~300 TB cumulative (mostly IA)</td><td>$5,000</td></tr>
+    <tr><td>Finalizers, feed workers, Redis feeds</td><td></td><td>$13,000</td></tr>
+    <tr><td>Gateway, LB, observability</td><td></td><td>$7,000</td></tr>
+    <tr><td><b>Total</b></td><td></td><td><b>≈ $85,000</b></td></tr>
+  </table>
+  <p><b>Unit cost:</b> ≈ $0.28 per 1,000 activities recorded. <b>Dominant drivers:</b> ingest compute and the hot point store, both proportional to the batch rate. <b>Lever:</b> longer device batch intervals (10 s → 30 s) cut ingest requests and row writes ~3× with no user-visible change, since live stats are computed on the phone.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“What's the first knob at 10×?”</p>
+    <p><b>Staff answer:</b> Increase the device batch interval and add ingest and Cassandra nodes. The hot store stays bounded because completed tracks move to S3.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
+
+  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+  <h2>Closing Summary (60 seconds)</h2>
+  <div class="summary"><p>Strava is a write firehose with rich reads afterward. Phones record GPS offline and upload idempotent batches every ~10 s to stateless ingest servers, which append to Cassandra partitioned by activity. On completion, a finalizer computes stats once, archives the full track to S3 and writes the summary to Postgres. The hot store stays small. Feeds use fan-out on write because activity volume is modest, and maps serve downsampled routes by zoom. Privacy zones protect home locations. At 10× we raise batch intervals and add nodes.</p></div>
 
   <h2>Check yourself — retrieval practice</h2>
   <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>

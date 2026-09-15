@@ -41,6 +41,26 @@
   .box b{color:var(--accent);}
   .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
   .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
   .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
   .quiz h3{margin-top:0;}
   .q{margin:1.3rem 0;}
@@ -71,6 +91,17 @@
     <strong>Why this lesson, for your mission:</strong> Auth is the system every other system depends on, so an L6/L7 interviewer is testing whether you can hold <em>security</em> and <em>low latency</em> in tension and not blink. The depth lives in three places: do you understand why a stateless JWT trades revocation for scale, can you reason about OAuth2/OIDC without hand-waving, and do you know how Google's Zanzibar makes a fine-grained authorization check return in single-digit milliseconds globally. Get those right and you signal you can own a foundational platform.
   </div>
 
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>“Are we authenticating our own users, or offering identity as a multi-tenant service?”</b> — Multi-tenancy adds per-tenant keys, IdP configuration and isolation.</li><li><b>“How quickly must a revoked session stop working?”</b> — Revocation latency decides token lifetime and deny-list design.</li><li><b>“Is fine-grained authorization (sharing, groups) in scope, or just roles?”</b> — Relationship-based access needs a Zanzibar-style service.</li></ul>
+  </div>
   <h2>Functional Requirements</h2>
   <p>This is two products fused: an <b>authentication</b> service (prove who you are) and an <b>authorization</b> service (decide what you may do). Keep the core to five capabilities; name advanced flows (device code, SAML legacy, account linking) as explicitly out of scope.</p>
   <table>
@@ -96,6 +127,9 @@
     </tbody>
   </table>
 
+  <p class="transition"><span class="lbl">Say to move on →</span> “Security first, then latency, then availability. Let me size logins vs verifications.”</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only the numbers that change the design. Logins are rare; <b>token verifications and authz checks</b> dominate, and that ratio is the whole story.</p>
   <div class="box">
@@ -106,6 +140,14 @@
     </ul>
   </div>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“If verifications are millions per second, won't the auth service melt?”</p>
+    <p><b>Staff answer:</b> Access tokens are signed JWTs verified locally by resource servers using cached public keys, so verification never calls the auth service.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Logins are ~1k/s; token verifications and authz checks are millions per second. Let me define entities and the two planes.”</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p>Core entities: <b>User</b> (identity + hashed credential, scoped to a tenant), <b>Tenant</b> (isolation boundary + its signing keys + identity-provider config), <b>Token</b> (access + refresh), and a <b>Relation/Grant</b> tuple <code>(object, relation, subject)</code> powering authorization.<a href="#c3" class="cite">[3]</a></p>
   <div class="box">
@@ -124,6 +166,43 @@
     </ul>
   </div>
 
+  <h2>Data Model</h2>
+  <p>Every row carries <code>tenant_id</code>, and every secret is stored as a <b>hash or a KMS reference</b> — never in the clear: password hashes (argon2id with parameters), refresh tokens and authorization codes stored by hash, client secrets hashed, signing private keys held in KMS/HSM. Refresh tokens form <b>families</b> (parent → child on rotation) so reuse of an old token revokes the whole chain. Authorization data is a separate tuple store keyed like Zanzibar.</p>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>tenants</b> (tenant_id, domains, idp_configs, active_kids, policies)</td><td>Globally replicated SQL</td><td>PK <code>tenant_id</code></td><td>Resolved from hostname/client_id (cached)</td></tr>
+    <tr><td><b>users</b> (tenant_id, user_id, email_normalized, password_hash, hash_params, email_verified, status, created_at)</td><td>Sharded Postgres (by tenant)</td><td>PK <code>(tenant_id, user_id)</code></td><td>UNIQUE <code>(tenant_id, email_normalized)</code></td></tr>
+    <tr><td><b>identities</b> (tenant_id, provider, provider_subject, user_id)</td><td>Same shard</td><td>PK <code>(tenant_id, provider, provider_subject)</code></td><td>Federated login lookup</td></tr>
+    <tr><td><b>mfa_factors</b> (tenant_id, user_id, factor_id, type, secret_ciphertext / webauthn_public_key, sign_count)</td><td>Same shard, field-level encryption</td><td>PK <code>(tenant_id, user_id, factor_id)</code></td><td>Step-up verification</td></tr>
+    <tr><td><b>clients</b> (client_id, tenant_id, type, secret_hash, redirect_uris, allowed_grants, scopes)</td><td>Replicated SQL (cached)</td><td>PK <code>client_id</code></td><td>Exact redirect URI match on /authorize</td></tr>
+    <tr><td><b>authorization_codes</b> (code_hash, client_id, user_id, redirect_uri, pkce_challenge, expires_at)</td><td>Redis, TTL 60 s, single use</td><td><code>code_hash</code></td><td>GETDEL on exchange</td></tr>
+    <tr><td><b>refresh_tokens</b> (token_hash, tenant_id, user_id, client_id, family_id, parent_hash, expires_at, used_at, revoked_at)</td><td>DynamoDB / sharded KV, replicated</td><td>PK <code>token_hash</code></td><td>GSI <code>family_id</code> for chain revocation; GSI <code>user_id</code> for "log out everywhere"</td></tr>
+    <tr><td><b>signing_keys</b> (tenant_id, kid, alg, public_jwk, kms_key_ref, status)</td><td>SQL + KMS/HSM</td><td>PK <code>(tenant_id, kid)</code></td><td>JWKS publishes active + retiring keys</td></tr>
+    <tr><td><b>Revoked jti deny-list</b></td><td>Redis, TTL = token expiry</td><td><code>jti:{id}</code></td><td>Optional emergency revocation check</td></tr>
+    <tr><td><b>relation_tuples</b> (namespace, object_id, relation, subject, commit_ts)</td><td>Spanner/CockroachDB-class store</td><td>PK <code>(namespace, object_id, relation, subject)</code></td><td>check() reads at a zookie snapshot; changelog feeds the group-membership index</td></tr>
+    <tr><td><b>audit_log</b> (tenant_id, ts, actor, event, ip_hash, result)</td><td>Append-only log → WORM storage</td><td>—</td><td>Login, token and admin events for tenants and forensics</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why short-lived access tokens plus refresh tokens?”</p>
+    <p><b>Staff answer:</b> JWTs can't be revoked easily, so keep them short (minutes). Refresh tokens are stored server-side, rotated on use, and revocable, which gives revocation at refresh time.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Tokens and relation tuples are the core contracts. Now login and verification flows.”</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+  <h2>Component Diagram</h2>
+<pre class="diagram">
+ [User agent + client app] --API call + access JWT--&gt; [Resource server]
+    | login, code+PKCE, refresh                           | jwks  | check
+    v                                                     v       v
+ [Auth service: login, MFA, token issue]               [JWKS]  [Authz (Zanzibar-style)]
+        |           |           |                                     |         |
+        v           v           v sign                                v         v
+ [Users DB]    [Refresh tok]  [KMS]                             [Leopard/cache][Tuples DB]
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">Authentication is centralized (login, MFA, token minting with KMS-held keys); verification is decentralized — resource servers check JWT signatures locally with cached JWKS. Authorization decisions come from a Zanzibar-style service backed by a consistent tuple store and a denormalized membership index/cache.</p>
+
   <h2>High-Level Design</h2>
   <p>Two request shapes flow through the system. A <b>login</b> hits the Auth service, which validates the credential (or completes an OAuth2 redirect with an external IdP), then signs and returns tokens. Every <b>subsequent API call</b> carries the access token; the resource server verifies the signature <em>locally</em> using cached public keys, then calls the <b>Authz service</b> for a permission decision.</p>
   <table>
@@ -136,6 +215,14 @@
     </tbody>
   </table>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why separate authentication from authorization?”</p>
+    <p><b>Staff answer:</b> Proving identity happens once per session; authorization checks happen on every action and need a fast, cached relationship store.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: token strategy, OAuth/OIDC, passwords and MFA, authorization, multi-tenancy.”</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
   <p>Where the interview is decided. Four hard parts: the token strategy, the OAuth2/OIDC flow, credential security, and the fine-grained authz check at scale.</p>
 
@@ -206,6 +293,116 @@
     <span class="tag">★ Staff-level signal</span>
     Senior candidates describe JWTs and OAuth diagrams. Staff candidates do three things on top: (1) name the <b>JWT revocation problem</b> out loud and resolve it with short TTL + refresh-token rotation + an optional jti deny-list, rather than pretending stateless tokens are free; (2) distinguish <b>OAuth2 (authz) from OIDC (authn)</b> and explain <em>why</em> the auth code, not the token, traverses the browser; (3) reach for <b>Zanzibar-style relation tuples + zookies</b> for fine-grained authz and articulate the <b>"new enemy" consistency bug</b> caching introduces — security correctness under caching is the line between senior and staff here.
   </div>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. Short-lived JWT access tokens + rotated refresh tokens; centralized ReBAC authz service</b> (chosen)</td><td>As drawn</td><td>Stateless, local verification at millions/s; revocation via refresh layer; fine-grained sharing</td><td>Revocation lag up to access-token TTL; authz service is a critical dependency</td><td>Identity platform serving many apps and tenants</td></tr>
+    <tr><td><b>B. Opaque tokens with introspection</b> (every API call asks the auth server or a session store)</td><td>Tokens are random references; resource servers call /introspect (cached briefly)</td><td>Instant revocation; no token content leakage; simpler key management</td><td>Network hop per request (or per cache TTL); auth tier must scale with all API traffic</td><td>High-security domains (banking) or smaller deployments</td></tr>
+    <tr><td><b>C. Policy engine embedded in each service</b> (OPA/Cedar-style: policies + data pushed to sidecars, evaluated locally)</td><td>Authorization policies and relevant attributes distributed to every service; decisions computed in-process</td><td>Sub-millisecond decisions; no central dependency on the hot path; expressive ABAC</td><td>Data distribution and freshness problems for per-object relationships at scale; harder global consistency</td><td>Attribute/role-based rules with slowly changing data</td></tr>
+  </table>
+  <p><b>Pick A</b> for a general identity platform, offer B (introspection) as a per-tenant mode for high-security customers, and combine C for coarse RBAC/ABAC policies with a Zanzibar-style service for per-object relationships.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you revoke a stolen JWT before it expires?”</p>
+    <p><b>Staff answer:</b> Short TTL bounds the window; refresh-token rotation with reuse detection kills the session family; and a small jti deny-list checked for sensitive operations covers the rest.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness for a security-critical service.”</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+  <h2>Observability</h2>
+  <p>Auth telemetry is also security telemetry — every signal should answer both "is it up?" and "is someone attacking?"</p>
+  <table>
+    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+    <tr><td>Authentication</td><td>Login attempts/successes/failures by reason and tenant, MFA challenge and success rates, federated IdP latency/errors, password hash latency</td><td>Credential stuffing looks like a failure-rate spike</td></tr>
+    <tr><td>Tokens</td><td>Tokens issued/refreshed/revoked, refresh-token reuse detections, JWKS fetch rate, key rotation events</td><td>Reuse detection = likely token theft</td></tr>
+    <tr><td>Authorization</td><td>check() QPS, p50/p99, cache hit rate, graph-walk depth, zookie staleness, deny rates by namespace</td><td>&lt; 10 ms p99 NFR and "new enemy" risk</td></tr>
+    <tr><td>Audit</td><td>Immutable audit events per tenant (admin changes, role grants, login from new country)</td><td>Tenant visibility and forensics</td></tr>
+    <tr><td>Logs &amp; traces</td><td>request_id and tenant_id everywhere; tokens, passwords, codes and secrets redacted at the logging library level</td><td>Never leak a credential into logs</td></tr>
+  </table>
+
+  <h2>Monitoring</h2>
+  <table>
+    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+    <tr><td>Login + token availability 99.99% per region</td><td>Burn rate over 5 min / 1 h</td><td>Page</td></tr>
+    <tr><td>check() p99 &lt; 10 ms, 99.99% availability</td><td>Latency/error above target for 5 min</td><td>Page</td></tr>
+    <tr><td>JWKS always resolvable (verification everywhere depends on it)</td><td>JWKS fetch failures from any region; key missing for an active kid</td><td>Page</td></tr>
+    <tr><td>Attack detection</td><td>Failed-login spike &gt; N× baseline for a tenant; refresh-token reuse bursts</td><td>Page (security on-call)</td></tr>
+    <tr><td>Federated IdP health</td><td>Upstream IdP error rate above threshold</td><td>Ticket / tenant notification</td></tr>
+  </table>
+  <p><b>Synthetic probes:</b> test tenants perform password login, MFA, social login, refresh rotation, revocation and check() calls from every region every minute. <b>Dashboards:</b> per-region auth SLOs, attack indicators, authz latency and cache hit rates.</p>
+
+  <h2>Authentication &amp; Authorization</h2>
+  <p>For an identity provider this section is about how the platform <em>itself</em> is accessed and protected.</p>
+  <table>
+    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+    <tr><td>End users → login endpoints</td><td>Password + MFA, WebAuthn/passkeys, federated IdPs (OIDC/SAML)</td><td>Tenant policies (MFA required, allowed IdPs, IP rules)</td></tr>
+    <tr><td>Public clients (SPA/mobile) → /token</td><td>Authorization Code + PKCE (no client secret)</td><td>Exact redirect URIs; allowed grants and scopes per client</td></tr>
+    <tr><td>Confidential clients / machine-to-machine</td><td>Client credentials with private_key_jwt or mTLS-bound tokens</td><td>Scopes/audiences per client</td></tr>
+    <tr><td>Resource servers → check(), JWKS</td><td>mTLS or service tokens for check(); JWKS public</td><td>A service may only check namespaces it owns</td></tr>
+    <tr><td>Tenant admins → management API</td><td>SSO + MFA, admin tokens with narrow scopes</td><td>RBAC within the tenant (user admin, app admin, auditor); never cross-tenant</td></tr>
+    <tr><td>Platform operators</td><td>Hardware keys, just-in-time elevated access</td><td>Break-glass only; all access to tenant data audited and alerted</td></tr>
+  </table>
+
+  <h2>Security</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>Credential stuffing and password spraying</td><td>Rate limits per IP/account/tenant, breached-password checks, bot detection, adaptive MFA, lockout with backoff</td></tr>
+    <tr><td>Phishing of credentials and OTPs</td><td>WebAuthn/passkeys (origin-bound), push MFA with number matching</td></tr>
+    <tr><td>Token theft / replay</td><td>Short TTLs, refresh rotation with reuse detection, sender-constrained tokens (DPoP/mTLS) for high-value clients</td></tr>
+    <tr><td>Signing key compromise</td><td>Keys in HSM/KMS, rotation with kid, rapid key revocation playbook</td></tr>
+    <tr><td>OAuth misconfiguration (open redirects, code interception)</td><td>Exact redirect URI matching, PKCE required, state/nonce validation, short single-use codes</td></tr>
+    <tr><td>"New enemy" authz bug (stale ACL after revocation)</td><td>Zookie consistency tokens; cache invalidation on tuple writes; conservative TTLs for deny-sensitive namespaces</td></tr>
+    <tr><td>Cross-tenant data leakage</td><td>Tenant id derived from the verified client/token, enforced in every query; isolation tests</td></tr>
+  </table>
+
+  <h2>Privacy</h2>
+  <p>The service holds <b>identity data for billions of people</b>: emails, phone numbers, IP/device history, and MFA factors. <b>Minimization:</b> tokens carry only necessary claims (no PII in access tokens beyond a subject id unless requested by scope); login telemetry stores hashed/truncated IPs after a short window. <b>Tenant isolation</b> is a privacy boundary: per-tenant data partitions, keys and audit trails; residency per region. <b>Deletion:</b> user erasure removes profile, identities, factors, refresh tokens and tuples mentioning the user, while audit records are pseudonymized. <b>Consent:</b> OIDC consent screens record granted scopes per client, revocable by the user.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you store passwords and resist credential stuffing?”</p>
+    <p><b>Staff answer:</b> Argon2id or bcrypt with per-user salts, breached-password checks, rate limiting and bot detection on login, and phishing-resistant MFA like passkeys.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <p>10× = 1B DAU, ~10M token verifications/s (local), tens of millions of authz checks/s.</p>
+  <table>
+    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+    <tr><td>Token verification</td><td>Local at resource servers</td><td>10× verifies</td><td>Nothing central — it scales with the callers' own fleets</td></tr>
+    <tr><td>Auth service (logins, hashing)</td><td>~40 nodes per region</td><td>~400</td><td>Stateless scale-out; password hashing is the CPU cost</td></tr>
+    <tr><td>Refresh token store</td><td>~28k writes/s</td><td>~280k/s</td><td>More partitions; longer access-token TTL for low-risk clients</td></tr>
+    <tr><td>Authz service</td><td>~300 nodes</td><td>~3,000</td><td>More replicas and cache; shard tuples by namespace/object</td></tr>
+    <tr><td>User store</td><td>Sharded by tenant</td><td>10× users</td><td>More shards; move large tenants to dedicated shards</td></tr>
+  </table>
+  <p><b>First bottleneck:</b> refresh-token write volume and authz cache invalidation fan-out. <b>What forces a redesign:</b> requiring instant global revocation of every access token, which removes the stateless-verification advantage (every request needs a revocation check).</p>
+
+  <h2>Cost of Running</h2>
+  <p>Assumptions: 100M DAU, 60-minute access tokens (~2.4B refreshes/day), millions of authz checks/s at peak, 3 regions, ~2% of logins using SMS OTP (the rest TOTP/passkeys/push), list prices from the course price sheet; rounded.</p>
+  <table>
+    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+    <tr><td>SMS OTP delivery</td><td>~60M SMS × $0.0075</td><td>$450,000</td></tr>
+    <tr><td>Authz service + tuple store (3 regions)</td><td>~300 nodes + consistent SQL store</td><td>$200,000</td></tr>
+    <tr><td>Refresh token store</td><td>~70B writes/month (DynamoDB-class)</td><td>$90,000</td></tr>
+    <tr><td>Auth service (password hashing CPU) × 3 regions</td><td>~120 × 16 vCPU</td><td>$60,000</td></tr>
+    <tr><td>User stores, KMS/HSM, Redis, audit pipeline</td><td></td><td>$60,000</td></tr>
+    <tr><td><b>Total</b></td><td></td><td><b>≈ $860,000</b></td></tr>
+  </table>
+  <p><b>Unit cost:</b> ≈ $0.009 per DAU per month. <b>Dominant driver:</b> SMS for MFA, then the authorization tier. <b>Levers:</b> push users toward passkeys/TOTP (also more secure), tune access-token TTL against refresh volume, and cache authz decisions with safe invalidation.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“What dominates cost?”</p>
+    <p><b>Staff answer:</b> SMS OTP fees and the authorization check fleet. Move users to passkeys or TOTP and cache authorization decisions.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
+
+  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+  <h2>Closing Summary (60 seconds)</h2>
+  <div class="summary"><p>An auth service splits identity from authorization. Login verifies credentials (Argon2id-hashed passwords, MFA or passkeys) or completes an OIDC flow with an external IdP, then issues short-lived signed JWT access tokens and rotating, revocable refresh tokens. Resource servers verify tokens locally using cached public keys from a JWKS endpoint, so verification scales with the callers. Fine-grained authorization is a Zanzibar-style relation-tuple service with cached checks. Each tenant has its own signing keys, rotated with overlap. At 10× verification is still local; we add authz nodes.</p></div>
 
   <h2>Check yourself — retrieval practice</h2>
   <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>

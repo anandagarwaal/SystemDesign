@@ -41,6 +41,26 @@
   .box b{color:var(--accent);}
   .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
   .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
   .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
   .quiz h3{margin-top:0;}
   .q{margin:1.3rem 0;}
@@ -71,6 +91,17 @@
     <strong>Why this lesson, for your mission:</strong> Observability is the canonical "ingest-heavy, read-rarely, cost-dominated" system. The senior answer is "ship logs to Elasticsearch." The staff answer recognizes that at petabyte scale you cannot index or even keep everything — so you make <em>sampling</em> and <em>tiered storage</em> first-class design decisions, and you treat <em>cost per useful query</em>, not raw throughput, as the metric to optimize. This prompt rewards judgement over completeness.
   </div>
 
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Data flow, component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>“What retention for logs and traces, and at what query speed?”</b> — Hot vs cold tiers depend on retention and latency targets.</li><li><b>“Must we keep every trace, or can we sample?”</b> — Sampling is the main cost lever.</li><li><b>“Is instrumentation via OpenTelemetry?”</b> — Standard context propagation defines how traces are assembled.</li></ul>
+  </div>
   <h2>Functional Requirements</h2>
   <p>Two telemetry signals — logs and traces — sharing one pipeline. Scope tightly.<a href="#c1" class="cite">[1]</a></p>
   <table>
@@ -92,6 +123,9 @@
     <tr><td>Durability</td><td>buffered, at-least-once to storage</td><td>Kafka absorbs spikes so a storage stall never drops the firehose.</td></tr>
   </table>
 
+  <p class="transition"><span class="lbl">Say to move on →</span> “Massive write throughput, and the app must never block on telemetry. Let me size it.”</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only the numbers that change a decision.</p>
   <div class="box">
@@ -103,6 +137,14 @@
     </ul>
   </div>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why not index every log line forever?”</p>
+    <p><b>Staff answer:</b> At ~25 PB a month, indexing everything would cost more than the systems being monitored. Index a short hot window, keep cheaper columnar storage for weeks and object storage for compliance.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “~10M events/s and ~25 PB/month raw makes sampling and tiering the architecture. Let me define entities.”</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p><b>Entities:</b> <code>LogEvent</code> (timestamp, service, level, message, fields), <code>Span</code> (trace_id, span_id, parent_span_id, service, operation, start, duration, tags), <code>Trace</code> (a tree of spans sharing one trace_id).</p>
   <table>
@@ -115,6 +157,27 @@
   </table>
   <p>Tenant/team is derived from the agent's auth token, never a body field.</p>
 
+  <h2>Data Model</h2>
+  <p>Logs and spans get different keys because they're queried differently. <b>Logs</b> are time-partitioned per tenant: indexed documents while hot, then columnar files whose <b>manifest</b> (time range, services, token/trace-id Bloom filters) lets cold queries skip most files. <b>Spans</b> are partitioned by <code>trace_id</code> so a trace is one partition read, with a small secondary <b>trace index</b> for finding traces by service, latency or error. Every record carries <code>tenant_id</code> and <code>trace_id</code> so logs and traces can be correlated.</p>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>Log event</b> (tenant_id, ts, service, host, level, trace_id, span_id, message, attributes)</td><td>Hot: Elasticsearch/OpenSearch indices per tenant per day</td><td>index <code>logs-{tenant}-{date}</code></td><td>Keyword fields for common attributes; full-text on message; ILM rolls indices to warm/delete</td></tr>
+    <tr><td><b>Log files</b> (same schema, columnar)</td><td>Parquet on S3: <code>{tenant}/{date}/{hour}/{service}/part-N.parquet</code></td><td>file path</td><td>Scan-on-demand with predicate pushdown</td></tr>
+    <tr><td><b>log_manifest</b> (file, tenant_id, service, min_ts, max_ts, row_count, bloom_trace_ids, bloom_tokens)</td><td>Metadata DB (e.g. Postgres/ClickHouse)</td><td>PK <code>file</code></td><td><code>(tenant_id, min_ts, max_ts)</code> for file pruning</td></tr>
+    <tr><td><b>spans</b> (trace_id, span_id, parent_span_id, service, operation, start_us, duration_us, status, attributes)</td><td>Cassandra/ScyllaDB (or columnar store), TTL 15 days</td><td>Partition <code>trace_id</code> · clustering <code>(start_us, span_id)</code></td><td>Single-partition trace assembly</td></tr>
+    <tr><td><b>trace_index</b> (tenant_id, service, operation, hour_bucket, duration_us, error, trace_id)</td><td>Columnar store</td><td>ORDER BY <code>(tenant_id, service, hour_bucket, duration_us)</code></td><td>"Slow/errored traces for checkout in the last hour"</td></tr>
+    <tr><td><b>sampling_policies</b> (tenant_id, service, rule, head_rate, tail_keep_conditions)</td><td>Config store pushed to agents/collectors</td><td>PK <code>(tenant_id, service, rule)</code></td><td>Hot-reloaded</td></tr>
+    <tr><td><b>retention_policies</b> and <b>usage_meter</b> (tenant_id, day, bytes_ingested, bytes_indexed, spans_kept)</td><td>Postgres / warehouse</td><td>PK <code>(tenant_id, day)</code></td><td>Budget enforcement and billing</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why does every span carry trace_id and parent_span_id?”</p>
+    <p><b>Staff answer:</b> They let the backend assemble a tree of spans from many services, and trace_id links logs to traces for correlation.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Logs, spans and traces sharing a trace_id. Now agents, buffer, processing and stores.”</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Data Flow — one event end to end</h2>
   <ol style="font-family:-apple-system,sans-serif; font-size:.9rem;">
     <li><b>Emit.</b> The app writes a log line or a span to a local <b>agent</b> (sidecar/daemonset) over a local socket — non-blocking, in-process buffering.<a href="#c3" class="cite">[3]</a></li>
@@ -123,6 +186,28 @@
     <li><b>Store.</b> Logs go to an indexed hot store (Elasticsearch/columnar); spans go to a trace store keyed by <code>trace_id</code>. Both age into <a href="0045-blob-store-s3.html">object storage</a> as cold tiers.</li>
     <li><b>Query.</b> The query service hits the hot index for recent data, or scans cold object storage for older ranges, then assembles traces from spans.</li>
   </ol>
+
+  <h2>Component Diagram</h2>
+<pre class="diagram">
+ [Services + local agents (OpenTelemetry)]
+      | logs, spans (batched, non-blocking)
+      v
+ [Ingest gateways: auth, quotas]
+      |
+      v
+ [Kafka (logs by service, spans by trace_id)]
+          |                       |
+          v                       v
+ [Log processors]         [Tail-sampling collectors]
+      |     |                     |
+      v hot v warm/cold           v kept traces
+ [ES hot 3d][Parquet on S3]   [Trace store]
+      ^           ^                 ^
+      +-----------+-----------------+
+                  |
+    [Query service: hot vs cold routing, trace assembly]
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">Applications write only to a local agent; Kafka decouples the firehose from storage. Log processors parse, enrich and route recent logs to an index and everything to columnar files on object storage; tail-sampling collectors keep errored and slow traces plus a head-sampled baseline. The query service routes by time range and assembles traces from spans.</p>
 
   <h2>High-Level Design</h2>
   <table>
@@ -137,6 +222,14 @@
   </table>
   <p>A write flows <code>app → agent → Kafka → processor → store</code>. A log search flows <code>UI → query svc → hot index (or cold scan)</code>. A trace view flows <code>UI → query svc → fetch spans by trace_id → assemble tree</code>.</p>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why agents with local buffers?”</p>
+    <p><b>Staff answer:</b> The application writes locally without blocking; the agent batches and ships, and survives brief pipeline outages without losing data.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: the ingest pipeline, head vs tail sampling, trace assembly and log tiering.”</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
 
   <h3>1. The ingestion pipeline at petabyte scale</h3>
@@ -185,6 +278,113 @@
     <span class="tag">★ Staff-level signal</span>
     Three things separate the staff answer: (1) you make <b>sampling a first-class decision</b> and can defend head vs tail vs hybrid by cost and debug value — not "keep everything"; (2) you treat <b>cost and tiering as the architecture</b>, indexing only the hot window and pushing the rest to columnar/object storage; (3) you explain <b>context propagation and trace_id-keyed assembly</b> precisely, including clock skew and orphan spans. Senior candidates wire up Elasticsearch; staff candidates decide what <em>not</em> to store and why.
   </div>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. Agents → Kafka → hot index + columnar cold tier; hybrid head/tail trace sampling</b> (chosen)</td><td>As drawn</td><td>Fast search on recent data, cheap long retention, bounded trace cost</td><td>Two query engines (index + cold scan); tail-sampling collectors to operate</td><td>Platform-wide observability at PB/month</td></tr>
+    <tr><td><b>B. Label-indexed logs on object storage</b> (Loki-style: index only labels, store compressed chunks in S3, brute-force grep within matching streams)</td><td>Tiny index of stream labels; queries select streams by labels then scan chunks in parallel</td><td>Far cheaper than full-text indexing; simple operations</td><td>Slow for needle-in-haystack searches across many streams; relies on good labels</td><td>Cost-sensitive teams whose queries start from service/pod labels</td></tr>
+    <tr><td><b>C. Columnar-only storage for everything</b> (ClickHouse for logs and traces, no inverted index)</td><td>Logs and spans in columnar tables with skip indexes and token Bloom filters</td><td>Excellent compression and aggregation speed; one engine</td><td>Arbitrary full-text search is slower than an inverted index; heavy data-skipping tuning</td><td>Structured logs where most queries filter fields and aggregate</td></tr>
+  </table>
+  <p><b>Pick A</b> when free-text search over recent logs is a key workflow; B or C are strong cheaper choices when logs are structured and queries start from labels or fields — many platforms are moving that way.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Head or tail sampling?”</p>
+    <p><b>Staff answer:</b> Hybrid: head-sample a small percentage of normal traces cheaply at the edge, and tail-sample by buffering complete traces briefly so errors and slow requests are always kept.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, including PII in logs.”</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+  <h2>Observability</h2>
+  <p>This system is the observability platform, so it must be observed by something <b>independent of itself</b> — a small, separate meta-monitoring stack — or an outage blinds the tool engineers need to debug it.</p>
+  <table>
+    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+    <tr><td>Ingest</td><td>Events and bytes/s by tenant, agent drop counts (buffer overflow), gateway throttles, Kafka produce latency</td><td>Know when telemetry is being lost, not just delayed</td></tr>
+    <tr><td>Pipeline lag</td><td>Kafka consumer lag per stage, event_time → searchable latency, tail-sampling buffer memory and decision latency</td><td>"Searchable in seconds" NFR</td></tr>
+    <tr><td>Storage</td><td>Index size, shard health, ingest rejections, file compaction backlog, manifest freshness</td><td>Index health drives query latency</td></tr>
+    <tr><td>Query</td><td>Hot vs cold query latency, bytes scanned per query, files pruned ratio, trace assembly misses (orphan spans)</td><td>Cost per useful query</td></tr>
+    <tr><td>Sampling effectiveness</td><td>Kept vs dropped spans by reason; share of errored traces kept</td><td>Ensure sampling keeps what debugging needs</td></tr>
+  </table>
+
+  <h2>Monitoring</h2>
+  <table>
+    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+    <tr><td>Ingest availability 99.9% with &lt; 0.01% loss</td><td>Agent drops or gateway rejections above threshold (from meta-monitoring)</td><td>Page</td></tr>
+    <tr><td>Logs searchable &lt; 30 s (p95) for hot tier</td><td>Consumer/indexing lag above target</td><td>Page</td></tr>
+    <tr><td>Recent search p95 &lt; 5 s; cold queries &lt; 60 s</td><td>Latency above target for 15 min</td><td>Ticket</td></tr>
+    <tr><td>Errored traces retained ≥ 99%</td><td>Tail-sampling collector overload (buffer evictions)</td><td>Page</td></tr>
+    <tr><td>Platform alive</td><td>Dead man's switch heartbeat to an external service</td><td>Page</td></tr>
+  </table>
+  <p><b>Synthetic probes:</b> a canary service emits known log lines and multi-service traces (including an error trace) every minute; probes search for them and assemble the trace end to end. <b>Dashboards:</b> ingest by tenant, lag per stage, storage tier sizes, cost per tenant.</p>
+
+  <h2>Authentication &amp; Authorization</h2>
+  <table>
+    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+    <tr><td>Agents → ingest gateways</td><td>Per-tenant ingest keys or mTLS workload identity</td><td>Write-only to the tenant's streams; quotas per tenant/service</td></tr>
+    <tr><td>Engineers → search and trace UI</td><td>SSO (OIDC/SAML)</td><td>Team/tenant scoping; restricted indices for sensitive services (e.g. payments, auth) require elevated roles</td></tr>
+    <tr><td>Automation / APIs</td><td>Scoped API tokens</td><td>Read-only query scopes; export limits</td></tr>
+    <tr><td>Internal pipeline</td><td>mTLS</td><td>tenant_id enforced on every read path; cross-tenant queries only for platform admins, audited</td></tr>
+  </table>
+
+  <h2>Security</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>Secrets and credentials leaked in logs</td><td>Agent-side secret scanning and masking; alerts to owning teams; restricted access</td></tr>
+    <tr><td>Log injection / forged entries</td><td>Structured logging (no string concatenation), escaping in UI, authenticated ingest per workload</td></tr>
+    <tr><td>Tampering with audit-relevant logs</td><td>Separate immutable (WORM) pipeline for security/audit logs</td></tr>
+    <tr><td>Noisy or malicious tenant flooding ingest</td><td>Per-tenant quotas, dynamic sampling under pressure, Kafka buffer isolation</td></tr>
+    <tr><td>Query abuse scanning petabytes</td><td>Query cost limits, mandatory time ranges, per-user concurrency</td></tr>
+    <tr><td>Baseline</td><td>TLS for agent traffic, encryption at rest, tenant isolation</td></tr>
+  </table>
+
+  <h2>Privacy</h2>
+  <p>Logs are the most common place personal data leaks: request bodies, emails, tokens, IPs. <b>Prevent at source:</b> logging libraries with structured fields and redaction of known-sensitive keys; agent-side scrubbing rules (regexes for emails, card numbers, bearer tokens). <b>Retention:</b> short hot retention and bounded cold retention per data class, so accidental PII ages out. <b>Deletion:</b> honoring erasure in immutable columnar files requires rewrite jobs — minimizing PII at ingest is far cheaper than deleting it later. <b>Access:</b> sensitive-service logs restricted and access-logged. <b>Residency:</b> regional pipelines for regulated tenants.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you keep secrets and PII out of logs?”</p>
+    <p><b>Staff answer:</b> Redaction in the processing tier with pattern detectors, schema-based logging that avoids free-form sensitive fields, and restricted access with audit trails on log search.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <p>10× = ~100M events/s, ~250 PB/month raw.</p>
+  <table>
+    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+    <tr><td>Gateways + processors</td><td>~160 nodes</td><td>~1,600</td><td>Stateless scale-out</td></tr>
+    <tr><td>Kafka</td><td>~100 brokers</td><td>~1,000 or tiered storage</td><td>More partitions; shorter local retention</td></tr>
+    <tr><td>Hot index</td><td>3 days</td><td>1 day (or selective indexing)</td><td>Index only error/warn levels and sampled info; everything else columnar</td></tr>
+    <tr><td>Trace sampling</td><td>~1% head + tail rules</td><td>~0.1% head + same tail rules</td><td>Lower head rate; keep all errors/slow traces</td></tr>
+    <tr><td>Cold tier</td><td>Object storage</td><td>10×</td><td>Nothing structural; archival tiers sooner</td></tr>
+  </table>
+  <p><b>First bottleneck:</b> hot index cost and indexing throughput. <b>What forces a redesign:</b> requiring full-text search over all data for long retention at interactive speed — economically impossible, so the product must change (selective indexing, rehydration on demand).</p>
+
+  <h2>Cost of Running</h2>
+  <p>Assumptions: ~10M events/s (~10 GB/s raw, ~26 PB/month), ~50% of log volume filtered or downsampled before indexing, hot index 3 days with a replica, warm columnar 15 days, cold object storage 1 year, traces ~1% sampled plus kept errors (15-day retention), cross-AZ transfer minimized with AZ-local producers, list prices from the course price sheet; rounded.</p>
+  <table>
+    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+    <tr><td>Hot log index</td><td>~2.7 PB SSD incl. index overhead and replica, ~300 nodes</td><td>$370,000</td></tr>
+    <tr><td>Kafka</td><td>~100 brokers + ~850 TB retained</td><td>$115,000</td></tr>
+    <tr><td>Cross-AZ transfer (after AZ-aware routing)</td><td></td><td>$80,000</td></tr>
+    <tr><td>Warm + cold object storage (columnar)</td><td>~450 TB warm + multi-PB cold</td><td>$95,000</td></tr>
+    <tr><td>Trace store</td><td>~75 TB × RF 3</td><td>$50,000</td></tr>
+    <tr><td>Gateways, processors, tail-sampling collectors, query service</td><td></td><td>$80,000</td></tr>
+    <tr><td><b>Total</b></td><td></td><td><b>≈ $790,000</b></td></tr>
+  </table>
+  <p><b>Unit cost:</b> ≈ $0.03 per GB ingested (commercial SaaS commonly charges several times that plus per-indexed-event fees). <b>Dominant driver:</b> indexing — the hot index costs more than everything else combined. <b>Levers:</b> index fewer logs (by level, sampling, or on-demand rehydration), shorten hot retention, drop debug logs at the agent, lower head-sampling rates, and keep ingest traffic AZ-local.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“What dominates cost?”</p>
+    <p><b>Staff answer:</b> The hot index and ingest volume. Filtering noisy logs at the source, sampling traces and shrinking the hot window are the levers.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
+
+  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+  <h2>Closing Summary (60 seconds)</h2>
+  <div class="summary"><p>A logging and tracing platform is a petabyte-scale write pipeline where cost and sampling are the architecture. Agents capture logs and spans without blocking apps and ship batches into Kafka. Stateless processors parse, redact, enrich and sample. Recent logs go to a search index for fast queries and older data to columnar and object-storage tiers. Spans carry trace context and are assembled into traces, with hybrid sampling that always keeps errors and slow traces. At 10× we add brokers and processors and shrink the hot window.</p></div>
 
   <h2>Check yourself — retrieval practice</h2>
   <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>

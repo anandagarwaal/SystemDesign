@@ -41,6 +41,26 @@
   .box b{color:var(--accent);}
   .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
   .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
   .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
   .quiz h3{margin-top:0;}
   .q{margin:1.3rem 0;}
@@ -71,6 +91,17 @@
     <strong>Why this lesson, for your mission:</strong> The feed (<a href="../lessons/0016-fb-news-feed.html">Lesson 16</a>) is about <em>throughput</em>. Privacy is about <em>correctness under skew</em> — the one design where a single wrong row is a headline, not a latency blip. A senior bolts a <code>visibility</code> column onto posts and filters in a <code>WHERE</code> clause. A staff candidate treats this as an <b>authorization system</b>: deny-by-default, enforced server-side on every read, with the friends-of-friends graph traversal and the "a post's audience changed after fan-out" problem named as the real bottlenecks. This lesson teaches the second posture.
   </div>
 
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>“Which audience types — only me, friends, friends-of-friends, public, custom lists?”</b> — Friends-of-friends is the expensive graph case.</li><li><b>“How fast must an unfriend or audience change take effect?”</b> — It bounds the staleness window for cached permissions.</li><li><b>“Which surfaces must enforce privacy — feed, search, notifications, APIs?”</b> — Every surface needs the same central check.</li></ul>
+  </div>
   <h2>Functional Requirements</h2>
   <p>Privacy is a feature that lives <em>on top of</em> posting and the feed, so scope to the access-control surface only. Four capabilities cover the core.</p>
   <table>
@@ -92,6 +123,9 @@
     <tr><td>Consistency of permissions</td><td>An audience change or unfriend should take effect <b>quickly (seconds)</b> — stale <em>allow</em> is a leak; stale <em>deny</em> is merely annoying. Bound the staleness window explicitly.<a href="#c1" class="cite">[1]</a></td></tr>
   </table>
 
+  <p class="transition"><span class="lbl">Say to move on →</span> “Zero false allows, with correctness ranked above availability. Let me size the checks.”</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only the numbers that bend the design. Two do: how many authz checks per feed read, and whether friends-of-friends can be computed live.</p>
   <div class="box">
@@ -105,6 +139,14 @@
     </ul>
   </div>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why not traverse the friend graph for each friends-of-friends post?”</p>
+    <p><b>Staff answer:</b> A 2-hop neighborhood can be ~250k users and we check ~3M items/s. Cache friend sets and turn it into an in-memory set intersection.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “~3M checks/s must be cache lookups, and friends-of-friends can't be a live graph crawl. Let me define entities.”</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p>Three entities carry the privacy model; the <code>Post.audience</code> field is the policy, and the graph plus lists are the data the policy is evaluated against.</p>
   <table>
@@ -123,6 +165,47 @@
     <tr><td><code>GET /v1/feed?cursor=</code></td><td>Read the feed — each candidate item passes the authz filter before hydration.</td></tr>
   </table>
 
+  <h2>Data Model</h2>
+  <p>The policy lives <b>on the post</b> (the audience) and the facts live <b>in the graph</b> (friend edges, list memberships, blocks). The authorization service evaluates one against the other. Zanzibar-style relation tuples give one uniform shape for lists and blocks. Every row that feeds a decision carries a <b>graph version / timestamp</b> so caches can prove freshness.</p>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>posts</b> (post_id, author_id, body_ref, created_at, audience_type, audience_list_id, excluded_user_ids[], audience_version)</td><td>Cassandra/DynamoDB</td><td>PK <code>post_id</code></td><td>Point read at hydration; audience read fresh (not from feed cache)</td></tr>
+    <tr><td><b>friend_edges</b> (user_id, friend_id, created_at)</td><td>Graph store (TAO-style), both directions written</td><td>PK (user_id, friend_id)</td><td>"Are A and B friends?" point lookup; range (user_id) for friend set</td></tr>
+    <tr><td><b>audience_lists</b> (list_id, owner_id, name, version)</td><td>Same</td><td>PK <code>list_id</code></td><td>(owner_id) for list management</td></tr>
+    <tr><td><b>list_members</b> (list_id, member_id)</td><td>Same</td><td>PK (list_id, member_id)</td><td>Membership point lookup</td></tr>
+    <tr><td><b>blocks</b> (blocker_id, blocked_id)</td><td>Same</td><td>PK (blocker_id, blocked_id)</td><td>Checked in both directions before any allow</td></tr>
+    <tr><td><b>Relation tuples</b> (object#relation@subject, e.g. <code>list:9#member@user:42</code>, commit_ts)</td><td>Spanner-class store behind the authz service</td><td>(object, relation, subject)</td><td>Check / expand queries; snapshot reads at a consistency token</td></tr>
+    <tr><td><b>Cached friend sets</b> (user_id → set of friend_ids, graph_version)</td><td>Redis</td><td>user_id</td><td>FoF = intersect viewer's and author's sets; short TTL + invalidation</td></tr>
+    <tr><td><b>Decision cache</b> (viewer_id, author_id → relationship, graph_version)</td><td>Redis / in-process LRU</td><td>(viewer_id, author_id)</td><td>Reused across all of the author's posts; busted on unfriend/block</td></tr>
+    <tr><td><b>authz_audit</b> (sampled decisions: viewer, post, result, rule, token)</td><td>Kafka → lake</td><td>—</td><td>Leak investigations, shadow-evaluation diffs</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why return 404 rather than 403 on deny?”</p>
+    <p><b>Staff answer:</b> A 403 confirms the private post exists. 404 leaks nothing.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “The audience lives on the post and relationships in the graph. Now the central authorization service.”</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+  <h2>Component Diagram</h2>
+<pre class="diagram">
+ [Client] -- GET /feed, /posts/{id} --&gt; [API gateway: viewer id from token]
+                                              |
+                                              v
+ [Post Service] &lt;-- hydrate allowed -- [Feed / Profile / Search services]
+      |                                       | check(viewer, posts[])
+      v                                       v
+ [Post store]                         [Authorization service: deny by default]
+                                              |               |
+                                              v               v
+                                  [Authz cache (Redis)]   [Graph + lists]
+                                                  ^
+                                                  | invalidate
+ [Unfriend / audience change / list edit] --&gt; [Event bus]
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">Every read surface sends candidate post ids to one authorization service. It evaluates each post's current audience against cached relationships and the graph, and drops anything it can't prove allowed. Only allowed posts are hydrated. Graph and audience changes publish events that invalidate cached relationships within seconds.</p>
+
   <h2>High-Level Design</h2>
   <p>Keep the boxes boring; the judgement is in <em>where</em> the check sits and what it reads. The key move: a dedicated <b>Authorization Service</b> sits on the read path, between the Feed Service and the data, so no read service ever reimplements the policy.</p>
   <table>
@@ -135,6 +218,14 @@
   </table>
   <p><b>Read path:</b> <code>GET /feed</code> → Feed Service gathers candidate <code>postId</code>s → for each, Authorization Service checks <code>(viewer, audience)</code> against the graph/cache → only allowed posts are hydrated and returned. <b>Deny-by-default:</b> if the check errors or times out, the item is dropped, never shown.<a href="#c2" class="cite">[2]</a></p>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why a dedicated authorization service instead of WHERE clauses in each service?”</p>
+    <p><b>Staff answer:</b> Five read surfaces with hand-written filters means five places to leak. One service gives one policy and one audit surface.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: enforcement on read, graph modeling, audience changes after fan-out and ReBAC caching.”</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dive 1 — The check on the read path: deny-by-default, never trust the client</h2>
   <p>The single most important sentence in this interview: <b>authorization is enforced on the read path, server-side, for every item, and it fails closed.</b> Privacy that lives only at write time (e.g. "we don't fan out private posts to the wrong feeds") is not enforcement — it's an optimization that breaks the moment anything reaches a feed it shouldn't, or a permalink is guessed.</p>
   <h3>Where to enforce</h3>
@@ -197,6 +288,113 @@
       <li><b>Consistency tokens:</b> stamp each decision with the graph version it was computed against, so you can require "at least as fresh as the unfriend event" for sensitive checks.<a href="#c1" class="cite">[1]</a></li>
     </ul>
   </div>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. Central ReBAC authorization service on the read path</b> (chosen, Zanzibar-style)</td><td>As drawn: every read calls check(viewer, post); relationships cached with invalidation</td><td>One policy and audit surface; audience changes honored instantly on read; works for every surface</td><td>A hot-path dependency (must fail closed and be very fast); large cache fleet</td><td>Social products with many read surfaces and relationship-based audiences</td></tr>
+    <tr><td><b>B. Precomputed visibility / ACL lists per post</b> (materialize allowed viewers)</td><td>At write time compute who can see each post and store it; reads check membership</td><td>O(1) reads; simple check</td><td>Huge storage for FoF/public posts; every unfriend or list edit rewrites many ACLs; stale ACLs leak</td><td>Small, fixed audiences (group chats, shared documents with explicit members)</td></tr>
+    <tr><td><b>C. Filter in each service's query</b> (<code>WHERE visibility…</code> with joins)</td><td>Each read path implements the rule against its own store</td><td>No extra hop; fast to start</td><td>N implementations drift apart → leaks; FoF joins don't scale; hard to audit</td><td>Prototypes with one read surface and simple public/private visibility</td></tr>
+  </table>
+  <p><b>Pick A</b>, and use B-style materialization only for small explicit lists where precomputing membership is cheap.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“A public post was fanned out, then made friends-only. Do you scrub all those feeds?”</p>
+    <p><b>Staff answer:</b> No. Feeds hold candidates, not permissions; the check at read time reads the current audience, so stale feed entries are harmless.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness for a security-critical path.”</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+  <h2>Observability</h2>
+  <table>
+    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+    <tr><td>Decision metrics</td><td>Checks/s, allow/deny ratio by audience type and surface, errors and timeouts (fail-closed drops)</td><td>A sudden shift in allow rate can mean a leak or an outage</td></tr>
+    <tr><td>Latency</td><td>Check p50/p99, batch size, cache hit rate for friend sets and decisions, graph fallback rate</td><td>&lt; 10 ms budget per feed read</td></tr>
+    <tr><td>Freshness</td><td>Lag from unfriend/audience-change event to cache invalidation; age of cache entries at use</td><td>Bound the stale-allow window</td></tr>
+    <tr><td>Shadow evaluation</td><td>Sampled re-checks against the source of truth at the latest token; mismatch count by rule</td><td>Detect cache or logic bugs before users do</td></tr>
+    <tr><td>Audit trail</td><td>Sampled decision logs with rule and consistency token</td><td>Answer "who could see this post, and why?"</td></tr>
+  </table>
+
+  <h2>Monitoring</h2>
+  <table>
+    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+    <tr><td>Zero false-allows</td><td>Any shadow-evaluation mismatch where cache said allow and truth says deny</td><td>Page (security incident)</td></tr>
+    <tr><td>Check p99 &lt; 10 ms; availability 99.99%</td><td>Burn rate over 1 h / 6 h</td><td>Page</td></tr>
+    <tr><td>Permission changes effective within 5 s</td><td>Invalidation lag p99 above target</td><td>Page</td></tr>
+    <tr><td>Fail-closed drops</td><td>Dropped items above 0.1% of checks (users seeing empty feeds)</td><td>Page</td></tr>
+    <tr><td>Allow-rate shift</td><td>Allow ratio for ONLY_ME/FRIENDS posts deviates from baseline</td><td>Page</td></tr>
+  </table>
+  <p><b>Synthetic probes:</b> test accounts continually create posts with each audience type and verify that allowed, denied, blocked and just-unfriended viewers see exactly what they should, across feed, permalink, search and notifications. This is a leak canary. <b>Dashboards:</b> decisions by rule, cache freshness, mismatches.</p>
+
+  <h2>Authentication &amp; Authorization</h2>
+  <p>This lesson <i>is</i> the authorization design; this section covers access to the authorization system itself.</p>
+  <table>
+    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+    <tr><td>Users → reads/writes</td><td>Session/OAuth token; viewer id only from token</td><td>The ReBAC check above; authors only edit their own audiences and lists</td></tr>
+    <tr><td>Read services → authz service</td><td>mTLS service identity</td><td>Callers can ask check(), not read raw lists or edges of arbitrary users</td></tr>
+    <tr><td>Graph writers → relation tuples</td><td>mTLS</td><td>Only the graph and list services write tuples</td></tr>
+    <tr><td>Internal tools / employees</td><td>SSO + MFA</td><td>No bypass of audience checks; privileged access requires a ticket and is logged and reviewed</td></tr>
+    <tr><td>Third-party apps (APIs)</td><td>OAuth with scopes</td><td>App sees only what the user could see and granted; never friends' private posts</td></tr>
+  </table>
+
+  <h2>Security</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>IDOR: guessing post ids to fetch private posts</td><td>Check on every permalink and API read; random non-sequential ids; 404 on deny</td></tr>
+    <tr><td>Stale cache allows after unfriend/block (leak)</td><td>Event-driven invalidation, short TTLs, consistency tokens for sensitive checks, bias to re-check</td></tr>
+    <tr><td>New read surface forgets the check</td><td>Data access layer returns posts only through an authz-wrapped API; lint/tests that raw post reads are blocked; privacy review</td></tr>
+    <tr><td>Authz service outage causes fail-open fallback code</td><td>Fail closed is the only code path; chaos tests prove it</td></tr>
+    <tr><td>Enumeration of friends via FoF probing</td><td>Rate limits on profile/permalink reads; anomaly detection on scraping patterns</td></tr>
+    <tr><td>Insider access</td><td>Just-in-time access, audit logs, alerts on employee reads of private content</td></tr>
+  </table>
+
+  <h2>Privacy</h2>
+  <p>The whole feature is privacy, so the extra obligations are about <b>side channels</b>. <b>Existence leaks:</b> return 404 on deny; comment and like counts, search snippets, notifications and link previews all go through the same check. <b>Graph leaks:</b> friend lists and list membership are themselves private (you can't see who is on someone's Close Friends list). <b>Caches and logs:</b> decision caches hold ids, not content; audit logs are restricted and retained ~90 days. <b>Deletion:</b> deleting a post or account removes tuples and busts caches. <b>Data subject requests:</b> "who could see this?" answered by expanding the audience at the current token.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you cache decisions without leaking?”</p>
+    <p><b>Staff answer:</b> Cache relationships rather than verdicts, invalidate on unfriend, block and audience change, keep short TTLs, prefer stale deny over stale allow, and use consistency tokens for sensitive checks.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <p>10× = ~30M checks/s average and denser graphs.</p>
+  <table>
+    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+    <tr><td>Authz service</td><td>Stateless fleet, batched checks</td><td>10× pods</td><td>Horizontal; per-region deployment; bigger batches per feed read</td></tr>
+    <tr><td>Relationship/friend-set cache</td><td>Hot users' friend sets</td><td>10× memory</td><td>Add Redis shards; compact sets (roaring bitmaps); in-process LRU for hottest pairs</td></tr>
+    <tr><td>Graph store</td><td>~100B edges</td><td>Denser reads</td><td>More read replicas; cache absorbs most checks</td></tr>
+    <tr><td>Invalidation bus</td><td>Kafka</td><td>10× events</td><td>More partitions</td></tr>
+    <tr><td>Candidate filtering</td><td>Check at hydration</td><td>Same</td><td>Pre-filter obviously public posts cheaply; spend checks on restricted ones</td></tr>
+  </table>
+  <p><b>First bottleneck:</b> memory for friend-set caches for FoF checks. <b>What forces a redesign:</b> audiences that need arbitrary-depth graph reachability (e.g., "friends of friends of friends" or group nesting), where intersection caching no longer bounds the cost.</p>
+
+  <h2>Cost of Running</h2>
+  <p>Assumptions: ~3M checks/s average (~10M peak), batched ~50 per call, ~95% cache hit rate, ~1B daily users' friend sets cached for the active half, list prices from the course price sheet. Post storage and feeds belong to the feed system's budget.</p>
+  <table>
+    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+    <tr><td>Authz service fleet</td><td>~1,500 vCPU at peak-ready capacity</td><td>$45,000</td></tr>
+    <tr><td>Friend-set + decision cache (Redis)</td><td>~500M active users × ~500 ids compressed ≈ 3 TB with replicas</td><td>$24,000</td></tr>
+    <tr><td>Graph read replicas for cache misses</td><td>~5% of checks</td><td>$30,000</td></tr>
+    <tr><td>Invalidation bus (Kafka)</td><td>~6 brokers</td><td>$1,800</td></tr>
+    <tr><td>Shadow evaluation + audit log pipeline</td><td>1% sampled</td><td>$6,000</td></tr>
+    <tr><td><b>Total</b></td><td></td><td><b>≈ $107,000</b></td></tr>
+  </table>
+  <p><b>Unit cost:</b> ≈ $0.014 per million checks (~7.8 trillion checks/month), or ≈ $0.0002 per daily feed-opener per month. <b>Dominant driver:</b> cache memory and compute for FoF-capable checks. <b>Levers:</b> batch checks per feed page, cache relationships not verdicts, compress friend sets, short-circuit PUBLIC posts, and keep FoF intersections in-process for the hottest authors.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“What's the first bottleneck at 10×?”</p>
+    <p><b>Staff answer:</b> Memory for friend-set caches. Compress sets, shard Redis and short-circuit public posts.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
+
+  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+  <h2>Closing Summary (60 seconds)</h2>
+  <div class="summary"><p>Post privacy is an authorization system. Every read surface sends candidate posts to one central ReBAC service that evaluates each post's current audience against the graph: public, friends, friends-of-friends via cached friend-set intersection, custom lists and blocks. It is deny-by-default and fails closed on errors. Feeds only cache candidates, so audience changes and unfriends take effect at read time without rewriting feeds. Relationship caches are invalidated by events, and shadow evaluation and leak canaries prove zero false allows. At 10× we add cache shards.</p></div>
 
   <h2>Check yourself — retrieval practice</h2>
   <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>

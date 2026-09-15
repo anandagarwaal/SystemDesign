@@ -41,6 +41,26 @@
   .box b{color:var(--accent);}
   .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
   .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
   .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
   .quiz h3{margin-top:0;}
   .q{margin:1.3rem 0;}
@@ -71,6 +91,17 @@
     <strong>Why this lesson, for your mission:</strong> A crawler is a pure pipeline problem with no user-facing API, so it tests whether you can reason about throughput, idempotency, and back-pressure rather than CRUD endpoints. The L6/L7 signal is whether you proactively raise the three hard parts — a politeness-aware partitioned URL frontier, dedup at the URL <em>and</em> content level, and a resumable distributed pipeline — before the interviewer has to ask.
   </div>
 
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Data flow, component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>“How many pages and how fast — one 10B-page crawl in 5 days, or continuous recrawling?”</b> — A one-shot vs continuous crawl changes frontier priority and freshness logic.</li><li><b>“Do we need to render JavaScript-heavy pages?”</b> — Headless rendering is 10–100× more expensive per page.</li><li><b>“Who consumes the output — search index, training data, archive?”</b> — It decides storage format (WARC, text) and dedup strictness.</li></ul>
+  </div>
   <h2>1. Functional Requirements</h2>
   <p>The crawler's job is narrow but deep: given seed URLs, fetch pages, extract their links, and recursively crawl outward to cover a large fraction of the web, storing the page content for downstream consumers (a search index, an LLM training corpus, an archive).<a href="#c1" class="cite">[1]</a></p>
   <table>
@@ -91,6 +122,9 @@
     <tr><td><b>Freshness</b></td><td>Re-crawl pages over time; the web changes, so a one-shot crawl decays.</td></tr>
   </table>
 
+  <p class="transition"><span class="lbl">Say to move on →</span> “Scale plus politeness plus no wasted fetches. Let me size fetch rate and storage.”</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>3. Capacity Estimation</h2>
   <p>Estimate only the numbers that <em>shape the design</em>:</p>
   <table>
@@ -101,8 +135,16 @@
     <tr><td>URL frontier size</td><td>Billions of URLs queued, each tens of bytes of metadata.</td><td>Frontier can't be one in-memory queue; it's a durable, partitioned, multi-machine structure.</td></tr>
   </table>
 
-  <h2>4. Pipeline Stages (the "API")</h2>
-  <p>A crawler has no external REST API — it is an internal pipeline. The "interface" is the contract between stages, each of which can scale and fail independently. State each stage's input → output:</p>
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“If one box can do ~3,750 pages/s, why is this hard?”</p>
+    <p><b>Staff answer:</b> Politeness caps each domain at ~1 req/s, DNS becomes a bottleneck, and the frontier must juggle billions of URLs across millions of domains. Throughput is limited by coordination, not CPU.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “~23k pages/s and ~20 PB raw means distributed fetchers and object storage. Let me define the stage contracts and control API.”</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
+  <h2>4. Pipeline Stages &amp; Control-Plane API</h2>
+  <p>A crawler has two interfaces. The <b>data plane</b> is an internal pipeline, where the interface is the contract between stages, each of which can scale and fail independently. The <b>control plane</b> is a small REST API that operators and downstream teams use to start, steer and consume crawls. Data plane first. State each stage's input → output:</p>
   <table>
     <tr><th>Stage</th><th>In → Out</th><th>Responsibility</th></tr>
     <tr><td><b>URL Frontier</b></td><td>URL → URL (dequeued when polite)</td><td>Durable queue of URLs to crawl; enforces politeness + priority.</td></tr>
@@ -112,7 +154,40 @@
     <tr><td><b>Store + Enqueue</b></td><td>text → blob store; new URLs → frontier</td><td>Persist content; feed novel links back into the frontier (the recursion).</td></tr>
   </table>
 
-  <h2>5. Data Flow</h2>
+  <p><b>Control-plane API.</b> Nothing here is on the per-page hot path. These endpoints create and steer crawl jobs, which the pipeline then executes asynchronously. The caller's identity comes from the token; mutations are audited.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th></tr>
+    <tr><td><code>POST /v1/crawls</code></td><td>Create a crawl job. Body: <code>{ seedUrls[] | seedListUri, scope: { allowDomains[], urlPatterns[], maxDepth }, maxPages, recrawlPolicy, outputs: ["warc","text"] }</code>. Requires <code>Idempotency-Key</code>; returns <code>202 { crawlId }</code>, and seeds are enqueued into the frontier asynchronously.</td></tr>
+    <tr><td><code>GET /v1/crawls/{crawlId}</code></td><td>Status: <code>state</code> (running/paused/done), pages fetched, pages/s, frontier size, error and duplicate rates, ETA.</td></tr>
+    <tr><td><code>POST /v1/crawls/{crawlId}/pause</code> · <code>/resume</code> · <code>/cancel</code></td><td>Stop or restart dequeuing for this crawl. The frontier stays durable, so a resumed crawl picks up exactly where it stopped.</td></tr>
+    <tr><td><code>POST /v1/crawls/{crawlId}/seeds</code></td><td>Add seed URLs to a running crawl. They pass through the same normalization and dedup as discovered links.</td></tr>
+    <tr><td><code>PUT /v1/domains/{domain}/policy</code></td><td>Operator override: <code>{ crawlDelayMs, maxConcurrency, blocked, reason }</code>, e.g. after a site owner complains. The politeness gate reads it on the next fetch.</td></tr>
+    <tr><td><code>GET /v1/urls/{urlHash}</code></td><td>Crawl state of one URL: last crawl time, HTTP status, content hash, and WARC <code>(file, offset, length)</code> pointer. Used for debugging and point lookups.</td></tr>
+    <tr><td><code>GET /v1/crawls/{crawlId}/outputs?cursor=</code></td><td>Paged manifest of finished WARC and Parquet files, so consumers (indexers, training pipelines) can ingest incrementally.</td></tr>
+  </table>
+
+  <h2>5. Data Model</h2>
+  <p>Three stores with three shapes. <b>URL state</b> is a key-value table keyed by a hash of the normalized URL. <b>Content</b> is written to object storage in <b>large WARC files</b> (thousands of pages per object), with each URL row storing a (file, offset, length) pointer — this avoids billions of tiny S3 objects and PUT requests. The <b>frontier</b> is partitioned by <code>hash(domain)</code> so every URL of a domain lands in the same queue partition, which is what makes per-domain politeness enforceable.</p>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>url_state</b> (url_hash, normalized_url, domain, status, depth, priority, last_crawled_at, next_crawl_at, http_status, content_hash, warc_file, offset, length)</td><td>DynamoDB / Cassandra (~10B rows)</td><td>PK <code>url_hash</code></td><td>Dedup confirmation on Bloom "maybe"; GSI <code>(domain, next_crawl_at)</code> for recrawl scheduling</td></tr>
+    <tr><td><b>domain_state</b> (domain, robots_rules, robots_fetched_at, crawl_delay_ms, last_fetch_at, resolved_ips, error_rate)</td><td>Redis (hot) backed by the KV store</td><td>PK <code>domain</code></td><td>Politeness gate before each fetch; robots TTL ~24 h</td></tr>
+    <tr><td><b>Seen-URL filter</b></td><td>Bloom filter (~12 GB for 10B URLs at 1% FP), sharded in Redis/in-process</td><td>normalized URL</td><td>Cheap pre-check before the DB</td></tr>
+    <tr><td><b>content_fingerprints</b> (simhash_band, url_hash)</td><td>KV store</td><td>PK <code>(band, simhash_prefix)</code></td><td>Near-duplicate candidates</td></tr>
+    <tr><td><b>Frontier</b> {url, domain, priority, depth}</td><td>Kafka / SQS, partitioned by <code>hash(domain)</code>, high/low priority topics</td><td>key = domain</td><td>Polite dequeue; DLQ after N failures</td></tr>
+    <tr><td><b>crawl_jobs</b> (crawl_id, owner, seeds_uri, scope JSON, max_pages, recrawl_policy, state, pages_fetched, created_at, idempotency_key)</td><td>Postgres (control plane)</td><td>PK <code>crawl_id</code>; UNIQUE <code>idempotency_key</code></td><td>Status API, pause/resume flags read by frontier dequeuers</td></tr>
+    <tr><td><b>Page content</b></td><td>S3: <code>crawl/{crawlId}/{shard}-{seq}.warc.gz</code> (+ extracted text as Parquet)</td><td>file + byte offset</td><td>Range GET to read one page; lifecycle to IA</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why does a crawler need an API at all?”</p>
+    <p><b>Staff answer:</b> Operators need to start, pause and scope crawls, override per-domain policies after complaints, and let consumers page through outputs. The data plane has no public API; the control plane does.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Stages have clear in/out contracts, and operators steer crawls through the control plane. Now the concrete pipeline.”</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+  <h2>6. Data Flow</h2>
   <p>Trace one URL through the loop — this is the spine of the whole design:</p>
   <div class="box">
     <b>seed</b> → <b>URL Frontier</b> (dequeue a URL whose domain is currently allowed)
@@ -124,7 +199,28 @@
   </div>
   <p>The loop is what makes a crawler a crawler: the output of one page becomes the input for the next. Everything hard about the system is about controlling that loop — pacing it (politeness), pruning it (dedup), and surviving crashes mid-loop (fault tolerance).</p>
 
-  <h2>6. High-Level Design</h2>
+  <h2>7. Component Diagram</h2>
+<pre class="diagram">
+ [Seeds] --&gt; [URL Frontier: queues by hash(domain) x priority]
+                    |                                       ^
+                    | polite dequeue                        | novel URLs
+                    v                                       |
+            [Fetchers + DNS cache] --robots, pace--&gt; [Redis]|
+                |           |                               |
+                v WARC      | HTML                          |
+     [S3 WARC/text]         |                               |
+                            v                               |
+                      [Parser / extractor]                  |
+                              |                             |
+                              v links                       |
+                      [Dedup: Bloom -&gt; DB, SimHash] --novel-+
+                                  |
+                                  v
+                        [Metadata DB: url_state, domains, fingerprints]
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">The crawl loop: dequeue politely → fetch → store raw bytes in batched WARC files → parse → dedup → record state and feed novel URLs back into the frontier. Workers are stateless; the queue, metadata DB and S3 hold all state, so any box can die.</p>
+
+  <h2>8. High-Level Design</h2>
   <p>Map each pipeline stage to a concrete, horizontally-scalable component connected by durable queues so a slow or dead stage applies back-pressure instead of dropping work.<a href="#c1" class="cite">[1]</a></p>
   <table>
     <tr><th>Component</th><th>Concrete choice</th><th>Why</th></tr>
@@ -136,7 +232,15 @@
   </table>
   <p>The recurring move: <b>keep the workers stateless and push all durable state into the queue, the metadata DB, and blob storage.</b> That is what makes the fleet elastic and the whole pipeline resumable.</p>
 
-  <h2>7. Deep Dives</h2>
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why durable queues between every stage?”</p>
+    <p><b>Staff answer:</b> A slow or crashed stage applies back-pressure instead of losing URLs, and each stage scales independently.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: the politeness-aware frontier, dedup, robots and pacing, and fault tolerance.”</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
+  <h2>9. Deep Dives</h2>
 
   <h3>Deep Dive 1 — The URL Frontier (politeness-aware queue)</h3>
   <p>The frontier is the heart of the system. Naively it's "a queue of URLs to crawl" — but a single FIFO queue is wrong for two reasons: it would let one popular domain dominate the workers, and it offers no way to crawl important pages first.</p>
@@ -183,6 +287,111 @@
     <span class="tag">★ Staff-level signal</span>
     Three things separate a staff answer from a senior one here. <b>(1)</b> You design the frontier as a <em>politeness-aware partitioned queue</em> with separate politeness and priority axes — not "a queue of URLs." <b>(2)</b> You split dedup into <em>Bloom-filter URL dedup</em> and <em>content fingerprinting</em>, and you can articulate the false-positive tradeoff. <b>(3)</b> You frame the whole thing as a <em>resumable distributed pipeline</em> — stateless workers, durable queues, visibility timeouts, dead-letter queues — and you flag DNS and crawler traps before being asked. Naming the bottleneck (DNS, not CPU) unprompted is a strong tell.
   </div>
+
+  <h2>10. Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. Queue-based streaming pipeline with a domain-partitioned frontier</b> (chosen)</td><td>As drawn</td><td>Continuous crawling and recrawls; per-stage scaling; resumable by construction</td><td>Many moving parts; frontier ordering across billions of URLs is approximate</td><td>Continuous, freshness-aware web-scale crawling</td></tr>
+    <tr><td><b>B. Batch generations</b> (Nutch/Hadoop style: generate → fetch → parse → updatedb as MapReduce/Spark jobs)</td><td>Each round selects a fetch list from the crawl DB, fetches it in a batch job, merges results back, repeats</td><td>Simple, fully reproducible rounds; great throughput on clusters; easy global prioritization per round</td><td>Latency of hours per generation; politeness handled coarsely per job; poor for freshness</td><td>Research/archival crawls, periodic snapshots (Common Crawl-style)</td></tr>
+    <tr><td><b>C. Per-host crawler actors</b> (one lightweight actor/coroutine per domain on sharded nodes)</td><td>Domains are consistently hashed to crawler nodes; each node runs a local per-host queue and timer; discovered URLs routed to the owning node</td><td>Politeness is trivially local; very efficient connection reuse per host; low coordination</td><td>Rebalancing domains on node failure; hot mega-domains need special handling; frontier durability is per node</td><td>Very large crawls optimized for politeness and connection efficiency (Mercator/IRLbot lineage)</td></tr>
+  </table>
+  <p><b>Pick A</b> for an always-on crawler with freshness goals; B is the right call for a one-off 10B-page snapshot where simplicity beats latency.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you enforce one request per second per domain across hundreds of fetchers?”</p>
+    <p><b>Staff answer:</b> Partition the frontier by hash(domain) so each domain's URLs sit in one queue partition. A per-domain next-fetch time gates dequeues, so politeness is enforced by the queue, not by coordination.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, including being a good citizen of the web.”</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+  <h2>11. Observability</h2>
+  <table>
+    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+    <tr><td>Throughput</td><td>Pages fetched/s, bytes/s, parse rate, novel URLs discovered/s vs enqueued</td><td>The ~23k pages/s target</td></tr>
+    <tr><td>Fetch outcomes</td><td>HTTP status mix by domain, timeouts, DNS latency and failure rate, robots-blocked count, retry and DLQ rates</td><td>DNS is the hidden bottleneck</td></tr>
+    <tr><td>Politeness</td><td>Requests/s per domain (max and p99), domains throttled, 429/503 responses from sites</td><td>Evidence you're not hammering anyone</td></tr>
+    <tr><td>Quality</td><td>Duplicate ratio (URL and content), trap detection (depth cap hits, URL pattern explosions), frontier size by priority</td><td>Wasted crawl budget</td></tr>
+    <tr><td>Logs &amp; traces</td><td>url_hash + crawl_id on each stage's log; per-domain crawl logs retained for site-owner complaints</td><td>"Why did you crawl my site 10k times?"</td></tr>
+  </table>
+
+  <h2>12. Monitoring</h2>
+  <table>
+    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+    <tr><td>Crawl completes 10B pages in 5 days (≥ 23k pages/s)</td><td>Rolling 1 h throughput &lt; 80% of target; projected completion slips &gt; 12 h</td><td>Page (business hours) / ticket</td></tr>
+    <tr><td>Politeness: no domain above its allowed rate</td><td>Any domain &gt; 1.5× its crawl-delay budget; spike in 429/403 from a top domain</td><td>Page</td></tr>
+    <tr><td>No lost URLs</td><td>DLQ growth; messages older than visibility timeout × retries</td><td>Ticket</td></tr>
+    <tr><td>Stage health</td><td>Queue lag between stages growing for 30 min; DNS failure rate &gt; 5%</td><td>Page</td></tr>
+  </table>
+  <p><b>Synthetic probes:</b> a test website we control with known pages, robots rules, a trap, and duplicates; the crawler must fetch exactly the expected set at the configured rate. <b>Dashboards:</b> throughput by stage, per-domain rate distribution, duplicate ratio, frontier size.</p>
+
+  <h2>13. Authentication &amp; Authorization</h2>
+  <table>
+    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+    <tr><td>Crawler → websites</td><td>Identifiable User-Agent with contact URL; published IP ranges and reverse-DNS verification so sites can confirm the bot</td><td>robots.txt rules and crawl-delay honored; no login-gated content (out of scope)</td></tr>
+    <tr><td>Downstream consumers → crawl data</td><td>IAM roles / service identities</td><td>Read-only access to WARC/text buckets by dataset; licensing/usage restrictions tagged per source</td></tr>
+    <tr><td>Stages → queue, DB, S3</td><td>IAM roles per stage</td><td>Fetchers write raw; parsers write text; only dedup stage enqueues to the frontier</td></tr>
+    <tr><td>Operators</td><td>SSO + MFA</td><td>Domain blocklist and emergency throttle controls, audited</td></tr>
+  </table>
+
+  <h2>14. Security</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>Crawler traps and infinite URL spaces</td><td>Depth cap, per-domain page budgets, URL pattern anomaly detection, dedup</td></tr>
+    <tr><td>Malicious content (parser exploits, zip bombs, huge responses)</td><td>Response size and time limits, decompression limits, sandboxed parsers, no JS execution</td></tr>
+    <tr><td>SSRF / crawling internal networks via DNS rebinding or redirects to private IPs</td><td>Block private/link-local ranges after DNS resolution; re-check on every redirect; fetchers in an isolated VPC</td></tr>
+    <tr><td>Spam and link farms polluting the frontier</td><td>Domain reputation scores lower priority; cap URLs accepted per referring domain</td></tr>
+    <tr><td>Being used as a DDoS vector (misconfigured politeness)</td><td>Global per-domain and per-IP rate caps enforced centrally, not just per worker</td></tr>
+    <tr><td>Baseline</td><td>Encryption at rest for S3/DB, least-privilege IAM, patched fetch hosts</td></tr>
+  </table>
+
+  <h2>15. Privacy</h2>
+  <p>Public pages still contain <b>personal data</b> (names, emails, phone numbers, photos). <b>Respect signals:</b> robots.txt, <code>noindex</code>/<code>noarchive</code>, and opt-out lists. <b>Scope:</b> never crawl authenticated areas or follow session/token URLs (strip tracking and session parameters during normalization). <b>Removal:</b> support takedown and right-to-be-forgotten requests by URL/domain — delete from url_state, mark WARC records as tombstoned, and exclude from downstream datasets on the next build. <b>Downstream use:</b> PII scrubbing in the text-extraction stage when data feeds ML training. <b>Retention:</b> old crawl generations expire on a schedule.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you avoid crawler traps and malicious pages?”</p>
+    <p><b>Staff answer:</b> Max depth and URL length limits, URL normalization, per-domain page budgets, content-similarity dedup, and sandboxed parsing with size and time limits.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost per crawl.”</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+  <h2>16. Scaling 10× Without Changing the Architecture</h2>
+  <p>10× = 100B pages in 5 days (~230k pages/s), ~200 PB raw (≈40 PB compressed).</p>
+  <table>
+    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+    <tr><td>Fetchers + DNS resolvers</td><td>~20 boxes</td><td>~200 + more resolvers</td><td>Stateless scale-out; per-domain politeness unchanged because the gain comes from more domains in parallel</td></tr>
+    <tr><td>Parsers</td><td>~460 cores</td><td>~4,600</td><td>Autoscale on queue lag</td></tr>
+    <tr><td>Frontier</td><td>N partitions</td><td>10N</td><td>More domain-hash partitions and brokers</td></tr>
+    <tr><td>Metadata DB</td><td>~10B rows</td><td>~100B rows</td><td>Add nodes/partitions</td></tr>
+    <tr><td>Bloom filter</td><td>~12 GB</td><td>~120 GB</td><td>Shard the filter by URL hash</td></tr>
+    <tr><td>S3</td><td>~4 PB/crawl</td><td>~40 PB/crawl</td><td>Nothing structural; shorter retention of old generations</td></tr>
+  </table>
+  <p><b>First bottleneck:</b> DNS resolution and per-domain politeness — at 10× many popular domains can't go faster, so the crawl budget must shift to more domains and smarter priority. <b>What forces a redesign:</b> rendering JavaScript at scale (headless browsers are ~100× more expensive per page).</p>
+
+  <h2>17. Cost of Running</h2>
+  <p>Assumptions: one 10B-page crawl in 5 days, HTML compressed ~5× into WARC files (~4 PB), fetchers with public IPs (no NAT gateway), list prices from the course price sheet. Shown as cost per crawl plus one month of storage.</p>
+  <table>
+    <tr><th>Line item</th><th>Sizing</th><th>~$ per crawl</th></tr>
+    <tr><td>S3 storage (first month)</td><td>~4 PB compressed WARC + text</td><td>$92,000</td></tr>
+    <tr><td>Metadata DB</td><td>~10B writes + ~50B dedup reads + 2 TB</td><td>$25,000</td></tr>
+    <tr><td>Fetcher fleet + DNS resolvers</td><td>~20 network-optimized boxes × 5 days</td><td>$6,000</td></tr>
+    <tr><td>Parser / dedup fleet</td><td>~460 cores × 5 days</td><td>$2,500</td></tr>
+    <tr><td>Frontier (Kafka) + Redis</td><td>5 days</td><td>$2,500</td></tr>
+    <tr><td><b>Total</b></td><td></td><td><b>≈ $128,000</b></td></tr>
+  </table>
+  <p><b>Unit cost:</b> ≈ $13 per million pages crawled and stored. <b>Dominant driver:</b> storage, then metadata writes. <b>Two expensive traps avoided by design:</b> one S3 object per page would add ~$100k in PUT requests per crawl (batching into WARC files removes it), and routing 20 PB of downloads through a NAT gateway would add ~$900k in data-processing charges. <b>Levers:</b> compress aggressively, keep only text for low-value pages, and skip refetching unchanged pages via conditional GETs (ETag/Last-Modified).</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“What dominates cost?”</p>
+    <p><b>Staff answer:</b> Storage of compressed WARC files and fetcher egress/compute. Compression, dedup and lifecycle tiering matter most.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
+
+  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+  <h2>18 · Closing Summary (60 seconds)</h2>
+  <div class="summary"><p>A web crawler is a politeness-aware pipeline. A durable URL frontier partitioned by domain feeds fetchers that check robots.txt, pace each domain, download pages and write them to large compressed WARC files on S3. Parsers extract text and links; a Bloom filter plus a URL-state table and SimHash deduplicate URLs and near-duplicate pages before new links return to the frontier. Every stage is queue-connected, so failures cause retries, not loss. A small control-plane API starts, steers and exposes crawls. At 10× we add fetchers and DNS resolvers.</p></div>
 
   <h2>Check yourself — retrieval practice</h2>
   <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>

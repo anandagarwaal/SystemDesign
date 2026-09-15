@@ -41,6 +41,26 @@
   .box b{color:var(--accent);}
   .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
   .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
   .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
   .quiz h3{margin-top:0;}
   .q{margin:1.3rem 0;}
@@ -71,6 +91,17 @@
     <strong>Why this lesson, for your mission:</strong> Uber is the canonical geospatial-plus-matching interview. The breadth (fare → request → match → trip) is easy to sketch; the L6/L7 signal is entirely in three deep dives — a geospatial index that answers "nearest drivers" in milliseconds, a matching step modeled as an <em>atomic claim</em> so two riders never grab the same car, and a write firehose you keep <em>out</em> of your durable database. Get those three right and the rest is plumbing.
   </div>
 
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>“Do we need fare estimates before requesting, and surge pricing?”</b> — Estimates drive routing load; surge adds a pricing loop.</li><li><b>“How long can a driver take to accept an offer?”</b> — The offer timeout becomes the lease TTL for matching.</li><li><b>“Is pooling or batched dispatch in scope?”</b> — Batched matching changes the matcher from per-request to a periodic solve.</li></ul>
+  </div>
   <h2>Functional Requirements</h2>
   <p>Scope ruthlessly. Three flows carry the whole interview <a href="#c1" class="cite">[1]</a>; payments, ratings, and pooling are explicit non-goals you name and defer.</p>
   <table>
@@ -91,17 +122,31 @@
     <tr><td><b>Per-city scalability</b></td><td>A ride is intrinsically local. Geo-shard by city/region so a NYC spike never touches São Paulo.</td></tr>
   </table>
 
-  <h2>Capacity Estimation</h2>
-  <p>Only compute the numbers that change a decision. The one that matters here is the location-write rate.</p>
-  <div class="box">
-    <ul>
-      <li><b>Active drivers:</b> ~10M globally, each pinging every ~4–5s → on the order of <b>2M location writes/sec</b> at peak <a href="#c1" class="cite">[1]</a>. <i>Implication:</i> this is the firehose. At DynamoDB write prices it would cost six figures <em>per day</em> — so it cannot hit a durable, indexed table. It belongs in memory (Deep Dive 4).</li>
-      <li><b>Ride requests:</b> far smaller — tens of thousands/sec at global peak. <i>Implication:</i> the request/match path can afford richer logic, queues, and orchestration.</li>
-      <li><b>Concurrent connections:</b> riders + drivers in active trips hold long-lived WebSockets, ~hundreds of millions of sockets globally. <i>Implication:</i> a dedicated connection tier you can scale independently.</li>
-      <li><b>Location storage:</b> if you never persist raw pings, durable storage stays modest — only rides and entity records. Reinforces "keep the firehose out of the DB."</li>
-    </ul>
-  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Matching in under a minute with no double-assignment, plus a location firehose. Let me size them.”</p>
 
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
+  <h2>Capacity Estimation</h2>
+  <p>Only compute the numbers that change a decision. The one that dominates is the location-write rate; the rest size the tiers around it.</p>
+  <table>
+    <tr><th>Quantity</th><th>Worked math</th><th>Design implication</th></tr>
+    <tr><td>Location pings</td><td>~10M online drivers at peak, one ping every ~5 s ⇒ 10M ÷ 5 = <b>~2M writes/s</b><a href="#c1" class="cite">[1]</a></td><td>This is the firehose. On DynamoDB: 2M × 86,400 ≈ 173B writes/day × $1.25/M ≈ <b>~$216k per day</b>. It cannot go to a durable indexed table; it belongs in memory (Deep Dive 4).</td></tr>
+    <tr><td>Geo index memory</td><td>10M drivers × ~150 B (id, lat/lng, status) ≈ <b>~1.5 GB</b>; at ~100k writes/s per Redis node, 2M ÷ 100k ⇒ <b>~20 shards</b></td><td>Memory is trivial and write throughput sets the shard count. Shard by city (then by cell) so every nearby-driver query hits one shard.</td></tr>
+    <tr><td>Ride requests</td><td>~25M rides/day ÷ 86,400 ≈ ~290/s; ×5 Friday-night peak ≈ <b>~1.5k ride requests/s</b>; fare estimates ~10× ⇒ <b>~15k/s</b></td><td>Small next to pings. The match path can afford queues, workflows and richer logic.</td></tr>
+    <tr><td>ETA / routing queries</td><td>Each match ranks ~20–50 nearby candidates by ETA: 1.5k × ~30 ≈ 45k, plus ~15k fare estimates and live ETAs ⇒ <b>~100k routing queries/s</b></td><td>Routing is the real compute cost. Precomputed road graphs held in RAM, plus cached cell-to-cell ETAs.</td></tr>
+    <tr><td>WebSocket connections</td><td>~10M drivers + ~10M riders with the app open ≈ <b>~20M sockets</b> ÷ ~100k per node ≈ <b>~200 nodes</b></td><td>A dedicated connection tier that scales independently of business logic.</td></tr>
+    <tr><td>Location relay egress</td><td>~5M riders watching cars × 1 update/4 s × ~200 B ≈ 250 MB/s × 2.6M s/month ≈ <b>~650 TB/month</b></td><td>Relay bandwidth is a real cost line. Adapt update cadence to what the rider is looking at.</td></tr>
+    <tr><td>Durable storage</td><td>Rides: 25M/day × ~2 KB ≈ 50 GB/day ≈ <b>~18 TB/year</b>. Raw pings: 2M/s × ~100 B ≈ 17 TB/day ⇒ ~260 TB/month compressed to S3</td><td>The rides DB stays modest (city shards). Raw pings bypass the database entirely: Kafka → object storage for analytics.</td></tr>
+  </table>
+  <p>The punchline: a 2M/s in-memory firehose, a ~100k/s routing workload, and a comparatively tiny ride-transaction path. Three very different shapes, so three separately scaled tiers.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why not store every location ping in a database?”</p>
+    <p><b>Staff answer:</b> 2M writes/s would cost around $200k a day on DynamoDB, and a position is stale within seconds. Keep live positions in memory and archive raw pings to S3 asynchronously.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “2M pings/s stays in memory, ~100k routing queries/s is the compute cost, and rides are small. Let me define the entities and API.”</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p>Five entities; user identity comes from the auth token, never the body.</p>
   <table>
@@ -122,6 +167,41 @@
     <tr><td><code>WS /v1/trips/{id}/track</code></td><td>WebSocket — pushes the counterpart's live location during the trip.</td></tr>
   </table>
 
+  <h2>Data Model</h2>
+  <p>Data is classified by durability. <b>Durable facts</b> (riders, drivers, fares, rides) live in a relational store partitioned by city; <b>ephemeral state</b> (positions, offer leases, socket routing) lives in Redis with TTLs and is regenerated within seconds. A partial unique index on <code>rides(driver_id)</code> for active statuses backs up the Redis lease: even if a lease misfires, the database refuses a second active ride for the same driver.</p>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>riders</b>, <b>drivers</b> (id, profile, vehicle, status, home_city)</td><td>Postgres (or Spanner-class SQL)</td><td>PK <code>id</code></td><td>Driver status mirrors availability for reporting</td></tr>
+    <tr><td><b>fares</b> (fare_id, rider_id, pickup, destination, price_cents, eta_s, expires_at, signature)</td><td>Postgres</td><td>PK <code>fare_id</code></td><td>Expires in ~5 min; ride creation must present an unexpired fare</td></tr>
+    <tr><td><b>rides</b> (ride_id, city_id, rider_id, driver_id, fare_id, status, requested_at, picked_up_at, completed_at)</td><td>Postgres, partitioned/sharded by <code>city_id</code></td><td>PK <code>ride_id</code></td><td>Partial UNIQUE <code>driver_id WHERE status IN ('accepted','on_trip')</code>; <code>(rider_id, requested_at)</code> for history</td></tr>
+    <tr><td><b>Available drivers</b></td><td>Redis GEO (sorted set)</td><td><code>geo:{cityId}:available</code> member = driver_id</td><td>GEOSEARCH radius; removed on match, re-added on trip end</td></tr>
+    <tr><td><b>Driver heartbeat</b></td><td>Redis</td><td><code>loc:{driverId}</code> → lat, lng, ts; TTL 30 s</td><td>Stale drivers pruned when heartbeat expires</td></tr>
+    <tr><td><b>Offer lease</b></td><td>Redis</td><td><code>offer:{driverId}</code> = ride_id, <code>NX EX 10</code></td><td>Single winner per driver; TTL = offer window</td></tr>
+    <tr><td><b>Location history</b> (optional)</td><td>Kafka <code>locations</code> (key driverId) → S3 Parquet by date/city</td><td>—</td><td>Billing disputes, ETA model training</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why a separate Fare entity?”</p>
+    <p><b>Staff answer:</b> A rider requests a ride at a quoted price; storing the fare locks price and route for the request and prevents tampering between estimate and booking.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Fare, Ride and Driver status are the contract. Now the two load profiles: location path and request/match path.”</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+  <h2>Component Diagram</h2>
+<pre class="diagram">
+ [Rider app] --POST /fare, /rides--&gt; [Ride Svc] --match--&gt; [Matching Svc (workflow)]
+                                         |                      |               |
+                                         |                      | GEOSEARCH +   | offer
+                                         v                      | SET NX EX 10  v
+                              [Rides DB (by city)]              v       [Connection Svc (WS)]
+                                                    [Redis GEO + offer locks]   |
+                                                                ^               | trip locations
+                                                                | GEOADD, TTL   v
+ [Driver app] --pings every 4-5 s--&gt; [Location Svc, geo-sharded by city]    [both apps]
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">Two load profiles meet only at Redis: the location firehose overwrites positions in memory, and matching reads nearby drivers and claims one with a self-expiring lease. Rides are the only durable writes. An optional Kafka tap from the Location Service archives pings to S3.</p>
+
   <h2>High-Level Design</h2>
   <p>Split the system along its two load profiles: a <b>request/match path</b> (low volume, needs correctness) and a <b>location path</b> (firehose, needs throughput). They meet only at the geo index.</p>
   <table>
@@ -136,6 +216,14 @@
   </table>
   <p><b>Request flow:</b> client → <code>POST /fare</code> → Ride Service returns estimate → <code>POST /rides</code> creates the Ride and enqueues a match request → Matching Service asks the Geo Index for nearby available drivers → offers to the best candidate (claim + push) → driver <code>PATCH</code> accept → Ride moves to <code>on_trip</code>, both sides open a tracking WebSocket. Data stores: durable Rides/entities in a SQL/NoSQL store; live positions in Redis with TTL.</p>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why split location updates from ride requests?”</p>
+    <p><b>Staff answer:</b> One is a high-throughput, disposable firehose and the other needs correctness. Separating them means a ping surge can't slow matching.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: nearest drivers, atomic matching, live trip streaming and the firehose.”</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dive 1 — Tracking &amp; querying driver locations</h2>
   <p>"Find the nearest available drivers" is a 2-D range query. A B-tree index on <code>lat</code> and <code>lng</code> separately is useless — it can't prune in two dimensions at once, so you fall back to scanning a bounding box. The fix is a spatial index that maps 2-D into a sortable 1-D key. (See <a href="../lessons/0116-geohashing-quadtrees.html">Lesson 116 — Geospatial Indexes</a> for the mechanics.)</p>
   <table>
@@ -197,6 +285,114 @@
     <span class="tag">★ Staff-level signal</span>
     The firehose answer is a data-classification argument, not a technology list. State it as a principle — "ephemeral, regenerable data stays in memory; durable, queryable facts go to the DB" — then show you'd shed load at every layer (client cadence → transport → in-memory overwrite → geo-shard) before scaling any store. Pairing that with "I'd tap a copy to Kafka only if billing/ML needs history" shows you separate the hot path from analytics instead of overbuilding.
   </div>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. In-memory geo index + Redis leases + durable workflow for matching</b> (chosen)</td><td>As drawn</td><td>Millisecond nearest-driver queries; single-winner claims; firehose kept out of the DB</td><td>Redis failover can briefly lose positions (self-heals) and leases (DB constraint backstops)</td><td>Default for on-demand dispatch</td></tr>
+    <tr><td><b>B. Batched global matching</b> (Uber's later "batch dispatch")</td><td>Collect requests and available drivers in a city for a short window (1–2 s), then solve an assignment problem (e.g. Hungarian / min-cost flow) minimizing total ETA</td><td>Better marketplace efficiency than greedy nearest-driver; fewer long pickups</td><td>Adds seconds of latency; optimizer is a stateful per-city component; harder to explain</td><td>Dense cities where global efficiency beats per-request speed</td></tr>
+    <tr><td><b>C. Spatial database as the index</b> (PostGIS / Elasticsearch geo)</td><td>Pings batched into a durable spatial table; matching queries it with KNN</td><td>One store; durable history; rich spatial queries (polygons, surge zones)</td><td>Durable writes at 2M/s are expensive; batching makes positions stale; DB becomes the bottleneck</td><td>Low ping rates (fleet tracking, delivery at small scale)</td></tr>
+  </table>
+  <p><b>Pick A</b> for the interview, and name B as the evolution once marketplace efficiency matters — B reuses the same geo index and leases, it only changes how candidates are chosen.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Two matchers offer the same driver to two riders. How do you prevent it?”</p>
+    <p><b>Staff answer:</b> Offers are a compare-and-set lease on the driver (SET NX with TTL equal to the offer timeout). Only one matcher wins, and an unanswered offer expires by itself.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Production concerns, including location privacy and fraud.”</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+  <h2>Observability</h2>
+  <table>
+    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+    <tr><td>Matching funnel</td><td>Request → first offer latency, offers per ride, accept/decline/timeout rates, request → assigned time (per city)</td><td>&lt; 1 min NFR, broken down by city</td></tr>
+    <tr><td>Location firehose</td><td>Pings/s per shard, ingest latency, stale-driver ratio (heartbeat age), GEOADD errors</td><td>Stale positions cause bad matches</td></tr>
+    <tr><td>Consistency</td><td>Lease acquisition conflicts, DB unique-constraint violations on driver assignment (should be ~0)</td><td>Proof of no double-assignment</td></tr>
+    <tr><td>Trip streaming</td><td>Open sockets, reconnects, relay latency driver ping → rider screen</td><td>Map smoothness</td></tr>
+    <tr><td>Logs &amp; traces</td><td>ride_id carried through fare → request → workflow → offers → accept; full traces for rides (low volume), metrics only for pings</td><td>Reconstruct any ride's dispatch decisions</td></tr>
+  </table>
+
+  <h2>Monitoring</h2>
+  <table>
+    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+    <tr><td>Request → driver assigned &lt; 60 s (p90, per city, excluding no-supply)</td><td>p90 &gt; 60 s for 10 min in any top city</td><td>Page</td></tr>
+    <tr><td>Zero double-assignments</td><td>Any unique-constraint violation on active driver rides</td><td>Page</td></tr>
+    <tr><td>Location ingest availability 99.95%</td><td>Ping rejection &gt; 1% or stale-driver ratio &gt; 10% in a city</td><td>Page</td></tr>
+    <tr><td>Ride API availability 99.95%</td><td>Burn rate over 1 h / 6 h</td><td>Page</td></tr>
+  </table>
+  <p><b>Synthetic probes:</b> simulated drivers and riders in a test geofence in each region request, match, and complete a ride every few minutes. <b>Dashboards:</b> per-city supply/demand, matching funnel, firehose health, Redis shard load.</p>
+
+  <h2>Authentication &amp; Authorization</h2>
+  <table>
+    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+    <tr><td>Rider → fare, rides, tracking</td><td>OAuth/OIDC login (phone/email + OTP) → short-lived JWT</td><td>May only read/track own rides; fare must belong to the rider and be unexpired (signed fare token prevents price tampering)</td></tr>
+    <tr><td>Driver → location, offers</td><td>Driver account + device binding; background-check-verified status claim</td><td>Only active, approved drivers enter the geo index; may only accept offers leased to them</td></tr>
+    <tr><td>Trip WebSocket</td><td>Token on upgrade</td><td>Only the rider and driver of that ride_id join the channel; closes at trip end</td></tr>
+    <tr><td>Support / ops tools</td><td>SSO + MFA</td><td>RBAC; access to trip locations audited</td></tr>
+    <tr><td>Service → service</td><td>mTLS</td><td>Only Matching Svc sets leases; only Ride Svc writes rides</td></tr>
+  </table>
+
+  <h2>Security</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>GPS spoofing by drivers (fake positions to win rides or inflate fares)</td><td>Speed/teleport plausibility checks, device attestation, compare against cell/Wi-Fi signals, route-vs-fare anomaly detection</td></tr>
+    <tr><td>Fare tampering</td><td>Server-signed fare tokens with expiry; price recomputed server-side</td></tr>
+    <tr><td>Account takeover and payment fraud</td><td>Risk scoring on login and ride request, step-up verification, card fingerprinting</td></tr>
+    <tr><td>Rider/driver safety incidents</td><td>Trip sharing, emergency button, anomaly detection (long unexpected stops), identity verification for drivers</td></tr>
+    <tr><td>Location-ping flood from compromised clients</td><td>Per-device ping rate limits at ingest; authenticated lightweight channel</td></tr>
+    <tr><td>Baseline</td><td>TLS, encryption at rest, secrets manager, WAF</td></tr>
+  </table>
+
+  <h2>Privacy</h2>
+  <p>Ride data is <b>precise location over time for both riders and drivers</b> — home, work, and every trip. <b>Minimization:</b> raw pings aren't persisted on the hot path; if archived, they're stored per trip, not per person over the day, and coarsened after the billing/dispute window (e.g. 90 days). <b>Exposure:</b> riders see the driver's location only between match and drop-off; drivers see pickup/drop-off, not the rider's live location after the trip. <b>Masking:</b> phone numbers proxied through a calling service. <b>Employee access:</b> location lookups require a ticket justification and are audited (a real historic failure mode in the industry). <b>Deletion:</b> account erasure anonymizes rides kept for tax/regulatory retention.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you protect rider and driver privacy?”</p>
+    <p><b>Staff answer:</b> Share exact locations only between matched parties during a trip, mask phone numbers through a proxy, coarsen stored location history, and restrict employee access with audits.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <p>10× = ~100M online drivers-equivalent load (~20M pings/s), 10× ride requests.</p>
+  <table>
+    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+    <tr><td>Location Svc</td><td>~30 nodes</td><td>~300</td><td>More nodes per city shard; adaptive ping cadence (slower when parked)</td></tr>
+    <tr><td>Redis GEO</td><td>~20 shards (by city)</td><td>~200</td><td>Split big cities into sub-regions (e.g. S2 cells) with their own keys</td></tr>
+    <tr><td>Connection Svc</td><td>~200 nodes</td><td>~2,000</td><td>Stateless apart from socket map in Redis</td></tr>
+    <tr><td>Rides DB</td><td>~20 city shards</td><td>~200</td><td>Split high-volume cities into more shards (ride_id embeds shard)</td></tr>
+    <tr><td>Matching workflows</td><td>Workflow cluster</td><td>10× workflows</td><td>Add workflow workers and history shards</td></tr>
+    <tr><td>Routing/ETA</td><td>Self-hosted cluster</td><td>10× queries</td><td>More nodes; cache ETAs by (cell pair, time bucket)</td></tr>
+  </table>
+  <p><b>First bottleneck:</b> matching latency in the densest cities (larger candidate sets, more lease conflicts) — addressed by sub-city sharding. <b>What forces a redesign:</b> marketplace-level optimization (batched dispatch, pooling) that makes matching a global per-city solve rather than a per-request claim.</p>
+
+  <h2>Cost of Running</h2>
+  <p>Assumptions: 10M drivers online at peak (2M pings/s), ~25M rides/day, ~20M concurrent WebSockets, self-hosted routing engine for fares/ETAs (a commercial per-request routing API at this volume would cost orders of magnitude more), list prices from the course price sheet.</p>
+  <table>
+    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+    <tr><td>Routing / ETA engine</td><td>~200 × 32 vCPU with road graphs in RAM</td><td>$200,000</td></tr>
+    <tr><td>Connection Svc (WebSockets) + egress</td><td>~200 × 8 vCPU + ~650 TB relayed locations</td><td>$80,000</td></tr>
+    <tr><td>Rides DB (city shards)</td><td>~20 shard pairs</td><td>$40,000</td></tr>
+    <tr><td>Matching + workflow engine</td><td>Services + workflow cluster</td><td>$30,000</td></tr>
+    <tr><td>Location Svc</td><td>~30 × 16 vCPU</td><td>$20,000</td></tr>
+    <tr><td>Location archive (Kafka + S3)</td><td>~30 brokers + ~260 TB/month to S3</td><td>$20,000</td></tr>
+    <tr><td>Redis GEO + leases</td><td>~40 nodes</td><td>$10,000</td></tr>
+    <tr><td><b>Total</b></td><td></td><td><b>≈ $400,000</b></td></tr>
+  </table>
+  <p><b>Unit cost:</b> ≈ $0.0005 of infrastructure per ride. <b>Dominant driver:</b> routing/ETA computation — every fare estimate, candidate ranking and live ETA is a shortest-path query. <b>Levers:</b> cache ETAs between cell pairs by time bucket, use contraction-hierarchy routing, and adaptive ping cadence to shrink the firehose and relay egress.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“What dominates cost?”</p>
+    <p><b>Staff answer:</b> Routing and ETA compute. Caching cell-to-cell ETAs by time bucket and using contraction hierarchies are the big levers.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
+
+  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+  <h2>Closing Summary (60 seconds)</h2>
+  <div class="summary"><p>Uber splits a location firehose from a correctness-critical match path. Driver pings (~2M/s) update an in-memory geo index sharded by city and never touch a durable table. Ride requests query nearby available drivers, rank them by ETA from a self-hosted routing engine, and offer rides via an atomic lease whose TTL is the offer timeout, so a driver can't be double-assigned. Durable workflows track the ride state machine, and matched parties stream positions over WebSockets. At 10× we split cities into sub-regions and add nodes.</p></div>
 
   <h2>Check yourself — retrieval practice</h2>
   <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>

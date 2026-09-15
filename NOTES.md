@@ -42,7 +42,7 @@
 **Phase 3 — Common patterns**
 - [x] 0010 Common Patterns (real-time updates, contention, scaling reads/writes, blobs, long tasks)
 
-**Phase 4 — Case studies** (each: FR, NFR, capacity, API, data flow, HLD, deep dives)
+**Phase 4 — Case studies** (each a timed 60-min staff-interview walkthrough: clarify → estimate → API & data model → HLD → deep dives & alternatives → production readiness (observability, monitoring, authN/Z, security, privacy) → 10x scaling & cost → closing summary; with asks, pushback and transitions — see lessons/_AUTHORING-GUIDE.md)
 - Easy: [x] 0011 Bitly · [x] 0012 Dropbox · [x] 0013 Local Delivery · [x] 0014 News Aggregator
 - Medium: [x] all 12 — 0015 Ticketmaster, 0016 FB News Feed, 0017 Tinder, 0018 LeetCode,
   0019 WhatsApp, 0020 Yelp, 0021 Strava, 0022 Rate Limiter, 0023 Online Auction,

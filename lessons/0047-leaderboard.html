@@ -41,6 +41,26 @@
   .box b{color:var(--accent);}
   .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
   .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
   .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
   .quiz h3{margin-top:0;}
   .q{margin:1.3rem 0;}
@@ -71,6 +91,17 @@
     <strong>Why this lesson, for your mission:</strong> A leaderboard looks trivial — "just sort by score" — and that is exactly the trap. The senior candidate reaches for a Redis sorted set and stops. The L6/L7 candidate names the sorted set in thirty seconds, then spends the rest of the interview on the parts that actually break at scale: the <em>friends</em> leaderboard, ranking across a sharded set, and keeping a fast in-memory index honest against a durable source of truth. Knowing which 20% is hard — and going there unprompted — is the whole signal.
   </div>
 
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>“Which boards — global, friends, time windows?”</b> — Friends and windowed boards need different structures than a single global board.</li><li><b>“How are ties broken?”</b> — Tie-breaking rules must be encoded into the ranking score.</li><li><b>“Do scores only increase, or can they decrease?”</b> — Monotonic scores simplify anti-cheat and incremental updates.</li></ul>
+  </div>
   <h2>Functional Requirements</h2>
   <p>Strip the prompt to what the system must do. A real-time game leaderboard has one write and three reads.</p>
   <table>
@@ -97,6 +128,9 @@
     The interviewer wants to see you separate <b>two different "correctness" claims</b>. The <em>scores</em> must be exact and durable — losing a player's points is unacceptable. The <em>global rank number</em> can be slightly stale or approximate once the set is sharded, and saying so up front is what licenses the cheap sharded design later. A senior candidate treats "the leaderboard" as one consistency problem; a staff candidate negotiates exact-scores / approximate-rank and designs straight to it.
   </div>
 
+  <p class="transition"><span class="lbl">Say to move on →</span> “Fast rank reads and near-instant updates. Let me size players, writes and memory.”</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only the numbers that change the design. Three matter: total players, write rate, and the memory of the sorted index.</p>
   <table>
@@ -108,6 +142,14 @@
   </table>
   <p>The punchline: writes are cheap and the data is small. The cost is concentrated in (a) answering rank queries in log time, and (b) the friends leaderboard, which doesn't map cleanly onto a single sorted set.</p>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Can one Redis sorted set really hold 50M players?”</p>
+    <p><b>Staff answer:</b> ~50M members at ~100 B each is ~5 GB, comfortably in memory, and rank queries are O(log n).</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “50M members fits in one sorted set's memory. Let me define entities and endpoints.”</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p><b>Entities:</b> <code>Player</code> (id, display name, friend/follow edges), <code>Score</code> (playerId → numeric score, the value we rank on), and <code>Leaderboard</code> (a named, optionally time-windowed board such as <code>global:alltime</code> or <code>global:2026-W24</code>).</p>
   <p>The caller's identity comes from the auth token; we never trust a <code>playerId</code> in the body for "my rank" queries.</p>
@@ -118,6 +160,41 @@
     <tr><td><code>GET /v1/leaderboards/{board}/me</code></td><td>The caller's rank + score + a window around them. Maps to <code>ZREVRANK</code> + a ranged <code>ZREVRANGE</code>.</td></tr>
     <tr><td><code>GET /v1/leaderboards/{board}/friends</code></td><td>The caller's ranking restricted to their friend set (the hard one — see deep dive 2).</td></tr>
   </table>
+
+  <h2>Data Model</h2>
+  <p>The durable model is a score row per (board, player) plus an append-only <b>score event log keyed by match id</b> — the log makes submissions idempotent and lets any board be rebuilt. Redis holds only derived indexes: one sorted set per board-window whose score is a <b>composite</b> (points in the high bits, inverted timestamp in the low bits) so ties resolve by who got there first.</p>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>score_events</b> (event_id, match_id, player_id, board_family, delta, created_at)</td><td>Postgres (append-only)</td><td>PK <code>event_id</code></td><td>UNIQUE <code>(match_id, player_id)</code> — a replayed match result is a no-op</td></tr>
+    <tr><td><b>scores</b> (board_id, player_id, score, achieved_at, updated_at)</td><td>Postgres</td><td>PK <code>(board_id, player_id)</code></td><td>Source of truth; rebuild boards by scanning a board_id</td></tr>
+    <tr><td><b>boards</b> (board_id, family, window [daily|weekly|alltime], starts_at, ends_at)</td><td>Postgres</td><td>PK <code>board_id</code></td><td>Which live keys a score write fans out to</td></tr>
+    <tr><td><b>Ranking index</b></td><td>Redis sorted set <code>lb:{boardId}</code> (TTL on windowed boards)</td><td>member = player_id, score = points·2³² + (MAX_TS − ts)</td><td>ZINCRBY / ZREVRANGE / ZREVRANK / ZMSCORE</td></tr>
+    <tr><td><b>Score histogram</b> (sharded boards)</td><td>Redis hash <code>lb:{boardId}:hist</code></td><td>bucket → count</td><td>Approximate global rank = sum of buckets above</td></tr>
+    <tr><td><b>Top-N cache</b></td><td>Redis string / CDN</td><td><code>lb:{boardId}:top100</code>, TTL 1–2 s</td><td>Hot global view</td></tr>
+    <tr><td><b>Player profile cache</b></td><td>Redis hash</td><td><code>player:{id}</code> → name, avatar</td><td>Hydrate leaderboard rows</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why take score submissions from the game server rather than the client?”</p>
+    <p><b>Staff answer:</b> Client-reported scores are trivially forged. Scores come from authoritative game servers or are validated against match results.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Score writes and top-N, rank-around-me and friends reads. Now the two paths around one index.”</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+  <h2>Component Diagram</h2>
+<pre class="diagram">
+ [Game servers / clients (players)]
+    | POST /v1/scores         | GET top / me / friends
+    v                         v
+ [Score API (stateless, validates match results)]
+      |             |               ^       |
+      v 1.          v 2.            |       v friends?
+ [Postgres]   [Redis primary]  [Replicas] [Social graph]
+                    |               ^
+                    +---replicate---+
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">Writes go to the durable score log and table first, then to the Redis sorted set (write-through). Reads hit Redis replicas in O(log n); the friends view fetches friend ids from the social graph and scores them with one ZMSCORE call. Redis can always be rebuilt from Postgres.</p>
 
   <h2>High-Level Design</h2>
   <p>Reads and writes share one core index but lean on different supporting components. Walk each path.</p>
@@ -131,6 +208,14 @@
   </table>
   <p><b>Write path:</b> <code>POST /v1/scores</code> → API writes the authoritative row to the DB, then <code>ZADD</code>/<code>ZINCRBY</code> the sorted set (write-through). <b>Read path:</b> a rank query → API → Redis (replica) → O(log n) lookup → return. Because Redis is just an index over durable scores, we can always rebuild it; that's what makes treating it as memory-first safe.</p>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why keep a durable DB if Redis holds the leaderboard?”</p>
+    <p><b>Staff answer:</b> Redis is a rebuildable index. The DB with an event log is the source of truth, so a Redis loss or a cheating rollback can be replayed.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: the sorted set, the friends board, sharding and windowed boards.”</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
 
   <h3>1 · The Redis sorted set — why it <em>is</em> the leaderboard</h3>
@@ -186,6 +271,109 @@
     <span class="tag">★ Staff-level signal</span>
     Encoding the tie-break into the score (composite score+timestamp) instead of doing a second sort is the kind of small, decisive trick that signals you've actually built one of these. Likewise, "key per time window + TTL" shows you get that the elegance of windowing is <em>no cleanup logic</em> — the same insight as fixed windows in <a href="0028-youtube-top-k.html">Top-K</a>.
   </div>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. Durable DB + Redis sorted sets as a rebuildable index</b> (chosen)</td><td>As drawn</td><td>O(log n) rank queries, real-time updates, simple ops, exact scores</td><td>Global rank across shards needs merging or approximation</td><td>Real-time game boards up to ~100M players per board</td></tr>
+    <tr><td><b>B. Relational DB only</b> (index on score; rank via <code>COUNT(*) WHERE score &gt; x</code> or window functions)</td><td>Scores table with a B-tree index on (board, score); top-N via index scan</td><td>One system, transactional, easy</td><td>Rank queries are O(n) counts over the index; slows badly past a few million rows at high read QPS</td><td>Small games or boards refreshed rarely</td></tr>
+    <tr><td><b>C. Periodic batch ranking</b></td><td>Every N minutes a job sorts all scores and writes rank columns / precomputed pages to a KV store or CDN</td><td>Any size scales; reads are static lookups; exact global rank</td><td>Not real-time; rank staleness of minutes; heavy recompute</td><td>Huge all-time boards (hundreds of millions) where "updated every 10 minutes" is acceptable</td></tr>
+  </table>
+  <p><b>Pick A</b> for live boards; C is a great complement for enormous all-time boards where exact rank matters more than immediacy.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you compute a friends leaderboard?”</p>
+    <p><b>Staff answer:</b> Friends lists are small, so fetch the friends' scores with ZMSCORE at read time and sort ~hundreds of entries, instead of materializing a board per user.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Production concerns, especially anti-cheat.”</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+  <h2>Observability</h2>
+  <table>
+    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+    <tr><td>API (RED)</td><td>Score submits, top/me/friends read rate, p99 per endpoint, errors</td><td>Tens-of-ms read NFR per query type</td></tr>
+    <tr><td>Redis</td><td>Command latency by command (ZREVRANK, ZMSCORE), memory per board key, replica lag, evictions (should be zero)</td><td>Replica lag = stale ranks</td></tr>
+    <tr><td>Consistency</td><td>DB-write-succeeded-but-ZSET-failed count, periodic sampled diff between Postgres scores and Redis scores</td><td>Detect a drifted index before players do</td></tr>
+    <tr><td>Business / integrity</td><td>Score delta distribution, top-100 churn, suspicious jumps flagged</td><td>Cheaters show up as outliers</td></tr>
+    <tr><td>Logs &amp; traces</td><td>player_id + match_id on writes; friends query traced (graph call + ZMSCORE size)</td><td>Friends view is the slowest path</td></tr>
+  </table>
+
+  <h2>Monitoring</h2>
+  <table>
+    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+    <tr><td>Read p99 &lt; 50 ms (top, me), &lt; 100 ms (friends)</td><td>Above target for 10 min</td><td>Page</td></tr>
+    <tr><td>Score reflected in rank &lt; 2 s</td><td>Replica lag &gt; 2 s; ZSET write failures after DB commit</td><td>Page</td></tr>
+    <tr><td>No lost scores</td><td>DB write errors; index drift found by sampling</td><td>Page (drift → rebuild board)</td></tr>
+    <tr><td>Availability 99.9%</td><td>Burn rate over 1 h / 6 h</td><td>Page</td></tr>
+  </table>
+  <p><b>Synthetic probes:</b> test players on a hidden board receive scripted scores every minute; the probe asserts exact ranks, tie ordering and window expiry. <b>Dashboards:</b> per-board size and query latency, replica lag, drift checks.</p>
+
+  <h2>Authentication &amp; Authorization</h2>
+  <table>
+    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+    <tr><td>Game servers → POST scores</td><td>Service credentials (mTLS / signed requests) — the authoritative match server submits results</td><td>Clients never submit their own scores directly in competitive modes</td></tr>
+    <tr><td>Players → leaderboard reads</td><td>Session token (top-N may be public)</td><td>"me" and "friends" derive the player from the token; friend list respects the social graph's privacy settings</td></tr>
+    <tr><td>Admins → score corrections / bans</td><td>SSO + MFA</td><td>RBAC; corrections are compensating score events, audited</td></tr>
+    <tr><td>Service → service</td><td>mTLS</td><td>Only Score API writes to Redis keys</td></tr>
+  </table>
+
+  <h2>Security</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>Score tampering by modified clients</td><td>Server-authoritative results only; signed match reports; server-side plausibility checks</td></tr>
+    <tr><td>Replayed score submissions</td><td>Unique (match_id, player_id) in the event log</td></tr>
+    <tr><td>Cheating / botting to top positions</td><td>Outlier detection, delayed promotion to public top-100, ban and remove via compensating events</td></tr>
+    <tr><td>Scraping player lists</td><td>Rate limits on rank-around-me and range queries; cap window size</td></tr>
+    <tr><td>Expensive query abuse (huge ranges, giant friend lists)</td><td>Cap N and friend-set size per request</td></tr>
+    <tr><td>Baseline</td><td>TLS, Redis AUTH/ACLs in private network, encryption at rest for DB</td></tr>
+  </table>
+
+  <h2>Privacy</h2>
+  <p>Low sensitivity, but leaderboards are <b>public display of player identity</b>. <b>Controls:</b> display names (not real names) on public boards; a per-player "hide me from global leaderboards" setting (still ranked privately); friends boards show only people who consent to friend visibility. <b>Minors:</b> child accounts excluded from public boards by default. <b>Deletion:</b> account erasure removes the player from all ZSETs, score rows and event logs (or anonymizes events needed for audit). <b>Retention:</b> windowed boards expire via TTL; historical season results kept as aggregates.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you handle cheaters?”</p>
+    <p><b>Staff answer:</b> Server-authoritative scores, anomaly detection on impossible score jumps, and shadow-removal with recomputation from the event log.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <p>10× = 500M players, 50M DAU, ~100k score writes/s at peak, hundreds of thousands of reads/s.</p>
+  <table>
+    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+    <tr><td>Redis</td><td>1 primary + 2 replicas</td><td>Sharded boards (by region/league or hash) + more replicas</td><td>Top-N via shard merge; approximate global rank via histogram buckets</td></tr>
+    <tr><td>Score API</td><td>~6 nodes</td><td>~60</td><td>Stateless scale-out</td></tr>
+    <tr><td>Postgres</td><td>Single primary</td><td>Sharded by player_id</td><td>Event log partitioned by time; batch writes</td></tr>
+    <tr><td>Top-N cache</td><td>Redis</td><td>CDN edge</td><td>1–2 s TTL at the edge absorbs the hottest read</td></tr>
+    <tr><td>Friends view</td><td>ZMSCORE on one node</td><td>ZMSCORE per shard, merged</td><td>Cache friend lists; cap friend count</td></tr>
+  </table>
+  <p><b>First bottleneck:</b> exact global rank once boards are sharded — solved by the approximation the NFRs already allow. <b>What forces a redesign:</b> multi-dimensional rankings (per country × mode × week × friends) exploding the number of boards, which shifts toward batch-computed boards (alternative C) for the long tail.</p>
+
+  <h2>Cost of Running</h2>
+  <p>Assumptions: 50M players, 5M DAU, ~10k writes/s peak, tens of thousands of reads/s, daily + weekly + all-time boards, list prices from the course price sheet.</p>
+  <table>
+    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+    <tr><td>Postgres (scores + event log)</td><td>16 vCPU primary + replica, ~100 GB</td><td>$2,500</td></tr>
+    <tr><td>Redis (primary + 2 replicas)</td><td>~20 GB boards, CPU-sized nodes</td><td>$1,500</td></tr>
+    <tr><td>Score API</td><td>~6 × 4 vCPU</td><td>$1,500</td></tr>
+    <tr><td>CDN / cache for top-N, monitoring</td><td></td><td>$1,000</td></tr>
+    <tr><td><b>Total</b></td><td></td><td><b>≈ $6,500</b></td></tr>
+  </table>
+  <p><b>Unit cost:</b> ≈ $0.0013 per DAU per month. <b>Dominant driver:</b> the durable database, not Redis — the ranking index is tiny. <b>Levers:</b> batch score events (one write per match, not per point), move old season boards out of Redis into static snapshots, and serve top-N from the edge.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“What changes at 10×?”</p>
+    <p><b>Staff answer:</b> Shard boards by region or league and merge top-N across shards. Approximate global rank for players far from the top.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
+
+  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+  <h2>Closing Summary (60 seconds)</h2>
+  <div class="summary"><p>A leaderboard is a Redis sorted set in front of a durable score store. Authoritative game servers submit scores through a stateless API that writes the database and updates the sorted set; ZADD, ZREVRANGE and ZREVRANK make updates, top-N and rank queries O(log n). Ties are encoded into a composite score. Friends boards are computed at read time from a small friend list. Time-windowed boards are separate keys with TTLs, and Redis is rebuildable from the event log. At 10× we shard boards and merge top-N.</p></div>
 
   <h2>Check yourself — retrieval practice</h2>
   <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>

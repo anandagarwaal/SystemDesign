@@ -41,6 +41,26 @@
   .box b{color:var(--accent);}
   .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
   .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
   .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
   .quiz h3{margin-top:0;}
   .q{margin:1.3rem 0;}
@@ -71,6 +91,17 @@
     <strong>Why this lesson, for your mission:</strong> This is the canonical real-time fan-out problem. The breadth is small — post a comment, read recent comments, see new ones live. The whole interview lives in one deep dive: how does a comment reach millions of open connections in 200ms? An L6/L7 candidate picks the right transport, names the pub/sub channel as the fan-out primitive, and proactively breaks the design on the hottest stream before the interviewer does.<a href="#c1" class="cite">[1]</a>
   </div>
 
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>“How big is the largest single stream?”</b> — A 10M-viewer stream breaks designs that work for the long tail.</li><li><b>“Must every viewer see every comment?”</b> — If sampling is allowed on huge streams, fan-out becomes tractable.</li><li><b>“What latency counts as live?”</b> — Under 200 ms needs push; 1–2 s allows CDN snapshots.</li></ul>
+  </div>
   <h2>Functional Requirements</h2>
   <p>Keep the core list to three. Everything else (replies, reactions, moderation) is explicitly out of scope unless the interviewer asks.<a href="#c1" class="cite">[1]</a></p>
   <table>
@@ -97,6 +128,9 @@
     <b>The key tension:</b> reads vastly outnumber writes, and the read/write skew is extreme — a hot stream might take hundreds of comments/sec but must <i>deliver</i> each one to millions. The architecture optimizes the read fan-out, not the write. That asymmetry is what makes SSE the right transport (see Deep Dive 1).
   </div>
 
+  <p class="transition"><span class="lbl">Say to move on →</span> “Real-time fan-out with extreme skew per stream. Let me size the delivery factor.”</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only compute numbers that change a decision. Two matter here: the fan-out factor and the per-stream connection count.</p>
   <div class="box">
@@ -109,6 +143,14 @@
     <b>Design implication:</b> you never scale the database for the broadcast — you scale a layer of <i>connection servers</i> fronted by a <i>pub/sub backplane</i>, and you cache the tail.
   </div>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“If writes are only thousands per second, why is this hard?”</p>
+    <p><b>Staff answer:</b> Because each comment fans out to millions of viewers. The delivery count, not the write rate, sizes the system.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Delivery, not writes, is the problem: up to 10B deliveries/s on one hot stream. Let me define the API.”</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <h3>Entities</h3>
   <table>
@@ -126,6 +168,44 @@
       <li><code>GET /v1/videos/{id}/comments/stream</code> — <b>SSE subscription</b>. Long-lived HTTP response; server pushes each new comment as an event. Carries <code>Last-Event-ID</code> for reconnect replay.</li>
     </ul>
   </div>
+
+  <h2>Data Model</h2>
+  <p>Every read and write is scoped to one live video, so <code>live_video_id</code> is the partition key everywhere — the DB, the Redis tail, the pub/sub channel and the load-balancer hash. Comment ids are time-sortable (Snowflake) so the sort key doubles as the pagination cursor and the SSE <code>Last-Event-ID</code>.</p>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>comments</b> (live_video_id, comment_id, user_id, text, created_at, status)</td><td>DynamoDB</td><td>PK <code>live_video_id</code> · SK <code>comment_id</code></td><td>Scrollback: <code>SK &lt; cursor</code> descending; GSI <code>(user_id, comment_id)</code> for moderation and account deletion</td></tr>
+    <tr><td><b>Tail ring buffer</b></td><td>Redis list</td><td><code>tail:{liveVideoId}</code></td><td>LPUSH + LTRIM 0 199; LRANGE on join; also used for Last-Event-ID replay (≤ 5 min)</td></tr>
+    <tr><td><b>Channel</b></td><td>Redis Pub/Sub (sharded)</td><td><code>video:{liveVideoId}</code></td><td>Connection servers subscribe only to videos their viewers watch</td></tr>
+    <tr><td><b>Local subscriptions</b></td><td>Connection-server memory</td><td>liveVideoId → set of SSE connections</td><td>Local fan-out on each published comment</td></tr>
+    <tr><td><b>Hot-stream snapshot</b></td><td>Object at CDN origin</td><td><code>/live/{liveVideoId}/tail.json</code>, TTL 1 s</td><td>Polled by viewers of mega-streams</td></tr>
+    <tr><td><b>live_videos</b> (owned by the video team)</td><td>External service</td><td><code>live_video_id</code></td><td>Status check (is it live?) cached for seconds</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why cursor pagination for comment history?”</p>
+    <p><b>Staff answer:</b> New comments arrive constantly; offsets would skip or repeat. Time-ordered comment ids make a stable cursor.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “POST comments and subscribe via a stream. Now the thin write path and fat broadcast path.”</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+  <h2>Component Diagram</h2>
+<pre class="diagram">
+ [Commenter]                            [Viewers]
+    | POST /comments                          ^ SSE events
+    v                                         |
+ [L7 LB: routes POSTs; consistent-hash SSE by liveVideoId]
+    |                                         ^
+    v                                         |
+ [Comment Service]                    [Connection servers (~100k SSE each)]
+    |         | 2. publish video:{id}                   ^ 3. once per subscribed server
+    v         v                                         |
+ [DynamoDB] [Redis: pub/sub channels + tail ring buffers]
+                                  |
+                                  v
+                        [Snapshotter (1 s)] --&gt; [CDN tail.json] &lt;-- poll (hot streams)
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">One publish per comment reaches each subscribed connection server once; each server fans out locally. Mega-streams switch to a sampled, CDN-served snapshot polled once per second.</p>
 
   <h2>High-Level Design</h2>
   <p>Two paths, deliberately separated: a thin <b>write path</b> (POST → store → publish) and a fat <b>read/broadcast path</b> (a fleet of connection servers fed by a pub/sub backplane).</p>
@@ -148,6 +228,14 @@
     </ul>
   </div>
 
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“Why not one global pub/sub channel?”</p>
+    <p><b>Staff answer:</b> Every connection server would receive every comment for every video. Use one channel per video and subscribe servers only to channels their viewers watch.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: transport, the pub/sub backplane, write bursts and the very hot stream.”</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
 
   <h3>Deep Dive 1 — The transport: SSE vs WebSocket vs polling</h3>
@@ -201,6 +289,112 @@
     <span class="tag">★ Staff-level signal</span>
     The elegant answer is to <b>relax the NFR you can afford to relax</b>. On a mega-stream, trading 200ms for ~1–2s and pushing delivery onto the <b>CDN</b> converts an impossible per-connection push into a trivially-cached static object that scales to hundreds of millions for almost nothing.<a href="#c1" class="cite">[1]</a> Pair it with sampling so the feed stays readable, and show the user's own comment optimistically so <i>they</i> still feel instant. Recognizing that the hottest stream needs a <i>different</i> delivery model than the long tail of normal streams — and reaching for it unprompted — is exactly the L6/L7 signal.
   </div>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. SSE connection fleet + per-video pub/sub channels + CDN snapshots for hot streams</b> (chosen)</td><td>As drawn</td><td>Sub-200 ms for the long tail of streams; hot streams degrade gracefully to ~1–2 s</td><td>Operating a large stateful connection fleet; two delivery modes</td><td>Mixed traffic: millions of small streams plus a few giant ones</td></tr>
+    <tr><td><b>B. Managed real-time messaging service</b> (e.g. a hosted pub/sub-over-WebSocket provider)</td><td>Comment Service publishes to a vendor channel per video; clients subscribe with vendor SDKs</td><td>No connection fleet to build; global edge presence; fast to ship</td><td>Per-message/per-connection pricing explodes at billions of deliveries; less control over sampling and hot-stream behavior</td><td>Smaller platforms or early launches</td></tr>
+    <tr><td><b>C. Pure polling of CDN-cached tails for every stream</b></td><td>Every viewer polls a 1-second-TTL tail object; no persistent connections at all</td><td>Stateless, trivially scalable, cheapest to operate</td><td>1–2 s latency for everyone; CDN request volume for millions of streams; own comment must be shown optimistically</td><td>When "near real time" is acceptable across the board</td></tr>
+  </table>
+  <p><b>Pick A:</b> most streams are small and deserve true push; the architecture already contains C as the escape hatch for the few streams where push can't scale.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“SSE or WebSockets?”</p>
+    <p><b>Staff answer:</b> SSE. Writes are occasional POSTs and reads are one-way streams; SSE is plain HTTP, proxy-friendly, and has built-in reconnect with Last-Event-ID. WebSockets pay for duplex we don't use.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, including moderation.”</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+  <h2>Observability</h2>
+  <table>
+    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+    <tr><td>End-to-end latency</td><td>POST accepted → SSE event written on the viewer's connection (server timestamp in the event; client reports receive time on a sample)</td><td>The &lt; 200 ms NFR</td></tr>
+    <tr><td>Connection fleet</td><td>Open connections per server and per video, connect/reconnect rate, Last-Event-ID replay volume, slow-consumer drops, per-server outbound queue depth</td><td>Hot videos concentrate on a few servers</td></tr>
+    <tr><td>Pub/sub</td><td>Publishes/s per channel, subscriber count per channel, Redis output buffer limits hit</td><td>Buffer overflows silently disconnect subscribers</td></tr>
+    <tr><td>Write path (RED)</td><td>Comment POST rate/latency/errors, DynamoDB throttles, tail cache write failures</td><td>Burst absorption</td></tr>
+    <tr><td>Logs &amp; traces</td><td>comment_id as the correlation id through service → publish → delivery; traces sampled 0.1%, deliveries counted not logged</td><td>Billions of deliveries can't each be logged</td></tr>
+  </table>
+
+  <h2>Monitoring</h2>
+  <table>
+    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+    <tr><td>p99 comment delivery &lt; 200 ms (normal streams); &lt; 2 s (snapshot mode)</td><td>Sampled latency p99 above target for 10 min</td><td>Page</td></tr>
+    <tr><td>Comment POST availability 99.9%</td><td>Burn rate over 1 h / 6 h</td><td>Page</td></tr>
+    <tr><td>Connection fleet headroom</td><td>Any server &gt; 85% of connection capacity; reconnect storm (&gt; 5× baseline)</td><td>Page</td></tr>
+    <tr><td>Hot-stream readiness</td><td>A stream crossing ~1M viewers without switching to snapshot mode</td><td>Page</td></tr>
+  </table>
+  <p><b>Synthetic probes:</b> a test live video with a robot commenter every 5 s and robot viewers in several regions measuring delivery latency. <b>Dashboards:</b> top streams by viewers and comments/s, delivery latency by region, connection distribution across servers.</p>
+
+  <h2>Authentication &amp; Authorization</h2>
+  <table>
+    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+    <tr><td>Viewer → SSE stream / tail</td><td>Session token on the SSE request (cookie or short-lived token in query for EventSource)</td><td>May view if the live video is visible to them (public, friends-only, or group-only — checked on connect via the video team's API)</td></tr>
+    <tr><td>Viewer → POST comment</td><td>JWT</td><td>Not blocked by the broadcaster; comments enabled on the video; not rate-limited or muted</td></tr>
+    <tr><td>Broadcaster / moderators</td><td>JWT</td><td>Can delete comments and mute/block users on their own stream</td></tr>
+    <tr><td>CDN snapshots (hot streams)</td><td>Signed URLs / cookies for non-public streams</td><td>Public mega-streams only served unsigned</td></tr>
+    <tr><td>Service → service</td><td>mTLS</td><td>Only Comment Service publishes to channels</td></tr>
+  </table>
+
+  <h2>Security</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>Comment spam / raid floods on a stream</td><td>Per-user and per-stream rate limits, slow mode, followers-only mode, spam classifier before publish</td></tr>
+    <tr><td>Harassment of broadcasters</td><td>Keyword filters, broadcaster mute/block, pre-publish toxicity scoring on hot streams (sampling favors good comments)</td></tr>
+    <tr><td>Connection-exhaustion DDoS on SSE servers</td><td>Per-IP connection caps, auth required for SSE, idle timeouts, edge protection</td></tr>
+    <tr><td>Cache/CDN leakage of private streams</td><td>Snapshots only for public videos; signed URLs otherwise</td></tr>
+    <tr><td>XSS via comment text</td><td>Render as text, never HTML; length limits</td></tr>
+    <tr><td>Baseline</td><td>TLS, encryption at rest, secrets manager, WAF</td></tr>
+  </table>
+
+  <h2>Privacy</h2>
+  <p><b>PII:</b> commenter name/avatar and comment text, public to everyone watching that stream; viewing activity (who watched what) is private. <b>Audience:</b> comment visibility follows the video's audience — a friends-only stream's comments must never land in a public CDN snapshot. <b>Deletion:</b> a deleted comment is removed from DynamoDB and the tail, and a <code>delete</code> event is published so connected clients remove it; account deletion uses the user GSI. <b>Retention:</b> comments kept with the video replay; deleted with it. <b>Minimization:</b> connection logs keep video id and a hashed viewer id, rotated quickly.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“How do you moderate at millions of comments per minute?”</p>
+    <p><b>Staff answer:</b> Synchronous cheap filters (blocklists, spam classifiers, rate limits) before publish; asynchronous ML review with takedown events; and creator controls such as slow mode and followers-only.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <p>10× = ~500M concurrent viewers, ~200k comments/s aggregate, 10× concurrent live videos.</p>
+  <table>
+    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+    <tr><td>Connection servers</td><td>~500</td><td>~5,000</td><td>Add servers; consistent hashing on video id redistributes minimal load</td></tr>
+    <tr><td>Redis pub/sub + tails</td><td>~30 nodes</td><td>~300 nodes</td><td>Sharded pub/sub by channel; tails stay ~40 KB per video</td></tr>
+    <tr><td>DynamoDB comments</td><td>20k writes/s</td><td>200k writes/s</td><td>Partitions split automatically; write-shard a mega-video's partition key (<code>videoId#n</code>)</td></tr>
+    <tr><td>Hot-stream threshold</td><td>~1M viewers</td><td>Lower, e.g. 500k</td><td>Switch more streams to CDN snapshot mode sooner; increase sampling</td></tr>
+    <tr><td>CDN</td><td>Snapshots</td><td>10× polls</td><td>CDN capacity; 2 s poll interval for the largest streams</td></tr>
+  </table>
+  <p><b>First bottleneck:</b> bytes delivered to viewers (egress) and per-server send buffers on hot videos — handled by sampling and the snapshot threshold. <b>What forces a redesign:</b> interactive features needing per-viewer personalization of the comment stream in real time (ranking per viewer), which breaks "one publish, identical deliveries."</p>
+
+  <h2>Cost of Running</h2>
+  <p>Assumptions: ~50M concurrent viewers; ~20k comments/s posted; each viewer receives ~0.5 comments/s on average after sampling (~300 bytes each); 4 mega-stream events/month (20M viewers, 1 h, polling every 2 s); bulk egress ~$0.02/GB; list prices from the course price sheet.</p>
+  <table>
+    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+    <tr><td>Egress to viewers (SSE bytes)</td><td>50M × 0.5/s × 300 B ≈ 20 PB/month</td><td>$400,000</td></tr>
+    <tr><td>Connection servers</td><td>~500 × 8 vCPU</td><td>$120,000</td></tr>
+    <tr><td>DynamoDB comments</td><td>~52B writes/month (provisioned capacity) + ~10 TB</td><td>$20,000</td></tr>
+    <tr><td>Redis pub/sub + tails</td><td>~30 nodes</td><td>$16,000</td></tr>
+    <tr><td>CDN snapshots for mega-streams</td><td>~36B requests × $0.50/M</td><td>$18,000</td></tr>
+    <tr><td>Comment Service + LB</td><td></td><td>$10,000</td></tr>
+    <tr><td><b>Total</b></td><td></td><td><b>≈ $585,000</b></td></tr>
+  </table>
+  <p><b>Unit cost:</b> ≈ $0.016 per 1,000 viewer-hours. <b>Dominant driver:</b> delivering bytes, not storing comments. <b>Levers:</b> sample harder on busy streams (nobody reads 50 comments/s), compact event encoding (short field names, compression), and batching several comments into one SSE event every 100–200 ms.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">“What happens on a 10M-viewer stream?”</p>
+    <p><b>Staff answer:</b> Relax latency to ~1–2 s: sample comments and serve periodic CDN-cached snapshots, so one cached object serves millions instead of a push per connection.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> “To wrap up:”</p>
+
+  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+  <h2>Closing Summary (60 seconds)</h2>
+  <div class="summary"><p>Live comments are a fan-out problem with extreme skew. The write path is a thin POST that stores the comment and publishes it to a per-video pub/sub channel. Viewers hold SSE connections to servers routed by video id, and each server subscribes only to channels its viewers watch. Recent comments load from a capped per-video list. For mega-streams we relax the latency NFR: sample comments and serve CDN-cached snapshots every ~1–2 s. At 10× we add connection servers and pub/sub shards; egress is the main cost.</p></div>
 
   <h2>Check yourself — retrieval practice</h2>
   <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
