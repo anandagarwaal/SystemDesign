@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 124 — Choosing a Database</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 124 · Phase 1 — Core Concepts</p>
+  <h1>Choosing a Database</h1>
+  <p class="sub">Not "SQL vs NoSQL" — a short sequence of questions about access pattern, consistency, and scale that narrows dozens of options to one defensible pick.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Every case study eventually asks "what do you store this in?" A senior answer names a database. A staff answer runs a small decision procedure out loud — access pattern, then consistency need, then scale and shape — and lands on a pick they can defend against "why not X instead?" This lesson is that procedure, distilled from the individual database deep dives (<a href="0088-postgresql.html">Postgres</a>, <a href="0089-mysql.html">MySQL</a>, <a href="0090-cassandra.html">Cassandra</a>, <a href="0091-dynamodb.html">DynamoDB</a>, <a href="0092-mongodb.html">MongoDB</a>, <a href="0093-redis.html">Redis</a>, <a href="0094-elasticsearch.html">Elasticsearch</a>, <a href="0095-clickhouse-olap.html">ClickHouse</a>) into one reusable framework.
+  </div>
+
+  <h2>The order of questions, not a table of products</h2>
+  <p>The mistake is starting from "which database is best" and working backward. The fix is starting from <em>your workload</em> and asking, in order:</p>
+  <table>
+    <thead><tr><th>#</th><th>Question</th><th>What it eliminates</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>What does a typical read/write actually look like?</td><td>Whether you need joins, range scans, full-text, or a single-key lookup</td></tr>
+      <tr><td>2</td><td>What happens if two writes to the same record race?</td><td>Whether you need strong consistency/transactions or can tolerate eventual</td></tr>
+      <tr><td>3</td><td>How much data, and how fast does it grow?</td><td>Whether a single-node relational DB is enough or you need to shard/go wide-column</td></tr>
+      <tr><td>4</td><td>Is this the source of truth, or a derived view?</td><td>Whether it needs durability/ACID at all, or can be a cache/index rebuilt from the truth</td></tr>
+    </tbody>
+  </table>
+  <p>Answer these four, in this order, and the field of "50 databases" collapses to 1–2 defensible candidates before you've named a single product.</p>
+
+  <h2>Question 1 — access pattern</h2>
+  <p>This is the highest-leverage question because it determines the <em>category</em>, not just the vendor.</p>
+  <table>
+    <thead><tr><th>Access pattern</th><th>Category</th><th>Example</th></tr></thead>
+    <tbody>
+      <tr><td>Lookup by key, simple relations, need joins/transactions across entities</td><td>Relational (SQL)</td><td>Orders + line items + customers</td></tr>
+      <tr><td>Lookup by key only, one entity, extreme write throughput, flexible schema</td><td>Wide-column / key-value (NoSQL)</td><td>Sensor readings keyed by device_id</td></tr>
+      <tr><td>Sub-millisecond lookup, ephemeral or semi-durable, rich in-memory structures</td><td>In-memory store</td><td>Session state, leaderboard, rate limiter</td></tr>
+      <tr><td>Full-text search, relevance ranking, faceted filtering</td><td>Search index</td><td>Product search, log search</td></tr>
+      <tr><td>Aggregate over huge historical volumes, few writes, many large scans</td><td>Columnar / OLAP</td><td>"Revenue by region by day for 2 years"</td></tr>
+      <tr><td>Ordered by time, high write rate, queries are always range-by-time</td><td>Time-series</td><td>Metrics, IoT telemetry</td></tr>
+      <tr><td>Similarity search over high-dimensional embeddings</td><td>Vector</td><td>Semantic search, RAG retrieval</td></tr>
+    </tbody>
+  </table>
+  <div class="box">
+    <b>One system, one store — usually.</b> Don't reach for a second datastore to solve a problem the first one already solves adequately. A Postgres <code>GIN</code> index handles modest full-text search; you don't need Elasticsearch until relevance ranking or query volume genuinely demands it. Every extra store is an extra thing to keep in sync, monitor, and back up.
+  </div>
+
+  <h2>Question 2 — consistency and contention</h2>
+  <p>This is the question that decides SQL-family vs. most NoSQL, independent of scale. Ask: <em>"if two writes hit the same row at the same instant, what must happen?"</em></p>
+  <table>
+    <thead><tr><th>Answer</th><th>Need</th><th>Fits</th></tr></thead>
+    <tbody>
+      <tr><td>Must serialize — money, inventory counts, seat holds</td><td>ACID transactions, often row-level locking or optimistic concurrency</td><td>Postgres/MySQL, or a distributed SQL store (CockroachDB, Spanner) at large scale</td></tr>
+      <tr><td>Can merge/last-write-wins — profile edits, likes, view counts</td><td>Eventual consistency, tunable per-request if needed</td><td>Cassandra, DynamoDB</td></tr>
+      <tr><td>Never conflicts by construction — append-only events, logs</td><td>No coordination needed; writes are independent</td><td>Kafka-backed log, wide-column store keyed to avoid collisions</td></tr>
+    </tbody>
+  </table>
+  <p>This is exactly the AP/CP framing from <a href="0006-replication-and-cap.html">Replication &amp; CAP</a>, applied one level earlier — before you pick a specific product, decide which side of that line each piece of your data sits on. Most real systems split: strongly consistent for the money/inventory path, eventually consistent for everything else. See <a href="0062-ecommerce-flash-sale.html">flash sale</a> and <a href="0123-inventory-management.html">inventory management</a> for two worked examples of exactly that split.</p>
+
+  <h2>Question 3 — scale and shape</h2>
+  <p>Only after 1 and 2 does raw size matter, because it decides single-node vs. distributed, not category.</p>
+  <table>
+    <thead><tr><th>Signal</th><th>Implication</th></tr></thead>
+    <tbody>
+      <tr><td>Fits on one well-provisioned node with room to grow (most systems, even at millions of users)</td><td>A single primary + read replicas is enough. Don't shard prematurely.</td></tr>
+      <tr><td>Write volume alone exceeds one node's disk/IOPS, no matter how you tune it</td><td>Shard by a key that matches your access pattern (see <a href="0005-sharding-and-consistent-hashing.html">Sharding</a>) or move to a store built to shard natively (Cassandra, DynamoDB).</td></tr>
+      <tr><td>Data is inherently unbounded and append-only (logs, events, metrics)</td><td>LSM-tree-based stores (Cassandra, ClickHouse) beat B-tree stores on write-heavy ingest.</td></tr>
+      <tr><td>Read pattern is "one row" vs. "scan millions of rows and aggregate"</td><td>Row-oriented (Postgres) vs. column-oriented (ClickHouse) storage — the physical layout should match the query shape.</td></tr>
+    </tbody>
+  </table>
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    The single most common interview mistake is reaching for a distributed NoSQL store because the numbers in the prompt "sound big." Most numbers that sound big (millions of users, thousands of requests/sec) fit comfortably on a well-tuned single-primary Postgres instance with caching and read replicas <a href="#c1" class="cite">[1]</a>. Justify a NoSQL or sharded pick with a specific bottleneck — write throughput past one node's IOPS ceiling, a query shape a relational engine can't serve — not with vibes about "web scale."
+  </div>
+
+  <h2>Question 4 — source of truth vs. derived view</h2>
+  <p>Not every piece of data needs a durable, ACID-compliant home. Ask what happens if this copy is lost:</p>
+  <table>
+    <thead><tr><th>If lost…</th><th>Treatment</th></tr></thead>
+    <tbody>
+      <tr><td>Business fact is gone forever — an order, a payment, a stock movement</td><td>Source of truth: durable, transactional store (relational, or an append-only ledger — see <a href="0123-inventory-management.html">inventory management</a>)</td></tr>
+      <tr><td>Can be rebuilt from the source of truth — a cache, a search index, a materialized aggregate</td><td>Derived view: optimize purely for its read pattern (Redis, Elasticsearch, a rollup table), rebuild via <a href="0113-change-data-capture.html">CDC</a> if it drifts</td></tr>
+    </tbody>
+  </table>
+  <p>This split is why a well-designed system often has three or four different stores and that's <em>not</em> over-engineering: one relational source of truth, one cache for hot reads, one search index for text queries, one CDC-fed aggregate for analytics — each doing the one thing it's good at, none of them the only copy of anything important.</p>
+
+  <h2>Putting it together</h2>
+  <div class="box">
+    <b>The four-question walk, worked on a real prompt.</b> "Design an inventory system across warehouses."
+    <ul>
+      <li><b>Access pattern:</b> point lookups and small conditional updates by (warehouse, SKU); occasional cross-warehouse aggregation. → Relational for the hot path, a rollup store for aggregates.</li>
+      <li><b>Consistency:</b> a stock decrement must never lose a concurrent update. → Needs transactions/optimistic concurrency per row — rules out plain eventual-consistency stores for this table.</li>
+      <li><b>Scale:</b> write volume per warehouse is modest; total volume is large but naturally partitions by warehouse. → Single-node relational per shard, sharded by warehouse_id — no need for a natively-distributed NoSQL store.</li>
+      <li><b>Source of truth vs. derived:</b> the movement ledger is truth; the cached stock level and the cross-warehouse aggregate are derived and rebuildable. → Postgres (truth) + Redis (cache) + a materialized view (aggregate), wired by CDC.</li>
+    </ul>
+    Four short answers, zero product names mentioned until the end — that ordering is what an interviewer is listening for.
+  </div>
+
+  <h2>The honest SQL vs. NoSQL table</h2>
+  <p>Once the four questions are answered, this table is just a confirmation, not a starting point.</p>
+  <table>
+    <thead><tr><th></th><th>SQL (Postgres/MySQL)</th><th>NoSQL (Cassandra/DynamoDB/Mongo)</th></tr></thead>
+    <tbody>
+      <tr><td>Schema</td><td>Fixed, enforced</td><td>Flexible, enforced by the app</td></tr>
+      <tr><td>Transactions</td><td>Multi-row ACID</td><td>Usually single-row/partition only</td></tr>
+      <tr><td>Joins</td><td>Native</td><td>Denormalize instead, or join in application code</td></tr>
+      <tr><td>Scaling writes</td><td>Vertical first, then manual sharding</td><td>Horizontal by design</td></tr>
+      <tr><td>Consistency default</td><td>Strong</td><td>Eventual (tunable in DynamoDB/Cassandra)</td></tr>
+      <tr><td>Best default when unsure</td><td><b>Yes — start here</b></td><td>Only once a specific need rules SQL out</td></tr>
+    </tbody>
+  </table>
+  <p>See the <a href="../reference/decision-guides.html">Decision Guides</a> reference page for the full datastore lookup table and messaging-system equivalent; this lesson is the reasoning that gets you to that table, not a replacement for it.</p>
+
+  <h2>How this shows up in an interview</h2>
+  <p>State the pick once, in the data model section, with a one-line justification per entity ("orders in Postgres — need cross-table transactions; view counts in Redis — high write rate, approximate is fine"). Don't re-litigate it unless the interviewer pushes. If they do, walk the same four questions out loud rather than defending the product name — the questions are the actual signal.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    When an interviewer asks "why not just use X instead?", the weak answer defends the chosen product. The strong answer restates which of the four questions X fails on — "DynamoDB would lose the multi-row transaction across the reservation and the order, which this workflow needs." Arguing from the requirement, not from database trivia, is what reads as staff.
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. What should you determine first when choosing a database for a new entity?</p>
+      <button class="opt">Which single vendor is most popular in industry today</button>
+      <button class="opt">The access pattern: lookups, joins, ranges, search, or scans</button>
+      <button class="opt">The exact number of servers the final cluster will need</button>
+      <button class="opt">Whether the team has previously operated a NoSQL cluster</button>
+      <p class="fb">Access pattern decides the category (relational, key-value, search, columnar, time-series) before any product or scale question matters.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. A prompt mentions "millions of users" and a candidate immediately proposes Cassandra. What's the staff-level response?</p>
+      <button class="opt">Agree, since any large user count always requires a NoSQL store</button>
+      <button class="opt">Propose MongoDB instead, since it also scales horizontally</button>
+      <button class="opt">Ask what specific bottleneck rules out a single relational node</button>
+      <button class="opt">Add a second cache layer in front of whichever store is picked</button>
+      <p class="fb">Most "millions of users" workloads fit on a well-tuned single-primary relational database with caching and replicas; a distributed NoSQL pick needs a concrete bottleneck to justify it.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. Why might one system reasonably use four different datastores at once?</p>
+      <button class="opt">One store of truth plus derived, rebuildable views each optimized for its own read pattern</button>
+      <button class="opt">Every additional datastore automatically increases the system's overall availability</button>
+      <button class="opt">Regulatory rules generally require physically separating every table by vendor</button>
+      <button class="opt">A single vendor cannot legally host more than one entity type at once</button>
+      <p class="fb">A relational source of truth plus a cache, search index, and CDC-fed aggregate is not over-engineering — each derived view is rebuildable and optimized for its own query shape.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. When an interviewer pushes back with "why not X instead," what's the strongest reply?</p>
+      <button class="opt">Concede immediately and switch the design to whichever store they named</button>
+      <button class="opt">Cite that store's marketing benchmarks from its documentation site</button>
+      <button class="opt">Point out that the current design was already fully implemented</button>
+      <button class="opt">Name which specific requirement — consistency, joins, scale — X fails</button>
+      <p class="fb">Arguing from the requirement the alternative fails to meet (not from product trivia) is what demonstrates the reasoning, not just the memorized pick.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> I'm your teacher for this — push on it. Try: <em>"Walk the four questions for a chat app's message store versus its user-presence store."</em> · <em>"When would you actually need a distributed SQL store like CockroachDB or Spanner instead of sharded Postgres?"</em> · <em>"Give me a case where mixing SQL and NoSQL in one system is the wrong call."</em>
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://www.hellointerview.com/learn/system-design/in-a-hurry/key-technologies">Hello Interview — Key Technologies</a>, read alongside this course's individual database lessons (<a href="0088-postgresql.html">Postgres</a>, <a href="0089-mysql.html">MySQL</a>, <a href="0090-cassandra.html">Cassandra</a>, <a href="0091-dynamodb.html">DynamoDB</a>) and the <a href="../reference/decision-guides.html">Decision Guides</a> reference page for the quick-lookup version of this framework.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] Well-established database-selection fundamentals — single-node relational capacity before sharding, ACID vs. tunable-consistency tradeoffs, and row- vs. column-oriented storage fit — as applied throughout this course's <a href="0003-databases-and-indexing.html">Databases &amp; Indexing</a>, <a href="0006-replication-and-cap.html">Replication &amp; CAP</a>, and individual database lessons.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0003-databases-and-indexing.html">← Lesson 03</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → 🏠 Back to core concepts</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>
