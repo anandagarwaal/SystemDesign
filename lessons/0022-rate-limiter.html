@@ -61,22 +61,33 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -97,6 +108,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 8</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -127,6 +140,29 @@
 
   <p class="transition"><span class="lbl">Say to move on →</span> “It sits on every request, so added latency under 10 ms and never taking the API down are the top constraints. Let me size it.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="rate-limiter-scope">
+      <p class="stem">Which capability is explicitly IN scope for this rate limiter's functional requirements?</p>
+      <button class="opt">Detecting fraud rings across accounts by pattern</button>
+      <button class="opt">Billing customers based on their metered API usage</button>
+      <button class="opt">Rejecting excess requests per client key with 429</button>
+      <p class="fb">The FR table names permitting up to N requests per key per window and rejecting the rest with 429; abuse detection and billing are named out of scope.</p>
+      <p class="hint">Reread the Functional Requirements table and the intro line about abuse-detection/billing.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="rate-limiter-nfr-latency-budget">
+      <p class="stem">Why does the NFR table single out "< 10 ms added latency" as the top constraint, above accuracy?</p>
+      <button class="opt">The check runs on every single request, so its overhead multiplies across all traffic</button>
+      <button class="opt">Ten milliseconds is a hard limit set by the HTTP protocol specification</button>
+      <button class="opt">Accuracy is unimportant because clients never notice small over-counts</button>
+      <p class="fb">Rate limiting sits in the hot path of every request. A slow check taxes 100% of traffic, so latency dominates even though eventual-consistency accuracy is explicitly allowed to be loose.</p>
+      <p class="hint">Look at where the limiter sits relative to every request, not just some of them.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only compute the numbers that change a decision. Three matter here: throughput, distinct keys, and counter memory.</p>
@@ -145,6 +181,21 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “1M checks/s and ~10 GB of counters fits in a sharded in-memory store. Let me define the tiny interface.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="rate-limiter-why-not-db-counters">
+      <p class="stem">Why does the design keep counters in Redis instead of a durable database, given the interviewer pushback?</p>
+      <button class="opt">Postgres cannot store integer counters at all, so Redis is required</button>
+      <button class="opt">Counters are short-lived and cheap to lose; persisting 1M writes/s would add cost for no benefit</button>
+      <button class="opt">Redis is a required dependency for every rate limiter by industry standard</button>
+      <p class="fb">The pushback answer is explicit: durability buys nothing for a value that expires in seconds, but costs latency and money at 1M updates/s.</p>
+      <p class="hint">Reread the pushback box right after the capacity estimation box.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p>Three entities: <b>Rule</b> (a policy: limit, window, scope), <b>Client</b> (the keyed subject), and <b>Counter</b> (the per-key state).<a href="#c1" class="cite">[1]</a> The interface is deliberately tiny.</p>
@@ -178,6 +229,21 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “allow(key, rule) returning remaining and reset is the contract. Now where it runs and what it reads.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="rate-limiter-hash-tag-why">
+      <p class="stem">Why does the Redis key use a hash tag like <code>rl:{clientKey}:...</code> instead of a plain key?</p>
+      <button class="opt">Hash tags make the key shorter, saving memory per counter</button>
+      <button class="opt">Hash tags are required syntax for any key stored with a TTL</button>
+      <button class="opt">All counters for one client land on the same cluster slot, so multi-rule checks run as one atomic script</button>
+      <p class="fb">The hash tag pins every counter for a client to one Redis Cluster slot, letting a per-second and per-minute check both run inside a single Lua script on a single shard.</p>
+      <p class="hint">Reread the Data Model intro paragraph about the "load-bearing key design."</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Component Diagram</h2>
 <pre class="diagram">
@@ -212,6 +278,21 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: counting algorithms, atomic shared counters, placement and failure mode.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="rate-limiter-edge-vs-service-enforcement">
+      <p class="stem">What would happen if the limiter check ran inside each application service instead of the edge gateway?</p>
+      <button class="opt">Blocked traffic would still consume application-server resources before being rejected</button>
+      <button class="opt">Nothing would change, since the gateway and services share one process</button>
+      <button class="opt">Rules would no longer need to be cached anywhere in the fleet</button>
+      <p class="fb">The pushback answer says the edge check exists precisely so denied traffic never reaches application servers; moving it later defeats that goal.</p>
+      <p class="hint">Reread the pushback: "Why enforce at the gateway instead of in each service?"</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
   <p>This is where the interview is won. Four hard parts: the algorithm, atomic shared counting, placement, and the availability tradeoff.</p>
@@ -279,8 +360,37 @@
     <p class="pq">“How do you avoid race conditions when two gateways update the same counter?”</p>
     <p><b>Staff answer:</b> Run the read-refill-decrement as one Redis Lua script, so the check is atomic without distributed locks.</p>
   </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Now operating and protecting the limiter itself.”</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="rate-limiter-fixed-window-weakness">
+      <p class="stem">What is the specific weakness of the fixed-window counting algorithm?</p>
+      <button class="opt">It stores one timestamp per request, so memory grows without bound</button>
+      <button class="opt">It queues requests and adds latency, blocking every legitimate burst</button>
+      <button class="opt">It permits a burst across the window boundary, doubling the intended cap</button>
+      <p class="fb">100 requests at 12:00:59 plus 100 at 12:01:00 yields 200 in two seconds — the boundary burst.</p>
+      <p class="hint">Reread the counting-algorithm table's "Weakness" column for fixed window.</p>
+    </div>
+    <div class="q" data-correct="b" data-concept="rate-limiter-lua-atomicity">
+      <p class="stem">Why wrap the token-bucket update in a Redis Lua script instead of separate calls?</p>
+      <button class="opt">Lua scripts compress the counters and cut the memory cost per stored key</button>
+      <button class="opt">Lua runs atomically, so read-calculate-update cannot race across requests</button>
+      <button class="opt">Lua removes the extra network hop that a centralized counter would add</button>
+      <p class="fb">A naive read-then-write lets two requests both see the last token and both pass; atomicity prevents it.</p>
+      <p class="hint">Reread "Shared counting across the fleet" — what race does a naive read-then-write allow?</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="rate-limiter-token-bucket-burst-why">
+      <p class="stem">Why does token bucket tolerate a legitimate traffic burst while still capping the sustained rate, unlike leaky bucket?</p>
+      <button class="opt">Unused tokens accumulate up to the burst size, so a quiet period lets a later spike through at once</button>
+      <button class="opt">Token bucket has no memory of past requests, so every request is independently allowed</button>
+      <button class="opt">Token bucket always processes requests slower than they arrive, smoothing every spike</button>
+      <p class="fb">Idle time refills the bucket toward its burst ceiling; a spike can spend that stockpile at once, then must wait for the steady refill rate — leaky bucket instead forces a fixed drain rate with no such stockpile.</p>
+      <p class="hint">Compare the token bucket and leaky bucket rows — what does the bucket accumulate during idle time?</p>
+    </div>
+  </div>
+  </section>
 
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -330,8 +440,29 @@
     <p class="pq">“Fail open or fail closed?”</p>
     <p><b>Staff answer:</b> Fail open for general API limits so a Redis outage doesn't become an API outage, with a local in-process fallback bucket. Fail closed for security-sensitive limits like login attempts.</p>
   </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="rate-limiter-fail-closed-meaning">
+      <p class="stem">What does choosing "fail-closed" mean when the counter store is unreachable?</p>
+      <button class="opt">Allow every request through unchecked so the API stays fully available</button>
+      <button class="opt">Switch each node to a local in-memory bucket and reconcile state later</button>
+      <button class="opt">Reject requests until the store recovers, protecting the fragile backend</button>
+      <p class="fb">Limiter outages often coincide with traffic spikes, exactly when the backend needs protection most.</p>
+      <p class="hint">Reread "Fail-open vs fail-closed when the store is down."</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="rate-limiter-fail-mode-per-route-why">
+      <p class="stem">Why would a staff engineer pick fail-open for a checkout endpoint but fail-closed for a login endpoint, rather than one global fail mode?</p>
+      <button class="opt">Checkout traffic is always lower volume than login traffic, so it needs less protection</button>
+      <button class="opt">The cost of wrongly blocking a paying customer differs from the cost of wrongly allowing unlimited login attempts</button>
+      <button class="opt">Fail-open and fail-closed produce identical behavior, so the choice is arbitrary</button>
+      <p class="fb">Fail mode trades availability against protection; checkout errs toward availability (don't block revenue), login errs toward protection (brute-force risk), so the right default is per-route, not global.</p>
+      <p class="hint">Reread the closing pushback box in this section on fail-open/fail-closed by route.</p>
+    </div>
+  </div>
+  </section>
 
+  <section class="chunk" id="chunk-7" hidden>
+  <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = ~10M requests/s and ~1B active keys (~100 GB of counters).</p>
@@ -364,43 +495,60 @@
     <p><b>Staff answer:</b> Cross-AZ traffic between gateways and Redis. Keep AZ-local replicas or local token caches to cut it.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “To recap:”</p>
+  </section>
 
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">8 of 8 — comprehensive check</p>
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A rate limiter is a latency-critical check on every request. Enforcement runs at the edge gateway, keyed by user, API key or IP. It calls a token bucket (or sliding-window counter) in a sharded Redis cluster through an atomic Lua script, so fleet-wide limits are accurate in under 10 ms. Rules come from a config service cached locally. General limits fail open with a local fallback, while security limits fail closed. Counters are tiny (~10 GB for 100M keys), so at 10× we just add Redis shards; cross-AZ traffic is a real cost.</p></div>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. What is the specific weakness of the fixed-window counting algorithm?</p>
-      <button class="opt">It stores one timestamp per request, so memory grows without any bound</button>
-      <button class="opt">It queues requests and adds latency, blocking every legitimate burst</button>
-      <button class="opt">It permits a burst across the window boundary, doubling the intended cap</button>
-      <p class="fb">100 requests at 12:00:59 plus 100 at 12:01:00 yields 200 in two seconds — the boundary burst.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. Why wrap the token-bucket update in a Redis Lua script instead of separate calls?</p>
-      <button class="opt">Lua scripts compress the counters and cut the memory cost per stored key</button>
-      <button class="opt">Lua runs atomically, so read-calculate-update cannot race across requests</button>
-      <button class="opt">Lua removes the extra network hop that a centralized counter would add</button>
-      <p class="fb">A naive read-then-write lets two requests both see the last token and both pass; atomicity prevents it.</p>
-    </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Why is token bucket the common default rate-limiting algorithm choice?</p>
+  <h2>Everything from this lesson</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. These questions also seed spaced review across the whole lesson.</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="a" data-concept="rate-limiter-token-bucket-default-final">
+      <p class="stem">Why is token bucket the common default rate-limiting algorithm choice?</p>
       <button class="opt">It balances simplicity and memory while tolerating real-world legitimate bursts</button>
       <button class="opt">It records every single request timestamp and gives perfectly exact counting</button>
       <button class="opt">It alone runs entirely in local process memory with no shared store at all</button>
       <p class="fb">Two small fields per key, and it allows controlled bursts while capping the sustained rate.</p>
+      <p class="hint">Reread the "pick" box under Counting Algorithms in Deep Dives.</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">4. What does choosing "fail-closed" mean when the counter store is unreachable?</p>
-      <button class="opt">Allow every request through unchecked so the API stays fully available</button>
-      <button class="opt">Switch each node to a local in-memory bucket and reconcile state later</button>
-      <button class="opt">Reject requests until the store recovers, protecting the fragile backend</button>
-      <p class="fb">Limiter outages often coincide with traffic spikes, exactly when the backend needs protection most.</p>
+    <div class="q" data-correct="b" data-concept="rate-limiter-hot-path-latency-final">
+      <p class="stem">Which NFR forces the counter store to be an in-memory cache rather than a durable database?</p>
+      <button class="opt">The requirement for exact, never-approximate accuracy across all nodes</button>
+      <button class="opt">The under-10-ms latency budget applying to every single request on the hot path</button>
+      <button class="opt">The requirement to support configurable per-tier rules</button>
+      <p class="fb">The latency budget is the top constraint precisely because it taxes 100% of traffic; a database round trip would blow it.</p>
+      <p class="hint">Revisit chunk 1's NFR table and chunk 2's capacity implication for counter memory.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="rate-limiter-atomicity-thread-final">
+      <p class="stem">What single mechanism protects correctness both at the counter-update step and at the gateway-vs-app placement decision?</p>
+      <button class="opt">Deploying more Redis replicas so no shard is ever a bottleneck</button>
+      <button class="opt">Caching the rules table locally on every gateway node</button>
+      <button class="opt">Collapsing the check into one atomic operation so blocked or racing traffic never partially succeeds</button>
+      <p class="fb">Atomicity (Lua script / INCR+EXPIRE) prevents the read-then-write race, and edge enforcement prevents blocked traffic from partially consuming app resources — both are "make the decision atomic and final in one place."</p>
+      <p class="hint">Connect the Lua-script deep dive with the "why enforce at the gateway" pushback — what do both defend against?</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="rate-limiter-fail-mode-tradeoff-final">
+      <p class="stem">If Redis becomes unreachable and the system is fail-open everywhere, what is the concrete risk the design accepts?</p>
+      <button class="opt">Abusive clients can flood the backend right when a traffic spike is most likely to have caused the outage</button>
+      <button class="opt">Every request will be rejected until Redis recovers, causing a full outage</button>
+      <button class="opt">The rules database will silently lose all configured limits permanently</button>
+      <p class="fb">Fail-open trades protection for availability; the danger named in the text is that limiter outages often coincide with the traffic spikes you most need protection from.</p>
+      <p class="hint">Reread the fail-open bullet in "Fail-open vs fail-closed when the store is down."</p>
+    </div>
+    <div class="q" data-correct="c" data-concept="rate-limiter-cost-driver-final">
+      <p class="stem">According to the cost breakdown, what is the dominant monthly cost driver for this system?</p>
+      <button class="opt">The Redis Cluster compute for running Lua scripts</button>
+      <button class="opt">The rules database and admin API</button>
+      <button class="opt">Cross-AZ network traffic between gateways and Redis</button>
+      <p class="fb">Cross-AZ traffic costs more than the Redis fleet itself; AZ-local shards or routing removes most of it.</p>
+      <p class="hint">Reread the Cost of Running table and its "Dominant driver" line.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic — push on it. Try: "Walk me through the exact Lua script for an atomic token-bucket check." · "When would local in-memory buckets with async reconciliation beat a centralized Redis counter?" · "How would I design per-route fail-open vs fail-closed policy instead of one global choice?"
@@ -421,21 +569,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

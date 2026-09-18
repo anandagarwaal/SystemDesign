@@ -76,6 +76,19 @@
   .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
@@ -101,6 +114,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 8</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -132,6 +147,29 @@
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Spiky fan-out, at-least-once handoff and never double-sending. Let me size the send rate.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="notification-fr-scope">
+      <p class="stem">Which of these is explicitly IN scope for the notification service itself?</p>
+      <button class="opt">Deciding when a calling service should trigger a send</button>
+      <button class="opt">Respecting per-channel user preferences and quiet hours</button>
+      <button class="opt">Building the campaign authoring UI and analytics dashboards</button>
+      <p class="fb">The service is the delivery substrate: it enforces preferences/quiet hours centrally. Deciding "when to notify" and campaign UIs are explicitly pushed to other systems.</p>
+      <p class="hint">Reread the "Out of scope" note right under the functional requirements table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="notification-latency-throughput-tension">
+      <p class="stem">Why can't a login OTP and a marketing blast share one FIFO queue?</p>
+      <button class="opt">A blast enqueues millions of messages that would sit ahead of the OTP, delaying a latency-critical send</button>
+      <button class="opt">FIFO queues silently drop messages once they exceed a fixed daily count limit</button>
+      <button class="opt">Marketing messages require a completely different network protocol than OTPs</button>
+      <p class="fb">FIFO means first-in-first-out: a blast ahead of the OTP in the same queue makes the OTP wait behind millions of unrelated messages, breaking the seconds-level latency NFR.</p>
+      <p class="hint">Think about what FIFO ordering actually guarantees, and what sits in front of the OTP if they share a queue.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Estimate only the numbers that change the design. These are back-of-envelope figures, derived here, not quoted from a source.</p>
@@ -152,6 +190,21 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “~58k/s average and ~300k/s peak means async queues and worker pools. Let me define entities and the API.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="notification-sync-send-why-bad">
+      <p class="stem">Why does the design reject sending synchronously from the ingestion API?</p>
+      <button class="opt">Synchronous calls are always billed at a higher rate by push and SMS providers</button>
+      <button class="opt">Synchronous code cannot be written to call more than one provider at all</button>
+      <button class="opt">Slow or failing providers would block callers and exhaust API threads under a blast</button>
+      <p class="fb">Providers are slow and fail; blocking the caller on them turns a provider hiccup into an outage for every sender. Accept, persist, return 202, deliver async.</p>
+      <p class="hint">Look at the pushback box: what happens to caller threads if the provider call blocks during a blast?</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p><b>Notification</b> — one logical message: recipient, type/category, template + variables, requested channels.
@@ -190,6 +243,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “The API accepts and returns 202; preferences and delivery status are separate entities. Now accept-and-decide vs deliver.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="notification-topic-priority-lanes">
+      <p class="stem">How does the data model physically implement "priority lanes"?</p>
+      <button class="opt">Kafka topics split by channel and priority, e.g. push.high vs push.low</button>
+      <button class="opt">A single topic per channel with messages sorted by priority column</button>
+      <button class="opt">One shared topic across all channels ordered by notification timestamp</button>
+      <p class="fb">Topics are split by channel and priority (intake.high/low, push.high/low, etc.), so high-priority messages never queue behind low-priority ones.</p>
+      <p class="hint">Check the last row of the Data Model table, under "Topics."</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="notification-preference-check-time">
+      <p class="stem">Why check user preferences at processing time rather than baking them into the stored Notification row at ingest?</p>
+      <button class="opt">Storing preferences on the row would exceed the Cassandra row size limit</button>
+      <button class="opt">Preferences change independently and often, so checking late respects the latest opt-out</button>
+      <button class="opt">The ingestion API does not have network access to the preferences store</button>
+      <p class="fb">A preference set at ingest time could be stale by the time the message is processed; checking at processing time uses the freshest opt-out state.</p>
+      <p class="hint">Reread the pushback box right above this gate — why is Preference a separate, independently-changing entity?</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Data Flow</h2>
   <p>This is a data-processing pipeline, so trace one notification end to end:</p>
@@ -259,6 +335,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: per-channel fan-out, provider failures, idempotency and preferences.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="notification-queue-per-channel-why">
+      <p class="stem">Why a queue per channel instead of one shared queue?</p>
+      <button class="opt">Shared queues cannot ever store templated content correctly</button>
+      <button class="opt">A queue per channel removes any need to ever retry a message</button>
+      <button class="opt">A slow channel would head-of-line block faster channels in a shared queue</button>
+      <p class="fb">Per-channel queues let each channel scale, fail, and rate-limit independently, so an SMS provider outage can't stall push.</p>
+      <p class="hint">Look at the staff callout: it names the three sentences the interview turns on.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="notification-enrich-before-queue-why">
+      <p class="stem">What would break if enrichment/filtering happened AFTER the channel queues instead of before?</p>
+      <button class="opt">Muted or unaddressed messages would reach workers, wasting delivery capacity and risking sending to opted-out users</button>
+      <button class="opt">Kafka would refuse to accept messages that have not been rendered from a template first</button>
+      <button class="opt">The ingestion API would no longer be able to return a 202 response to callers</button>
+      <p class="fb">Filtering pre-queue means workers only ever see addressed, rendered, allowed messages. Filtering after the queue would let muted messages consume worker/provider capacity and risk violating opt-outs.</p>
+      <p class="hint">Reread the sentence right after the Data Flow table describing "the decisive move."</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
 
@@ -349,6 +448,37 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness next.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="notification-idempotency-resend-safe">
+      <p class="stem">At-least-once delivery can send twice. What makes a resend safe?</p>
+      <button class="opt">A larger worker pool draining the channel queues faster than before</button>
+      <button class="opt">A longer time-to-live configured on every queued push message</button>
+      <button class="opt">A stable dedupe key that turns a resend into a no-op</button>
+      <p class="fb">Idempotency keyed on a stable id (notificationId+channel, or a caller dedupeKey) gives exactly-once effect even though delivery is at-least-once.</p>
+      <p class="hint">See deep dive 3, "Idempotency & dedup — never double-send."</p>
+    </div>
+    <div class="q" data-correct="a" data-concept="notification-provider-error-handling">
+      <p class="stem">A provider returns sustained 5xx errors. Best handling?</p>
+      <button class="opt">Backoff with jitter, trip a circuit breaker, and DLQ past max retries</button>
+      <button class="opt">Retry instantly and continuously until the provider recovers</button>
+      <button class="opt">Drop the affected messages immediately so the queue drains fully</button>
+      <p class="fb">Exponential backoff with jitter protects the struggling provider; a circuit breaker sheds load; a DLQ after max attempts prevents an infinite retry loop.</p>
+      <p class="hint">Reread the "Resilience pattern at the provider edge" box in deep dive 2.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="notification-workflow-vs-queue-tradeoff">
+      <p class="stem">Why does the design use durable-workflow orchestration (alternative C) only for a small set of escalation notifications, not as the main substrate?</p>
+      <button class="opt">Workflow engines cannot integrate with APNs, FCM, Twilio, or SES at all</button>
+      <button class="opt">Per-message workflow overhead is too heavy to sustain 300k/s marketing-scale sends</button>
+      <button class="opt">Workflow engines do not support any form of retry or timeout logic</button>
+      <p class="fb">Workflow-per-notification gives rich fallback/escalation logic but at real per-message cost; that's fine for rare high-value alerts, ruinous at hundreds of thousands of sends per second.</p>
+      <p class="hint">Compare approach A and C's "Loses" columns in the Alternative Approaches table.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -402,6 +532,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="notification-preferences-filter-location">
+      <p class="stem">Where should preferences and quiet hours be applied?</p>
+      <button class="opt">Inside each provider's system, after the message is already handed off</button>
+      <button class="opt">Before the channel queues, in the processing tier</button>
+      <button class="opt">Within the client app, right before it shows the alert</button>
+      <p class="fb">Filtering pre-queue means workers never even see a muted message — cheaper and avoids leaking content to a channel the user opted out of.</p>
+      <p class="hint">This mirrors the HLD staff-signal box: "filter before you fan out."</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="notification-otp-vs-blast-mechanism">
+      <p class="stem">Mechanically, what stops an OTP from waiting behind a 10M-recipient marketing blast?</p>
+      <button class="opt">OTPs are sent over a completely separate physical network from marketing messages</button>
+      <button class="opt">Marketing blasts are limited to a maximum of 1,000 recipients per campaign</button>
+      <button class="opt">High-priority topics and reserved worker capacity drain before low-priority ones</button>
+      <p class="fb">Priority lanes (separate topics per priority, workers draining high first) are the concrete mechanism — not a policy promise but a queueing structure.</p>
+      <p class="hint">See the final pushback box in this section for the staff answer.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+  <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = 50B notifications/day, ~3M/s at peak.</p>
@@ -440,39 +593,48 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A notification service splits accept-and-decide from delivery. The ingestion API authenticates callers, checks idempotency keys, stores the notification and returns 202. Processors resolve recipients, apply preferences, quiet hours and rate limits, render templates, and publish to per-channel priority queues. Worker pools deliver through APNs/FCM, SMS and email providers with retries, backoff, circuit breakers and dead-letter queues, deduplicating before each send. Delivery receipts update a status store. At 10× we add partitions and workers.</p></div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why use a separate queue per channel instead of one shared queue?</p>
-      <button class="opt">Shared queues cannot ever store templated content</button>
-      <button class="opt">One queue per channel removes any need to retry</button>
-      <button class="opt">Slow channels would head-of-line block the faster ones</button>
-      <p class="fb">Per-channel queues let each scale, fail, and rate-limit independently; SMS can't stall push.</p>
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">Final check</p>
+  <h2>Everything from this lesson</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is what makes it stick. These questions also seed spaced review — expect variants back in a future session per the forgetting curve.</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="b" data-concept="notification-nfr-tension-final">
+      <p class="stem">What is the central tension named in the NFRs that priority lanes resolve?</p>
+      <button class="opt">Durability versus the cost of running third-party providers at scale</button>
+      <button class="opt">Latency versus throughput between transactional and marketing sends</button>
+      <button class="opt">Security versus the usability of the push token registration flow</button>
+      <p class="fb">A login OTP needs seconds-level latency while a marketing blast is throughput-bound; priority lanes let both coexist without one starving the other.</p>
+      <p class="hint">Reread the last paragraph of the Non-Functional Requirements section.</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">2. At-least-once delivery can send twice. What makes a resend safe?</p>
-      <button class="opt">A stable dedupe key turns a resend into a no-op</button>
-      <button class="opt">A larger worker pool draining the channel queues</button>
-      <button class="opt">A longer time-to-live on every queued push message</button>
-      <p class="fb">Idempotency keyed on a stable id (e.g. notificationId+channel) gives exactly-once effect.</p>
+    <div class="q" data-correct="a" data-concept="notification-fanout-placement-final">
+      <p class="stem">Where does recipient fan-out for a million-recipient campaign happen?</p>
+      <button class="opt">Behind the queue, in a processing tier, after the API has already returned 202</button>
+      <button class="opt">Synchronously inside the ingestion API request before it responds to the caller</button>
+      <button class="opt">On the client device, which expands the segment before calling the API</button>
+      <p class="fb">Fan-out placement behind the queue keeps the API O(1) and non-blocking; the processing tier streams the segment into per-channel messages.</p>
+      <p class="hint">See deep dive 1's "Fan-out placement" row in the tradeoff table.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">3. Where should preferences and quiet hours be applied?</p>
-      <button class="opt">Inside each provider after the message is handed off</button>
-      <button class="opt">Before the channel queues, in the processing tier</button>
-      <button class="opt">Within the client app right before it shows alert</button>
-      <p class="fb">Filter pre-queue so workers never deliver muted messages; it's cheaper and avoids leaks.</p>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="notification-redis-vs-cassandra-idempotency-final">
+      <p class="stem">Why store idempotency/dedupe markers in Redis (TTL'd) rather than in the same Cassandra table as delivery status?</p>
+      <button class="opt">Cassandra cannot store a value keyed by a composite string like sender+dedupeKey</button>
+      <button class="opt">Redis is required by APNs for all push-token authentication regardless of use case</button>
+      <button class="opt">A dedupe check must be a fast, short-lived SET NX on the hot ingest/delivery path</button>
+      <p class="fb">Dedup checks happen on every request/delivery attempt and only matter briefly (24h), so a fast in-memory store with atomic SET NX and TTL fits better than a wide-column store built for durable, longer-lived records.</p>
+      <p class="hint">Compare the "Idempotency / sent markers" row against the "delivery_attempts" row in the Data Model table — what differs about lifetime and access pattern?</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">4. A provider returns sustained 5xx errors. Best handling?</p>
-      <button class="opt">Drop the messages so the queue can fully drain</button>
-      <button class="opt">Retry instantly forever until the provider recovers</button>
-      <button class="opt">Backoff with jitter, trip a breaker, DLQ past max tries</button>
-      <p class="fb">Exponential backoff + circuit breaker protects the provider; a DLQ stops infinite loops.</p>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="notification-approach-b-tradeoff-final">
+      <p class="stem">Why would a managed notification SaaS (alternative B) struggle at this system's 5B/day volume even though it launches faster?</p>
+      <button class="opt">Its preference/quiet-hour logic and prioritization are weak, and per-message markup gets expensive at billions/day</button>
+      <button class="opt">Managed services are physically incapable of connecting to more than one provider</button>
+      <button class="opt">Managed services do not support push notifications under any circumstance</button>
+      <p class="fb">The Alternative Approaches table calls out exactly this: fast to launch, but weak policy logic and vendor markup dominate cost at extreme scale.</p>
+      <p class="hint">Reread row B of the Alternative Approaches & Tradeoffs table.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic. Try:
@@ -498,21 +660,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

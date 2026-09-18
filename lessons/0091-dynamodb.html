@@ -43,22 +43,35 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,159 +86,297 @@
     <strong>Why this lesson, for your mission:</strong> At L6/L7 the interviewer doesn't want "I'd use DynamoDB because it scales." They want to hear that you know <em>what AWS operates for you</em> (partitioning, replication, repartitioning) and <em>what is still your job</em> (the partition key, the access patterns, the hot-partition fix). A staff candidate models the table query-first, names the GSI that backs each read, and pre-empts the hot-partition trap with write sharding — out loud, before being asked.<a href="#c1" class="cite">[1]</a> This lesson gives you that machinery.
   </div>
 
-  <h2>What it is &amp; the data model</h2>
-  <p>DynamoDB is a <b>fully managed, serverless, NoSQL key-value and document store</b> from AWS.<a href="#c1" class="cite">[1]</a> "Managed/serverless" is the whole pitch: there are no nodes, clusters, or disks for you to size, patch, or rebalance — you create a table and read/write items, and AWS handles partitioning, replication, scaling, and failover beneath the API.<a href="#c1" class="cite">[1]</a> It descends directly from the 2007 <b>Dynamo paper</b>, so the lineage is the same one behind <a href="0090-cassandra.html">Cassandra (Lesson 90)</a>: consistent hashing, replication, and quorum-style reads — just operated for you instead of by you.<a href="#c4" class="cite">[4]</a></p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 6</p>
+    <h2>What it is &amp; the data model</h2>
+    <p>DynamoDB is a <b>fully managed, serverless, NoSQL key-value and document store</b> from AWS.<a href="#c1" class="cite">[1]</a> "Managed/serverless" is the whole pitch: there are no nodes, clusters, or disks for you to size, patch, or rebalance — you create a table and read/write items, and AWS handles partitioning, replication, scaling, and failover beneath the API.<a href="#c1" class="cite">[1]</a> It descends directly from the 2007 <b>Dynamo paper</b>, so the lineage is the same one behind <a href="0090-cassandra.html">Cassandra (Lesson 90)</a>: consistent hashing, replication, and quorum-style reads — just operated for you instead of by you.<a href="#c4" class="cite">[4]</a></p>
 
-  <p>The data model is small and rigid, which is what makes it predictable:</p>
-  <table>
-    <thead><tr><th>Concept</th><th>What it is</th><th>Interview one-liner</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><b>Table</b></td>
-        <td>A collection of items. No fixed schema beyond the key; each item can carry different attributes.<a href="#c1" class="cite">[1]</a></td>
-        <td>"Schema-on-read for everything except the key."</td>
-      </tr>
-      <tr>
-        <td><b>Item</b></td>
-        <td>One record (like a row), a set of attributes, capped at 400&nbsp;KB total.<a href="#c1" class="cite">[1]</a></td>
-        <td>"My unit of read and write; keep it small."</td>
-      </tr>
-      <tr>
-        <td><b>Partition key (PK)</b></td>
-        <td>Required. Hashed to decide <em>which partition</em> stores the item.<a href="#c1" class="cite">[1]</a></td>
-        <td>"My shard key — every fast query names it."</td>
-      </tr>
-      <tr>
-        <td><b>Sort key (SK)</b></td>
-        <td>Optional. Orders items <em>within</em> a partition, enabling ranges.<a href="#c1" class="cite">[1]</a></td>
-        <td>"Free sorted, paginated reads inside a partition."</td>
-      </tr>
-    </tbody>
-  </table>
-  <p>A table with only a partition key is a pure key-value lookup; a table with <b>partition key + sort key</b> (a "composite primary key") lets many items share a partition and be range-scanned in sort order — the structural twin of Cassandra's partition key + clustering columns.<a href="#c1" class="cite">[1]</a></p>
+    <p>The data model is small and rigid, which is what makes it predictable:</p>
+    <table>
+      <thead><tr><th>Concept</th><th>What it is</th><th>Interview one-liner</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Table</b></td>
+          <td>A collection of items. No fixed schema beyond the key; each item can carry different attributes.<a href="#c1" class="cite">[1]</a></td>
+          <td>"Schema-on-read for everything except the key."</td>
+        </tr>
+        <tr>
+          <td><b>Item</b></td>
+          <td>One record (like a row), a set of attributes, capped at 400&nbsp;KB total.<a href="#c1" class="cite">[1]</a></td>
+          <td>"My unit of read and write; keep it small."</td>
+        </tr>
+        <tr>
+          <td><b>Partition key (PK)</b></td>
+          <td>Required. Hashed to decide <em>which partition</em> stores the item.<a href="#c1" class="cite">[1]</a></td>
+          <td>"My shard key — every fast query names it."</td>
+        </tr>
+        <tr>
+          <td><b>Sort key (SK)</b></td>
+          <td>Optional. Orders items <em>within</em> a partition, enabling ranges.<a href="#c1" class="cite">[1]</a></td>
+          <td>"Free sorted, paginated reads inside a partition."</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>A table with only a partition key is a pure key-value lookup; a table with <b>partition key + sort key</b> (a "composite primary key") lets many items share a partition and be range-scanned in sort order — the structural twin of Cassandra's partition key + clustering columns.<a href="#c1" class="cite">[1]</a></p>
 
-  <h2>Internals — what AWS runs for you</h2>
-
-  <h3>Partitioning by hash of the partition key</h3>
-  <p>DynamoDB stores a table across many <b>partitions</b> — physical storage units that each hold a slice of the data on SSD.<a href="#c1" class="cite">[1]</a> To place an item, DynamoDB feeds the <b>partition-key value through an internal hash function</b>; the hash output determines which partition the item lives on.<a href="#c1" class="cite">[1]</a> This is the same idea as <a href="0005-sharding-and-consistent-hashing.html">sharding by consistent hashing (Lesson 5)</a> — hashing spreads keys evenly so no single partition is a default bottleneck, and a single item read becomes "hash the key, go straight to one partition."<a href="#c4" class="cite">[4]</a></p>
-
-  <h3>Automatic re-partitioning &amp; adaptive capacity</h3>
-  <p>Here is the part you'd otherwise operate by hand on Cassandra. As a table grows past a partition's size limit, or as traffic to it rises, DynamoDB <b>splits partitions and redistributes items automatically</b> — no downtime, no manual resharding.<a href="#c1" class="cite">[1]</a> It also applies <b>adaptive capacity</b>: it can shift throughput toward partitions receiving more traffic, smoothing moderately uneven load.<a href="#c2" class="cite">[2]</a> This auto-repartitioning is the single biggest operational difference from running your own ring — but, as we'll see, it does <em>not</em> rescue a genuinely hot single key.</p>
-
-  <h3>Replication across Availability Zones</h3>
-  <p>Every item is <b>synchronously replicated across three Availability Zones</b> in a Region before a write is acknowledged, giving durability and high availability with no action from you.<a href="#c1" class="cite">[1]</a> If an AZ or a node fails, DynamoDB serves from the survivors and heals in the background. This is the Dynamo replication model — copies on multiple independent failure domains — packaged as a default rather than a configuration.<a href="#c4" class="cite">[4]</a> (Cross-Region replication is the separate <b>global tables</b> feature, multi-active and eventually consistent across Regions.)<a href="#c1" class="cite">[1]</a></p>
-
-  <h3>The Dynamo lineage &amp; single-digit-ms latency</h3>
-  <p>Consistent hashing for placement, multi-replica storage, and quorum-style reads all trace to the <b>Dynamo paper</b>.<a href="#c4" class="cite">[4]</a> Because placement is a hash and a read goes to one partition's replica set, DynamoDB delivers <b>consistent single-digit-millisecond latency at any scale</b> — the headline SLA-class promise, and the reason it underpins shopping carts, sessions, and high-volume metadata.<a href="#c1" class="cite">[1]</a> The mental model to carry into the room: <em>you give up joins and ad-hoc queries; in return you get predictable latency that does not degrade as the table grows from megabytes to petabytes.</em></p>
-
-  <h2>Access patterns &amp; indexes</h2>
-
-  <h3>Query-first &amp; single-table design</h3>
-  <p>Like Cassandra, DynamoDB rewards <b>query-first modeling</b>: enumerate your access patterns first, then design keys so each pattern is a direct key lookup or a sort-key range — never a scan.<a href="#c3" class="cite">[3]</a> The advanced expression of this is <b>single-table design</b>: store multiple entity types (users, orders, order-items) in <em>one</em> table, using a generic <code>PK</code>/<code>SK</code> and overloaded keys so related items share a partition and can be fetched in a single query.<a href="#c3" class="cite">[3]</a> It looks alien next to a relational schema, but it exists to collapse what would be joins into one round trip. Don't over-apply it: for a beginner answer, one-table-per-entity with the right indexes is perfectly defensible.</p>
-
-  <h3>GSIs vs LSIs</h3>
-  <p>You model the table for your primary access pattern; <b>secondary indexes</b> serve the others by giving you an alternate key.<a href="#c1" class="cite">[1]</a></p>
-  <table>
-    <thead><tr><th></th><th>Global Secondary Index (GSI)</th><th>Local Secondary Index (LSI)</th></tr></thead>
-    <tbody>
-      <tr><td><b>Key</b></td><td>Any attribute as a new partition key + sort key.<a href="#c1" class="cite">[1]</a></td><td>Same partition key, a <em>different</em> sort key.<a href="#c1" class="cite">[1]</a></td></tr>
-      <tr><td><b>When created</b></td><td>Any time, add or drop freely.<a href="#c1" class="cite">[1]</a></td><td>Only at table creation — locked in.<a href="#c1" class="cite">[1]</a></td></tr>
-      <tr><td><b>Consistency</b></td><td>Eventually consistent only.<a href="#c1" class="cite">[1]</a></td><td>Can serve strongly consistent reads.<a href="#c1" class="cite">[1]</a></td></tr>
-      <tr><td><b>Capacity</b></td><td>Its own throughput, separate from the table.<a href="#c1" class="cite">[1]</a></td><td>Shares the base table's throughput.<a href="#c1" class="cite">[1]</a></td></tr>
-    </tbody>
-  </table>
-  <p>The staff-level summary: <b>reach for a GSI by default</b> (flexible, addable later, independently scaled); reach for an LSI only when you need a strongly consistent alternate sort within the same partition and you knew that at table-creation time.<a href="#c1" class="cite">[1]</a></p>
-
-  <h3>The hot-partition problem &amp; write sharding</h3>
-  <p>Hashing spreads load <em>across</em> keys, but it can't spread the load <em>of one key</em>. If a single partition-key value takes disproportionate traffic — a celebrity user, a "today" date bucket, a viral product — you get a <b>hot partition</b>: that one partition saturates and throttles even while the table is mostly idle.<a href="#c3" class="cite">[3]</a> Adaptive capacity softens skew but cannot save a single overloaded key.</p>
-  <div class="box">
-    <b>Two fixes a staff candidate names without prompting</b>
-    <ul>
-      <li><b>Pick a high-cardinality, evenly-accessed partition key</b> — the root cause is almost always a low-cardinality or time-clustered key.<a href="#c3" class="cite">[3]</a></li>
-      <li><b>Write sharding</b> — append a suffix (e.g. <code>userId#0..N</code>) to fan one hot key across N partitions, then scatter-gather on read. You trade read complexity for write spread.<a href="#c3" class="cite">[3]</a></li>
-    </ul>
-  </div>
-
-  <h3>Capacity: on-demand vs provisioned</h3>
-  <table>
-    <thead><tr><th>Mode</th><th>How it bills</th><th>Pick it when…</th></tr></thead>
-    <tbody>
-      <tr><td><b>On-demand</b></td><td>Pay per request; scales instantly, no planning.<a href="#c1" class="cite">[1]</a></td><td>Spiky, unknown, or new traffic.<a href="#c1" class="cite">[1]</a></td></tr>
-      <tr><td><b>Provisioned</b></td><td>Reserve read/write units; cheaper at steady load, can autoscale.<a href="#c1" class="cite">[1]</a></td><td>Predictable, high, steady traffic.<a href="#c1" class="cite">[1]</a></td></tr>
-    </tbody>
-  </table>
-
-  <h3>DAX &amp; read consistency</h3>
-  <p>For read-heavy, latency-critical workloads, <b>DAX (DynamoDB Accelerator)</b> is a managed, write-through in-memory cache that drops read latency from milliseconds to microseconds for cached items — a built-in <a href="0009-key-technologies-tour.html">caching layer (Lesson 9 tour)</a> you don't operate yourself.<a href="#c1" class="cite">[1]</a> On consistency, DynamoDB gives you a per-read dial: an <b>eventually consistent read</b> (the default) may miss the very latest write but is cheaper and lower-latency, while a <b>strongly consistent read</b> always reflects the last acknowledged write at higher cost and no availability on a network partition.<a href="#c1" class="cite">[1]</a> Same R/W-quorum trade as Cassandra — just exposed as one boolean instead of a tuning level.</p>
-
-  <h2>When to reach for it — and when NOT to</h2>
-  <table>
-    <thead><tr><th>Reach for DynamoDB when…</th><th>Avoid it when…</th></tr></thead>
-    <tbody>
-      <tr>
-        <td>You want zero-ops scale and predictable single-digit-ms latency.<a href="#c1" class="cite">[1]</a></td>
-        <td>You need ad-hoc queries, joins, or analytics over many dimensions.<a href="#c3" class="cite">[3]</a></td>
-      </tr>
-      <tr>
-        <td>Access patterns are known up front and key-addressable.<a href="#c3" class="cite">[3]</a></td>
-        <td>Access patterns are unknown or change constantly (no key to model).<a href="#c3" class="cite">[3]</a></td>
-      </tr>
-      <tr>
-        <td>Key-value / item workloads: carts, sessions, profiles, metadata.<a href="#c1" class="cite">[1]</a></td>
-        <td>Items are large or relationships are deeply relational and normalized.<a href="#c3" class="cite">[3]</a></td>
-      </tr>
-      <tr>
-        <td>You're all-in on AWS and want a managed service, not a cluster.<a href="#c1" class="cite">[1]</a></td>
-        <td>You need cross-cloud portability or self-host control (use <a href="0090-cassandra.html">Cassandra</a>).<a href="#c4" class="cite">[4]</a></td>
-      </tr>
-    </tbody>
-  </table>
-  <p>DynamoDB and <a href="0090-cassandra.html">Cassandra</a> share the Dynamo lineage and the query-first discipline; the real choice is operational. DynamoDB = managed, serverless, AWS-locked, you-design-keys-only. Cassandra = self-operated, multi-cloud, you-tune-consistency-and-the-ring.<a href="#c4" class="cite">[4]</a></p>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Senior candidates say "DynamoDB scales infinitely." Staff candidates draw the line between <em>managed</em> and <em>your job</em> in one breath: "AWS hashes the partition key, splits partitions, and replicates across three AZs for me — so I never resize a cluster. But it cannot rescue a hot key, so my job is a high-cardinality partition key and, for the celebrity case, write-sharding the key across N suffixes with a scatter-gather read."<a href="#c3" class="cite">[3]</a> Then they pre-empt the next probe: "Joins and ad-hoc filters don't exist here; I model query-first and back each access pattern with a GSI, defaulting to eventually consistent reads and flagging the one path that needs a strongly consistent read." Naming the boundary before the interviewer pushes is the whole game.<a href="#c1" class="cite">[1]</a>
-  </div>
-
-  <h2>In the interview</h2>
-  <p>When DynamoDB is the right call, deliver it in this order: (1) <b>justify the pick</b> from the requirement — "key-value access, known patterns, need predictable low latency and zero ops on AWS." (2) <b>List the access patterns</b>, then (3) <b>design the keys</b> — name the partition key and sort key for each pattern and the GSI that backs any secondary read. (4) <b>Pre-empt the hot partition</b> — show you chose a high-cardinality key, and describe write sharding for the celebrity case. (5) <b>Set capacity &amp; consistency</b> — on-demand vs provisioned, eventual-by-default reads with strong reads where correctness demands it, DAX if read-heavy. That arc is breadth-then-depth: a fast justification, then 60% depth on key design and the hot-partition fix — the parts AWS does <em>not</em> do for you.<a href="#c1" class="cite">[1]</a></p>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. How does DynamoDB decide which partition stores an item?</p>
-      <button class="opt">It writes the item to whichever partition has the most free room</button>
-      <button class="opt">It asks an elected leader node to route the item to a follower</button>
-      <button class="opt">It runs the partition-key value through an internal hash function</button>
-      <button class="opt">It scans every partition and picks the one nearest the sort key</button>
-      <p class="fb">DynamoDB hashes the partition-key value; the hash output maps the item to one physical partition — the consistent-hashing idea from Lesson 5.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="dynamodb-partition-key-role">
+        <p class="stem">What does the partition key determine about an item?</p>
+        <button class="opt">The maximum total size the item is allowed to reach</button>
+        <button class="opt">The sort order of the item within its own partition</button>
+        <button class="opt">Which physical partition the item is stored on</button>
+        <p class="fb">The partition key is hashed, and the hash decides which physical partition holds the item.</p>
+        <p class="hint">Reread the table row for "Partition key (PK)."</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="dynamodb-composite-key-why">
+        <p class="stem">Why add a sort key at all, instead of always using a partition-key-only table?</p>
+        <button class="opt">Sort keys are mandatory for DynamoDB to hash the item correctly</button>
+        <button class="opt">A sort key lets many related items share one partition and be range-scanned in order</button>
+        <button class="opt">Sort keys make each item's attributes fixed and enforce a rigid schema</button>
+        <p class="fb">Without a sort key you get one item per partition-key value. With one, related items (an order and its line items) can live under the same partition key and be fetched as an ordered range in one query.</p>
+        <p class="hint">Compare "partition key only" versus "partition key + sort key" in the paragraph after the table.</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. A single celebrity user key keeps throttling. Best fix?</p>
-      <button class="opt">Switch the whole table over from on-demand to provisioned mode</button>
-      <button class="opt">Write-shard the key across suffixes and scatter-gather on read</button>
-      <button class="opt">Add a local secondary index so the reads spread out across it</button>
-      <button class="opt">Turn on strongly consistent reads so the partition load lowers</button>
-      <p class="fb">Hashing can't spread the load of one key. Write sharding fans a hot key across N partitions; adaptive capacity alone won't save a single hot key.</p>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 6</p>
+    <h2>Internals — what AWS runs for you</h2>
+
+    <h3>Partitioning by hash of the partition key</h3>
+    <p>DynamoDB stores a table across many <b>partitions</b> — physical storage units that each hold a slice of the data on SSD.<a href="#c1" class="cite">[1]</a> To place an item, DynamoDB feeds the <b>partition-key value through an internal hash function</b>; the hash output determines which partition the item lives on.<a href="#c1" class="cite">[1]</a> This is the same idea as <a href="0005-sharding-and-consistent-hashing.html">sharding by consistent hashing (Lesson 5)</a> — hashing spreads keys evenly so no single partition is a default bottleneck, and a single item read becomes "hash the key, go straight to one partition."<a href="#c4" class="cite">[4]</a></p>
+
+    <h3>Automatic re-partitioning &amp; adaptive capacity</h3>
+    <p>Here is the part you'd otherwise operate by hand on Cassandra. As a table grows past a partition's size limit, or as traffic to it rises, DynamoDB <b>splits partitions and redistributes items automatically</b> — no downtime, no manual resharding.<a href="#c1" class="cite">[1]</a> It also applies <b>adaptive capacity</b>: it can shift throughput toward partitions receiving more traffic, smoothing moderately uneven load.<a href="#c2" class="cite">[2]</a> This auto-repartitioning is the single biggest operational difference from running your own ring — but, as we'll see, it does <em>not</em> rescue a genuinely hot single key.</p>
+
+    <h3>Replication across Availability Zones</h3>
+    <p>Every item is <b>synchronously replicated across three Availability Zones</b> in a Region before a write is acknowledged, giving durability and high availability with no action from you.<a href="#c1" class="cite">[1]</a> If an AZ or a node fails, DynamoDB serves from the survivors and heals in the background. This is the Dynamo replication model — copies on multiple independent failure domains — packaged as a default rather than a configuration.<a href="#c4" class="cite">[4]</a> (Cross-Region replication is the separate <b>global tables</b> feature, multi-active and eventually consistent across Regions.)<a href="#c1" class="cite">[1]</a></p>
+
+    <h3>The Dynamo lineage &amp; single-digit-ms latency</h3>
+    <p>Consistent hashing for placement, multi-replica storage, and quorum-style reads all trace to the <b>Dynamo paper</b>.<a href="#c4" class="cite">[4]</a> Because placement is a hash and a read goes to one partition's replica set, DynamoDB delivers <b>consistent single-digit-millisecond latency at any scale</b> — the headline SLA-class promise, and the reason it underpins shopping carts, sessions, and high-volume metadata.<a href="#c1" class="cite">[1]</a> The mental model to carry into the room: <em>you give up joins and ad-hoc queries; in return you get predictable latency that does not degrade as the table grows from megabytes to petabytes.</em></p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="dynamodb-autopartition-vs-cassandra">
+        <p class="stem">What does DynamoDB do automatically that you'd manage by hand on Cassandra?</p>
+        <button class="opt">Split partitions and redistribute items as a table grows or gets hot</button>
+        <button class="opt">Choose which attributes belong on each item you write</button>
+        <button class="opt">Decide whether a read should be eventually or strongly consistent</button>
+        <p class="fb">Auto-repartitioning with zero downtime is the operational win AWS gives you over self-run Cassandra.</p>
+        <p class="hint">Reread the "Automatic re-partitioning" heading.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="dynamodb-adaptive-capacity-limit-why">
+        <p class="stem">Why can't adaptive capacity alone save a single overloaded partition key?</p>
+        <button class="opt">Adaptive capacity is a manual setting that engineers forget to enable</button>
+        <button class="opt">Adaptive capacity only runs during scheduled maintenance windows</button>
+        <button class="opt">One key hashes to one partition, so all its traffic lands in one place no matter how throughput is reshuffled</button>
+        <p class="fb">Adaptive capacity redistributes throughput across partitions, but a single hot key's requests all hash to the same partition — there's no "spreading" a single value's own traffic without changing the key itself.</p>
+        <p class="hint">Think about what the hash function does with one fixed key value, every single time.</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Which is true of a GSI but NOT of an LSI?</p>
-      <button class="opt">It can be added to a table at any time and uses its own capacity</button>
-      <button class="opt">It must reuse the very same partition key as the base table does</button>
-      <button class="opt">It can always serve fully strongly consistent reads to the caller</button>
-      <button class="opt">It has to be defined at table creation and cannot change later on</button>
-      <p class="fb">GSIs take any attribute as a new key, can be added anytime, and have separate capacity — but are eventually consistent. LSIs are creation-time only and strongly consistent.</p>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 6</p>
+    <h2>Access patterns &amp; indexes</h2>
+
+    <h3>Query-first &amp; single-table design</h3>
+    <p>Like Cassandra, DynamoDB rewards <b>query-first modeling</b>: enumerate your access patterns first, then design keys so each pattern is a direct key lookup or a sort-key range — never a scan.<a href="#c3" class="cite">[3]</a> The advanced expression of this is <b>single-table design</b>: store multiple entity types (users, orders, order-items) in <em>one</em> table, using a generic <code>PK</code>/<code>SK</code> and overloaded keys so related items share a partition and can be fetched in a single query.<a href="#c3" class="cite">[3]</a> It looks alien next to a relational schema, but it exists to collapse what would be joins into one round trip. Don't over-apply it: for a beginner answer, one-table-per-entity with the right indexes is perfectly defensible.</p>
+
+    <h3>GSIs vs LSIs</h3>
+    <p>You model the table for your primary access pattern; <b>secondary indexes</b> serve the others by giving you an alternate key.<a href="#c1" class="cite">[1]</a></p>
+    <table>
+      <thead><tr><th></th><th>Global Secondary Index (GSI)</th><th>Local Secondary Index (LSI)</th></tr></thead>
+      <tbody>
+        <tr><td><b>Key</b></td><td>Any attribute as a new partition key + sort key.<a href="#c1" class="cite">[1]</a></td><td>Same partition key, a <em>different</em> sort key.<a href="#c1" class="cite">[1]</a></td></tr>
+        <tr><td><b>When created</b></td><td>Any time, add or drop freely.<a href="#c1" class="cite">[1]</a></td><td>Only at table creation — locked in.<a href="#c1" class="cite">[1]</a></td></tr>
+        <tr><td><b>Consistency</b></td><td>Eventually consistent only.<a href="#c1" class="cite">[1]</a></td><td>Can serve strongly consistent reads.<a href="#c1" class="cite">[1]</a></td></tr>
+        <tr><td><b>Capacity</b></td><td>Its own throughput, separate from the table.<a href="#c1" class="cite">[1]</a></td><td>Shares the base table's throughput.<a href="#c1" class="cite">[1]</a></td></tr>
+      </tbody>
+    </table>
+    <p>The staff-level summary: <b>reach for a GSI by default</b> (flexible, addable later, independently scaled); reach for an LSI only when you need a strongly consistent alternate sort within the same partition and you knew that at table-creation time.<a href="#c1" class="cite">[1]</a></p>
+
+    <h3>The hot-partition problem &amp; write sharding</h3>
+    <p>Hashing spreads load <em>across</em> keys, but it can't spread the load <em>of one key</em>. If a single partition-key value takes disproportionate traffic — a celebrity user, a "today" date bucket, a viral product — you get a <b>hot partition</b>: that one partition saturates and throttles even while the table is mostly idle.<a href="#c3" class="cite">[3]</a> Adaptive capacity softens skew but cannot save a single overloaded key.</p>
+    <div class="box">
+      <b>Two fixes a staff candidate names without prompting</b>
+      <ul>
+        <li><b>Pick a high-cardinality, evenly-accessed partition key</b> — the root cause is almost always a low-cardinality or time-clustered key.<a href="#c3" class="cite">[3]</a></li>
+        <li><b>Write sharding</b> — append a suffix (e.g. <code>userId#0..N</code>) to fan one hot key across N partitions, then scatter-gather on read. You trade read complexity for write spread.<a href="#c3" class="cite">[3]</a></li>
+      </ul>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. What does AWS operate for you that you'd run yourself on Cassandra?</p>
-      <button class="opt">Choosing the partition key and the access patterns for each query</button>
-      <button class="opt">Deciding eventual versus strongly consistent reads on each request</button>
-      <button class="opt">Designing the table keys and the secondary indexes that back reads</button>
-      <button class="opt">Splitting partitions, replicating across AZs, and healing node loss</button>
-      <p class="fb">Auto-repartitioning, three-AZ replication, and failover are managed by AWS. Key design and access patterns are still entirely your job.</p>
+
+    <h3>Capacity: on-demand vs provisioned</h3>
+    <table>
+      <thead><tr><th>Mode</th><th>How it bills</th><th>Pick it when…</th></tr></thead>
+      <tbody>
+        <tr><td><b>On-demand</b></td><td>Pay per request; scales instantly, no planning.<a href="#c1" class="cite">[1]</a></td><td>Spiky, unknown, or new traffic.<a href="#c1" class="cite">[1]</a></td></tr>
+        <tr><td><b>Provisioned</b></td><td>Reserve read/write units; cheaper at steady load, can autoscale.<a href="#c1" class="cite">[1]</a></td><td>Predictable, high, steady traffic.<a href="#c1" class="cite">[1]</a></td></tr>
+      </tbody>
+    </table>
+
+    <h3>DAX &amp; read consistency</h3>
+    <p>For read-heavy, latency-critical workloads, <b>DAX (DynamoDB Accelerator)</b> is a managed, write-through in-memory cache that drops read latency from milliseconds to microseconds for cached items — a built-in <a href="0009-key-technologies-tour.html">caching layer (Lesson 9 tour)</a> you don't operate yourself.<a href="#c1" class="cite">[1]</a> On consistency, DynamoDB gives you a per-read dial: an <b>eventually consistent read</b> (the default) may miss the very latest write but is cheaper and lower-latency, while a <b>strongly consistent read</b> always reflects the last acknowledged write at higher cost and no availability on a network partition.<a href="#c1" class="cite">[1]</a> Same R/W-quorum trade as Cassandra — just exposed as one boolean instead of a tuning level.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="dynamodb-hot-partition-fix">
+        <p class="stem">A single celebrity user key keeps throttling. Best fix?</p>
+        <button class="opt">Switch the whole table over from on-demand to provisioned mode</button>
+        <button class="opt">Write-shard the key across suffixes and scatter-gather on read</button>
+        <button class="opt">Add a local secondary index so the reads spread out across it</button>
+        <p class="fb">Hashing can't spread the load of one key. Write sharding fans a hot key across N partitions; adaptive capacity alone won't save a single hot key.</p>
+        <p class="hint">Reread the "Two fixes a staff candidate names without prompting" box.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="dynamodb-gsi-vs-lsi">
+        <p class="stem">Which is true of a GSI but NOT of an LSI?</p>
+        <button class="opt">It can be added to a table at any time and uses its own capacity</button>
+        <button class="opt">It must reuse the very same partition key as the base table does</button>
+        <button class="opt">It has to be defined at table creation and cannot change later on</button>
+        <p class="fb">GSIs take any attribute as a new key, can be added anytime, and have separate capacity — but are eventually consistent. LSIs are creation-time only and strongly consistent.</p>
+        <p class="hint">Look at the "When created" and "Capacity" rows of the GSI/LSI table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="dynamodb-write-sharding-tradeoff-why">
+        <p class="stem">What do you give up by write-sharding a hot key across N suffixes?</p>
+        <button class="opt">Nothing — write sharding has no downside, which is why it's always applied by default</button>
+        <button class="opt">Durability, since sharded writes are no longer replicated across AZs</button>
+        <button class="opt">Read simplicity — a single lookup becomes a scatter-gather across N partitions</button>
+        <p class="fb">Write sharding trades read complexity for write spread: instead of one direct read, you fan out to N suffixes and merge the results.</p>
+        <p class="hint">Reread "you trade read complexity for write spread" in the hot-partition section.</p>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 6</p>
+    <h2>When to reach for it — and when NOT to</h2>
+    <table>
+      <thead><tr><th>Reach for DynamoDB when…</th><th>Avoid it when…</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>You want zero-ops scale and predictable single-digit-ms latency.<a href="#c1" class="cite">[1]</a></td>
+          <td>You need ad-hoc queries, joins, or analytics over many dimensions.<a href="#c3" class="cite">[3]</a></td>
+        </tr>
+        <tr>
+          <td>Access patterns are known up front and key-addressable.<a href="#c3" class="cite">[3]</a></td>
+          <td>Access patterns are unknown or change constantly (no key to model).<a href="#c3" class="cite">[3]</a></td>
+        </tr>
+        <tr>
+          <td>Key-value / item workloads: carts, sessions, profiles, metadata.<a href="#c1" class="cite">[1]</a></td>
+          <td>Items are large or relationships are deeply relational and normalized.<a href="#c3" class="cite">[3]</a></td>
+        </tr>
+        <tr>
+          <td>You're all-in on AWS and want a managed service, not a cluster.<a href="#c1" class="cite">[1]</a></td>
+          <td>You need cross-cloud portability or self-host control (use <a href="0090-cassandra.html">Cassandra</a>).<a href="#c4" class="cite">[4]</a></td>
+        </tr>
+      </tbody>
+    </table>
+    <p>DynamoDB and <a href="0090-cassandra.html">Cassandra</a> share the Dynamo lineage and the query-first discipline; the real choice is operational. DynamoDB = managed, serverless, AWS-locked, you-design-keys-only. Cassandra = self-operated, multi-cloud, you-tune-consistency-and-the-ring.<a href="#c4" class="cite">[4]</a></p>
+
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Senior candidates say "DynamoDB scales infinitely." Staff candidates draw the line between <em>managed</em> and <em>your job</em> in one breath: "AWS hashes the partition key, splits partitions, and replicates across three AZs for me — so I never resize a cluster. But it cannot rescue a hot key, so my job is a high-cardinality partition key and, for the celebrity case, write-sharding the key across N suffixes with a scatter-gather read."<a href="#c3" class="cite">[3]</a> Then they pre-empt the next probe: "Joins and ad-hoc filters don't exist here; I model query-first and back each access pattern with a GSI, defaulting to eventually consistent reads and flagging the one path that needs a strongly consistent read." Naming the boundary before the interviewer pushes is the whole game.<a href="#c1" class="cite">[1]</a>
+    </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="d" data-concept="dynamodb-managed-vs-your-job">
+        <p class="stem">What does AWS operate for you that you'd run yourself on Cassandra?</p>
+        <button class="opt">Choosing the partition key and the access patterns for each query</button>
+        <button class="opt">Deciding eventual versus strongly consistent reads on each request</button>
+        <button class="opt">Designing the table keys and the secondary indexes that back reads</button>
+        <button class="opt">Splitting partitions, replicating across AZs, and healing node loss</button>
+        <p class="fb">Auto-repartitioning, three-AZ replication, and failover are managed by AWS. Key design and access patterns are still entirely your job.</p>
+        <p class="hint">Reread the staff-level signal callout: what does AWS do "for me," and what stays "my job"?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="dynamodb-vs-cassandra-when-why">
+        <p class="stem">Why would a team pick self-operated Cassandra over DynamoDB despite DynamoDB needing no ops?</p>
+        <button class="opt">They need multi-cloud portability or fine-grained control DynamoDB's AWS-only managed model doesn't offer</button>
+        <button class="opt">Cassandra is always faster than DynamoDB at every scale and workload</button>
+        <button class="opt">DynamoDB cannot replicate data across multiple Availability Zones</button>
+        <p class="fb">The real tradeoff is operational, not raw capability: DynamoDB locks you to AWS in exchange for zero ops, so cross-cloud or self-host requirements push teams back to Cassandra.</p>
+        <p class="hint">Look at the last "Avoid it when…" row and the sentence right after the table.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 6</p>
+    <h2>In the interview</h2>
+    <p>When DynamoDB is the right call, deliver it in this order: (1) <b>justify the pick</b> from the requirement — "key-value access, known patterns, need predictable low latency and zero ops on AWS." (2) <b>List the access patterns</b>, then (3) <b>design the keys</b> — name the partition key and sort key for each pattern and the GSI that backs any secondary read. (4) <b>Pre-empt the hot partition</b> — show you chose a high-cardinality key, and describe write sharding for the celebrity case. (5) <b>Set capacity &amp; consistency</b> — on-demand vs provisioned, eventual-by-default reads with strong reads where correctness demands it, DAX if read-heavy. That arc is breadth-then-depth: a fast justification, then 60% depth on key design and the hot-partition fix — the parts AWS does <em>not</em> do for you.<a href="#c1" class="cite">[1]</a></p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="dynamodb-interview-order">
+        <p class="stem">In the recommended delivery order, what comes right after listing access patterns?</p>
+        <button class="opt">Turning on DAX to reduce read latency for the whole table</button>
+        <button class="opt">Designing the keys — naming the PK, SK, and any backing GSI</button>
+        <button class="opt">Choosing between on-demand and provisioned capacity mode</button>
+        <p class="fb">The order is: justify the pick, list access patterns, design keys per pattern, pre-empt the hot partition, then set capacity and consistency.</p>
+        <p class="hint">Reread the numbered steps (1)-(5) in this section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="dynamodb-breadth-depth-why">
+        <p class="stem">Why does the recommended delivery spend most of its time on key design and the hot-partition fix, not on justifying the pick?</p>
+        <button class="opt">Those are the parts AWS doesn't automate, so they're where your judgement and depth actually get graded</button>
+        <button class="opt">Justifying the pick is technically difficult and takes the most practice to get right</button>
+        <button class="opt">Interviewers only care about capacity mode, not about key design</button>
+        <p class="fb">AWS already handles partitioning, replication, and failover. The interview signal lives in the choices left to you: keys, access patterns, and the hot-key fix.</p>
+        <p class="hint">Compare this to the "managed vs your job" boundary from the previous section.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">6 of 6 — comprehensive check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also
+      seeds the spaced-review schedule — you'll see these again on future session starts
+      per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="c" data-concept="dynamodb-placement-mechanism-final">
+        <p class="stem">How does DynamoDB decide which partition stores an item?</p>
+        <button class="opt">It writes the item to whichever partition has the most free room</button>
+        <button class="opt">It asks an elected leader node to route the item to a follower</button>
+        <button class="opt">It runs the partition-key value through an internal hash function</button>
+        <p class="fb">DynamoDB hashes the partition-key value; the hash output maps the item to one physical partition — the consistent-hashing idea from Lesson 5.</p>
+        <p class="hint">Same idea as chunk 2's "Partitioning by hash of the partition key."</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="dynamodb-capacity-mode-final">
+        <p class="stem">Which capacity mode fits spiky, unpredictable, brand-new traffic best?</p>
+        <button class="opt">On-demand — pay per request, scales instantly with no planning</button>
+        <button class="opt">Provisioned — reserve fixed read/write units ahead of time</button>
+        <button class="opt">Global tables — replicate the table across multiple Regions</button>
+        <p class="fb">On-demand bills per request and scales instantly, which fits traffic you can't predict.</p>
+        <p class="hint">Reread the capacity table's "Pick it when…" column.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="dynamodb-hot-key-root-cause-final">
+        <p class="stem">Why does the fix for a hot partition start with the partition key choice, not with DynamoDB's infrastructure?</p>
+        <button class="opt">DynamoDB's infrastructure is unreliable and needs constant manual tuning</button>
+        <button class="opt">The infrastructure can't replicate across Availability Zones without help</button>
+        <button class="opt">A low-cardinality or time-clustered key concentrates traffic on one hash target no matter how the infrastructure scales</button>
+        <p class="fb">Auto-repartitioning and adaptive capacity spread load across many keys, but a poorly chosen key still funnels traffic onto one partition. The root cause is modeling, not infrastructure.</p>
+        <p class="hint">Reread "the root cause is almost always a low-cardinality or time-clustered key."</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="dynamodb-staff-signal-final">
+        <p class="stem">What most separates a staff-level answer on DynamoDB from a senior one?</p>
+        <button class="opt">Naming that DynamoDB is a NoSQL key-value store from AWS</button>
+        <button class="opt">Drawing the line between what AWS manages and what the candidate must still design</button>
+        <button class="opt">Reciting that items are capped at 400 KB in size</button>
+        <p class="fb">The staff signal is naming the managed/your-job boundary unprompted, then pre-empting the hot-partition and query-shape objections before being asked.</p>
+        <p class="hint">Reread the staff-level signal callout in chunk 4.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="dynamodb-gsi-default-why-final">
+        <p class="stem">Why does the staff-level default lean toward a GSI over an LSI when either could technically serve a query?</p>
+        <button class="opt">A GSI can be added after the table already exists and scales its own capacity independently</button>
+        <button class="opt">An LSI is always slower to read from than a GSI under any workload</button>
+        <button class="opt">GSIs are the only index type that supports strongly consistent reads</button>
+        <p class="fb">GSIs are flexible (addable anytime) and isolated (their own throughput), which fits access patterns discovered after launch. LSIs lock you in at table-creation time.</p>
+        <p class="hint">Reread "reach for a GSI by default" in chunk 3.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Model a single-table DynamoDB schema for an e-commerce app and justify every PK, SK, and GSI." · "Walk me through exactly what happens to load when I add a write-shard suffix to a hot key." · "When would you pick DynamoDB over Cassandra, and when the reverse?"
@@ -249,21 +400,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

@@ -43,22 +43,35 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,10 +86,35 @@
     <strong>Why this lesson, for your mission:</strong> At L6/L7, "I'll use MySQL" is a sentence, not a design. The signal comes from the <em>next</em> sentence: that the table physically <em>is</em> its primary-key B+tree, so a random UUID PK fragments your inserts, and every secondary-index lookup pays a double cost. This lesson gives you the InnoDB internals — clustered index, buffer pool, redo/undo, MVCC, gap locks — so you can reason about throughput, replication lag, and lock contention out loud instead of hand-waving.<a href="#c1" class="cite">[1]</a>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 5</p>
   <h2>What it is &amp; data model</h2>
   <p>MySQL is a relational database: data lives in tables of typed rows, queried with SQL, with ACID transactions and joins.<a href="#c1" class="cite">[1]</a> "MySQL" is really the server plus a pluggable <em>storage engine</em>; since MySQL 5.5 the default — and the only one you should assume in an interview — is <b>InnoDB</b>, a transactional, row-locking, crash-safe engine.<a href="#c2" class="cite">[2]</a> The old <code>MyISAM</code> engine (table-level locks, no transactions, no crash recovery) is legacy; naming InnoDB specifically is the first small signal that you know the engine matters.</p>
   <p>The data model is the standard relational one: normalized tables, foreign keys, B-tree indexes, and a SQL optimizer that plans joins for you. What makes InnoDB worth a deep dive is <em>how</em> it lays those rows on disk.</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="mysql-innodb-default-recall">
+      <p class="stem">Since MySQL 5.5, which storage engine should you assume by default in an interview?</p>
+      <button class="opt">InnoDB — transactional, row-locking, crash-safe</button>
+      <button class="opt">MyISAM — table-level locks, no transactions</button>
+      <button class="opt">A generic engine chosen automatically per query</button>
+      <p class="fb">InnoDB has been the default since 5.5. MyISAM is legacy — it lacks transactions and crash recovery.</p>
+      <p class="hint">Reread the first paragraph of this chunk.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="mysql-engine-naming-why">
+      <p class="stem">Why does naming "InnoDB" specifically, instead of just "MySQL," signal more than vocabulary?</p>
+      <button class="opt">Because MySQL cannot run without explicitly specifying a storage engine on every query</button>
+      <button class="opt">Because MySQL is a pluggable-engine server, and the engine choice determines locking, transactions, and crash recovery behavior</button>
+      <button class="opt">Because InnoDB is a separate database product unrelated to MySQL's SQL layer</button>
+      <p class="fb">MySQL the server delegates storage behavior to a pluggable engine. Naming InnoDB shows you know engine choice isn't cosmetic — it changes transactional guarantees.</p>
+      <p class="hint">Reread the sentence distinguishing "MySQL" the server from the storage engine.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 5</p>
   <h2>Internals (InnoDB)</h2>
 
   <h3>The clustered index — the table <em>is</em> the PK B+tree</h3>
@@ -91,6 +129,29 @@
   <p>A secondary (non-PK) index in InnoDB does <em>not</em> store a pointer to a physical row location. Its leaf nodes store the indexed columns plus the <b>primary key value</b>.<a href="#c3" class="cite">[3]</a> So a lookup by a secondary index is two B+tree searches: walk the secondary index to find the PK, then walk the clustered index to fetch the row. This is the "double lookup" (a.k.a. bookmark lookup).</p>
   <p>Staff-level implication: a <b>fat primary key</b> bloats every secondary index, because each one copies the full PK into its leaves. And a <b>covering index</b> — one that includes every column the query needs — lets InnoDB answer entirely from the secondary tree and skip the second hop entirely. That is the lever you reach for when a hot query is index-bound.</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="mysql-random-pk-recall">
+      <p class="stem">Why does a random UUID make a poor InnoDB primary key?</p>
+      <button class="opt">UUID columns cannot be indexed by the storage engine</button>
+      <button class="opt">UUID values break the redo log crash-recovery process</button>
+      <button class="opt">Random inserts split pages in the clustered-index tree</button>
+      <p class="fb">The table IS the PK B+tree, so random keys insert at random leaves, causing page splits and fragmentation.</p>
+      <p class="hint">Reread the bullet on insert order under the clustered index section.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="mysql-covering-index-why">
+      <p class="stem">Why does a covering index eliminate the InnoDB secondary-index "double lookup"?</p>
+      <button class="opt">It stores every column the query needs directly in the secondary tree, so InnoDB never has to walk the clustered index</button>
+      <button class="opt">It forces the query to bypass the secondary index and scan the clustered index directly</button>
+      <button class="opt">It replicates the secondary index's contents into the buffer pool ahead of time</button>
+      <p class="fb">Normally a secondary lookup fetches the PK then walks the clustered index for the row. If the secondary index already holds every needed column, that second walk is unnecessary.</p>
+      <p class="hint">Reread the staff-level implication paragraph in this chunk.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 5</p>
   <h3>The buffer pool</h3>
   <p>InnoDB caches table and index pages in memory in the <b>buffer pool</b>, managed with a variant of LRU.<a href="#c4" class="cite">[4]</a> Reads and writes happen against pages in the pool; dirty (modified) pages are flushed to disk in the background. On a well-tuned server the buffer pool is sized to hold the working set — often 50–75% of RAM — so most reads never touch disk. When someone asks "why is this query slow after a restart," the answer is usually a cold buffer pool.</p>
 
@@ -116,6 +177,29 @@
     </tbody>
   </table>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="mysql-redo-log-recall">
+      <p class="stem">What does the redo log let InnoDB do on every commit?</p>
+      <button class="opt">Return after a fast sequential write, flush pages later</button>
+      <button class="opt">Flush all dirty data pages to disk before it returns</button>
+      <button class="opt">Send the change to every read replica synchronously</button>
+      <p class="fb">Write-ahead logging means commits write the sequential redo log; random data-page flushes happen lazily in the background.</p>
+      <p class="hint">Reread the redo/undo log section's opening paragraph.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="mysql-gap-lock-why">
+      <p class="stem">Why do InnoDB's next-key locks include a gap lock on the range before a row, not just the row itself?</p>
+      <button class="opt">Gap locks make the buffer pool cache more index pages per query</button>
+      <button class="opt">Gap locks are required to keep the redo log sequential during writes</button>
+      <button class="opt">Locking only the gap before a range prevents another transaction from inserting a new row that would appear as a phantom on repeat reads</button>
+      <p class="fb">Under REPEATABLE READ, a range query must stay stable across repeats. Locking just the existing rows wouldn't stop a concurrent insert into the gap — hence the gap lock.</p>
+      <p class="hint">Reread the isolation section on next-key locks and phantom rows.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 5</p>
   <h2>Scaling &amp; replication</h2>
   <p>MySQL replication is built on the <b>binary log (binlog)</b> — an ordered record of every data-changing statement or row event, written on the primary.<a href="#c7" class="cite">[7]</a> Replicas connect, stream the primary's binlog events, and replay them locally. This single mechanism underpins read scaling, failover, and backups.</p>
 
@@ -155,6 +239,30 @@
   </table>
   <p>One-liner for the whiteboard: <em>pick MySQL when you want a lean, battle-tested OLTP engine with a massive operational ecosystem and a clear sharding path; pick Postgres when you want richer query features, advanced index types, and stricter SQL semantics.</em> Don't litigate the religious war — state the requirement that decides it.</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="d" data-concept="mysql-replica-lag-recall">
+      <p class="stem">A user writes, then reads from an async replica and misses it. Why?</p>
+      <button class="opt">The replica rejected the write due to a gap-lock clash</button>
+      <button class="opt">The redo log on the replica had not yet been created</button>
+      <button class="opt">The buffer pool on the replica node was still too cold</button>
+      <button class="opt">The replica lags the primary that has not shipped binlog</button>
+      <p class="fb">Async replication means the replica trails the primary; route read-your-writes paths to the primary to avoid the lag.</p>
+      <p class="hint">Reread the "Read replicas and the lag trap" section.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="mysql-sharding-cost-why">
+      <p class="stem">Why does sharding cost you the "easy ACID and joins" that made you pick MySQL in the first place?</p>
+      <button class="opt">Sharding requires switching from InnoDB to a different storage engine entirely</button>
+      <button class="opt">Cross-shard joins and cross-shard transactions become hard or impossible once rows live on independent clusters</button>
+      <button class="opt">Sharding disables the redo log, so no shard can guarantee durability anymore</button>
+      <p class="fb">Once data is split across independent MySQL clusters, there's no single transaction or join spanning them — you trade relational convenience for write scale.</p>
+      <p class="hint">Reread "The real cost" bullet in the sharding patterns box.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">5 of 5 — comprehensive check</p>
   <div class="staff">
     <span class="tag">★ Staff-level signal</span>
     Senior says "MySQL, with read replicas." Staff connects the internals to the requirement: <em>"InnoDB clusters by primary key, so I'll use an auto-increment or time-ordered ID — not a random UUID — to keep inserts sequential and the buffer pool warm. Reads scale on async replicas, but checkout reads its own write, so I route that path to the primary to dodge replication lag. When write volume outgrows one primary, I shard by <code>user_id</code> and accept losing cross-shard joins — which is why I'd model to keep the hot path single-shard."</em> The move is refusing to treat the database as a black box: you reason about page layout, lock granularity, and lag the same way you'd reason about a cache hit rate.<a href="#c3" class="cite">[3]</a>
@@ -169,42 +277,54 @@
     <li><b>Mention semi-sync</b> when the prompt cares about not losing committed data on failover.</li>
   </ul>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why does a random UUID make a poor InnoDB primary key?</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="c" data-concept="mysql-uuid-pk-final">
+      <p class="stem">Why does a random UUID make a poor InnoDB primary key?</p>
       <button class="opt">UUID columns cannot be indexed by the storage engine</button>
       <button class="opt">UUID values break the redo log crash-recovery process</button>
       <button class="opt">Random inserts split pages in the clustered-index tree</button>
       <button class="opt">UUID keys force every read to scan the whole table row</button>
       <p class="fb">The table IS the PK B+tree, so random keys insert at random leaves, causing page splits and fragmentation.</p>
+      <p class="hint">Reread the clustered-index chunk's insert-order bullet.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. A lookup via a secondary index in InnoDB normally does what?</p>
+    <div class="q" data-correct="b" data-concept="mysql-secondary-lookup-final">
+      <p class="stem">A lookup via a secondary index in InnoDB normally does what?</p>
       <button class="opt">One search, because rows live beside the index leaf</button>
       <button class="opt">Two searches: index gives PK, then clustered fetch</button>
       <button class="opt">Zero searches, since the buffer pool caches all rows</button>
       <button class="opt">Three searches across redo, undo, and binlog files</button>
       <p class="fb">Secondary leaves store the PK value, so InnoDB then walks the clustered index — a covering index avoids the second hop.</p>
+      <p class="hint">Reread "Secondary indexes pay a double cost."</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What does the redo log let InnoDB do on every commit?</p>
+    <div class="q" data-correct="a" data-concept="mysql-redo-log-final">
+      <p class="stem">What does the redo log let InnoDB do on every commit?</p>
       <button class="opt">Return after a fast sequential write, flush pages later</button>
       <button class="opt">Flush all dirty data pages to disk before it returns</button>
       <button class="opt">Send the change to every read replica synchronously</button>
       <button class="opt">Rebuild the buffer pool from the table data on disk</button>
       <p class="fb">Write-ahead logging means commits write the sequential redo log; random data-page flushes happen lazily in the background.</p>
+      <p class="hint">Reread the redo/undo log section.</p>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. A user writes, then reads from an async replica and misses it. Why?</p>
+    <div class="q" data-correct="d" data-concept="mysql-replica-lag-final">
+      <p class="stem">A user writes, then reads from an async replica and misses it. Why?</p>
       <button class="opt">The replica rejected the write due to a gap-lock clash</button>
       <button class="opt">The redo log on the replica had not yet been created</button>
       <button class="opt">The buffer pool on the replica node was still too cold</button>
       <button class="opt">The replica lags the primary that has not shipped binlog</button>
       <p class="fb">Async replication means the replica trails the primary; route read-your-writes paths to the primary to avoid the lag.</p>
+      <p class="hint">Reread "Read replicas and the lag trap."</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="mysql-whole-lesson-why">
+      <p class="stem">If you swapped an auto-increment PK for a random UUID on a hot InnoDB table, what would you expect to happen to write throughput and buffer-pool efficiency?</p>
+      <button class="opt">Both would improve, since UUIDs distribute load evenly across the tree</button>
+      <button class="opt">Neither would change, because the clustered index only matters for reads, not writes</button>
+      <button class="opt">Both would degrade, since random inserts scatter across leaf pages, causing page splits and cold cache misses</button>
+      <p class="fb">The table is the PK B+tree. Sequential keys append to the hot rightmost page; random keys scatter inserts, evicting warm pages and fragmenting the tree.</p>
+      <p class="hint">Trace what "the table is the clustered index" implies for where a new row with a random key gets inserted.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Quiz me on what happens to inserts, secondary indexes, and the buffer pool if I switch my PK from auto-increment to a v4 UUID." · "Walk me through a deadlock caused by gap locks under REPEATABLE READ, step by step." · "Given a write-heavy feed, when do I move from replicas to sharding, and what do I lose?"
@@ -233,21 +353,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

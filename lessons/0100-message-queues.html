@@ -43,22 +43,35 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,113 +86,243 @@
     <strong>Why this lesson, for your mission:</strong> In <a href="0099-kafka.html">Lesson 99</a> you learned the replayable log. At L6/L7 the trap is reaching for Kafka for <em>everything</em> async. A staff candidate distinguishes a <b>task/work queue</b> (decouple a producer from a worker, process each job once, then delete it) from an <b>event log</b> (durable, replayable history fanned out to many readers). Saying "RabbitMQ or SQS here, not Kafka, because I want competing consumers on transient jobs — not a retained log" is the judgement that reads as staff.<a href="#c1" class="cite">[1]</a>
   </div>
 
-  <h2>The job: queues vs logs</h2>
-  <p>Both decouple a fast producer from a slower consumer with a durable buffer in the middle. The difference is what happens to a message after it's read.</p>
-  <p>A <b>task / work queue</b> (RabbitMQ, SQS) is <b>consume-and-delete</b>: a message is delivered to <em>one</em> worker, acknowledged, then removed.<a href="#c2" class="cite">[2]</a> Multiple workers pull from the same queue — <b>competing consumers</b> — so adding workers spreads the load and drains the backlog faster. The queue is a to-do list that empties as work gets done; there is no history to re-read.</p>
-  <p>A <b>log</b> (Kafka, Kinesis) is an <b>append-only, replayable</b> record. Messages are retained for a window regardless of who read them, each consumer group tracks its own offset, and many independent readers replay the same stream.<a href="#c1" class="cite">[1]</a> See <a href="0099-kafka.html">Lesson 99</a> for the full treatment.</p>
-  <table>
-    <thead><tr><th>Dimension</th><th>Task queue (RabbitMQ, SQS)</th><th>Log (Kafka)</th></tr></thead>
-    <tbody>
-      <tr><td>After read</td><td>Acked &amp; deleted<a href="#c2" class="cite">[2]</a></td><td>Retained for a window<a href="#c1" class="cite">[1]</a></td></tr>
-      <tr><td>Scaling reads</td><td>Competing consumers drain faster</td><td>Many groups replay independently</td></tr>
-      <tr><td>Ordering</td><td>Best-effort (or FIFO mode)</td><td>Ordered within a partition</td></tr>
-      <tr><td>Mental model</td><td>A to-do list that empties</td><td>A durable history you re-read</td></tr>
-    </tbody>
-  </table>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 6</p>
+    <h2>The job: queues vs logs</h2>
+    <p>Both decouple a fast producer from a slower consumer with a durable buffer in the middle. The difference is what happens to a message after it's read.</p>
+    <p>A <b>task / work queue</b> (RabbitMQ, SQS) is <b>consume-and-delete</b>: a message is delivered to <em>one</em> worker, acknowledged, then removed.<a href="#c2" class="cite">[2]</a> Multiple workers pull from the same queue — <b>competing consumers</b> — so adding workers spreads the load and drains the backlog faster. The queue is a to-do list that empties as work gets done; there is no history to re-read.</p>
+    <p>A <b>log</b> (Kafka, Kinesis) is an <b>append-only, replayable</b> record. Messages are retained for a window regardless of who read them, each consumer group tracks its own offset, and many independent readers replay the same stream.<a href="#c1" class="cite">[1]</a> See <a href="0099-kafka.html">Lesson 99</a> for the full treatment.</p>
+    <table>
+      <thead><tr><th>Dimension</th><th>Task queue (RabbitMQ, SQS)</th><th>Log (Kafka)</th></tr></thead>
+      <tbody>
+        <tr><td>After read</td><td>Acked &amp; deleted<a href="#c2" class="cite">[2]</a></td><td>Retained for a window<a href="#c1" class="cite">[1]</a></td></tr>
+        <tr><td>Scaling reads</td><td>Competing consumers drain faster</td><td>Many groups replay independently</td></tr>
+        <tr><td>Ordering</td><td>Best-effort (or FIFO mode)</td><td>Ordered within a partition</td></tr>
+        <tr><td>Mental model</td><td>A to-do list that empties</td><td>A durable history you re-read</td></tr>
+      </tbody>
+    </table>
 
-  <h2>RabbitMQ</h2>
-  <p>RabbitMQ is a mature broker built on <b>AMQP</b> (Advanced Message Queuing Protocol). Its defining trait is the <b>smart broker / dumb consumer</b> model: routing logic lives in the broker, and consumers just receive what's handed to them.<a href="#c3" class="cite">[3]</a> Producers never publish straight to a queue — they publish to an <b>exchange</b>, which decides which queues get the message based on <b>bindings</b> and a <b>routing key</b>.<a href="#c4" class="cite">[4]</a></p>
-  <table>
-    <thead><tr><th>Exchange type</th><th>Routing rule</th><th>Use for</th></tr></thead>
-    <tbody>
-      <tr><td><b>Direct</b></td><td>Routing key matches binding key exactly<a href="#c4" class="cite">[4]</a></td><td>Point a job at one specific queue</td></tr>
-      <tr><td><b>Topic</b></td><td>Routing key matches a wildcard pattern<a href="#c4" class="cite">[4]</a></td><td><code>orders.eu.*</code> style selective routing</td></tr>
-      <tr><td><b>Fanout</b></td><td>Copy to every bound queue, ignore key<a href="#c4" class="cite">[4]</a></td><td>Broadcast one event to all subscribers</td></tr>
-    </tbody>
-  </table>
-  <p><b>Acknowledgements</b> are how RabbitMQ guarantees a message isn't lost: a consumer sends an <code>ack</code> only after it finishes processing, and until then the broker keeps the message. If the consumer dies before acking, the message is requeued and redelivered — that's at-least-once delivery, so your handler must be idempotent.<a href="#c5" class="cite">[5]</a> A message that keeps failing (rejected, or expired) can be routed to a <b>dead-letter queue (DLQ)</b> — a separate queue for poison messages so one bad job doesn't block the line and you can inspect it later.<a href="#c6" class="cite">[6]</a></p>
-  <div class="box">
-    <b>RabbitMQ in one breath:</b> publish to an <b>exchange</b> → bindings + routing key fan it to <b>queues</b> → competing consumers pull and <b>ack</b> → failures go to a <b>DLQ</b>. The broker is smart so the consumers can be simple. Reach for it when you need rich routing, per-message TTLs, priorities, or protocols beyond plain HTTP.<a href="#c3" class="cite">[3]</a>
-  </div>
-
-  <h2>Amazon SQS &amp; SNS</h2>
-  <p><b>SQS</b> (Simple Queue Service) is AWS's fully managed task queue — no brokers to run, scales elastically. It comes in two flavours, and naming the right one is the interview signal.<a href="#c7" class="cite">[7]</a></p>
-  <table>
-    <thead><tr><th>Property</th><th>Standard queue</th><th>FIFO queue</th></tr></thead>
-    <tbody>
-      <tr><td>Delivery</td><td>At-least-once (dupes possible)<a href="#c7" class="cite">[7]</a></td><td>Exactly-once processing<a href="#c8" class="cite">[8]</a></td></tr>
-      <tr><td>Ordering</td><td>Best-effort, not guaranteed<a href="#c7" class="cite">[7]</a></td><td>Strict order per group<a href="#c8" class="cite">[8]</a></td></tr>
-      <tr><td>Throughput</td><td>Nearly unlimited<a href="#c7" class="cite">[7]</a></td><td>Lower, capped per second<a href="#c8" class="cite">[8]</a></td></tr>
-    </tbody>
-  </table>
-  <p>Two SQS mechanics earn depth. <b>Visibility timeout</b>: when a worker receives a message it isn't deleted — it becomes <em>invisible</em> to other workers for a set window. The worker must finish and explicitly delete it before the window expires, or SQS makes it visible again and redelivers it.<a href="#c9" class="cite">[9]</a> Set it too short and a slow job gets processed twice; too long and a crashed worker's message stalls. <b>Long polling</b> tells SQS to wait until a message arrives (up to 20s) before responding, instead of returning empty immediately — it cuts empty receives, cost, and latency versus short polling.<a href="#c10" class="cite">[10]</a> SQS also has a native <b>DLQ</b>: after a configurable number of failed receives, a poison message is moved aside automatically.<a href="#c11" class="cite">[11]</a></p>
-  <p><b>SNS</b> (Simple Notification Service) is the <b>pub/sub fanout</b> counterpart: a publisher sends one message to a <b>topic</b>, and SNS pushes a copy to every subscriber — other services, HTTP endpoints, email, SMS, Lambda.<a href="#c12" class="cite">[12]</a> The canonical AWS pattern is <b>SNS → SQS fanout</b>: publish once to an SNS topic, subscribe several SQS queues to it, and each downstream service drains its own queue at its own pace.<a href="#c13" class="cite">[13]</a> You get the broadcast of pub/sub <em>plus</em> the durable buffering and retry of a queue per consumer — exactly the shape behind <a href="0046-notification-service.html">Lesson 46</a>'s notification service.</p>
-
-  <h2>Choosing: RabbitMQ vs SQS vs Kafka</h2>
-  <p>This is the decision the interviewer actually wants. Lead with the requirement, then the pick.</p>
-  <table>
-    <thead><tr><th>If you need…</th><th>Reach for</th><th>Because</th></tr></thead>
-    <tbody>
-      <tr><td>Replayable history, many independent readers, high throughput streaming<a href="#c1" class="cite">[1]</a></td><td><b>Kafka</b></td><td>Retained, partitioned, ordered log</td></tr>
-      <tr><td>Rich routing, priorities, TTLs, AMQP — self/managed broker<a href="#c3" class="cite">[3]</a></td><td><b>RabbitMQ</b></td><td>Smart broker with flexible exchanges</td></tr>
-      <tr><td>Dead-simple managed task queue on AWS, zero ops<a href="#c7" class="cite">[7]</a></td><td><b>SQS</b></td><td>Elastic, no brokers, pay-per-use</td></tr>
-      <tr><td>One event delivered to many AWS services at once<a href="#c12" class="cite">[12]</a></td><td><b>SNS (+SQS)</b></td><td>Managed pub/sub fanout</td></tr>
-    </tbody>
-  </table>
-  <div class="box">
-    <b>The default-reach heuristic:</b>
-    <ul>
-      <li><b>On AWS, async jobs, no replay needed?</b> SQS. It's the lowest-ops choice and "good enough" is the staff answer.<a href="#c7" class="cite">[7]</a></li>
-      <li><b>Need an event broadcast to N consumers?</b> SNS→SQS fanout.<a href="#c13" class="cite">[13]</a></li>
-      <li><b>Need replay, event sourcing, or a stream many teams re-read?</b> Kafka — and only then.<a href="#c1" class="cite">[1]</a></li>
-      <li><b>Need routing rules SQS can't express (topic patterns, priorities, per-message TTL)?</b> RabbitMQ.<a href="#c3" class="cite">[3]</a></li>
-    </ul>
-  </div>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Seniors say "I'll add a queue." Staff candidates pick the <em>right</em> one out loud and justify the delete-vs-retain choice in one breath: "These are fire-and-forget jobs with no replay, so a task queue — SQS Standard — over Kafka; I don't want to operate a retained log for transient work." They proactively name the gotchas of whichever they pick: at-least-once means <b>idempotent handlers</b>, visibility timeout must exceed processing time, and a <b>DLQ</b> isolates poison messages so one bad job doesn't wedge the worker pool.<a href="#c9" class="cite">[9]</a> Reaching for the <em>simplest</em> tool that meets the requirement — and refusing to default to Kafka for everything — is the simple-by-default judgement the bar rewards.
-  </div>
-
-  <h2>In the interview</h2>
-  <p>When you draw a queue between two services, say in one line <em>which</em> kind and why: "SQS task queue here — decoupling checkout from the slow email/receipt work, at-least-once with idempotent workers."<a href="#c7" class="cite">[7]</a> Be ready for the predictable follow-ups: <em>"What if a worker crashes mid-job?"</em> (visibility timeout / unacked redelivery → idempotency), <em>"What about a message that always fails?"</em> (DLQ), and <em>"Why not Kafka?"</em> (no replay needed, fewer ops). If the prompt is "notify many downstream services," reach for SNS→SQS fanout, not a hand-rolled broadcast. The depth lives in the failure modes, not in re-explaining what a queue is — see <a href="0044-distributed-message-queue.html">Lesson 44</a> for designing one from scratch.</p>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. What is the core difference between a task queue and a log?</p>
-      <button class="opt">A task queue retains messages so readers can replay them later</button>
-      <button class="opt">A task queue deletes a message once a worker acks it as done</button>
-      <button class="opt">A task queue orders every message globally across all readers</button>
-      <button class="opt">A task queue copies each message to every consumer that exists</button>
-      <p class="fb">Task queues are consume-and-delete; logs retain messages for replay by many readers.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="mq-task-queue-vs-log-recall">
+        <p class="stem">What is the core difference between a task queue and a log?</p>
+        <button class="opt">A task queue retains messages so readers can replay them later</button>
+        <button class="opt">A task queue deletes a message once a worker acks it as done</button>
+        <button class="opt">A task queue orders every message globally across all readers</button>
+        <p class="fb">Task queues are consume-and-delete; logs retain messages for replay by many readers.</p>
+        <p class="hint">Reread the first two paragraphs — what happens to a message after it's read, in each model?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="mq-competing-consumers-why-drains-faster">
+        <p class="stem">Why does adding more workers to a task queue drain the backlog faster, while adding more readers to a log doesn't "drain" anything?</p>
+        <button class="opt">Because a task queue's messages are each claimed and removed by exactly one worker, so more workers means more parallel deletions of the same backlog</button>
+        <button class="opt">Because logs are always slower hardware than queues, regardless of consumer count</button>
+        <button class="opt">Because task queues secretly duplicate every message for each worker</button>
+        <p class="fb">Competing consumers split one shared backlog; log readers each keep independent offsets over retained data, so there's no shared backlog to drain.</p>
+        <p class="hint">Ask: in a log, does one consumer group reading a message remove it for another group?</p>
+      </div>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. In RabbitMQ, where do producers publish messages?</p>
-      <button class="opt">Straight to a queue, which forwards copies to the bound topics</button>
-      <button class="opt">To a consumer, which then chooses the queue to store it inside</button>
-      <button class="opt">To an exchange, which routes to queues via bindings and a key</button>
-      <button class="opt">To a broker offset, which the consumer group reads in order from</button>
-      <p class="fb">Producers publish to an exchange; bindings plus a routing key decide which queues receive it.</p>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 6</p>
+    <h2>RabbitMQ</h2>
+    <p>RabbitMQ is a mature broker built on <b>AMQP</b> (Advanced Message Queuing Protocol). Its defining trait is the <b>smart broker / dumb consumer</b> model: routing logic lives in the broker, and consumers just receive what's handed to them.<a href="#c3" class="cite">[3]</a> Producers never publish straight to a queue — they publish to an <b>exchange</b>, which decides which queues get the message based on <b>bindings</b> and a <b>routing key</b>.<a href="#c4" class="cite">[4]</a></p>
+    <table>
+      <thead><tr><th>Exchange type</th><th>Routing rule</th><th>Use for</th></tr></thead>
+      <tbody>
+        <tr><td><b>Direct</b></td><td>Routing key matches binding key exactly<a href="#c4" class="cite">[4]</a></td><td>Point a job at one specific queue</td></tr>
+        <tr><td><b>Topic</b></td><td>Routing key matches a wildcard pattern<a href="#c4" class="cite">[4]</a></td><td><code>orders.eu.*</code> style selective routing</td></tr>
+        <tr><td><b>Fanout</b></td><td>Copy to every bound queue, ignore key<a href="#c4" class="cite">[4]</a></td><td>Broadcast one event to all subscribers</td></tr>
+      </tbody>
+    </table>
+    <p><b>Acknowledgements</b> are how RabbitMQ guarantees a message isn't lost: a consumer sends an <code>ack</code> only after it finishes processing, and until then the broker keeps the message. If the consumer dies before acking, the message is requeued and redelivered — that's at-least-once delivery, so your handler must be idempotent.<a href="#c5" class="cite">[5]</a> A message that keeps failing (rejected, or expired) can be routed to a <b>dead-letter queue (DLQ)</b> — a separate queue for poison messages so one bad job doesn't block the line and you can inspect it later.<a href="#c6" class="cite">[6]</a></p>
+    <div class="box">
+      <b>RabbitMQ in one breath:</b> publish to an <b>exchange</b> → bindings + routing key fan it to <b>queues</b> → competing consumers pull and <b>ack</b> → failures go to a <b>DLQ</b>. The broker is smart so the consumers can be simple. Reach for it when you need rich routing, per-message TTLs, priorities, or protocols beyond plain HTTP.<a href="#c3" class="cite">[3]</a>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What does the SQS visibility timeout do for a received message?</p>
-      <button class="opt">Hides it from other workers until deleted or the window expires</button>
-      <button class="opt">Deletes it right away so no other worker can ever receive a copy</button>
-      <button class="opt">Retains it forever so every worker may replay it again on demand</button>
-      <button class="opt">Reorders it ahead of newer messages so the oldest is always first</button>
-      <p class="fb">A received message goes invisible; if not deleted in time, SQS makes it visible and redelivers it.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="mq-rabbitmq-exchange-recall">
+        <p class="stem">In RabbitMQ, where do producers publish messages?</p>
+        <button class="opt">Straight to a queue, which forwards copies to the bound topics</button>
+        <button class="opt">To a consumer, which then chooses the queue to store it inside</button>
+        <button class="opt">To an exchange, which routes to queues via bindings and a key</button>
+        <p class="fb">Producers publish to an exchange; bindings plus a routing key decide which queues receive it.</p>
+        <p class="hint">Reread the "smart broker / dumb consumer" paragraph — what sits between producer and queue?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="mq-ack-why-idempotent-handlers">
+        <p class="stem">Why does RabbitMQ's ack-on-completion design force your consumer handler to be idempotent?</p>
+        <button class="opt">Because a consumer that dies before acking causes the broker to requeue and redeliver the same message, so it can be processed more than once</button>
+        <button class="opt">Because RabbitMQ always delivers every message twice by default as a safety feature</button>
+        <button class="opt">Because idempotency is required by the AMQP protocol specification for all handlers</button>
+        <p class="fb">At-least-once delivery means redelivery is a real possibility on any crash, so the same job may run twice — the handler must tolerate that.</p>
+        <p class="hint">Trace what happens if the consumer crashes mid-job, before sending the ack.</p>
+      </div>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. Which choice fits "deliver one event to many AWS services at once"?</p>
-      <button class="opt">A single SQS Standard queue that all of the services poll together</button>
-      <button class="opt">A Kafka topic retained so each service can replay the whole stream</button>
-      <button class="opt">A RabbitMQ direct exchange keyed to one specific downstream queue</button>
-      <button class="opt">An SNS topic fanning out to one SQS queue per subscribing service</button>
-      <p class="fb">SNS→SQS fanout broadcasts once and gives each consumer its own durable, retryable queue.</p>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 6</p>
+    <h2>Amazon SQS &amp; SNS</h2>
+    <p><b>SQS</b> (Simple Queue Service) is AWS's fully managed task queue — no brokers to run, scales elastically. It comes in two flavours, and naming the right one is the interview signal.<a href="#c7" class="cite">[7]</a></p>
+    <table>
+      <thead><tr><th>Property</th><th>Standard queue</th><th>FIFO queue</th></tr></thead>
+      <tbody>
+        <tr><td>Delivery</td><td>At-least-once (dupes possible)<a href="#c7" class="cite">[7]</a></td><td>Exactly-once processing<a href="#c8" class="cite">[8]</a></td></tr>
+        <tr><td>Ordering</td><td>Best-effort, not guaranteed<a href="#c7" class="cite">[7]</a></td><td>Strict order per group<a href="#c8" class="cite">[8]</a></td></tr>
+        <tr><td>Throughput</td><td>Nearly unlimited<a href="#c7" class="cite">[7]</a></td><td>Lower, capped per second<a href="#c8" class="cite">[8]</a></td></tr>
+      </tbody>
+    </table>
+    <p>Two SQS mechanics earn depth. <b>Visibility timeout</b>: when a worker receives a message it isn't deleted — it becomes <em>invisible</em> to other workers for a set window. The worker must finish and explicitly delete it before the window expires, or SQS makes it visible again and redelivers it.<a href="#c9" class="cite">[9]</a> Set it too short and a slow job gets processed twice; too long and a crashed worker's message stalls. <b>Long polling</b> tells SQS to wait until a message arrives (up to 20s) before responding, instead of returning empty immediately — it cuts empty receives, cost, and latency versus short polling.<a href="#c10" class="cite">[10]</a> SQS also has a native <b>DLQ</b>: after a configurable number of failed receives, a poison message is moved aside automatically.<a href="#c11" class="cite">[11]</a></p>
+    <p><b>SNS</b> (Simple Notification Service) is the <b>pub/sub fanout</b> counterpart: a publisher sends one message to a <b>topic</b>, and SNS pushes a copy to every subscriber — other services, HTTP endpoints, email, SMS, Lambda.<a href="#c12" class="cite">[12]</a> The canonical AWS pattern is <b>SNS → SQS fanout</b>: publish once to an SNS topic, subscribe several SQS queues to it, and each downstream service drains its own queue at its own pace.<a href="#c13" class="cite">[13]</a> You get the broadcast of pub/sub <em>plus</em> the durable buffering and retry of a queue per consumer — exactly the shape behind <a href="0046-notification-service.html">Lesson 46</a>'s notification service.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="mq-visibility-timeout-recall">
+        <p class="stem">What does the SQS visibility timeout do for a received message?</p>
+        <button class="opt">Hides it from other workers until deleted or the window expires</button>
+        <button class="opt">Deletes it right away so no other worker can ever receive a copy</button>
+        <button class="opt">Retains it forever so every worker may replay it again on demand</button>
+        <p class="fb">A received message goes invisible; if not deleted in time, SQS makes it visible and redelivers it.</p>
+        <p class="hint">Reread the visibility timeout paragraph — what happens between "received" and "deleted"?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="mq-visibility-timeout-tuning-tradeoff">
+        <p class="stem">Why is setting the visibility timeout too short as dangerous as setting it too long?</p>
+        <button class="opt">There's no real tradeoff — a shorter timeout is always safer for the system</button>
+        <button class="opt">Too short causes duplicate processing on slow jobs, too long delays recovery from a crashed worker — both come from the timeout not matching real processing time</button>
+        <button class="opt">The timeout only affects billing cost, never correctness or latency</button>
+        <p class="fb">The timeout is a guess at "how long should this job take." Guess low and slow jobs get redelivered mid-flight; guess high and a crash leaves the message stuck invisible.</p>
+        <p class="hint">Think about the two failure directions named right after the definition: "too short" and "too long."</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="mq-sns-sqs-fanout-why-both">
+        <p class="stem">Why does the canonical AWS fanout pattern use SNS plus SQS, instead of just SNS pushing directly to each service?</p>
+        <button class="opt">SNS cannot deliver to more than one subscriber at a time</button>
+        <button class="opt">SQS is required by AWS billing rules whenever SNS is used</button>
+        <button class="opt">Direct push has no buffer, so a slow or down subscriber loses the message; an SQS queue per subscriber adds durable buffering and retry on top of the broadcast</button>
+        <p class="fb">SNS alone gives you fanout but no persistence per subscriber. Putting an SQS queue behind each subscription gives each downstream service its own durable, retryable backlog.</p>
+        <p class="hint">Ask what happens to a plain SNS push if the receiving service is down for five minutes.</p>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 6</p>
+    <h2>Choosing: RabbitMQ vs SQS vs Kafka</h2>
+    <p>This is the decision the interviewer actually wants. Lead with the requirement, then the pick.</p>
+    <table>
+      <thead><tr><th>If you need…</th><th>Reach for</th><th>Because</th></tr></thead>
+      <tbody>
+        <tr><td>Replayable history, many independent readers, high throughput streaming<a href="#c1" class="cite">[1]</a></td><td><b>Kafka</b></td><td>Retained, partitioned, ordered log</td></tr>
+        <tr><td>Rich routing, priorities, TTLs, AMQP — self/managed broker<a href="#c3" class="cite">[3]</a></td><td><b>RabbitMQ</b></td><td>Smart broker with flexible exchanges</td></tr>
+        <tr><td>Dead-simple managed task queue on AWS, zero ops<a href="#c7" class="cite">[7]</a></td><td><b>SQS</b></td><td>Elastic, no brokers, pay-per-use</td></tr>
+        <tr><td>One event delivered to many AWS services at once<a href="#c12" class="cite">[12]</a></td><td><b>SNS (+SQS)</b></td><td>Managed pub/sub fanout</td></tr>
+      </tbody>
+    </table>
+    <div class="box">
+      <b>The default-reach heuristic:</b>
+      <ul>
+        <li><b>On AWS, async jobs, no replay needed?</b> SQS. It's the lowest-ops choice and "good enough" is the staff answer.<a href="#c7" class="cite">[7]</a></li>
+        <li><b>Need an event broadcast to N consumers?</b> SNS→SQS fanout.<a href="#c13" class="cite">[13]</a></li>
+        <li><b>Need replay, event sourcing, or a stream many teams re-read?</b> Kafka — and only then.<a href="#c1" class="cite">[1]</a></li>
+        <li><b>Need routing rules SQS can't express (topic patterns, priorities, per-message TTL)?</b> RabbitMQ.<a href="#c3" class="cite">[3]</a></li>
+      </ul>
+    </div>
+
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Seniors say "I'll add a queue." Staff candidates pick the <em>right</em> one out loud and justify the delete-vs-retain choice in one breath: "These are fire-and-forget jobs with no replay, so a task queue — SQS Standard — over Kafka; I don't want to operate a retained log for transient work." They proactively name the gotchas of whichever they pick: at-least-once means <b>idempotent handlers</b>, visibility timeout must exceed processing time, and a <b>DLQ</b> isolates poison messages so one bad job doesn't wedge the worker pool.<a href="#c9" class="cite">[9]</a> Reaching for the <em>simplest</em> tool that meets the requirement — and refusing to default to Kafka for everything — is the simple-by-default judgement the bar rewards.
+    </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="d" data-concept="mq-sns-fanout-choice-recall">
+        <p class="stem">Which choice fits "deliver one event to many AWS services at once"?</p>
+        <button class="opt">A single SQS Standard queue that all of the services poll together</button>
+        <button class="opt">A Kafka topic retained so each service can replay the whole stream</button>
+        <button class="opt">A RabbitMQ direct exchange keyed to one specific downstream queue</button>
+        <button class="opt">An SNS topic fanning out to one SQS queue per subscribing service</button>
+        <p class="fb">SNS→SQS fanout broadcasts once and gives each consumer its own durable, retryable queue.</p>
+        <p class="hint">Reread the default-reach heuristic — which bullet names "broadcast to N consumers"?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="mq-simple-by-default-staff-signal">
+        <p class="stem">Why does refusing to default to Kafka for every async need read as a staff-level signal, not a limitation?</p>
+        <button class="opt">Kafka is objectively worse technology than SQS in every situation</button>
+        <button class="opt">Operating a retained, partitioned log has real ongoing cost that only pays off when you actually need replay or multiple independent readers, so picking the simplest sufficient tool shows judgement</button>
+        <button class="opt">Interviewers penalize any mention of Kafka regardless of context</button>
+        <p class="fb">The heuristic box says "Kafka — and only then." Staff signal is matching tool cost to actual requirement, not defaulting to the most powerful-sounding option.</p>
+        <p class="hint">Reread the staff-level signal box — what does it say seniors do differently from staff here?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 6</p>
+    <h2>In the interview</h2>
+    <p>When you draw a queue between two services, say in one line <em>which</em> kind and why: "SQS task queue here — decoupling checkout from the slow email/receipt work, at-least-once with idempotent workers."<a href="#c7" class="cite">[7]</a> Be ready for the predictable follow-ups: <em>"What if a worker crashes mid-job?"</em> (visibility timeout / unacked redelivery → idempotency), <em>"What about a message that always fails?"</em> (DLQ), and <em>"Why not Kafka?"</em> (no replay needed, fewer ops). If the prompt is "notify many downstream services," reach for SNS→SQS fanout, not a hand-rolled broadcast. The depth lives in the failure modes, not in re-explaining what a queue is — see <a href="0044-distributed-message-queue.html">Lesson 44</a> for designing one from scratch.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="mq-dlq-why-isolates-poison-messages">
+        <p class="stem">Why does a DLQ matter even though the underlying job is still failing and unresolved?</p>
+        <button class="opt">A DLQ automatically fixes the bug that caused the message to fail</button>
+        <button class="opt">A DLQ deletes the message permanently so no one has to think about it again</button>
+        <button class="opt">A DLQ moves a repeatedly-failing message out of the main queue so it stops consuming redelivery attempts and blocking the worker pool behind it, while preserving it for inspection</button>
+        <p class="fb">Without a DLQ, a poison message keeps getting redelivered and reprocessed, wasting worker capacity that healthy messages need. The DLQ isolates it without losing it.</p>
+        <p class="hint">Reread the staff-level signal box — what does a DLQ isolate, and from what?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">6 of 6 — comprehensive check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also
+      seeds the spaced-review schedule — you'll see these again on future session starts
+      per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="mq-task-queue-vs-log-final">
+        <p class="stem">What is the core difference between a task queue and a log?</p>
+        <button class="opt">A task queue retains messages so readers can replay them later</button>
+        <button class="opt">A task queue deletes a message once a worker acks it as done</button>
+        <button class="opt">A task queue orders every message globally across all readers</button>
+        <p class="fb">Task queues are consume-and-delete; logs retain messages for replay by many readers.</p>
+        <p class="hint">Revisit chunk 1 — what happens to a message after it's read, in each model?</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="mq-rabbitmq-exchange-final">
+        <p class="stem">In RabbitMQ, where do producers publish messages?</p>
+        <button class="opt">Straight to a queue, which forwards copies to the bound topics</button>
+        <button class="opt">To a consumer, which then chooses the queue to store it inside</button>
+        <button class="opt">To an exchange, which routes to queues via bindings and a key</button>
+        <p class="fb">Producers publish to an exchange; bindings plus a routing key decide which queues receive it.</p>
+        <p class="hint">Revisit chunk 2 — what sits between producer and queue?</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="mq-visibility-timeout-final">
+        <p class="stem">What does the SQS visibility timeout do for a received message?</p>
+        <button class="opt">Hides it from other workers until deleted or the window expires</button>
+        <button class="opt">Deletes it right away so no other worker can ever receive a copy</button>
+        <button class="opt">Retains it forever so every worker may replay it again on demand</button>
+        <p class="fb">A received message goes invisible; if not deleted in time, SQS makes it visible and redelivers it.</p>
+        <p class="hint">Revisit chunk 3's visibility timeout paragraph.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="mq-why-not-default-to-kafka-final">
+        <p class="stem">A candidate proposes Kafka for a simple fire-and-forget email-sending job with no replay need. What's the staff-level pushback?</p>
+        <button class="opt">Nothing — Kafka works for every async use case so it's a safe universal default</button>
+        <button class="opt">Kafka is a retained, replayable log; a transient job with no replay need doesn't justify that operational cost — a task queue like SQS is the simpler, sufficient tool</button>
+        <button class="opt">Kafka should never be used in any system design interview</button>
+        <p class="fb">Simple-by-default: match the tool's cost to the actual requirement. Retention and replay are the exact feature you're not using here.</p>
+        <p class="hint">Revisit the default-reach heuristic and staff-level signal box in chunk 4.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="mq-idempotency-why-required-final">
+        <p class="stem">Both RabbitMQ acks and SQS visibility timeouts share one consequence for consumer code. What is it?</p>
+        <button class="opt">Both deliver at-least-once, so a crash or slow job can cause redelivery — consumer handlers must be idempotent to stay correct under duplicates</button>
+        <button class="opt">Both guarantee exactly-once delivery by default, so idempotency is never needed</button>
+        <button class="opt">Both require the consumer to poll a fixed number of times before giving up</button>
+        <p class="fb">Ack-based redelivery in RabbitMQ and visibility-timeout-based redelivery in SQS are the same failure shape: a crash before confirmation causes a duplicate delivery.</p>
+        <p class="hint">Compare the ack paragraph in chunk 2 with the visibility timeout paragraph in chunk 3 — what failure mode do they share?</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Quiz me on when I'd pick SQS over Kafka and how I'd defend it." · "Walk me through RabbitMQ exchanges, bindings, and a dead-letter queue with a concrete example." · "Give me a FAANG prompt and push me on visibility timeout, idempotency, and DLQs."
@@ -212,21 +355,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

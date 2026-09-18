@@ -69,13 +69,27 @@
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
   .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
@@ -97,6 +111,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 8</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -130,6 +146,29 @@
 
   <p class="transition"><span class="lbl">Say to move on →</span> “The tension is low latency against massive read fan-out. Let me size egress and transcoding.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="twitch-fr-scope">
+      <p class="stem">Which three flows define this system's functional scope?</p>
+      <button class="opt">Broadcast, watch with low delay, and send/read live chat</button>
+      <button class="opt">Discover streams, follow channels, and subscribe to creators</button>
+      <button class="opt">Upload video, transcode offline, and browse a VOD catalog</button>
+      <p class="fb">Discovery, follows, subscriptions, monetization and clips are explicitly out of scope — the design earns its depth budget on the live media path.</p>
+      <p class="hint">Reread the Functional Requirements table — discovery and monetization are called out as out of scope.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="twitch-latency-not-single-number">
+      <p class="stem">Why does the NFR table give a latency range (2–5s standard, &lt;1s interactive) instead of one fixed target?</p>
+      <button class="opt">Video codecs cannot guarantee a consistent latency figure at all</button>
+      <button class="opt">Different use cases (passive viewing vs. an auction) demand different latency budgets, which later forces a transport choice</button>
+      <button class="opt">Interviewers never check latency numbers so precision doesn't matter</button>
+      <p class="fb">The whole interview hinges on this: an esports final tolerates seconds of delay, but a live auction can't. That variance is exactly what Deep Dive 2 resolves with a transport-per-use-case answer.</p>
+      <p class="hint">Look at the "key tension" box — it names two very different streams with two very different needs.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only compute numbers that change a decision. Two matter: the per-stream egress fan-out, and the transcode cost per concurrent stream. (All figures are my own back-of-envelope estimates.)</p>
@@ -150,6 +189,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “One popular stream is terabits per second, and transcoding costs CPU per broadcaster. Let me define entities.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="twitch-two-scaling-axes">
+      <p class="stem">Egress fan-out and transcode cost scale on different axes. Which pairing is correct?</p>
+      <button class="opt">Both egress and transcode scale with the number of concurrent viewers</button>
+      <button class="opt">Both egress and transcode scale with the number of concurrent broadcasters</button>
+      <button class="opt">Egress scales with viewers; transcode scales with broadcasters</button>
+      <p class="fb">Never confuse the two: delivery is a per-viewer cost owned by the CDN, transcoding is a per-broadcaster cost you pay continuously while a stream is live.</p>
+      <p class="hint">Reread the "Design implication" line at the end of the capacity box.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="twitch-cdn-mandatory-why">
+      <p class="stem">Why does the estimate conclude the CDN edge is mandatory rather than optional?</p>
+      <button class="opt">One popular stream alone can require terabits per second of egress, which no single origin can serve affordably</button>
+      <button class="opt">CDNs are required by law for any video streaming service</button>
+      <button class="opt">Origins cannot store video segments longer than a few seconds</button>
+      <p class="fb">5 Mbps × 1M viewers = 5 Tbps for one stream. Serving that from an origin is both technically and financially impossible; only edge caching absorbs it.</p>
+      <p class="hint">Do the multiplication in the capacity box yourself: bitrate times viewer count.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <h3>Entities</h3>
@@ -191,6 +253,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Stream, ingest key and chat messages. Now ingest, delivery and chat as three planes.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="twitch-video-bytes-bypass-api">
+      <p class="stem">Where do the actual video bytes flow relative to the app API?</p>
+      <button class="opt">Every video segment is uploaded and downloaded through the same REST API</button>
+      <button class="opt">They never flow through the app API — broadcasters push via RTMP and viewers pull from the CDN</button>
+      <button class="opt">Video bytes are embedded as base64 in the stream metadata responses</button>
+      <p class="fb">The API only mints URLs, keys and metadata; the heavy bytes go ingest→transcode→CDN, entirely off the app tier.</p>
+      <p class="hint">Reread the API section's opening sentence about where video bytes flow.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="twitch-stream-key-separate-why">
+      <p class="stem">Why is the stream key a separate secret from the user's login credentials?</p>
+      <button class="opt">Login credentials are too short to authenticate an RTMP connection</button>
+      <button class="opt">Regulations require ingest and account auth to use different protocols</button>
+      <button class="opt">A leaked stream key needs to be rotatable without touching the account, and it should authorize ingest only, not full account access</button>
+      <p class="fb">Broadcasting software stores the key locally where it can leak; scoping it to ingest-only and making it independently rotatable limits the blast radius.</p>
+      <p class="hint">Look at the pushback box right above this gate.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Data Flow — glass to glass</h2>
   <p>Live streaming is a pipeline on a real-time clock, so trace the bytes once before drawing boxes:</p>
@@ -246,6 +331,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: ingest to segments, latency vs scale, chat fan-out and VOD.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="twitch-hld-three-planes">
+      <p class="stem">The high-level design is deliberately split into three planes. Which grouping is correct?</p>
+      <button class="opt">Storage, compute, and networking — the classic three-tier split</button>
+      <button class="opt">Authentication, authorization, and billing</button>
+      <button class="opt">Ingest/transcode (scales with broadcasters), delivery (scales with viewers, CDN-owned), and chat (its own fan-out)</button>
+      <p class="fb">Each plane has a different scaling driver and failure domain, which is why they're built and scaled independently.</p>
+      <p class="hint">Reread the opening sentence of the High-Level Design section.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="twitch-watch-path-app-tier-light">
+      <p class="stem">Why does the watch path touch the app tier only once, for a tiny JSON response?</p>
+      <button class="opt">All the heavy work (manifest polling, segment fetches) happens directly between the player and the CDN edge, not the app servers</button>
+      <button class="opt">The app tier is deliberately underprovisioned to force caching everywhere</button>
+      <button class="opt">Viewers are rate-limited to one API call per stream session</button>
+      <p class="fb">The API's job is just handing back a manifestUrl; every subsequent byte is edge-to-client, which is what lets one app tier serve millions of viewers.</p>
+      <p class="hint">Reread the "Watch path" paragraph after the component table.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
   <p>This is 60% of the interview. Four hard parts, each with the alternative and a justified pick.</p>
@@ -323,6 +431,45 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness next.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="twitch-segmentation-live-becomes-vod">
+      <p class="stem">The staff-level reframe in Deep Dive 1 says live delivery becomes what, once segmented?</p>
+      <button class="opt">A permanently open peer-to-peer connection to every viewer</button>
+      <button class="opt">Just VOD with a sliding window — cacheable static objects served at the edge</button>
+      <button class="opt">A single continuous byte stream with no independent chunks</button>
+      <p class="fb">Once cut into short immutable segments, live playback is indexed by a manifest and cached exactly like on-demand video.</p>
+      <p class="hint">Reread the staff-level signal box right after Deep Dive 1's table.</p>
+    </div>
+    <div class="q" data-correct="b" data-concept="twitch-ll-hls-default-pick">
+      <p class="stem">Per Deep Dive 2, what is the default transport, with WebRTC reserved for what case?</p>
+      <button class="opt">WebRTC by default everywhere; LL-HLS only as a fallback</button>
+      <button class="opt">LL-HLS over CDN by default; WebRTC only for genuinely interactive, small-audience streams</button>
+      <button class="opt">Plain RTMP all the way to the viewer in every case</button>
+      <p class="fb">LL-HLS keeps the CDN-scalable, cacheable model while cutting latency to a few seconds; WebRTC's relay cost only pays off for small interactive rooms.</p>
+      <p class="hint">Reread "The pick" box in Deep Dive 2.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="twitch-webrtc-why-not-universal">
+      <p class="stem">Why can't WebRTC simply replace HLS everywhere, given it has much lower latency?</p>
+      <button class="opt">WebRTC is a proprietary protocol that Twitch is not licensed to use</button>
+      <button class="opt">WebRTC cannot transmit audio alongside video</button>
+      <button class="opt">WebRTC needs a persistent per-viewer media relay session, which doesn't benefit from the CDN's cheap shared-object caching the way HLS segments do</button>
+      <p class="fb">Fanning WebRTC out to a million viewers means a fleet of relays doing per-connection work — orders of magnitude more expensive than serving cached segments.</p>
+      <p class="hint">Reread the paragraph beginning "Why WebRTC doesn't just win."</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="twitch-chat-timecode-align-why">
+      <p class="stem">Why must chat messages be aligned to a stream timecode instead of delivered in raw wall-clock real time?</p>
+      <button class="opt">Because video is delayed several seconds by segmentation, so real-time chat would spoil moments the viewer hasn't seen yet</button>
+      <button class="opt">Because chat servers cannot process messages faster than one per second</button>
+      <button class="opt">Because timecodes are required to compress chat text for storage</button>
+      <p class="fb">Tagging messages with the stream's timecode lets the client render chat in step with the delayed segment the viewer is actually watching.</p>
+      <p class="hint">Reread the "Align chat to video, not wall-clock" box in Deep Dive 3.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -376,6 +523,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="twitch-glass-to-glass-metric">
+      <p class="stem">How is glass-to-glass latency measured in observability?</p>
+      <button class="opt">Comparing a timecode embedded at ingest with the player's render time on sampled clients</button>
+      <button class="opt">Counting the number of HTTP requests the player makes per minute</button>
+      <button class="opt">Measuring only the time the broadcaster's encoder takes to compress a frame</button>
+      <p class="fb">A timecode stamped at ingest, compared against when a sampled client actually renders it, gives the true end-to-end delay.</p>
+      <p class="hint">Reread the first row of the Observability table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="twitch-stream-delay-anti-sniping">
+      <p class="stem">Why does a deliberate stream delay buffer also serve a security purpose, not just a UX one?</p>
+      <button class="opt">It reduces the broadcaster's CPU load during encoding</button>
+      <button class="opt">It defends against stream sniping, where someone watching live uses the real-time feed to gain an unfair advantage elsewhere</button>
+      <button class="opt">It is required to satisfy copyright licensing for music playback</button>
+      <p class="fb">The Privacy section notes the delay buffer doubles as anti-sniping: without it, a viewer could act on live information faster than others relying on a delayed feed.</p>
+      <p class="hint">Reread the Privacy section's mention of "delay buffers."</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+  <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = ~30M concurrent viewers, ~1M concurrent broadcasters.</p>
@@ -413,42 +583,75 @@
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A live streaming platform has three planes. Ingest servers accept RTMP from broadcasters and real-time transcoders produce an adaptive-bitrate ladder of short segments. Delivery is LL-HLS through a CDN, so live is just VOD with a sliding window and scales to millions of viewers at 2–4 s latency, with WebRTC reserved for interactive cases. Chat is a separate pub/sub fan-out. Segments are retained for DVR, VOD and clips. At 10× we add CDN capacity and transcoders; egress and transcoding dominate cost.</p></div>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. What lets a single live stream reach millions of viewers economically?</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="twitch-cost-dominant-driver">
+      <p class="stem">What dominates the monthly cost of running this system?</p>
+      <button class="opt">Chat, metadata and API compute, at roughly half the total spend</button>
+      <button class="opt">VOD storage in infrequent-access tiers, ahead of everything else</button>
+      <button class="opt">CDN egress bandwidth, at roughly 87% of the total</button>
+      <p class="fb">Delivery bandwidth dwarfs transcoding and storage; the cost table shows CDN egress as by far the largest line item.</p>
+      <p class="hint">Reread the "Dominant driver" line right under the cost table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="twitch-10x-transcode-lever">
+      <p class="stem">Why does scaling transcode capacity 10× rely on passthrough for low-viewer streams instead of just adding more transcoder nodes?</p>
+      <button class="opt">Full bitrate ladders cost CPU per broadcaster regardless of audience size, so skipping the ladder for tiny streams saves that cost where it isn't needed</button>
+      <button class="opt">Passthrough is required because transcoders cannot run more than 100,000 streams total</button>
+      <button class="opt">Small streams have no viewers, so they don't need to be delivered at all</button>
+      <p class="fb">Transcode cost scales with broadcasters, not popularity, so a full 5-rung ladder for a near-zero-viewer stream wastes CPU. Passthrough caps the cost where the ladder buys nothing.</p>
+      <p class="hint">Reread the "Knob turned" column for transcoders, and Alternative C in the tradeoffs table.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">Final check</p>
+  <h2>Everything from this lesson</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is what makes it stick. These questions also seed spaced review — expect variants back in a future session per the forgetting curve.</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="c" data-concept="twitch-final-cdn-economics">
+      <p class="stem">What lets a single live stream reach millions of viewers economically?</p>
       <button class="opt">A WebRTC media relay opens one persistent session to each viewer</button>
       <button class="opt">The origin server streams the raw feed straight to every viewer</button>
       <button class="opt">Segmented HLS over a CDN turns live into cacheable static files</button>
-      <button class="opt">The broadcaster uploads one separate copy for each viewer region</button>
       <p class="fb">Once the live feed is cut into immutable segments, delivery is just VOD on a sliding window — the CDN edge absorbs the read bandwidth.</p>
+      <p class="hint">Think back to Deep Dive 1's staff-level reframe about segmentation.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. Why isn't WebRTC simply the best transport for every live stream?</p>
-      <button class="opt">WebRTC cannot encode any high-resolution video above the 480p level</button>
+    <div class="q" data-correct="b" data-concept="twitch-final-webrtc-limit">
+      <p class="stem">Why isn't WebRTC simply the best transport for every live stream?</p>
+      <button class="opt">WebRTC cannot encode any video above the 480p resolution level</button>
       <button class="opt">It needs per-viewer media relays, so it cannot ride cheap CDN caching</button>
-      <button class="opt">It adds many seconds of latency compared to the standard HLS pipeline</button>
       <button class="opt">It only works for chat messages and never for the actual video plane</button>
       <p class="fb">WebRTC gives sub-second latency but relies on per-connection relays; it doesn't fan out to millions cheaply, so it fits small interactive audiences.</p>
+      <p class="hint">Recall Deep Dive 2's explanation of why WebRTC "doesn't just win."</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Which scaling axis is unique to live (versus on-demand) video?</p>
+    <div class="q" data-correct="a" data-concept="twitch-final-scaling-axis">
+      <p class="stem">Which scaling axis is unique to live video versus on-demand video?</p>
       <button class="opt">Real-time transcode cost, which scales with concurrent broadcasters</button>
-      <button class="opt">Edge egress bandwidth, which scales with the concurrent viewers</button>
-      <button class="opt">Metadata write throughput, which scales with the total stream count</button>
+      <button class="opt">Edge egress bandwidth, which scales with concurrent viewers</button>
       <button class="opt">Object storage capacity, which scales with the archived VOD library</button>
       <p class="fb">You can't pre-transcode content that's being created live, so you pay CPU continuously per active broadcaster; delivery still scales like VOD.</p>
+      <p class="hint">Recall the capacity estimation's "design implication" about two independent axes.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. How do DVR rewind and VOD replay come almost for free?</p>
-      <button class="opt">A separate batch pipeline re-encodes the whole stream after it ends</button>
-      <button class="opt">Segments are retained and re-indexed by a manifest for seek and replay</button>
-      <button class="opt">The CDN keeps a permanent live WebRTC session open for each viewer</button>
-      <button class="opt">The chat service stores frames inline with each delivered message log</button>
-      <p class="fb">DVR keeps a window of recent segments seekable; VOD persists every segment to storage — the expensive transcode happened once, everything else is metadata.</p>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="twitch-final-vod-free">
+      <p class="stem">Why do DVR rewind and VOD replay come almost for free once the pipeline segments live video?</p>
+      <button class="opt">A separate batch job re-encodes the entire stream from scratch after it ends</button>
+      <button class="opt">The same immutable segments already produced for live delivery just get retained and re-indexed by a manifest</button>
+      <button class="opt">The CDN automatically converts WebRTC sessions into downloadable files</button>
+      <p class="fb">The expensive work — real-time transcoding — happens once. DVR and VOD are just metadata (which segments to include) layered over bytes that already exist.</p>
+      <p class="hint">Recall Deep Dive 4's line about "segments are the universal currency."</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="twitch-final-latency-scale-tradeoff">
+      <p class="stem">If an interviewer asks "HLS or WebRTC?", what does the staff-level answer reveal about the underlying tradeoff?</p>
+      <button class="opt">That one of the two protocols is objectively obsolete and should never be used</button>
+      <button class="opt">That the choice is arbitrary and either protocol works equally well everywhere</button>
+      <button class="opt">That latency and scale trade off against each other, so the right transport depends on audience size and latency budget, not a universal winner</button>
+      <p class="fb">Naming the spectrum (WebRTC → LL-HLS → HLS) and mapping each to an audience/latency point, rather than picking one transport for everything, is exactly the senior-to-staff jump this lesson calls out.</p>
+      <p class="hint">Recall the staff-level signal box in Deep Dive 2 about "refusing the one transport wins trap."</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this design — push on it:
@@ -479,21 +682,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

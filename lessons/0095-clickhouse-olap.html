@@ -43,22 +43,40 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -77,173 +95,295 @@
     cloud warehouse instead. Knowing the internals lets you defend the pick instead of name-dropping it.
   </div>
 
-  <h2>OLAP vs OLTP</h2>
-  <p>Every database is optimized for one of two workload shapes. Conflating them is the single most common analytics
-    design mistake.</p>
-  <table>
-    <tr><th>Dimension</th><th>OLTP (e.g. Postgres, MySQL)</th><th>OLAP (e.g. ClickHouse)</th></tr>
-    <tr><td>Query shape</td><td>Point reads/writes: "fetch/update one row by id."</td><td>Wide scans: "aggregate one column over a billion rows."</td></tr>
-    <tr><td>Access pattern</td><td>A few rows, all their columns.</td><td>A few columns, almost all the rows.</td></tr>
-    <tr><td>Write pattern</td><td>High-frequency single-row inserts/updates.</td><td>Bulk appends; updates are rare or forbidden.</td></tr>
-    <tr><td>Layout</td><td>Row-oriented (a row's fields stored together).</td><td>Column-oriented (a column's values stored together).</td></tr>
-    <tr><td>Consistency</td><td>Strong, transactional (ACID).</td><td>Relaxed; eventual rollups, append-mostly.</td></tr>
-  </table>
-  <p><b>Why a row store is the wrong tool for analytics.</b> Suppose you want <code>SELECT sum(clicks) FROM events
-    WHERE day = ...</code> over a billion rows with 50 columns each. A row store lays each row's 50 fields out
-    contiguously on disk, so to read just the <code>clicks</code> column the engine must drag <em>every</em> row —
-    all 50 columns — off disk and into memory, then discard 49/50 of it. You pay I/O for data you never touch. That's
-    fine when you wanted the whole row (OLTP point read); it's catastrophic when you wanted one column across the
-    universe.<a href="#c1" class="cite">[1]</a> A column store inverts the layout so the scan touches only the bytes
-    it needs — and that single inversion is the source of nearly every OLAP advantage below. (Foundations:
-    <a href="0041-data-structures-for-big-data.html">Lesson 41 — data structures for big data</a>.)</p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 6</p>
+    <h2>OLAP vs OLTP</h2>
+    <p>Every database is optimized for one of two workload shapes. Conflating them is the single most common analytics
+      design mistake.</p>
+    <table>
+      <tr><th>Dimension</th><th>OLTP (e.g. Postgres, MySQL)</th><th>OLAP (e.g. ClickHouse)</th></tr>
+      <tr><td>Query shape</td><td>Point reads/writes: "fetch/update one row by id."</td><td>Wide scans: "aggregate one column over a billion rows."</td></tr>
+      <tr><td>Access pattern</td><td>A few rows, all their columns.</td><td>A few columns, almost all the rows.</td></tr>
+      <tr><td>Write pattern</td><td>High-frequency single-row inserts/updates.</td><td>Bulk appends; updates are rare or forbidden.</td></tr>
+      <tr><td>Layout</td><td>Row-oriented (a row's fields stored together).</td><td>Column-oriented (a column's values stored together).</td></tr>
+      <tr><td>Consistency</td><td>Strong, transactional (ACID).</td><td>Relaxed; eventual rollups, append-mostly.</td></tr>
+    </table>
+    <p><b>Why a row store is the wrong tool for analytics.</b> Suppose you want <code>SELECT sum(clicks) FROM events
+      WHERE day = ...</code> over a billion rows with 50 columns each. A row store lays each row's 50 fields out
+      contiguously on disk, so to read just the <code>clicks</code> column the engine must drag <em>every</em> row —
+      all 50 columns — off disk and into memory, then discard 49/50 of it. You pay I/O for data you never touch. That's
+      fine when you wanted the whole row (OLTP point read); it's catastrophic when you wanted one column across the
+      universe.<a href="#c1" class="cite">[1]</a> A column store inverts the layout so the scan touches only the bytes
+      it needs — and that single inversion is the source of nearly every OLAP advantage below. (Foundations:
+      <a href="0041-data-structures-for-big-data.html">Lesson 41 — data structures for big data</a>.)</p>
 
-  <h2>Internals — what makes it fast</h2>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="clickhouse-row-store-wasted-io">
+        <p class="stem">Why does a row store waste I/O on a single-column aggregation over a wide table?</p>
+        <button class="opt">It keeps every column compressed separately and must decompress all of them first</button>
+        <button class="opt">It stores all of a row's fields together, so reading one column drags every column</button>
+        <button class="opt">It indexes each row individually, making the primary index too large to fit in memory</button>
+        <p class="fb">Row layout stores fields contiguously per row, so a one-column scan still reads the whole row off disk.</p>
+        <p class="hint">Reread "Why a row store is the wrong tool for analytics" — what does the engine drag off disk?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="clickhouse-oltp-olap-tradeoff-why">
+        <p class="stem">If column layout is so much better for scans, why doesn't every database just use it?</p>
+        <button class="opt">Column layout makes single-row reads/writes slow, since one row's fields now live scattered across separate files</button>
+        <button class="opt">Column layout is strictly worse in every way and only survives due to legacy tooling</button>
+        <button class="opt">Column layout requires more expensive hardware than row layout to run at all</button>
+        <p class="fb">The inversion that helps scans hurts point access: fetching one whole row now means touching every column file. That's why OLTP keeps rows together.</p>
+        <p class="hint">Think about the OLTP access pattern in the table: "a few rows, all their columns." What does splitting columns apart cost that query?</p>
+      </div>
+    </div>
+  </section>
 
-  <h3>1 · Columnar storage + per-column compression</h3>
-  <p>ClickHouse stores each column in its own file(s), values laid end to end.<a href="#c1" class="cite">[1]</a> Two
-    compounding wins fall out of this:</p>
-  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
-    <li><b>Scan only what you query.</b> A <code>SUM</code> over one column reads that column's file and nothing else —
-      I/O scales with columns touched, not table width.<a href="#c1" class="cite">[1]</a></li>
-    <li><b>Far better compression.</b> Adjacent values in a column share a type and tend to be similar (timestamps that
-      increment, low-cardinality enums, repeated ids). That homogeneity lets schemes like <b>LZ4</b>, <b>ZSTD</b>,
-      and <b>delta/double-delta</b> encoding crush the data — often an order of magnitude better than a row store can
-      manage on mixed-type rows.<a href="#c1" class="cite">[1]</a> Less data on disk means less I/O, and I/O is the
-      bottleneck for scans. Compression isn't just a storage saving here — it's a <em>speed</em> feature.</li>
-  </ul>
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 6</p>
+    <h2>Internals — columnar storage and compression</h2>
 
-  <h3>2 · Vectorized execution</h3>
-  <p>A traditional engine processes data a row (tuple) at a time, paying interpreter overhead per row. ClickHouse uses
-    a <b>vectorized engine</b>: it processes columns in <em>batches</em> (blocks of thousands of values) through tight
-    loops that the CPU can pipeline and run with SIMD instructions.<a href="#c1" class="cite">[1]</a> Because a column
-    batch is one contiguous array of one type, the inner loop is branch-free and cache-friendly — you amortize
-    dispatch cost over thousands of values instead of paying it per row. Columnar layout is the <em>prerequisite</em>
-    that makes vectorization possible; the two are a package deal.</p>
-
-  <h3>3 · The MergeTree engine</h3>
-  <p><code>MergeTree</code> is ClickHouse's core table engine and where its write/read strategy lives.<a href="#c2" class="cite">[2]</a>
-    The mental model: <b>inserts create immutable sorted "parts," and a background process merges them.</b></p>
-  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
-    <li><b>Sorted parts.</b> Each insert writes a new <em>part</em> — a self-contained chunk of columns, sorted by the
-      table's <code>ORDER BY</code> key.<a href="#c2" class="cite">[2]</a> Inserts never touch existing data, so writes
-      are fast sequential appends (this is why it's <b>append-optimized</b>, not update-optimized).</li>
-    <li><b>Background merges.</b> A background thread continuously merges small sorted parts into larger sorted parts
-      (a k-way merge, like LSM compaction).<a href="#c2" class="cite">[2]</a> This keeps the part count bounded so
-      reads don't fan out across thousands of tiny files, and lets special engines (e.g.
-      <code>SummingMergeTree</code>, <code>AggregatingMergeTree</code>) collapse/aggregate rows at merge time.</li>
-    <li><b>Sparse primary index.</b> The primary key does <em>not</em> index every row. ClickHouse stores one index
-      entry per <b>granule</b> (a fixed block of rows, ~8192 by default), so the index is tiny and lives in memory.<a href="#c2" class="cite">[2]</a>
-      A <code>WHERE</code> on the sort key prunes to the handful of granules that can match, then scans only those —
-      <b>data skipping</b> rather than per-row seeks. It trades pinpoint row lookups (which OLAP doesn't need) for a
-      featherweight index over enormous tables.</li>
-  </ul>
-  <div class="box">
-    <b>Why append-optimized matters.</b> MergeTree has no in-place row updates — there's no B-tree to rebalance, no
-    write-amplifying page rewrite per insert. You append immutable sorted parts and let merges do the housekeeping in
-    the background. That's perfect for an event firehose (clicks, logs, metrics) but means <b>point updates/deletes are
-    expensive and async</b> (handled via mutations or special merge engines). If your workload needs frequent in-place
-    edits, you've picked the wrong tool — that's OLTP territory.
-  </div>
-
-  <h2>The landscape</h2>
-  <p>"OLAP store" is a family, not one product. Staff signal is knowing which sub-category a problem wants.</p>
-  <table>
-    <tr><th>Category</th><th>Examples</th><th>Sweet spot</th><th>Tradeoff</th></tr>
-    <tr><td>Open-source columnar DB</td><td><b>ClickHouse</b></td><td>Self-hosted, blazing scans, flexible SQL, log/event analytics.</td><td>You operate it; updates/joins are weaker than a warehouse.</td></tr>
-    <tr><td>Real-time OLAP</td><td><b>Druid</b>, <b>Pinot</b></td><td>Ingest-from-Kafka, low-latency, high-QPS user-facing dashboards.</td><td>More moving parts; less ad-hoc SQL flexibility.</td></tr>
-    <tr><td>Cloud data warehouse</td><td><b>Snowflake</b>, <b>BigQuery</b></td><td>Elastic, serverless, big batch analytics; storage/compute split.</td><td>Per-query cost; higher latency; not for high-QPS serving.</td></tr>
-  </table>
-  <p><b>ClickHouse vs Druid/Pinot.</b> All three are columnar and aggregate fast. Druid and Pinot are purpose-built for
-    <b>real-time, high-QPS, user-facing</b> analytics — they ingest streams (Kafka) natively and answer thousands of
-    concurrent dashboard queries with tight tail latency. ClickHouse is a more general SQL database: superb at heavy
-    scans and ad-hoc queries, often simpler to run, but historically tuned for fewer, fatter queries than for huge
-    concurrent QPS. (See <a href="0075-realtime-analytics.html">Lesson 75 — real-time analytics</a>.)</p>
-  <p><b>vs Snowflake/BigQuery.</b> The defining difference is <b>separation of storage and compute</b>: data sits in
-    object storage and you spin compute up/down independently, paying per query/per second. That elasticity is ideal
-    for spiky <em>batch</em> analytics and zero-ops scaling, but it adds latency and per-query cost that make warehouses
-    a poor fit for the always-on, low-latency serving path that ClickHouse/Druid/Pinot own. Modern ClickHouse Cloud has
-    moved toward a similar storage/compute split, but the classic distinction still frames the interview tradeoff.</p>
-
-  <h2>When to reach for it — and when NOT</h2>
-  <div class="box">
-    <b>Reach for a columnar OLAP store when…</b>
-    <ul>
-      <li>Queries are <b>aggregations/scans</b> over few columns of many rows (<code>SUM</code>, <code>COUNT</code>, <code>GROUP BY</code>, time ranges).</li>
-      <li>Writes are <b>append-heavy</b> event streams — clicks, logs, metrics, telemetry.</li>
-      <li>You serve <b>analytics dashboards</b> that pre-aggregate, not per-user transactional reads.</li>
-      <li>Data is <b>immutable-ish</b>: you rarely update or delete individual rows after the fact.</li>
+    <h3>1 · Columnar storage + per-column compression</h3>
+    <p>ClickHouse stores each column in its own file(s), values laid end to end.<a href="#c1" class="cite">[1]</a> Two
+      compounding wins fall out of this:</p>
+    <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
+      <li><b>Scan only what you query.</b> A <code>SUM</code> over one column reads that column's file and nothing else —
+        I/O scales with columns touched, not table width.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Far better compression.</b> Adjacent values in a column share a type and tend to be similar (timestamps that
+        increment, low-cardinality enums, repeated ids). That homogeneity lets schemes like <b>LZ4</b>, <b>ZSTD</b>,
+        and <b>delta/double-delta</b> encoding crush the data — often an order of magnitude better than a row store can
+        manage on mixed-type rows.<a href="#c1" class="cite">[1]</a> Less data on disk means less I/O, and I/O is the
+        bottleneck for scans. Compression isn't just a storage saving here — it's a <em>speed</em> feature.</li>
     </ul>
-    <b>Do NOT reach for it when…</b>
-    <ul>
-      <li>You need <b>point lookups / single-row updates</b> by primary key — that's OLTP (Postgres/MySQL/DynamoDB).</li>
-      <li>You need <b>transactions and strong consistency</b> across multi-row writes.</li>
-      <li>The workload is <b>read-one-whole-row</b> (user profile, order record) — row stores win there.</li>
-      <li>You need <b>heavy normalized joins</b> and frequent mutations — warehouses/OLTP handle these better.</li>
+
+    <h3>2 · Vectorized execution</h3>
+    <p>A traditional engine processes data a row (tuple) at a time, paying interpreter overhead per row. ClickHouse uses
+      a <b>vectorized engine</b>: it processes columns in <em>batches</em> (blocks of thousands of values) through tight
+      loops that the CPU can pipeline and run with SIMD instructions.<a href="#c1" class="cite">[1]</a> Because a column
+      batch is one contiguous array of one type, the inner loop is branch-free and cache-friendly — you amortize
+      dispatch cost over thousands of values instead of paying it per row. Columnar layout is the <em>prerequisite</em>
+      that makes vectorization possible; the two are a package deal.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="clickhouse-columnar-compression-why">
+        <p class="stem">Why does columnar storage compress so much better than row storage?</p>
+        <button class="opt">It encrypts each column with a dedicated key that shrinks the on-disk footprint by half</button>
+        <button class="opt">It removes duplicate rows during merges, so the surviving columns occupy much less space</button>
+        <button class="opt">Adjacent values in a column share a type and similarity, which encodings exploit heavily</button>
+        <p class="fb">A column is one type of similar values, so LZ4/ZSTD/delta encoding crush it far better than mixed rows.</p>
+        <p class="hint">Reread "Far better compression" — what do adjacent values in one column have in common?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="clickhouse-vectorization-needs-columnar-why">
+        <p class="stem">Why couldn't a row-oriented engine simply bolt on vectorized (batch) execution to get the same speedup?</p>
+        <button class="opt">Vectorization only works on encrypted data, and row stores rarely encrypt columns</button>
+        <button class="opt">A row-at-a-time layout has no contiguous same-type array to batch; the CPU can't pipeline mixed-type tuples the same way</button>
+        <button class="opt">Vectorization requires a sparse index, which row stores are physically unable to build</button>
+        <p class="fb">Vectorized execution needs a contiguous, single-type array to run tight branch-free loops over. A row's fields are mixed types stored together, so there's no such array to batch.</p>
+        <p class="hint">The lesson calls columnar layout "the prerequisite" for vectorization — ask what a batch actually needs to be to pipeline well.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 6</p>
+    <h2>Internals — the MergeTree engine</h2>
+    <p><code>MergeTree</code> is ClickHouse's core table engine and where its write/read strategy lives.<a href="#c2" class="cite">[2]</a>
+      The mental model: <b>inserts create immutable sorted "parts," and a background process merges them.</b></p>
+    <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
+      <li><b>Sorted parts.</b> Each insert writes a new <em>part</em> — a self-contained chunk of columns, sorted by the
+        table's <code>ORDER BY</code> key.<a href="#c2" class="cite">[2]</a> Inserts never touch existing data, so writes
+        are fast sequential appends (this is why it's <b>append-optimized</b>, not update-optimized).</li>
+      <li><b>Background merges.</b> A background thread continuously merges small sorted parts into larger sorted parts
+        (a k-way merge, like LSM compaction).<a href="#c2" class="cite">[2]</a> This keeps the part count bounded so
+        reads don't fan out across thousands of tiny files, and lets special engines (e.g.
+        <code>SummingMergeTree</code>, <code>AggregatingMergeTree</code>) collapse/aggregate rows at merge time.</li>
+      <li><b>Sparse primary index.</b> The primary key does <em>not</em> index every row. ClickHouse stores one index
+        entry per <b>granule</b> (a fixed block of rows, ~8192 by default), so the index is tiny and lives in memory.<a href="#c2" class="cite">[2]</a>
+        A <code>WHERE</code> on the sort key prunes to the handful of granules that can match, then scans only those —
+        <b>data skipping</b> rather than per-row seeks. It trades pinpoint row lookups (which OLAP doesn't need) for a
+        featherweight index over enormous tables.</li>
     </ul>
-  </div>
+    <div class="box">
+      <b>Why append-optimized matters.</b> MergeTree has no in-place row updates — there's no B-tree to rebalance, no
+      write-amplifying page rewrite per insert. You append immutable sorted parts and let merges do the housekeeping in
+      the background. That's perfect for an event firehose (clicks, logs, metrics) but means <b>point updates/deletes are
+      expensive and async</b> (handled via mutations or special merge engines). If your workload needs frequent in-place
+      edits, you've picked the wrong tool — that's OLTP territory.
+    </div>
 
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Don't say "I'll use ClickHouse" and stop. Say <em>"reads here are column-aggregations over an append-only event
-    stream, so a row store would scan 50× the bytes it needs — I want a columnar engine whose compression and sparse
-    index turn this into a data-skip."</em> Then show judgement on the family: ClickHouse for self-hosted flexible
-    scans, Druid/Pinot if it's <em>high-QPS user-facing</em> dashboards, a warehouse if it's <em>elastic batch</em>.
-    The staff move is grounding the pick in the workload shape (OLAP vs OLTP) and naming what you'd give up — not
-    over-explaining that "columns are stored together," which any senior knows.
-  </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="clickhouse-sparse-index-granule">
+        <p class="stem">What does MergeTree's sparse primary index actually store?</p>
+        <button class="opt">One index entry per granule of rows, so a query data-skips to matching blocks</button>
+        <button class="opt">One index entry per single row, so a query seeks directly to the exact tuple</button>
+        <button class="opt">One index entry per column file, so a query loads only the columns it touches</button>
+        <p class="fb">It indexes granules (~8192-row blocks), staying tiny and enabling data skipping rather than per-row seeks.</p>
+        <p class="hint">Reread "Sparse primary index" — what's the unit the index has one entry per?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="clickhouse-why-point-updates-expensive">
+        <p class="stem">Why are point updates/deletes expensive on MergeTree, when they're cheap on a B-tree row store?</p>
+        <button class="opt">MergeTree doesn't support a WHERE clause, so it can't locate the row to change</button>
+        <button class="opt">MergeTree keeps all data in memory only, so any change requires a full reload from disk</button>
+        <button class="opt">Parts are immutable once written; changing one row means rewriting/merging whole parts instead of editing in place</button>
+        <p class="fb">There's no in-place mutation slot like a B-tree page. An "update" has to be handled asynchronously via mutations or merge-time collapsing of parts, which is inherently heavier than flipping bytes on one page.</p>
+        <p class="hint">Reread "Sorted parts" — inserts never touch existing data. What does that immutability cost you when you want to change one already-written row?</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>In the interview</h2>
-  <p>This technology shows up as the <b>serving store for cooked rollups</b> in nearly every streaming-analytics design
-    (<a href="0036-ad-click-aggregator.html">Lesson 36 — ad click aggregator</a>). When you reach the "where do reads
-    land?" moment:</p>
-  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
-    <li><b>Justify by workload, not by name.</b> "Aggregations over an append-only firehose → columnar OLAP." One
-      sentence, then move on — don't burn depth budget re-deriving compression.</li>
-    <li><b>Pre-aggregate on write.</b> The store is fast, but the bigger win is materializing minute/hour/day rollups so
-      reads touch tiny pre-cooked tables, not raw events. ClickHouse's <code>AggregatingMergeTree</code> / materialized
-      views do this at merge time.</li>
-    <li><b>Pick the right sub-category out loud.</b> Real-time high-QPS → Druid/Pinot; elastic batch → warehouse;
-      flexible self-hosted scans → ClickHouse. Naming the alternative you <em>rejected</em> is the breadth signal.</li>
-    <li><b>Don't propose it for OLTP.</b> If the interviewer pivots to "now update a single user's balance," flag that
-      you'd route that to a transactional store — recognizing the boundary is itself the signal.</li>
-  </ul>
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 6</p>
+    <h2>The landscape</h2>
+    <p>"OLAP store" is a family, not one product. Staff signal is knowing which sub-category a problem wants.</p>
+    <table>
+      <tr><th>Category</th><th>Examples</th><th>Sweet spot</th><th>Tradeoff</th></tr>
+      <tr><td>Open-source columnar DB</td><td><b>ClickHouse</b></td><td>Self-hosted, blazing scans, flexible SQL, log/event analytics.</td><td>You operate it; updates/joins are weaker than a warehouse.</td></tr>
+      <tr><td>Real-time OLAP</td><td><b>Druid</b>, <b>Pinot</b></td><td>Ingest-from-Kafka, low-latency, high-QPS user-facing dashboards.</td><td>More moving parts; less ad-hoc SQL flexibility.</td></tr>
+      <tr><td>Cloud data warehouse</td><td><b>Snowflake</b>, <b>BigQuery</b></td><td>Elastic, serverless, big batch analytics; storage/compute split.</td><td>Per-query cost; higher latency; not for high-QPS serving.</td></tr>
+    </table>
+    <p><b>ClickHouse vs Druid/Pinot.</b> All three are columnar and aggregate fast. Druid and Pinot are purpose-built for
+      <b>real-time, high-QPS, user-facing</b> analytics — they ingest streams (Kafka) natively and answer thousands of
+      concurrent dashboard queries with tight tail latency. ClickHouse is a more general SQL database: superb at heavy
+      scans and ad-hoc queries, often simpler to run, but historically tuned for fewer, fatter queries than for huge
+      concurrent QPS. (See <a href="0075-realtime-analytics.html">Lesson 75 — real-time analytics</a>.)</p>
+    <p><b>vs Snowflake/BigQuery.</b> The defining difference is <b>separation of storage and compute</b>: data sits in
+      object storage and you spin compute up/down independently, paying per query/per second. That elasticity is ideal
+      for spiky <em>batch</em> analytics and zero-ops scaling, but it adds latency and per-query cost that make warehouses
+      a poor fit for the always-on, low-latency serving path that ClickHouse/Druid/Pinot own. Modern ClickHouse Cloud has
+      moved toward a similar storage/compute split, but the classic distinction still frames the interview tradeoff.</p>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why does a row store waste I/O on a single-column aggregation over a wide table?</p>
-      <button class="opt">It keeps every column compressed separately and must decompress all of them first</button>
-      <button class="opt">It stores all of a row's fields together, so reading one column drags every column</button>
-      <button class="opt">It indexes each row individually, making the primary index too large to fit in memory</button>
-      <button class="opt">It merges immutable parts in the background, blocking reads until each merge finishes</button>
-      <p class="fb">Row layout stores fields contiguously per row, so a one-column scan still reads the whole row off disk.</p>
+    <h2>When to reach for it — and when NOT</h2>
+    <div class="box">
+      <b>Reach for a columnar OLAP store when…</b>
+      <ul>
+        <li>Queries are <b>aggregations/scans</b> over few columns of many rows (<code>SUM</code>, <code>COUNT</code>, <code>GROUP BY</code>, time ranges).</li>
+        <li>Writes are <b>append-heavy</b> event streams — clicks, logs, metrics, telemetry.</li>
+        <li>You serve <b>analytics dashboards</b> that pre-aggregate, not per-user transactional reads.</li>
+        <li>Data is <b>immutable-ish</b>: you rarely update or delete individual rows after the fact.</li>
+      </ul>
+      <b>Do NOT reach for it when…</b>
+      <ul>
+        <li>You need <b>point lookups / single-row updates</b> by primary key — that's OLTP (Postgres/MySQL/DynamoDB).</li>
+        <li>You need <b>transactions and strong consistency</b> across multi-row writes.</li>
+        <li>The workload is <b>read-one-whole-row</b> (user profile, order record) — row stores win there.</li>
+        <li>You need <b>heavy normalized joins</b> and frequent mutations — warehouses/OLTP handle these better.</li>
+      </ul>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. Why does columnar storage compress so much better than row storage?</p>
-      <button class="opt">It encrypts each column with a dedicated key that shrinks the on-disk footprint by half</button>
-      <button class="opt">It removes duplicate rows during merges, so the surviving columns occupy much less space</button>
-      <button class="opt">Adjacent values in a column share a type and similarity, which encodings exploit heavily</button>
-      <button class="opt">It stores only the primary key in memory and offloads the remaining columns to slow disk</button>
-      <p class="fb">A column is one type of similar values, so LZ4/ZSTD/delta encoding crush it far better than mixed rows.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="clickhouse-wrong-workload">
+        <p class="stem">Which workload is the wrong fit for a columnar OLAP store like ClickHouse?</p>
+        <button class="opt">Aggregating a single metric column across billions of append-only event rows</button>
+        <button class="opt">Reading and updating one user's account record by primary key, transactionally</button>
+        <button class="opt">Scanning a few columns over a huge table to build a time-bucketed dashboard</button>
+        <p class="fb">Point reads/updates of a single row by key are OLTP work; columnar append-optimized stores are poor at it.</p>
+        <p class="hint">Reread "Do NOT reach for it when" — which bullet matches "one user's account record"?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="clickhouse-druid-vs-warehouse-why">
+        <p class="stem">A dashboard needs thousands of concurrent users hitting it with sub-second latency on live-streaming data. Why would you reach for Druid/Pinot over a cloud warehouse here, even though both are OLAP?</p>
+        <button class="opt">Warehouses spin compute up per query and optimize for big batch jobs, not thousands of low-latency concurrent lookups; Druid/Pinot are built to ingest streams and serve that exact high-QPS pattern</button>
+        <button class="opt">Warehouses cannot store columnar data at all, so they are disqualified regardless of query pattern</button>
+        <button class="opt">Druid/Pinot are always cheaper than a warehouse for any workload size</button>
+        <p class="fb">The warehouse's storage/compute split is elastic but adds per-query latency and cost, which is fine for spiky batch work and wrong for an always-on, low-latency, high-concurrency serving path.</p>
+        <p class="hint">Reread "vs Snowflake/BigQuery" — what does the storage/compute split cost you in latency, and who is it built for instead?</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What does MergeTree's sparse primary index actually store?</p>
-      <button class="opt">One index entry per granule of rows, so a query data-skips to matching blocks</button>
-      <button class="opt">One index entry per single row, so a query seeks directly to the exact tuple</button>
-      <button class="opt">One index entry per column file, so a query loads only the columns it touches</button>
-      <button class="opt">One index entry per insert batch, so a query replays the writes in commit order</button>
-      <p class="fb">It indexes granules (~8192-row blocks), staying tiny and enabling data skipping rather than per-row seeks.</p>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 6</p>
+    <h2>Staff-level signal and interview guidance</h2>
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Don't say "I'll use ClickHouse" and stop. Say <em>"reads here are column-aggregations over an append-only event
+      stream, so a row store would scan 50× the bytes it needs — I want a columnar engine whose compression and sparse
+      index turn this into a data-skip."</em> Then show judgement on the family: ClickHouse for self-hosted flexible
+      scans, Druid/Pinot if it's <em>high-QPS user-facing</em> dashboards, a warehouse if it's <em>elastic batch</em>.
+      The staff move is grounding the pick in the workload shape (OLAP vs OLTP) and naming what you'd give up — not
+      over-explaining that "columns are stored together," which any senior knows.
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. Which workload is the wrong fit for a columnar OLAP store like ClickHouse?</p>
-      <button class="opt">Aggregating a single metric column across billions of append-only event rows</button>
-      <button class="opt">Reading and updating one user's account record by primary key, transactionally</button>
-      <button class="opt">Scanning a few columns over a huge table to build a time-bucketed dashboard</button>
-      <button class="opt">Ingesting a high-volume click firehose and rolling it up into minute buckets</button>
-      <p class="fb">Point reads/updates of a single row by key are OLTP work; columnar append-optimized stores are poor at it.</p>
+
+    <h2>In the interview</h2>
+    <p>This technology shows up as the <b>serving store for cooked rollups</b> in nearly every streaming-analytics design
+      (<a href="0036-ad-click-aggregator.html">Lesson 36 — ad click aggregator</a>). When you reach the "where do reads
+      land?" moment:</p>
+    <ul style="font-family:-apple-system,sans-serif; font-size:.9rem; line-height:1.5;">
+      <li><b>Justify by workload, not by name.</b> "Aggregations over an append-only firehose → columnar OLAP." One
+        sentence, then move on — don't burn depth budget re-deriving compression.</li>
+      <li><b>Pre-aggregate on write.</b> The store is fast, but the bigger win is materializing minute/hour/day rollups so
+        reads touch tiny pre-cooked tables, not raw events. ClickHouse's <code>AggregatingMergeTree</code> / materialized
+        views do this at merge time.</li>
+      <li><b>Pick the right sub-category out loud.</b> Real-time high-QPS → Druid/Pinot; elastic batch → warehouse;
+        flexible self-hosted scans → ClickHouse. Naming the alternative you <em>rejected</em> is the breadth signal.</li>
+      <li><b>Don't propose it for OLTP.</b> If the interviewer pivots to "now update a single user's balance," flag that
+        you'd route that to a transactional store — recognizing the boundary is itself the signal.</li>
+    </ul>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="clickhouse-staff-signal-grounding">
+        <p class="stem">Why does grounding the ClickHouse pick in workload shape ("aggregations over an append-only stream") read as staff, versus just naming the product?</p>
+        <button class="opt">Naming the workload shape is required by the interview rubric as a checkbox, independent of understanding</button>
+        <button class="opt">It proves you reasoned from the access pattern to the storage engine, so you can also correctly reject it when the workload shape changes</button>
+        <button class="opt">It takes longer to say, which fills more of the allotted time</button>
+        <p class="fb">Reasoning from the workload shape is what lets you also know when NOT to use it (e.g. the OLTP pivot) — a name-drop alone doesn't transfer to a new scenario.</p>
+        <p class="hint">Reread the staff callout — what's the difference between "I'll use ClickHouse" and the fuller quoted sentence?</p>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">6 of 6 — comprehensive check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also
+      seeds the spaced-review schedule — you'll see these again on future session starts
+      per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="c" data-concept="clickhouse-final-compression-why">
+        <p class="stem">Why does columnar storage compress so much better than row storage?</p>
+        <button class="opt">It encrypts each column with a dedicated key that shrinks the on-disk footprint by half</button>
+        <button class="opt">It removes duplicate rows during merges, so the surviving columns occupy much less space</button>
+        <button class="opt">Adjacent values in a column share a type and similarity, which encodings exploit heavily</button>
+        <p class="fb">A column is one type of similar values, so LZ4/ZSTD/delta encoding crush it far better than mixed rows.</p>
+        <p class="hint">Same idea as chunk 2 — what do adjacent values in a column have in common?</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="clickhouse-final-sparse-index">
+        <p class="stem">What does MergeTree's sparse primary index actually store?</p>
+        <button class="opt">One index entry per granule of rows, so a query data-skips to matching blocks</button>
+        <button class="opt">One index entry per single row, so a query seeks directly to the exact tuple</button>
+        <button class="opt">One index entry per column file, so a query loads only the columns it touches</button>
+        <p class="fb">It indexes granules (~8192-row blocks), staying tiny and enabling data skipping rather than per-row seeks.</p>
+        <p class="hint">Reread the MergeTree section — what's the fixed-size unit the index covers?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="clickhouse-final-vectorization-requires-columnar">
+        <p class="stem">Why is vectorized execution described as a "package deal" with columnar layout rather than an independent feature?</p>
+        <button class="opt">Because ClickHouse's license bundles the two features together commercially</button>
+        <button class="opt">Because vectorized execution was invented before columnar storage and later merged in</button>
+        <button class="opt">Because vectorization needs a contiguous same-type batch to pipeline, and only columnar layout produces that batch naturally</button>
+        <p class="fb">A row store has no contiguous single-type array to hand the CPU; columnar layout is the prerequisite that makes the batch-processing trick possible at all.</p>
+        <p class="hint">Reread "Vectorized execution" in chunk 2 — what shape of data does a vectorized loop need to run efficiently?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="clickhouse-final-oltp-boundary-recognition">
+        <p class="stem">A ClickHouse-backed dashboard design gets a follow-up: "now let a user edit their own profile row." What should you do?</p>
+        <button class="opt">Keep using ClickHouse for the edit, since it's already the system's database</button>
+        <button class="opt">Recognize the workload shifted to a point update by key, and route it to a transactional OLTP store instead</button>
+        <button class="opt">Refuse the requirement, since MergeTree cannot ever store user profile data</button>
+        <p class="fb">Point updates by primary key are OLTP work. Recognizing the boundary and routing to the right store is itself the signal, per the "don't propose it for OLTP" guidance.</p>
+        <p class="hint">Reread "Don't propose it for OLTP" in the interview-guidance chunk.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="clickhouse-final-wrong-workload">
+        <p class="stem">Which workload is the wrong fit for a columnar OLAP store like ClickHouse?</p>
+        <button class="opt">Aggregating a single metric column across billions of append-only event rows</button>
+        <button class="opt">Reading and updating one user's account record by primary key, transactionally</button>
+        <button class="opt">Scanning a few columns over a huge table to build a time-bucketed dashboard</button>
+        <p class="fb">Point reads/updates of a single row by key are OLTP work; columnar append-optimized stores are poor at it.</p>
+        <p class="hint">Same idea as chunk 4's "Do NOT reach for it when" list.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this technology — push on the internals. Try:
@@ -270,21 +410,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

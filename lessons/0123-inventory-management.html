@@ -61,22 +61,35 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -97,93 +110,164 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
-  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
-  <div class="asks">
-    <p class="lbl">Ask before you design</p>
-    <ul><li><b>"Is stock tracked per warehouse, or one global pool?"</b> — Per-warehouse partitioning is what keeps contention local; a global pool would make every write globally contended.</li><li><b>"Do we need to support reservations/holds (e.g. an order being packed), or just direct decrements?"</b> — Holds add a second state machine (reserved vs. available) on top of raw stock.</li><li><b>"How fresh must a read be — can a dashboard show stock that's 2 seconds stale, or must it be exact?"</b> — Decides whether reads go through cache/streams or must hit the source of truth.</li></ul>
-  </div>
-  <h2>Functional Requirements</h2>
-  <p>Lock scope to the core ledger operations. Push supplier ordering, demand forecasting, and returns/RMA workflows out of scope and say so — they consume this ledger, they don't define it.</p>
-  <table>
-    <tr><th>#</th><th>Users / systems should be able to…</th><th>Note</th></tr>
-    <tr><td>1</td><td>Adjust stock at a warehouse (receive, pick, cycle-count correction)</td><td>Write path — the contended core</td></tr>
-    <tr><td>2</td><td>Reserve stock for an order and later commit or release the hold</td><td>Two-phase claim, same shape as flash-sale reservations</td></tr>
-    <tr><td>3</td><td>Query current stock for a SKU at one warehouse or aggregated across all</td><td>Read path — far higher volume than writes</td></tr>
-    <tr><td>4</td><td>Receive near-real-time updates when stock they're watching changes</td><td>The crux: push, not poll, to every subscribed client within ~1–2s</td></tr>
-  </table>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 7</p>
+    <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+    <div class="asks">
+      <p class="lbl">Ask before you design</p>
+      <ul><li><b>"Is stock tracked per warehouse, or one global pool?"</b> — Per-warehouse partitioning is what keeps contention local; a global pool would make every write globally contended.</li><li><b>"Do we need to support reservations/holds (e.g. an order being packed), or just direct decrements?"</b> — Holds add a second state machine (reserved vs. available) on top of raw stock.</li><li><b>"How fresh must a read be — can a dashboard show stock that's 2 seconds stale, or must it be exact?"</b> — Decides whether reads go through cache/streams or must hit the source of truth.</li></ul>
+    </div>
+    <h2>Functional Requirements</h2>
+    <p>Lock scope to the core ledger operations. Push supplier ordering, demand forecasting, and returns/RMA workflows out of scope and say so — they consume this ledger, they don't define it.</p>
+    <table>
+      <tr><th>#</th><th>Users / systems should be able to…</th><th>Note</th></tr>
+      <tr><td>1</td><td>Adjust stock at a warehouse (receive, pick, cycle-count correction)</td><td>Write path — the contended core</td></tr>
+      <tr><td>2</td><td>Reserve stock for an order and later commit or release the hold</td><td>Two-phase claim, same shape as flash-sale reservations</td></tr>
+      <tr><td>3</td><td>Query current stock for a SKU at one warehouse or aggregated across all</td><td>Read path — far higher volume than writes</td></tr>
+      <tr><td>4</td><td>Receive near-real-time updates when stock they're watching changes</td><td>The crux: push, not poll, to every subscribed client within ~1–2s</td></tr>
+    </table>
 
-  <h2>Non-Functional Requirements</h2>
-  <p>One sentence carries the whole design: <em>every stock mutation must be linearizable per warehouse-SKU, and every observer must see it within about a second, without serializing unrelated SKUs against each other.</em></p>
-  <table>
-    <tr><th>NFR</th><th>Target</th><th>Drives</th></tr>
-    <tr><td><b>No lost or double-applied updates</b></td><td>Concurrent writes to the same warehouse-SKU row never overwrite or double-count each other</td><td>Fine-grained locking / optimistic concurrency per row (Deep Dive 1)</td></tr>
-    <tr><td>Near-real-time propagation</td><td>Other clients see a change within ~1–2s p99</td><td>Change-data-capture into a pub/sub fan-out, not polling (Deep Dive 2)</td></tr>
-    <tr><td>High write throughput at scale</td><td>Millions of stock movements/day across hundreds of warehouses, no single hot shard</td><td>Partition by <code>(warehouse_id, sku_id)</code> (Deep Dive 3)</td></tr>
-    <tr><td>Auditability</td><td>Every change reconstructable: who, what, when, why</td><td>Append-only ledger of movements, not just a mutable counter (Deep Dive 4)</td></tr>
-    <tr><td>Availability of reads during a warehouse/partition outage</td><td>Reads for unaffected warehouses stay up</td><td>Partition isolation; no cross-warehouse coordination on the hot path</td></tr>
-  </table>
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Say out loud that <b>contention in this system is naturally partitioned by warehouse and SKU</b> — a forklift in Dallas and a forklift in Seattle never touch the same physical unit. The staff move is refusing to build one global lock or one global sequence number, and instead making the partition key do the work: correctness only needs to be strict <em>within</em> a (warehouse, SKU) pair, and everything across pairs can run fully in parallel. That's the same principle as sharding a database by tenant, generalized to physical inventory.
-  </div>
+    <h2>Non-Functional Requirements</h2>
+    <p>One sentence carries the whole design: <em>every stock mutation must be linearizable per warehouse-SKU, and every observer must see it within about a second, without serializing unrelated SKUs against each other.</em></p>
+    <table>
+      <tr><th>NFR</th><th>Target</th><th>Drives</th></tr>
+      <tr><td><b>No lost or double-applied updates</b></td><td>Concurrent writes to the same warehouse-SKU row never overwrite or double-count each other</td><td>Fine-grained locking / optimistic concurrency per row (Deep Dive 1)</td></tr>
+      <tr><td>Near-real-time propagation</td><td>Other clients see a change within ~1–2s p99</td><td>Change-data-capture into a pub/sub fan-out, not polling (Deep Dive 2)</td></tr>
+      <tr><td>High write throughput at scale</td><td>Millions of stock movements/day across hundreds of warehouses, no single hot shard</td><td>Partition by <code>(warehouse_id, sku_id)</code> (Deep Dive 3)</td></tr>
+      <tr><td>Auditability</td><td>Every change reconstructable: who, what, when, why</td><td>Append-only ledger of movements, not just a mutable counter (Deep Dive 4)</td></tr>
+      <tr><td>Availability of reads during a warehouse/partition outage</td><td>Reads for unaffected warehouses stay up</td><td>Partition isolation; no cross-warehouse coordination on the hot path</td></tr>
+    </table>
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Say out loud that <b>contention in this system is naturally partitioned by warehouse and SKU</b> — a forklift in Dallas and a forklift in Seattle never touch the same physical unit. The staff move is refusing to build one global lock or one global sequence number, and instead making the partition key do the work: correctness only needs to be strict <em>within</em> a (warehouse, SKU) pair, and everything across pairs can run fully in parallel. That's the same principle as sharding a database by tenant, generalized to physical inventory.
+    </div>
 
-  <p class="transition"><span class="lbl">Say to move on →</span> "Per-warehouse-SKU consistency, global near-real-time visibility. Let me size the write volume."</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Per-warehouse-SKU consistency, global near-real-time visibility. Let me size the write volume."</p>
 
-  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
-  <h2>Capacity Estimation</h2>
-  <p>Assume <b>500 warehouses</b>, each moving <b>~50,000 line items/day</b> (receiving, picking, counting) and holding <b>~200,000 distinct SKUs</b>.</p>
-  <table>
-    <tr><th>Quantity</th><th>Estimate (own assumptions)</th><th>Design implication</th></tr>
-    <tr><td>Total daily stock movements</td><td>500 × 50,000 ≈ <b>25M movements/day</b> ≈ 290 writes/s average, bursting 10–20× at shift-change and peak season</td><td>~3–6k writes/s at peak — comfortably shardable across warehouses; no single warehouse ever approaches that alone.</td></tr>
-    <tr><td>Per-warehouse write rate</td><td>50,000/day ÷ 8-hour shift ≈ <b>~2 writes/s per warehouse</b>, bursting to maybe 50/s during a rush</td><td>Contention on any one warehouse-SKU pair is low — this is nothing like the single-SKU flash-sale spike. The hard part is fan-out, not raw throughput.</td></tr>
-    <tr><td>Read : write ratio</td><td>~50:1 — storefronts, dashboards, and replenishment jobs check stock far more than pickers change it</td><td>Reads must be served from cache/read-replicas, never the write path.</td></tr>
-    <tr><td>Real-time subscribers</td><td>Thousands of dashboards, POS terminals, and storefront services watching subsets of SKUs</td><td>Fan-out via pub/sub topics keyed by warehouse or SKU range, not one broadcast channel (Deep Dive 2).</td></tr>
-  </table>
-  <p>Unlike a flash sale, no single row is ever hyper-contended here — the challenge is <em>breadth</em> (hundreds of independent hot spots, all needing correctness) and <em>propagation</em> (fan-out to many heterogeneous subscribers), not a single counter under a 500k req/s spike.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="inventory-fr-scope">
+        <p class="stem">Which of these is explicitly pushed out of scope for the core inventory ledger?</p>
+        <button class="opt">Demand forecasting and supplier ordering</button>
+        <button class="opt">Reserving stock for an order and later releasing the hold</button>
+        <button class="opt">Adjusting stock at a warehouse via receiving or picking</button>
+        <p class="fb">Forecasting and supplier ordering consume the ledger's data but don't define its core write/read operations, so they're explicitly scoped out.</p>
+        <p class="hint">Reread the sentence right before the functional-requirements table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="inventory-partition-key-why">
+        <p class="stem">Why does the staff-level signal reject a single global lock or global sequence number for this system?</p>
+        <button class="opt">Because global locks are technically impossible to implement in any database</button>
+        <button class="opt">Because global sequence numbers are more expensive to store than local ones</button>
+        <button class="opt">Because correctness only needs to be strict within one (warehouse, SKU) pair, so a global lock would serialize unrelated writes that never physically conflict</button>
+        <p class="fb">A forklift in Dallas and one in Seattle never touch the same unit — forcing them through one global lock adds contention that doesn't reflect any real conflict.</p>
+        <p class="hint">Reread the staff-signal box — what does "the partition key do the work" mean?</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">"25M movements a day doesn't sound like much — why is this hard?"</p>
-    <p><b>Staff answer:</b> The volume is modest; the hardness is in guaranteeing linearizable updates independently across hundreds of thousands of partitions while pushing every one of them to interested subscribers in near real time — breadth and freshness, not raw QPS.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> "Low per-partition contention, high fan-out. Let me define entities."</p>
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 7</p>
+    <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
+    <h2>Capacity Estimation</h2>
+    <p>Assume <b>500 warehouses</b>, each moving <b>~50,000 line items/day</b> (receiving, picking, counting) and holding <b>~200,000 distinct SKUs</b>.</p>
+    <table>
+      <tr><th>Quantity</th><th>Estimate (own assumptions)</th><th>Design implication</th></tr>
+      <tr><td>Total daily stock movements</td><td>500 × 50,000 ≈ <b>25M movements/day</b> ≈ 290 writes/s average, bursting 10–20× at shift-change and peak season</td><td>~3–6k writes/s at peak — comfortably shardable across warehouses; no single warehouse ever approaches that alone.</td></tr>
+      <tr><td>Per-warehouse write rate</td><td>50,000/day ÷ 8-hour shift ≈ <b>~2 writes/s per warehouse</b>, bursting to maybe 50/s during a rush</td><td>Contention on any one warehouse-SKU pair is low — this is nothing like the single-SKU flash-sale spike. The hard part is fan-out, not raw throughput.</td></tr>
+      <tr><td>Read : write ratio</td><td>~50:1 — storefronts, dashboards, and replenishment jobs check stock far more than pickers change it</td><td>Reads must be served from cache/read-replicas, never the write path.</td></tr>
+      <tr><td>Real-time subscribers</td><td>Thousands of dashboards, POS terminals, and storefront services watching subsets of SKUs</td><td>Fan-out via pub/sub topics keyed by warehouse or SKU range, not one broadcast channel (Deep Dive 2).</td></tr>
+    </table>
+    <p>Unlike a flash sale, no single row is ever hyper-contended here — the challenge is <em>breadth</em> (hundreds of independent hot spots, all needing correctness) and <em>propagation</em> (fan-out to many heterogeneous subscribers), not a single counter under a 500k req/s spike.</p>
 
-  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
-  <h2>Core Entities &amp; API</h2>
-  <p>Entities: <b>Sku</b> (id, name, category), <b>Warehouse</b> (id, region, address), <b>StockLevel</b> (warehouse_id, sku_id, on_hand, reserved, version — the hot row), <b>StockMovement</b> (id, warehouse_id, sku_id, delta, reason, actor, timestamp — the append-only audit event), and <b>Reservation</b> (id, warehouse_id, sku_id, qty, order_id, expiry). <code>StockMovement</code> is the source of truth; <code>StockLevel</code> is a materialized, cached aggregate of it.</p>
-  <p>Caller identity always comes from a service token or authenticated session, never the request body.</p>
-  <table>
-    <tr><th>Endpoint</th><th>Purpose</th></tr>
-    <tr><td><code>GET /v1/warehouses/{wid}/stock/{sku}</code></td><td>Current on-hand/reserved for one warehouse-SKU pair — served from cache.</td></tr>
-    <tr><td><code>GET /v1/stock/{sku}?aggregate=true</code></td><td>Cross-warehouse total for a SKU — served from a read-optimized aggregate.</td></tr>
-    <tr><td><code>POST /v1/warehouses/{wid}/movements</code></td><td>Record a stock movement: <code>{sku, delta, reason}</code>. Atomic, idempotent via <code>Idempotency-Key</code>.</td></tr>
-    <tr><td><code>POST /v1/reservations</code></td><td><b>Reserve</b>: atomically moves qty from <code>on_hand</code> to <code>reserved</code> for an order; TTL-bound.</td></tr>
-    <tr><td><code>POST /v1/reservations/{id}/commit</code> / <code>/release</code></td><td>Finalize a reservation (ships → decrement on_hand+reserved) or release it back to on_hand.</td></tr>
-    <tr><td><code>WS /v1/stock/stream?warehouse=&amp;sku=</code></td><td>Subscribe to near-real-time stock-level change events for a filter set.</td></tr>
-  </table>
-  <p>Splitting <code>movement</code> (unconditional ledger entry, e.g. receiving or a cycle-count correction) from <code>reservation</code> (conditional hold tied to a pending order) mirrors the reserve/commit split in <a href="0062-ecommerce-flash-sale.html">flash sale checkout</a> — a reservation is a soft claim that can expire; a movement is a durable fact.</p>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"25M movements a day doesn't sound like much — why is this hard?"</p>
+      <p><b>Staff answer:</b> The volume is modest; the hardness is in guaranteeing linearizable updates independently across hundreds of thousands of partitions while pushing every one of them to interested subscribers in near real time — breadth and freshness, not raw QPS.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Low per-partition contention, high fan-out. Let me define entities."</p>
 
-  <h2>Data Model</h2>
-  <p>A relational store (Postgres/CockroachDB/Spanner-class) holds the ledger and current levels as the source of truth; Redis caches hot read-aggregates; Kafka carries the change feed. The write path never touches a global table — every operation keys on <code>(warehouse_id, sku_id)</code>, which is also the shard/partition key.</p>
-  <table>
-    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
-    <tr><td><b>stock_levels</b> (warehouse_id, sku_id, on_hand, reserved, version)</td><td>Postgres, sharded/partitioned by <code>warehouse_id</code></td><td>PK <code>(warehouse_id, sku_id)</code></td><td><code>UPDATE … WHERE warehouse_id=? AND sku_id=? AND version=?</code> — optimistic concurrency (Deep Dive 1)</td></tr>
-    <tr><td><b>stock_movements</b> (movement_id, warehouse_id, sku_id, delta, reason, actor, idempotency_key, created_at)</td><td>Postgres, append-only, partitioned by <code>warehouse_id</code> + time</td><td>PK <code>movement_id</code>; UNIQUE <code>(warehouse_id, idempotency_key)</code></td><td>Range scan by <code>(warehouse_id, sku_id, created_at)</code> for audit/replay</td></tr>
-    <tr><td><b>reservations</b> (reservation_id, warehouse_id, sku_id, qty, order_id, status, expires_at)</td><td>Postgres</td><td>PK <code>reservation_id</code></td><td>TTL index on <code>expires_at</code>; expiry releases qty back to <code>on_hand</code></td></tr>
-    <tr><td><b>Read-through cache</b></td><td>Redis</td><td><code>stock:{warehouse_id}:{sku_id}</code></td><td>Invalidated/updated by the CDC stream on every committed movement</td></tr>
-    <tr><td><b>Change feed</b></td><td>Kafka, partitioned by <code>warehouse_id</code></td><td>topic <code>stock-changes</code>, key <code>warehouse_id:sku_id</code></td><td>CDC off the ledger table (Deep Dive 4); ordered per key, fanned out to subscribers</td></tr>
-    <tr><td><b>Aggregate stock view</b></td><td>Materialized view / OLAP store, updated from the change feed</td><td>PK <code>sku_id</code></td><td>Cross-warehouse totals for storefront/replenishment reads (Deep Dive 3)</td></tr>
-  </table>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="inventory-capacity-bottleneck">
+        <p class="stem">According to the capacity estimation, what is the actual hard part of this system?</p>
+        <button class="opt">Raw write throughput, since 25M movements/day is an extreme QPS load</button>
+        <button class="opt">Breadth of independent hot spots plus fan-out to many subscribers, not raw QPS</button>
+        <button class="opt">Storage cost, since 200,000 SKUs per warehouse is too much data to hold</button>
+        <p class="fb">~290 writes/s average (bursting to 3-6k/s) is modest; the difficulty is guaranteeing correctness across hundreds of thousands of independent partitions and propagating each one to many subscribers.</p>
+        <p class="hint">Reread the paragraph right after the capacity table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="inventory-vs-flashsale-contention">
+        <p class="stem">Why is this workload "nothing like the single-SKU flash-sale spike" even though the daily movement count is large?</p>
+        <button class="opt">Because writes are spread across ~2/s per warehouse on average, so no single warehouse-SKU pair ever sees flash-sale-level concurrent contention</button>
+        <button class="opt">Because inventory systems never process more than one write per day per SKU</button>
+        <button class="opt">Because flash sales only ever affect a single warehouse, unlike inventory management</button>
+        <p class="fb">A flash sale slams one row with a massive concurrent spike; inventory spreads ~2 writes/s across many warehouse-SKU pairs, so per-row contention stays low even at large aggregate volume.</p>
+        <p class="hint">Compare the per-warehouse write rate row to what a flash sale's single hot SKU would look like.</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">"Why keep both a mutable stock_levels row and an immutable movement log?"</p>
-    <p><b>Staff answer:</b> The log is the audit trail and the recovery mechanism — if the aggregate ever drifts, replaying movements rebuilds it exactly. The mutable row is just a cached projection for fast reads; it's never the only copy of the truth.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> "Ledger plus cached level, event-sourced. Now the end-to-end flow."</p>
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 7</p>
+    <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
+    <h2>Core Entities &amp; API</h2>
+    <p>Entities: <b>Sku</b> (id, name, category), <b>Warehouse</b> (id, region, address), <b>StockLevel</b> (warehouse_id, sku_id, on_hand, reserved, version — the hot row), <b>StockMovement</b> (id, warehouse_id, sku_id, delta, reason, actor, timestamp — the append-only audit event), and <b>Reservation</b> (id, warehouse_id, sku_id, qty, order_id, expiry). <code>StockMovement</code> is the source of truth; <code>StockLevel</code> is a materialized, cached aggregate of it.</p>
+    <p>Caller identity always comes from a service token or authenticated session, never the request body.</p>
+    <table>
+      <tr><th>Endpoint</th><th>Purpose</th></tr>
+      <tr><td><code>GET /v1/warehouses/{wid}/stock/{sku}</code></td><td>Current on-hand/reserved for one warehouse-SKU pair — served from cache.</td></tr>
+      <tr><td><code>GET /v1/stock/{sku}?aggregate=true</code></td><td>Cross-warehouse total for a SKU — served from a read-optimized aggregate.</td></tr>
+      <tr><td><code>POST /v1/warehouses/{wid}/movements</code></td><td>Record a stock movement: <code>{sku, delta, reason}</code>. Atomic, idempotent via <code>Idempotency-Key</code>.</td></tr>
+      <tr><td><code>POST /v1/reservations</code></td><td><b>Reserve</b>: atomically moves qty from <code>on_hand</code> to <code>reserved</code> for an order; TTL-bound.</td></tr>
+      <tr><td><code>POST /v1/reservations/{id}/commit</code> / <code>/release</code></td><td>Finalize a reservation (ships → decrement on_hand+reserved) or release it back to on_hand.</td></tr>
+      <tr><td><code>WS /v1/stock/stream?warehouse=&amp;sku=</code></td><td>Subscribe to near-real-time stock-level change events for a filter set.</td></tr>
+    </table>
+    <p>Splitting <code>movement</code> (unconditional ledger entry, e.g. receiving or a cycle-count correction) from <code>reservation</code> (conditional hold tied to a pending order) mirrors the reserve/commit split in <a href="0062-ecommerce-flash-sale.html">flash sale checkout</a> — a reservation is a soft claim that can expire; a movement is a durable fact.</p>
 
-  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
-  <h2>Component Diagram</h2>
+    <h2>Data Model</h2>
+    <p>A relational store (Postgres/CockroachDB/Spanner-class) holds the ledger and current levels as the source of truth; Redis caches hot read-aggregates; Kafka carries the change feed. The write path never touches a global table — every operation keys on <code>(warehouse_id, sku_id)</code>, which is also the shard/partition key.</p>
+    <table>
+      <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+      <tr><td><b>stock_levels</b> (warehouse_id, sku_id, on_hand, reserved, version)</td><td>Postgres, sharded/partitioned by <code>warehouse_id</code></td><td>PK <code>(warehouse_id, sku_id)</code></td><td><code>UPDATE … WHERE warehouse_id=? AND sku_id=? AND version=?</code> — optimistic concurrency (Deep Dive 1)</td></tr>
+      <tr><td><b>stock_movements</b> (movement_id, warehouse_id, sku_id, delta, reason, actor, idempotency_key, created_at)</td><td>Postgres, append-only, partitioned by <code>warehouse_id</code> + time</td><td>PK <code>movement_id</code>; UNIQUE <code>(warehouse_id, idempotency_key)</code></td><td>Range scan by <code>(warehouse_id, sku_id, created_at)</code> for audit/replay</td></tr>
+      <tr><td><b>reservations</b> (reservation_id, warehouse_id, sku_id, qty, order_id, status, expires_at)</td><td>Postgres</td><td>PK <code>reservation_id</code></td><td>TTL index on <code>expires_at</code>; expiry releases qty back to <code>on_hand</code></td></tr>
+      <tr><td><b>Read-through cache</b></td><td>Redis</td><td><code>stock:{warehouse_id}:{sku_id}</code></td><td>Invalidated/updated by the CDC stream on every committed movement</td></tr>
+      <tr><td><b>Change feed</b></td><td>Kafka, partitioned by <code>warehouse_id</code></td><td>topic <code>stock-changes</code>, key <code>warehouse_id:sku_id</code></td><td>CDC off the ledger table (Deep Dive 4); ordered per key, fanned out to subscribers</td></tr>
+      <tr><td><b>Aggregate stock view</b></td><td>Materialized view / OLAP store, updated from the change feed</td><td>PK <code>sku_id</code></td><td>Cross-warehouse totals for storefront/replenishment reads (Deep Dive 3)</td></tr>
+    </table>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"Why keep both a mutable stock_levels row and an immutable movement log?"</p>
+      <p><b>Staff answer:</b> The log is the audit trail and the recovery mechanism — if the aggregate ever drifts, replaying movements rebuilds it exactly. The mutable row is just a cached projection for fast reads; it's never the only copy of the truth.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Ledger plus cached level, event-sourced. Now the end-to-end flow."</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="inventory-source-of-truth-entity">
+        <p class="stem">Which entity is the source of truth, and which is the derived, cached aggregate?</p>
+        <button class="opt">Reservation is truth; StockMovement is derived</button>
+        <button class="opt">StockLevel is truth; StockMovement is derived</button>
+        <button class="opt">StockMovement is truth; StockLevel is a materialized, cached aggregate of it</button>
+        <p class="fb">The append-only movement log is the durable fact; stock_levels is just a fast-read projection rebuildable by replaying movements.</p>
+        <p class="hint">Reread the sentence right after the entity list.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="inventory-mutable-vs-log-why">
+        <p class="stem">Why keep both a mutable stock_levels row and an immutable movement log, instead of just one?</p>
+        <button class="opt">Because Postgres cannot serve fast reads from any append-only table</button>
+        <button class="opt">The log is the audit and recovery mechanism that can rebuild the mutable row exactly if it ever drifts, while the mutable row alone gives no way to detect or repair drift</button>
+        <button class="opt">Because reservations legally require two separate physical tables</button>
+        <p class="fb">If stock_levels were the only record, a bug could corrupt it with no way to check or fix it. The log lets you replay history to verify or rebuild the aggregate.</p>
+        <p class="hint">Reread the pushback answer at the end of this chunk.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 7</p>
+    <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+    <h2>Component Diagram</h2>
 <pre class="diagram">
  [Warehouse scanners / POS / order svc]
         | POST movement or reservation (Idempotency-Key)
@@ -203,233 +287,350 @@
                   [Dashboards, storefront,   [Subscribed clients: dashboards,
                    replenishment jobs]        POS, storefront, alerting]
 </pre>
-  <p style="font-size:.85rem; color:var(--muted);">Writes commit once, atomically, to the ledger. A change-data-capture stream off that commit is the single fan-out point: it refreshes the read cache and pushes to every subscriber, so no client ever polls the database for freshness.</p>
+    <p style="font-size:.85rem; color:var(--muted);">Writes commit once, atomically, to the ledger. A change-data-capture stream off that commit is the single fan-out point: it refreshes the read cache and pushes to every subscriber, so no client ever polls the database for freshness.</p>
 
-  <h2>High-Level Design</h2>
-  <table>
-    <tr><th>Component</th><th>Role</th><th>Data store</th></tr>
-    <tr><td>Inventory Service</td><td>The only writer of stock; enforces optimistic concurrency per row, idempotency, reservation TTLs</td><td>Postgres (sharded by warehouse_id)</td></tr>
-    <tr><td>CDC pipeline (Debezium-style)</td><td>Tails the Postgres WAL/commit log; emits one ordered event per committed movement</td><td>Kafka, keyed by <code>warehouse_id:sku_id</code></td></tr>
-    <tr><td>Cache updater</td><td>Consumes the change feed; updates/invalidates the Redis read-through cache</td><td>Redis</td></tr>
-    <tr><td>Real-time fan-out</td><td>Consumes the change feed; pushes to subscribed WebSocket/SSE clients filtered by warehouse/SKU (see <a href="0120-real-time-delivery.html">Real-Time Delivery</a>)</td><td>Stateless gateway + Kafka consumer group</td></tr>
-    <tr><td>Aggregate builder</td><td>Rolls per-warehouse levels into cross-warehouse totals for storefront/replenishment reads</td><td>Materialized view / OLAP store</td></tr>
-    <tr><td>Read API</td><td>Serves current stock from cache/aggregate, never the write path</td><td>Redis + aggregate store</td></tr>
-  </table>
-  <p><b>Flow.</b> A picker's scan or an order's hold hits <code>POST /movements</code> or <code>/reservations</code>; the Inventory Service applies it as one optimistic-concurrency update keyed on <code>(warehouse_id, sku_id)</code> and commits the ledger row in the same transaction. CDC picks up that commit, in order, per key, and publishes to Kafka. Two consumers fan out independently: one refreshes the Redis cache so the next <code>GET</code> is fresh, the other pushes the delta over WebSocket/SSE to every client subscribed to that warehouse or SKU — typically landing within a second of the original write.</p>
+    <h2>High-Level Design</h2>
+    <table>
+      <tr><th>Component</th><th>Role</th><th>Data store</th></tr>
+      <tr><td>Inventory Service</td><td>The only writer of stock; enforces optimistic concurrency per row, idempotency, reservation TTLs</td><td>Postgres (sharded by warehouse_id)</td></tr>
+      <tr><td>CDC pipeline (Debezium-style)</td><td>Tails the Postgres WAL/commit log; emits one ordered event per committed movement</td><td>Kafka, keyed by <code>warehouse_id:sku_id</code></td></tr>
+      <tr><td>Cache updater</td><td>Consumes the change feed; updates/invalidates the Redis read-through cache</td><td>Redis</td></tr>
+      <tr><td>Real-time fan-out</td><td>Consumes the change feed; pushes to subscribed WebSocket/SSE clients filtered by warehouse/SKU (see <a href="0120-real-time-delivery.html">Real-Time Delivery</a>)</td><td>Stateless gateway + Kafka consumer group</td></tr>
+      <tr><td>Aggregate builder</td><td>Rolls per-warehouse levels into cross-warehouse totals for storefront/replenishment reads</td><td>Materialized view / OLAP store</td></tr>
+      <tr><td>Read API</td><td>Serves current stock from cache/aggregate, never the write path</td><td>Redis + aggregate store</td></tr>
+    </table>
+    <p><b>Flow.</b> A picker's scan or an order's hold hits <code>POST /movements</code> or <code>/reservations</code>; the Inventory Service applies it as one optimistic-concurrency update keyed on <code>(warehouse_id, sku_id)</code> and commits the ledger row in the same transaction. CDC picks up that commit, in order, per key, and publishes to Kafka. Two consumers fan out independently: one refreshes the Redis cache so the next <code>GET</code> is fresh, the other pushes the delta over WebSocket/SSE to every client subscribed to that warehouse or SKU — typically landing within a second of the original write.</p>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">"Why CDC instead of having the Inventory Service publish the event itself after the DB write?"</p>
-    <p><b>Staff answer:</b> A dual-write (commit to Postgres, then publish to Kafka) can succeed on one and fail on the other, silently desyncing cache and clients from the ledger. CDC reads the database's own commit log, so the event stream is guaranteed to match what was actually durably written — no dual-write, no lost events.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> "Deep dives: concurrent writes, real-time fan-out, sharding, and the audit ledger."</p>
-
-  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
-  <h2 id="dd1">Deep Dive 1 — Concurrent updates to the same warehouse-SKU row</h2>
-  <p>Two pickers scan the last two units of a SKU within milliseconds of each other; a cycle-count job corrects the same row at the same instant. Any of these racing without coordination can lose an update. Mechanisms, escalating in fit:</p>
-  <table>
-    <tr><th>Mechanism</th><th>How</th><th>Why it fits / fails</th></tr>
-    <tr><td>Last-write-wins, no coordination</td><td>Blind <code>UPDATE on_hand = ?</code> with a client-computed new value</td><td><b>Broken.</b> Two concurrent reads-then-writes silently clobber each other; one movement is lost with no error.</td></tr>
-    <tr><td>Pessimistic row lock (<code>SELECT … FOR UPDATE</code>)</td><td>Lock the <code>stock_levels</code> row for the duration of the update</td><td><b>Works, usually overkill.</b> Correct, but per-row contention here is low (~2 writes/s/warehouse) — a lock is fine but adds latency for no real throughput benefit at this contention level.</td></tr>
-    <tr><td>Optimistic concurrency (version column) — staff pick</td><td><code>UPDATE stock_levels SET on_hand = on_hand + delta, version = version + 1 WHERE warehouse_id=? AND sku_id=? AND version = ?</code>; retry on 0 rows affected</td><td><b>Best fit.</b> No lock held across a network round trip; a losing writer just retries with the fresh version. Cheap when contention is low, and it's exactly what this workload is — unlike the flash-sale case, we don't need Redis-speed atomics here.</td></tr>
-    <tr><td>CRDT counter (commutative merge)</td><td>Each warehouse node applies deltas locally; counts converge via commutative merge, no coordination</td><td><b>Overkill here.</b> Useful for multi-master, offline-tolerant edge writes (e.g. a warehouse temporarily disconnected), but adds merge complexity this system doesn't need if each warehouse has one authoritative shard.</td></tr>
-  </table>
-  <div class="box">
-    <b>The staff pick — and why.</b> Optimistic concurrency control (a version column, conditional update, retry-on-conflict) per <code>(warehouse_id, sku_id)</code> row.
-    <ul>
-      <li><b>Match the tool to the actual contention.</b> This is not a flash sale — write rates per row are low, so paying for a distributed lock or an in-memory atomic counter buys nothing. OCC gives full correctness with zero lock-hold latency.</li>
-      <li><b>Movements are commutative deltas, not overwrites.</b> Because every write is <code>on_hand = on_hand + delta</code> rather than <code>on_hand = new_value</code>, a retry after a version conflict simply reapplies the same delta against the fresh row — no re-derivation needed.</li>
-      <li><b>Escalate only where it's warranted.</b> If a specific SKU becomes hot (e.g. a single popular item during a promo at one warehouse), that pair can fall back to the same Redis-atomic-counter pattern as the <a href="0062-ecommerce-flash-sale.html">flash-sale</a> deep dive — the two systems share a playbook, applied where each fits.</li>
-    </ul>
-  </div>
-
-  <h2 id="dd2">Deep Dive 2 — Near-real-time propagation to other clients</h2>
-  <p>A store manager's dashboard, a storefront's "in stock" badge, and a replenishment job all need to learn about a change within about a second — without every one of them polling the database.</p>
-  <table>
-    <tr><th>Mechanism</th><th>How</th><th>Wins</th><th>Loses</th></tr>
-    <tr><td>Client polling</td><td>Each client <code>GET</code>s stock every N seconds</td><td>Trivial to build</td><td>Either stale (long interval) or hammers the read path (short interval); doesn't scale with subscriber count</td></tr>
-    <tr><td>Long polling</td><td>Client blocks until a change or timeout</td><td>Lower latency than fixed polling</td><td>Ties up a connection per client; still not truly push</td></tr>
-    <tr><td>CDC → Kafka → WebSocket/SSE fan-out — staff pick</td><td>Ledger commit is tailed via CDC, published once per key on Kafka, and pushed to subscribed connections</td><td>Sub-second delivery, one write triggers exactly one fan-out event, scales with consumer group parallelism (see <a href="0120-real-time-delivery.html">Real-Time Delivery</a>)</td><td>More infrastructure (CDC connector, Kafka, connection-holding gateway)</td></tr>
-  </table>
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    The insight to name: <b>the change feed is the same artifact that both refreshes the cache and drives the real-time push</b> — one CDC stream, two consumers. Building a separate "notify clients" code path inside the write transaction (rather than deriving both from the commit log) is the classic mistake that reintroduces the dual-write problem this design exists to avoid.
-  </div>
-  <p>Subscribers filter by warehouse or SKU range at the gateway (consumer group partition assignment mirrors the Kafka key), so a storefront watching 200 SKUs isn't pushed the other 199,800. Where a client can't hold a socket (e.g. a batch replenishment job), it reads the same feed via a durable Kafka consumer instead of WebSocket — same freshness guarantee, different transport.</p>
-
-  <h2 id="dd3">Deep Dive 3 — Partitioning and sharding at hundreds of warehouses</h2>
-  <p>With <code>(warehouse_id, sku_id)</code> as the natural key, the sharding decision is which part of that key to shard on.</p>
-  <div class="box">
-    <b>Shard by warehouse_id.</b>
-    <ul>
-      <li>Every write for a given warehouse hits one shard — matches the physical reality (one warehouse's forklifts never contend with another's) and keeps transactions single-shard, avoiding distributed transactions on the hot path.</li>
-      <li>A single warehouse going down (network partition, maintenance) only affects reads/writes for that warehouse; the other 499 are unaffected — directly satisfies the availability NFR.</li>
-      <li>Cross-warehouse aggregate reads (total stock for a SKU nationwide) become a scatter-gather across shards — acceptable because aggregates are read from the pre-built materialized view (Deep Dive 4's downstream consumer), not computed live across shards per request.</li>
-      <li>Hot warehouses (a regional distribution center doing 50× the movements of a small store) can be split further by <code>sku_id</code> range within that warehouse if one shard becomes disproportionately busy.</li>
-    </ul>
-  </div>
-  <p>Sharding by <code>sku_id</code> instead would make popular-SKU aggregation cheaper but scatter every single warehouse's writes across all shards, turning a routine local operation (receiving a truckload at one warehouse) into a cross-shard fan-out — the wrong tradeoff for this workload.</p>
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">"Could we just use HBase or Bigtable, row-keyed on warehouse_id:sku_id, instead of sharded Postgres?"</p>
-    <p><b>Staff answer:</b> The row key fits, and single-row <code>checkAndMutate</code> gives us the same atomic conditional update as OCC. But two things this design needs aren't there: a supported CDC connector (Debezium has no HBase source), and secondary/range queries for the cross-warehouse aggregate — both would have to be bolted on, reintroducing the dual-write risk CDC exists to avoid. HBase also drags in an HDFS/ZooKeeper stack sized for far higher throughput than our ~3-6k writes/s peak. It's the right tool for wide-column time-series at 10-100× this volume with no relational needs, not for a transactional ledger with real-time fan-out.</p>
-  </div>
-
-  <h2 id="dd4">Deep Dive 4 — The movement ledger as the source of truth (event sourcing)</h2>
-  <p>If <code>stock_levels</code> were the only record, any bug, bad retry, or partial failure permanently corrupts the count with no way to check or replay it. Treating every change as an immutable, appended <code>StockMovement</code> event — and deriving <code>stock_levels</code> from it — buys three things:</p>
-  <div class="box">
-    <b>Event-sourced ledger.</b>
-    <ul>
-      <li><b>Auditability.</b> "Why does the count say 340?" is answered by replaying every movement for that key — required for loss investigations and financial reconciliation of inventory value.</li>
-      <li><b>Idempotent retries.</b> Each movement carries an <code>Idempotency-Key</code>; a retried scan (flaky warehouse Wi-Fi) inserts the same movement row once via a unique constraint, never double-applies.</li>
-      <li><b>Drift detection and repair.</b> A periodic reconciler recomputes <code>on_hand</code> from the movement log and compares it to the cached aggregate; any mismatch is a bug signal, and repair is "replay from the log," not "guess."</li>
-      <li><b>The CDC stream falls out for free.</b> Because movements are append-only inserts, tailing the WAL for new rows is exactly the change feed Deep Dive 2 needs — no separate event-authoring step.</li>
-    </ul>
-  </div>
-  <p>The unifying principle across all four deep dives: <b>partition correctness to where contention actually lives (per warehouse-SKU), and derive everything else — cache, real-time push, audit trail, aggregates — from one append-only log of what actually happened.</b></p>
-
-  <h2>Alternative Approaches &amp; Tradeoffs</h2>
-  <table>
-    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
-    <tr><td><b>A. Sharded ledger + OCC + CDC fan-out</b> (chosen)</td><td>As drawn: Postgres sharded by warehouse, optimistic concurrency, CDC-driven cache + push</td><td>Strong per-row correctness, sub-second visibility, full audit trail, warehouse-isolated failures</td><td>More moving parts (CDC connector, Kafka, consumer infra)</td><td>Multi-warehouse retail/logistics with real-time visibility requirements</td></tr>
-    <tr><td><b>B. Single global DB, pessimistic locks, client polling</b></td><td>One (possibly read-replicated) database; every write takes a row lock; clients poll for changes</td><td>Simplest to build and reason about</td><td>Polling wastes capacity and adds latency; a global instance is a single blast radius for any one warehouse's incident</td><td>A handful of warehouses, no real-time requirement</td></tr>
-    <tr><td><b>C. Fully event-driven / CRDT-based edge inventory</b></td><td>Each warehouse keeps a local, offline-tolerant CRDT counter that merges asynchronously to a global view</td><td>Warehouses keep working through a total network outage; no coordination needed at write time</td><td>Momentary global inconsistency; merge logic and conflict semantics are materially harder to build and test</td><td>Warehouses with unreliable connectivity (remote sites, ships, disaster response logistics)</td></tr>
-    <tr><td><b>D. Wide-column store (HBase/Bigtable), row-keyed on warehouse_id:sku_id</b></td><td>Single-row <code>checkAndMutate</code> for atomic conditional updates; scales by row-key range</td><td>Massive write throughput and storage scale; atomicity fits the same partition key</td><td>No supported CDC connector (breaks the real-time fan-out design); no secondary/range queries (aggregate reads need a bolt-on); HDFS/ZooKeeper ops overhead for a workload far below its target scale</td><td>Wide-column time-series/telemetry at 10-100× this volume, with no relational query needs</td></tr>
-  </table>
-  <p><b>Pick A</b> for the common case of well-connected warehouses needing real-time visibility; B is a reasonable MVP for a small chain; C is worth naming for warehouses that must keep operating fully offline; D is worth naming and ruling out if the interviewer probes NoSQL alternatives.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">"What happens if two warehouses need to transfer stock between each other atomically?"</p>
-    <p><b>Staff answer:</b> Model the transfer as two movements (a decrement at the source, an increment at the destination) tied by a saga: the destination increment only commits after the source decrement is durably recorded, with a compensating re-increment at the source if the destination leg fails. It stays two independent single-shard transactions instead of one distributed one.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> "Production readiness, especially detecting drift."</p>
-
-  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
-  <h2>Observability</h2>
-  <table>
-    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
-    <tr><td>Write correctness</td><td>OCC version-conflict rate and retry count per shard, idempotency-key dedup hits</td><td>Confirms concurrent writes are resolved, not silently dropped</td></tr>
-    <tr><td>Ledger vs. aggregate drift</td><td>Diff between replayed movement sum and cached <code>on_hand</code> per warehouse-SKU sample</td><td>Should be zero; any drift is a data-integrity bug</td></tr>
-    <tr><td>Propagation latency</td><td>Time from ledger commit → CDC emit → cache update → client push, at each hop</td><td>Directly measures the near-real-time NFR</td></tr>
-    <tr><td>CDC/consumer lag</td><td>Kafka consumer group lag per partition</td><td>Rising lag means clients are seeing stale stock</td></tr>
-    <tr><td>Traces</td><td>Idempotency key / movement_id from API through ledger commit, CDC, and every fan-out consumer</td><td>Resolves "picker scanned it but the dashboard never updated" reports</td></tr>
-  </table>
-
-  <h2>Monitoring</h2>
-  <table>
-    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
-    <tr><td>Zero lost/duplicated movements</td><td>Idempotency-key collision resolves to a mismatched delta; ledger replay disagrees with cache beyond rounding</td><td>Page</td></tr>
-    <tr><td>Propagation p99 &lt; 2s</td><td>End-to-end commit-to-push latency burn rate over 5-min windows</td><td>Page</td></tr>
-    <tr><td>Read availability 99.95% per warehouse</td><td>Elevated error rate scoped to one warehouse shard</td><td>Page (scoped, not global)</td></tr>
-    <tr><td>Reservation hygiene</td><td>Expired reservations not released within their TTL window</td><td>Ticket</td></tr>
-    <tr><td>CDC pipeline health</td><td>Consumer lag &gt; 30s; connector restarts</td><td>Ticket, escalate to page if sustained</td></tr>
-  </table>
-  <p><b>Synthetic probes:</b> a scripted "phantom warehouse" runs a movement every minute and checks it reaches the read API and a test WebSocket subscriber within SLO.</p>
-
-  <h2>Authentication &amp; Authorization</h2>
-  <table>
-    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
-    <tr><td>Scanner/POS device → Inventory Service</td><td>Device certificate / short-lived service token</td><td>Scoped to its own warehouse_id only</td></tr>
-    <tr><td>Store manager / ops → dashboard, adjustments</td><td>SSO + MFA for manual corrections</td><td>RBAC by warehouse/region; manual adjustments require a reason code and are logged</td></tr>
-    <tr><td>Order service → reservations</td><td>Service-to-service mTLS</td><td>Can only create/commit/release its own order's reservations</td></tr>
-    <tr><td>Storefront/replenishment reads</td><td>API key</td><td>Read-only, aggregate or single-SKU scope, rate-limited</td></tr>
-    <tr><td>Real-time subscribers</td><td>Authenticated WebSocket handshake</td><td>Subscription filters enforced server-side, not trusted from the client</td></tr>
-  </table>
-
-  <h2>Security</h2>
-  <table>
-    <tr><th>Threat</th><th>Mitigation</th></tr>
-    <tr><td>Forged or replayed movement events (inventory fraud, "sweethearting")</td><td>Signed device tokens, idempotency keys, anomaly detection on adjustment reason codes and actor patterns</td></tr>
-    <tr><td>A compromised scanner draining stock via bogus adjustments</td><td>Per-device rate limits, mandatory reason codes for manual adjustments, audit trail tied to actor identity</td></tr>
-    <tr><td>Reservation abuse (holding stock indefinitely to deny competitors)</td><td>Enforced TTL with automatic release, per-order reservation caps</td></tr>
-    <tr><td>Race exploited to double-commit a reservation</td><td>OCC version check on reservation state transitions, idempotent commit/release endpoints</td></tr>
-    <tr><td>Unauthorized cross-warehouse reads/writes</td><td>Warehouse-scoped authorization enforced at the service layer, not just the client</td></tr>
-  </table>
-
-  <h2>Privacy</h2>
-  <p><b>PII:</b> minimal — mostly actor identifiers (employee IDs) on movements for audit purposes, and order IDs on reservations that indirectly reference customer orders. <b>Minimization:</b> the ledger stores actor and order <em>IDs</em>, not names or addresses; those are joined from other systems only when needed. <b>Retention:</b> movement history kept for the audit/tax window required by finance and compliance, then archived to cold storage. <b>Access auditing:</b> every manual adjustment and every read of the raw movement log by an operator is itself logged, since this data underpins loss-prevention investigations.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">"How do you catch a systemic bug that's silently under-counting stock across many warehouses?"</p>
-    <p><b>Staff answer:</b> The periodic reconciler replays the movement log independently of the live aggregate and diffs them per warehouse-SKU; a bug that corrupts the aggregate but not the ledger shows up as a growing, correlated drift signal, not a support ticket.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> "Then 10× and cost."</p>
-
-  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
-  <h2>Scaling 10× Without Changing the Architecture</h2>
-  <p>10× = 5,000 warehouses, ~250M movements/day, tens of thousands of real-time subscribers.</p>
-  <table>
-    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
-    <tr><td>Ledger shards</td><td>Sharded by warehouse_id</td><td>10× the shards</td><td>Add shards; the key already partitions cleanly, no redesign</td></tr>
-    <tr><td>CDC / Kafka</td><td>Partitioned by warehouse:sku</td><td>10× partitions</td><td>More brokers, more partitions, more consumer instances</td></tr>
-    <tr><td>Real-time fan-out</td><td>Thousands of connections</td><td>Tens of thousands</td><td>More gateway nodes behind the LB; consumer group scales with partition count</td></tr>
-    <tr><td>Read cache</td><td>Single Redis cluster</td><td>10× keyspace</td><td>More cache nodes / larger cluster</td></tr>
-    <tr><td>Aggregate view</td><td>One materialized view</td><td>10× rows</td><td>More compute for the rebuild job; incremental updates already avoid full recompute</td></tr>
-  </table>
-  <p><b>First bottleneck:</b> the aggregate builder's incremental-update throughput as SKU count and warehouse count both grow. <b>What forces a redesign:</b> needing sub-second <em>global</em> aggregate consistency (not just per-warehouse) at that scale would require moving the aggregate itself onto a distributed, strongly-consistent store rather than an eventually-consistent materialized view.</p>
-
-  <h2>Cost of Running</h2>
-  <p>Assumptions: 500 warehouses, 25M movements/day, ~50:1 read:write ratio (~1.25B reads/day), list prices from the course price sheet.</p>
-  <table>
-    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
-    <tr><td>Sharded Postgres (ledger + levels)</td><td>~20 shards, moderate compute + storage</td><td>$18,000</td></tr>
-    <tr><td>Kafka (CDC + fan-out)</td><td>~15 brokers, modest retention</td><td>$5,000</td></tr>
-    <tr><td>Redis cache</td><td>~200 GB working set</td><td>$1,600</td></tr>
-    <tr><td>Real-time gateway fleet</td><td>~40 nodes holding long-lived connections</td><td>$1,200</td></tr>
-    <tr><td>Aggregate/OLAP store</td><td>Small cluster for cross-warehouse rollups</td><td>$2,500</td></tr>
-    <tr><td><b>Total</b></td><td></td><td><b>≈ $28,300</b></td></tr>
-  </table>
-  <p><b>Unit cost:</b> ≈ $0.001 of infrastructure per movement. <b>Dominant driver:</b> the sharded relational tier, since it's both the write path and the audit archive. <b>Lever:</b> age out movement history older than the compliance window to cheaper storage; keep only recent partitions hot.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">"What changes at 10× warehouses?"</p>
-    <p><b>Staff answer:</b> Nothing structural — shards, Kafka partitions, and cache nodes all scale horizontally along the same warehouse_id key. The aggregate builder is the first thing to need real engineering attention.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> "Summary:"</p>
-
-  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
-  <h2>Closing Summary (60 seconds)</h2>
-  <div class="summary"><p>Inventory management is a partitioned-ledger problem: shard by <code>(warehouse_id, sku_id)</code> so contention never crosses warehouses, use optimistic concurrency because per-row write rates are low, and store every change as an immutable movement event rather than mutating a bare counter. A CDC stream off that ledger's commit log is the single source for both the read cache and a WebSocket/SSE fan-out, giving every subscriber sub-second visibility without polling and without a dual-write hazard. Reservations layer a TTL-bound hold on top of the same ledger for order fulfillment. At 10× warehouses, only shard count, Kafka partitions, and cache/gateway fleets grow — the aggregate builder is the first thing to need real redesign attention.</p></div>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why shard the inventory ledger by warehouse_id rather than by sku_id?</p>
-      <button class="opt">Sharding by sku_id makes cross-warehouse totals trivially fast</button>
-      <button class="opt">Writes are physically local to one warehouse; sku_id sharding scatters them</button>
-      <button class="opt">Warehouses never need isolation from one another during outages</button>
-      <button class="opt">The read cache can only be built from a sku_id-sharded ledger</button>
-      <p class="fb">A forklift's scan only ever touches its own warehouse's rows. Sharding by warehouse_id keeps every routine write single-shard and isolates one warehouse's incidents from the rest.</p>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"Why CDC instead of having the Inventory Service publish the event itself after the DB write?"</p>
+      <p><b>Staff answer:</b> A dual-write (commit to Postgres, then publish to Kafka) can succeed on one and fail on the other, silently desyncing cache and clients from the ledger. CDC reads the database's own commit log, so the event stream is guaranteed to match what was actually durably written — no dual-write, no lost events.</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. Why is optimistic concurrency control preferred over a pessimistic row lock here?</p>
-      <button class="opt">Pessimistic locks cannot be expressed at all in a relational database</button>
-      <button class="opt">Optimistic concurrency removes the need for an audit trail entirely</button>
-      <button class="opt">Per-row contention is low, so retry-on-conflict beats holding a lock</button>
-      <button class="opt">Locks would prevent the change feed from ever being generated</button>
-      <p class="fb">Unlike a flash sale's single hot row, each warehouse-SKU pair here sees only a couple of writes per second — OCC gives full correctness without paying for a held lock.</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Deep dives: concurrent writes, real-time fan-out, sharding, and the audit ledger."</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="inventory-cdc-single-fanout-point">
+        <p class="stem">In the HLD, what is the single fan-out point that both the cache updater and the real-time push consume from?</p>
+        <button class="opt">The CDC-driven Kafka change feed off the ledger's commit log</button>
+        <button class="opt">A direct HTTP call from the Inventory Service to every subscriber</button>
+        <button class="opt">A nightly batch export of the stock_levels table</button>
+        <p class="fb">Both the cache updater and the real-time fan-out are independent consumers of the same Kafka change feed produced by CDC.</p>
+        <p class="hint">Reread the flow paragraph — "Two consumers fan out independently" from what?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="inventory-cdc-vs-dualwrite-why">
+        <p class="stem">Why does reading the database's commit log via CDC avoid a failure mode that publishing the event directly from the write path would not?</p>
+        <button class="opt">Because Kafka is faster than any direct HTTP call could ever be</button>
+        <button class="opt">Because CDC removes the need for an Idempotency-Key on the original write</button>
+        <button class="opt">A direct publish-after-commit is a dual-write that can succeed on one side and fail on the other, silently desyncing clients; CDC's event stream can never diverge from what was actually committed</button>
+        <p class="fb">Dual writes have no atomicity between the two operations. Tailing the commit log guarantees the event stream matches exactly what was durably written.</p>
+        <p class="hint">Reread the pushback answer at the end of this chunk.</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Why derive the cache refresh and the real-time push from CDC on the same commit log, instead of publishing an event from the write path directly?</p>
-      <button class="opt">A dual write to the database and a message broker can fail on just one side</button>
-      <button class="opt">CDC is required to enforce the per-row optimistic concurrency check</button>
-      <button class="opt">Publishing from the write path is faster than tailing a commit log</button>
-      <button class="opt">The read cache cannot subscribe to any Kafka topic under this design</button>
-      <p class="fb">A direct dual-write can commit to the database but fail to publish (or vice versa), silently desyncing clients from the ledger. CDC reads the database's own durable commit log, so the event stream can never diverge from what was actually written.</p>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 7</p>
+    <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
+    <h2 id="dd1">Deep Dive 1 — Concurrent updates to the same warehouse-SKU row</h2>
+    <p>Two pickers scan the last two units of a SKU within milliseconds of each other; a cycle-count job corrects the same row at the same instant. Any of these racing without coordination can lose an update. Mechanisms, escalating in fit:</p>
+    <table>
+      <tr><th>Mechanism</th><th>How</th><th>Why it fits / fails</th></tr>
+      <tr><td>Last-write-wins, no coordination</td><td>Blind <code>UPDATE on_hand = ?</code> with a client-computed new value</td><td><b>Broken.</b> Two concurrent reads-then-writes silently clobber each other; one movement is lost with no error.</td></tr>
+      <tr><td>Pessimistic row lock (<code>SELECT … FOR UPDATE</code>)</td><td>Lock the <code>stock_levels</code> row for the duration of the update</td><td><b>Works, usually overkill.</b> Correct, but per-row contention here is low (~2 writes/s/warehouse) — a lock is fine but adds latency for no real throughput benefit at this contention level.</td></tr>
+      <tr><td>Optimistic concurrency (version column) — staff pick</td><td><code>UPDATE stock_levels SET on_hand = on_hand + delta, version = version + 1 WHERE warehouse_id=? AND sku_id=? AND version = ?</code>; retry on 0 rows affected</td><td><b>Best fit.</b> No lock held across a network round trip; a losing writer just retries with the fresh version. Cheap when contention is low, and it's exactly what this workload is — unlike the flash-sale case, we don't need Redis-speed atomics here.</td></tr>
+      <tr><td>CRDT counter (commutative merge)</td><td>Each warehouse node applies deltas locally; counts converge via commutative merge, no coordination</td><td><b>Overkill here.</b> Useful for multi-master, offline-tolerant edge writes (e.g. a warehouse temporarily disconnected), but adds merge complexity this system doesn't need if each warehouse has one authoritative shard.</td></tr>
+    </table>
+    <div class="box">
+      <b>The staff pick — and why.</b> Optimistic concurrency control (a version column, conditional update, retry-on-conflict) per <code>(warehouse_id, sku_id)</code> row.
+      <ul>
+        <li><b>Match the tool to the actual contention.</b> This is not a flash sale — write rates per row are low, so paying for a distributed lock or an in-memory atomic counter buys nothing. OCC gives full correctness with zero lock-hold latency.</li>
+        <li><b>Movements are commutative deltas, not overwrites.</b> Because every write is <code>on_hand = on_hand + delta</code> rather than <code>on_hand = new_value</code>, a retry after a version conflict simply reapplies the same delta against the fresh row — no re-derivation needed.</li>
+        <li><b>Escalate only where it's warranted.</b> If a specific SKU becomes hot (e.g. a single popular item during a promo at one warehouse), that pair can fall back to the same Redis-atomic-counter pattern as the <a href="0062-ecommerce-flash-sale.html">flash-sale</a> deep dive — the two systems share a playbook, applied where each fits.</li>
+      </ul>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. Why is stock tracked as an append-only movement log rather than only a mutable on_hand counter?</p>
-      <button class="opt">Mutable counters cannot be protected by any concurrency control</button>
-      <button class="opt">Append-only logs are required before Kafka can partition a topic</button>
-      <button class="opt">A counter alone would make warehouse sharding technically impossible</button>
-      <button class="opt">The log lets you replay history to audit, detect, and repair drift</button>
-      <p class="fb">The mutable counter is just a cached projection of the log. If it ever drifts from reality, replaying the immutable movement log rebuilds the correct value and shows exactly what happened.</p>
+
+    <h2 id="dd2">Deep Dive 2 — Near-real-time propagation to other clients</h2>
+    <p>A store manager's dashboard, a storefront's "in stock" badge, and a replenishment job all need to learn about a change within about a second — without every one of them polling the database.</p>
+    <table>
+      <tr><th>Mechanism</th><th>How</th><th>Wins</th><th>Loses</th></tr>
+      <tr><td>Client polling</td><td>Each client <code>GET</code>s stock every N seconds</td><td>Trivial to build</td><td>Either stale (long interval) or hammers the read path (short interval); doesn't scale with subscriber count</td></tr>
+      <tr><td>Long polling</td><td>Client blocks until a change or timeout</td><td>Lower latency than fixed polling</td><td>Ties up a connection per client; still not truly push</td></tr>
+      <tr><td>CDC → Kafka → WebSocket/SSE fan-out — staff pick</td><td>Ledger commit is tailed via CDC, published once per key on Kafka, and pushed to subscribed connections</td><td>Sub-second delivery, one write triggers exactly one fan-out event, scales with consumer group parallelism (see <a href="0120-real-time-delivery.html">Real-Time Delivery</a>)</td><td>More infrastructure (CDC connector, Kafka, connection-holding gateway)</td></tr>
+    </table>
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      The insight to name: <b>the change feed is the same artifact that both refreshes the cache and drives the real-time push</b> — one CDC stream, two consumers. Building a separate "notify clients" code path inside the write transaction (rather than deriving both from the commit log) is the classic mistake that reintroduces the dual-write problem this design exists to avoid.
     </div>
-  </div>
+    <p>Subscribers filter by warehouse or SKU range at the gateway (consumer group partition assignment mirrors the Kafka key), so a storefront watching 200 SKUs isn't pushed the other 199,800. Where a client can't hold a socket (e.g. a batch replenishment job), it reads the same feed via a durable Kafka consumer instead of WebSocket — same freshness guarantee, different transport.</p>
+
+    <h2 id="dd3">Deep Dive 3 — Partitioning and sharding at hundreds of warehouses</h2>
+    <p>With <code>(warehouse_id, sku_id)</code> as the natural key, the sharding decision is which part of that key to shard on.</p>
+    <div class="box">
+      <b>Shard by warehouse_id.</b>
+      <ul>
+        <li>Every write for a given warehouse hits one shard — matches the physical reality (one warehouse's forklifts never contend with another's) and keeps transactions single-shard, avoiding distributed transactions on the hot path.</li>
+        <li>A single warehouse going down (network partition, maintenance) only affects reads/writes for that warehouse; the other 499 are unaffected — directly satisfies the availability NFR.</li>
+        <li>Cross-warehouse aggregate reads (total stock for a SKU nationwide) become a scatter-gather across shards — acceptable because aggregates are read from the pre-built materialized view (Deep Dive 4's downstream consumer), not computed live across shards per request.</li>
+        <li>Hot warehouses (a regional distribution center doing 50× the movements of a small store) can be split further by <code>sku_id</code> range within that warehouse if one shard becomes disproportionately busy.</li>
+      </ul>
+    </div>
+    <p>Sharding by <code>sku_id</code> instead would make popular-SKU aggregation cheaper but scatter every single warehouse's writes across all shards, turning a routine local operation (receiving a truckload at one warehouse) into a cross-shard fan-out — the wrong tradeoff for this workload.</p>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"Could we just use HBase or Bigtable, row-keyed on warehouse_id:sku_id, instead of sharded Postgres?"</p>
+      <p><b>Staff answer:</b> The row key fits, and single-row <code>checkAndMutate</code> gives us the same atomic conditional update as OCC. But two things this design needs aren't there: a supported CDC connector (Debezium has no HBase source), and secondary/range queries for the cross-warehouse aggregate — both would have to be bolted on, reintroducing the dual-write risk CDC exists to avoid. HBase also drags in an HDFS/ZooKeeper stack sized for far higher throughput than our ~3-6k writes/s peak. It's the right tool for wide-column time-series at 10-100× this volume with no relational needs, not for a transactional ledger with real-time fan-out.</p>
+    </div>
+
+    <h2 id="dd4">Deep Dive 4 — The movement ledger as the source of truth (event sourcing)</h2>
+    <p>If <code>stock_levels</code> were the only record, any bug, bad retry, or partial failure permanently corrupts the count with no way to check or replay it. Treating every change as an immutable, appended <code>StockMovement</code> event — and deriving <code>stock_levels</code> from it — buys three things:</p>
+    <div class="box">
+      <b>Event-sourced ledger.</b>
+      <ul>
+        <li><b>Auditability.</b> "Why does the count say 340?" is answered by replaying every movement for that key — required for loss investigations and financial reconciliation of inventory value.</li>
+        <li><b>Idempotent retries.</b> Each movement carries an <code>Idempotency-Key</code>; a retried scan (flaky warehouse Wi-Fi) inserts the same movement row once via a unique constraint, never double-applies.</li>
+        <li><b>Drift detection and repair.</b> A periodic reconciler recomputes <code>on_hand</code> from the movement log and compares it to the cached aggregate; any mismatch is a bug signal, and repair is "replay from the log," not "guess."</li>
+        <li><b>The CDC stream falls out for free.</b> Because movements are append-only inserts, tailing the WAL for new rows is exactly the change feed Deep Dive 2 needs — no separate event-authoring step.</li>
+      </ul>
+    </div>
+    <p>The unifying principle across all four deep dives: <b>partition correctness to where contention actually lives (per warehouse-SKU), and derive everything else — cache, real-time push, audit trail, aggregates — from one append-only log of what actually happened.</b></p>
+
+    <h2>Alternative Approaches &amp; Tradeoffs</h2>
+    <table>
+      <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+      <tr><td><b>A. Sharded ledger + OCC + CDC fan-out</b> (chosen)</td><td>As drawn: Postgres sharded by warehouse, optimistic concurrency, CDC-driven cache + push</td><td>Strong per-row correctness, sub-second visibility, full audit trail, warehouse-isolated failures</td><td>More moving parts (CDC connector, Kafka, consumer infra)</td><td>Multi-warehouse retail/logistics with real-time visibility requirements</td></tr>
+      <tr><td><b>B. Single global DB, pessimistic locks, client polling</b></td><td>One (possibly read-replicated) database; every write takes a row lock; clients poll for changes</td><td>Simplest to build and reason about</td><td>Polling wastes capacity and adds latency; a global instance is a single blast radius for any one warehouse's incident</td><td>A handful of warehouses, no real-time requirement</td></tr>
+      <tr><td><b>C. Fully event-driven / CRDT-based edge inventory</b></td><td>Each warehouse keeps a local, offline-tolerant CRDT counter that merges asynchronously to a global view</td><td>Warehouses keep working through a total network outage; no coordination needed at write time</td><td>Momentary global inconsistency; merge logic and conflict semantics are materially harder to build and test</td><td>Warehouses with unreliable connectivity (remote sites, ships, disaster response logistics)</td></tr>
+      <tr><td><b>D. Wide-column store (HBase/Bigtable), row-keyed on warehouse_id:sku_id</b></td><td>Single-row <code>checkAndMutate</code> for atomic conditional updates; scales by row-key range</td><td>Massive write throughput and storage scale; atomicity fits the same partition key</td><td>No supported CDC connector (breaks the real-time fan-out design); no secondary/range queries (aggregate reads need a bolt-on); HDFS/ZooKeeper ops overhead for a workload far below its target scale</td><td>Wide-column time-series/telemetry at 10-100× this volume, with no relational query needs</td></tr>
+    </table>
+    <p><b>Pick A</b> for the common case of well-connected warehouses needing real-time visibility; B is a reasonable MVP for a small chain; C is worth naming for warehouses that must keep operating fully offline; D is worth naming and ruling out if the interviewer probes NoSQL alternatives.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"What happens if two warehouses need to transfer stock between each other atomically?"</p>
+      <p><b>Staff answer:</b> Model the transfer as two movements (a decrement at the source, an increment at the destination) tied by a saga: the destination increment only commits after the source decrement is durably recorded, with a compensating re-increment at the source if the destination leg fails. It stays two independent single-shard transactions instead of one distributed one.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Production readiness, especially detecting drift."</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="inventory-occ-pick">
+        <p class="stem">Which concurrency mechanism is the staff pick for the stock_levels row, and why?</p>
+        <button class="opt">Pessimistic row lock, because contention per row is extremely high</button>
+        <button class="opt">CRDT commutative merge, because warehouses are usually disconnected</button>
+        <button class="opt">Optimistic concurrency control, because per-row write rates are low so retry-on-conflict beats holding a lock</button>
+        <p class="fb">At ~2 writes/s/warehouse, OCC gives full correctness without paying lock-hold latency for contention that rarely happens.</p>
+        <p class="hint">Reread "The staff pick — and why" box in Deep Dive 1.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="inventory-shard-by-warehouse">
+        <p class="stem">Why shard by warehouse_id rather than sku_id?</p>
+        <button class="opt">Writes are physically local to one warehouse; sharding by sku_id would scatter every warehouse's routine writes across all shards</button>
+        <button class="opt">sku_id values are not unique across warehouses</button>
+        <button class="opt">Postgres cannot shard on any column except warehouse_id</button>
+        <p class="fb">A forklift's scan only ever touches its own warehouse's rows — warehouse_id sharding keeps that write single-shard; sku_id sharding would turn it into a cross-shard operation.</p>
+        <p class="hint">Reread the paragraph right after the "Shard by warehouse_id" box.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="inventory-event-sourcing-why">
+        <p class="stem">What would break if stock_levels were mutated directly with no append-only movement log behind it?</p>
+        <button class="opt">Nothing — a mutable counter alone is functionally identical to an event-sourced ledger</button>
+        <button class="opt">A bug, bad retry, or partial failure could silently corrupt the count with no way to detect, audit, or repair it — the log is what makes drift detectable and replayable</button>
+        <button class="opt">The Kafka change feed would run faster without a log to tail</button>
+        <p class="fb">Without the log, there's no independent record to replay and compare against — any silent corruption becomes permanent and undetectable.</p>
+        <p class="hint">Reread the opening sentence of Deep Dive 4.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 7</p>
+    <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+    <h2>Observability</h2>
+    <table>
+      <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+      <tr><td>Write correctness</td><td>OCC version-conflict rate and retry count per shard, idempotency-key dedup hits</td><td>Confirms concurrent writes are resolved, not silently dropped</td></tr>
+      <tr><td>Ledger vs. aggregate drift</td><td>Diff between replayed movement sum and cached <code>on_hand</code> per warehouse-SKU sample</td><td>Should be zero; any drift is a data-integrity bug</td></tr>
+      <tr><td>Propagation latency</td><td>Time from ledger commit → CDC emit → cache update → client push, at each hop</td><td>Directly measures the near-real-time NFR</td></tr>
+      <tr><td>CDC/consumer lag</td><td>Kafka consumer group lag per partition</td><td>Rising lag means clients are seeing stale stock</td></tr>
+      <tr><td>Traces</td><td>Idempotency key / movement_id from API through ledger commit, CDC, and every fan-out consumer</td><td>Resolves "picker scanned it but the dashboard never updated" reports</td></tr>
+    </table>
+
+    <h2>Monitoring</h2>
+    <table>
+      <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+      <tr><td>Zero lost/duplicated movements</td><td>Idempotency-key collision resolves to a mismatched delta; ledger replay disagrees with cache beyond rounding</td><td>Page</td></tr>
+      <tr><td>Propagation p99 &lt; 2s</td><td>End-to-end commit-to-push latency burn rate over 5-min windows</td><td>Page</td></tr>
+      <tr><td>Read availability 99.95% per warehouse</td><td>Elevated error rate scoped to one warehouse shard</td><td>Page (scoped, not global)</td></tr>
+      <tr><td>Reservation hygiene</td><td>Expired reservations not released within their TTL window</td><td>Ticket</td></tr>
+      <tr><td>CDC pipeline health</td><td>Consumer lag &gt; 30s; connector restarts</td><td>Ticket, escalate to page if sustained</td></tr>
+    </table>
+    <p><b>Synthetic probes:</b> a scripted "phantom warehouse" runs a movement every minute and checks it reaches the read API and a test WebSocket subscriber within SLO.</p>
+
+    <h2>Authentication &amp; Authorization</h2>
+    <table>
+      <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+      <tr><td>Scanner/POS device → Inventory Service</td><td>Device certificate / short-lived service token</td><td>Scoped to its own warehouse_id only</td></tr>
+      <tr><td>Store manager / ops → dashboard, adjustments</td><td>SSO + MFA for manual corrections</td><td>RBAC by warehouse/region; manual adjustments require a reason code and are logged</td></tr>
+      <tr><td>Order service → reservations</td><td>Service-to-service mTLS</td><td>Can only create/commit/release its own order's reservations</td></tr>
+      <tr><td>Storefront/replenishment reads</td><td>API key</td><td>Read-only, aggregate or single-SKU scope, rate-limited</td></tr>
+      <tr><td>Real-time subscribers</td><td>Authenticated WebSocket handshake</td><td>Subscription filters enforced server-side, not trusted from the client</td></tr>
+    </table>
+
+    <h2>Security</h2>
+    <table>
+      <tr><th>Threat</th><th>Mitigation</th></tr>
+      <tr><td>Forged or replayed movement events (inventory fraud, "sweethearting")</td><td>Signed device tokens, idempotency keys, anomaly detection on adjustment reason codes and actor patterns</td></tr>
+      <tr><td>A compromised scanner draining stock via bogus adjustments</td><td>Per-device rate limits, mandatory reason codes for manual adjustments, audit trail tied to actor identity</td></tr>
+      <tr><td>Reservation abuse (holding stock indefinitely to deny competitors)</td><td>Enforced TTL with automatic release, per-order reservation caps</td></tr>
+      <tr><td>Race exploited to double-commit a reservation</td><td>OCC version check on reservation state transitions, idempotent commit/release endpoints</td></tr>
+      <tr><td>Unauthorized cross-warehouse reads/writes</td><td>Warehouse-scoped authorization enforced at the service layer, not just the client</td></tr>
+    </table>
+
+    <h2>Privacy</h2>
+    <p><b>PII:</b> minimal — mostly actor identifiers (employee IDs) on movements for audit purposes, and order IDs on reservations that indirectly reference customer orders. <b>Minimization:</b> the ledger stores actor and order <em>IDs</em>, not names or addresses; those are joined from other systems only when needed. <b>Retention:</b> movement history kept for the audit/tax window required by finance and compliance, then archived to cold storage. <b>Access auditing:</b> every manual adjustment and every read of the raw movement log by an operator is itself logged, since this data underpins loss-prevention investigations.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"How do you catch a systemic bug that's silently under-counting stock across many warehouses?"</p>
+      <p><b>Staff answer:</b> The periodic reconciler replays the movement log independently of the live aggregate and diffs them per warehouse-SKU; a bug that corrupts the aggregate but not the ledger shows up as a growing, correlated drift signal, not a support ticket.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Then 10× and cost."</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="inventory-drift-detection-mechanism">
+        <p class="stem">How does the system catch a bug that silently under-counts stock across many warehouses?</p>
+        <button class="opt">A support ticket from a confused store manager is the primary detection method</button>
+        <button class="opt">A periodic reconciler replays the movement log independently and diffs it against the live aggregate per warehouse-SKU</button>
+        <button class="opt">The Inventory Service refuses all writes once storage exceeds a fixed threshold</button>
+        <p class="fb">Independently replaying the log and comparing it to the cached aggregate surfaces drift as a measurable, correlated signal rather than relying on manual reports.</p>
+        <p class="hint">Reread the final pushback answer in this chunk.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="inventory-scoped-alert-why">
+        <p class="stem">Why does the "read availability 99.95% per warehouse" alert page at the scope of one warehouse shard rather than globally?</p>
+        <button class="opt">Because warehouse shards are isolated by the partitioning scheme, so an outage in one warehouse's shard doesn't affect the other 499 — a global alert would either miss a real localized incident or over-alert on isolated noise</button>
+        <button class="opt">Because global alerts are technically impossible to configure in any monitoring system</button>
+        <button class="opt">Because only one warehouse in the entire system is ever monitored at a time</button>
+        <p class="fb">Since sharding by warehouse_id isolates failures, the alert scope should match the actual blast radius — one warehouse's degradation shouldn't be diluted into or confused with a global signal.</p>
+        <p class="hint">Recall Deep Dive 3's point about warehouse-isolated failures — apply that same idea to alerting.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 7</p>
+    <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+    <h2>Scaling 10× Without Changing the Architecture</h2>
+    <p>10× = 5,000 warehouses, ~250M movements/day, tens of thousands of real-time subscribers.</p>
+    <table>
+      <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+      <tr><td>Ledger shards</td><td>Sharded by warehouse_id</td><td>10× the shards</td><td>Add shards; the key already partitions cleanly, no redesign</td></tr>
+      <tr><td>CDC / Kafka</td><td>Partitioned by warehouse:sku</td><td>10× partitions</td><td>More brokers, more partitions, more consumer instances</td></tr>
+      <tr><td>Real-time fan-out</td><td>Thousands of connections</td><td>Tens of thousands</td><td>More gateway nodes behind the LB; consumer group scales with partition count</td></tr>
+      <tr><td>Read cache</td><td>Single Redis cluster</td><td>10× keyspace</td><td>More cache nodes / larger cluster</td></tr>
+      <tr><td>Aggregate view</td><td>One materialized view</td><td>10× rows</td><td>More compute for the rebuild job; incremental updates already avoid full recompute</td></tr>
+    </table>
+    <p><b>First bottleneck:</b> the aggregate builder's incremental-update throughput as SKU count and warehouse count both grow. <b>What forces a redesign:</b> needing sub-second <em>global</em> aggregate consistency (not just per-warehouse) at that scale would require moving the aggregate itself onto a distributed, strongly-consistent store rather than an eventually-consistent materialized view.</p>
+
+    <h2>Cost of Running</h2>
+    <p>Assumptions: 500 warehouses, 25M movements/day, ~50:1 read:write ratio (~1.25B reads/day), list prices from the course price sheet.</p>
+    <table>
+      <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+      <tr><td>Sharded Postgres (ledger + levels)</td><td>~20 shards, moderate compute + storage</td><td>$18,000</td></tr>
+      <tr><td>Kafka (CDC + fan-out)</td><td>~15 brokers, modest retention</td><td>$5,000</td></tr>
+      <tr><td>Redis cache</td><td>~200 GB working set</td><td>$1,600</td></tr>
+      <tr><td>Real-time gateway fleet</td><td>~40 nodes holding long-lived connections</td><td>$1,200</td></tr>
+      <tr><td>Aggregate/OLAP store</td><td>Small cluster for cross-warehouse rollups</td><td>$2,500</td></tr>
+      <tr><td><b>Total</b></td><td></td><td><b>≈ $28,300</b></td></tr>
+    </table>
+    <p><b>Unit cost:</b> ≈ $0.001 of infrastructure per movement. <b>Dominant driver:</b> the sharded relational tier, since it's both the write path and the audit archive. <b>Lever:</b> age out movement history older than the compliance window to cheaper storage; keep only recent partitions hot.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"What changes at 10× warehouses?"</p>
+      <p><b>Staff answer:</b> Nothing structural — shards, Kafka partitions, and cache nodes all scale horizontally along the same warehouse_id key. The aggregate builder is the first thing to need real engineering attention.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Summary:"</p>
+
+    <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+    <h2>Closing Summary (60 seconds)</h2>
+    <div class="summary"><p>Inventory management is a partitioned-ledger problem: shard by <code>(warehouse_id, sku_id)</code> so contention never crosses warehouses, use optimistic concurrency because per-row write rates are low, and store every change as an immutable movement event rather than mutating a bare counter. A CDC stream off that ledger's commit log is the single source for both the read cache and a WebSocket/SSE fan-out, giving every subscriber sub-second visibility without polling and without a dual-write hazard. Reservations layer a TTL-bound hold on top of the same ledger for order fulfillment. At 10× warehouses, only shard count, Kafka partitions, and cache/gateway fleets grow — the aggregate builder is the first thing to need real redesign attention.</p></div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="inventory-10x-first-bottleneck">
+        <p class="stem">At 10× scale, what is named as the first real bottleneck, rather than a simple "add more nodes" fix?</p>
+        <button class="opt">The Postgres shard count, since sharding cannot be increased further</button>
+        <button class="opt">The real-time gateway fleet, since WebSockets cannot scale horizontally</button>
+        <button class="opt">The aggregate builder's incremental-update throughput as SKU and warehouse counts both grow</button>
+        <p class="fb">Every other component scales by adding shards, partitions, or nodes along the same key; the aggregate builder is the first to need real engineering attention.</p>
+        <p class="hint">Reread the "First bottleneck" sentence in the 10× section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="inventory-10x-no-redesign-why">
+        <p class="stem">Why does scaling to 10× warehouses require no structural redesign for shards, Kafka, or cache, but might for the aggregate?</p>
+        <button class="opt">Because shards, Kafka partitions, and cache nodes all scale horizontally along the same warehouse_id key that already exists, while the aggregate view's consistency model (eventually-consistent, not distributed-strong) is what a demand for sub-second global consistency would break</button>
+        <button class="opt">Because Kafka and Postgres both stop functioning correctly above 500 warehouses</button>
+        <button class="opt">Because the aggregate builder is the only component that does not use any partition key at all</button>
+        <p class="fb">Horizontal components ride the same key that already partitions cleanly. The aggregate's redesign trigger is a stronger consistency requirement, not raw volume.</p>
+        <p class="hint">Reread "What forces a redesign" at the end of the 10x table discussion.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also
+      seeds the spaced-review schedule — you'll see these again on future session starts
+      per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="inventory-shard-by-warehouse-final">
+        <p class="stem">Why shard the inventory ledger by warehouse_id rather than by sku_id?</p>
+        <button class="opt">Sharding by sku_id makes cross-warehouse totals trivially fast</button>
+        <button class="opt">Writes are physically local to one warehouse; sku_id sharding scatters them</button>
+        <button class="opt">Warehouses never need isolation from one another during outages</button>
+        <button class="opt">The read cache can only be built from a sku_id-sharded ledger</button>
+        <p class="fb">A forklift's scan only ever touches its own warehouse's rows. Sharding by warehouse_id keeps every routine write single-shard and isolates one warehouse's incidents from the rest.</p>
+        <p class="hint">Reread Deep Dive 3.</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="inventory-occ-preferred-final">
+        <p class="stem">Why is optimistic concurrency control preferred over a pessimistic row lock here?</p>
+        <button class="opt">Pessimistic locks cannot be expressed at all in a relational database</button>
+        <button class="opt">Optimistic concurrency removes the need for an audit trail entirely</button>
+        <button class="opt">Per-row contention is low, so retry-on-conflict beats holding a lock</button>
+        <button class="opt">Locks would prevent the change feed from ever being generated</button>
+        <p class="fb">Unlike a flash sale's single hot row, each warehouse-SKU pair here sees only a couple of writes per second — OCC gives full correctness without paying for a held lock.</p>
+        <p class="hint">Reread Deep Dive 1.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="inventory-cdc-dualwrite-final">
+        <p class="stem">Why derive the cache refresh and the real-time push from CDC on the same commit log, instead of publishing an event from the write path directly?</p>
+        <button class="opt">A dual write to the database and a message broker can fail on just one side</button>
+        <button class="opt">CDC is required to enforce the per-row optimistic concurrency check</button>
+        <button class="opt">Publishing from the write path is faster than tailing a commit log</button>
+        <button class="opt">The read cache cannot subscribe to any Kafka topic under this design</button>
+        <p class="fb">A direct dual-write can commit to the database but fail to publish (or vice versa), silently desyncing clients from the ledger. CDC reads the database's own durable commit log, so the event stream can never diverge from what was actually written.</p>
+        <p class="hint">Reread the HLD pushback about dual-writes.</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="inventory-append-only-log-final">
+        <p class="stem">Why is stock tracked as an append-only movement log rather than only a mutable on_hand counter?</p>
+        <button class="opt">Mutable counters cannot be protected by any concurrency control</button>
+        <button class="opt">Append-only logs are required before Kafka can partition a topic</button>
+        <button class="opt">A counter alone would make warehouse sharding technically impossible</button>
+        <button class="opt">The log lets you replay history to audit, detect, and repair drift</button>
+        <p class="fb">The mutable counter is just a cached projection of the log. If it ever drifts from reality, replaying the immutable movement log rebuilds the correct value and shows exactly what happened.</p>
+        <p class="hint">Reread Deep Dive 4.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="inventory-reservation-vs-movement-why">
+        <p class="stem">A reservation and a movement are both changes to stock, yet the design keeps them as separate entities. What would break if a reservation were modeled as an ordinary movement instead?</p>
+        <button class="opt">Nothing — reservations and movements are functionally identical in every respect</button>
+        <button class="opt">A movement is an unconditional, durable fact; a reservation is a conditional hold that can expire and release. Collapsing them would remove the TTL/release semantics reservations need, corrupting the ledger with holds that were never actually fulfilled</button>
+        <button class="opt">Reservations would become impossible to store in Postgres at all</button>
+        <button class="opt">The CDC pipeline would stop tailing the write-ahead log entirely</button>
+        <p class="fb">Movements are durable facts about what happened; reservations are soft, expiring claims about what might happen. Treating an unfulfilled reservation as a permanent movement would falsely record stock as consumed.</p>
+        <p class="hint">Reread the Core Entities section on why movement is split from reservation.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic — push on the parts that feel shaky. Try:
@@ -455,21 +656,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

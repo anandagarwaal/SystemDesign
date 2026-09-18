@@ -43,22 +43,35 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,142 +86,300 @@
     <strong>Why this lesson, for your mission:</strong> Redis is the single most-reached-for technology in an L6/L7 interview. Saying "I'll add Redis" is free; the staff move is knowing <em>why</em> it's fast (single-threaded event loop), <em>what you're trading</em> (durability vs latency in RDB/AOF), and <em>which primitive</em> powers each pattern. This lesson is the depth behind the name-drop — so you can survive the follow-up "and what happens when the primary fails?"
   </div>
 
-  <h2>What it is &amp; the data model</h2>
-  <p>Redis (REmote DIctionary Server) is an <b>in-memory data-structure server</b> <a href="#c1" class="cite">[1]</a>. The whole dataset lives in RAM, and you address it through a single flat keyspace — but the <em>values</em> are not opaque blobs. Each key points at a typed structure with its own commands, which is what separates Redis from a dumb key-value cache. The core types <a href="#c1" class="cite">[1]</a>:</p>
-  <table>
-    <thead><tr><th>Type</th><th>What it holds</th><th>Canonical use</th></tr></thead>
-    <tbody>
-      <tr><td><b>String</b></td><td>Bytes up to 512 MB; ints for atomic <code>INCR</code></td><td>Cache values, counters, flags</td></tr>
-      <tr><td><b>Hash</b></td><td>Field → value map under one key</td><td>An object (a user record) without re-serializing</td></tr>
-      <tr><td><b>List</b></td><td>Ordered linked list, push/pop both ends</td><td>Simple queues, recent-activity feeds</td></tr>
-      <tr><td><b>Set</b></td><td>Unordered unique members</td><td>Tags, unique visitors, set algebra</td></tr>
-      <tr><td><b>Sorted set</b> (ZSET)</td><td>Members ranked by a numeric score</td><td>Leaderboards, priority queues, time series</td></tr>
-      <tr><td><b>Stream</b></td><td>Append-only log with consumer groups</td><td>Event queues, durable pub/sub</td></tr>
-      <tr><td><b>HyperLogLog</b></td><td>Probabilistic cardinality counter</td><td>Unique counts in ~12 KB, small % error</td></tr>
-      <tr><td><b>Geo / Bitmap</b></td><td>Geospatial index / bit array</td><td>"Nearby" queries; dense boolean flags</td></tr>
-    </tbody>
-  </table>
-  <p>The lesson to internalize: in an interview you don't say "store it in Redis," you say "store it in a <em>sorted set</em> keyed by region." Naming the structure is the depth signal.</p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 6</p>
+    <h2>What it is &amp; the data model</h2>
+    <p>Redis (REmote DIctionary Server) is an <b>in-memory data-structure server</b> <a href="#c1" class="cite">[1]</a>. The whole dataset lives in RAM, and you address it through a single flat keyspace — but the <em>values</em> are not opaque blobs. Each key points at a typed structure with its own commands, which is what separates Redis from a dumb key-value cache. The core types <a href="#c1" class="cite">[1]</a>:</p>
+    <table>
+      <thead><tr><th>Type</th><th>What it holds</th><th>Canonical use</th></tr></thead>
+      <tbody>
+        <tr><td><b>String</b></td><td>Bytes up to 512 MB; ints for atomic <code>INCR</code></td><td>Cache values, counters, flags</td></tr>
+        <tr><td><b>Hash</b></td><td>Field → value map under one key</td><td>An object (a user record) without re-serializing</td></tr>
+        <tr><td><b>List</b></td><td>Ordered linked list, push/pop both ends</td><td>Simple queues, recent-activity feeds</td></tr>
+        <tr><td><b>Set</b></td><td>Unordered unique members</td><td>Tags, unique visitors, set algebra</td></tr>
+        <tr><td><b>Sorted set</b> (ZSET)</td><td>Members ranked by a numeric score</td><td>Leaderboards, priority queues, time series</td></tr>
+        <tr><td><b>Stream</b></td><td>Append-only log with consumer groups</td><td>Event queues, durable pub/sub</td></tr>
+        <tr><td><b>HyperLogLog</b></td><td>Probabilistic cardinality counter</td><td>Unique counts in ~12 KB, small % error</td></tr>
+        <tr><td><b>Geo / Bitmap</b></td><td>Geospatial index / bit array</td><td>"Nearby" queries; dense boolean flags</td></tr>
+      </tbody>
+    </table>
+    <p>The lesson to internalize: in an interview you don't say "store it in Redis," you say "store it in a <em>sorted set</em> keyed by region." Naming the structure is the depth signal.</p>
 
-  <h2>Internals — the part that wins follow-ups</h2>
-
-  <h3>1 · The single-threaded event loop</h3>
-  <p>Redis executes commands on a <b>single thread</b>, one at a time, via an event loop over multiplexed sockets <a href="#c2" class="cite">[2]</a>. Beginners hear "single-threaded" and assume slow — the opposite is true, and understanding why is the whole point.</p>
-  <ul>
-    <li><b>Why it's fine:</b> the work is in RAM, so each command is microseconds; the bottleneck is the network/syscalls, not CPU. One thread saturates a NIC before it saturates a core <a href="#c2" class="cite">[2]</a>.</li>
-    <li><b>The gift:</b> no locks, no race conditions <em>inside</em> Redis. Every command — including <code>INCR</code> and multi-key scripts — is <b>atomic</b> by construction <a href="#c2" class="cite">[2]</a>. This is precisely what makes the rate-limiter and lock patterns below correct.</li>
-    <li><b>The implication / trap:</b> a single <em>slow</em> command blocks everything. <code>KEYS *</code> or a giant <code>ZRANGE</code> over millions of elements stalls the whole server. Staff answer: avoid O(N) commands on big keys; use <code>SCAN</code>. (Modern Redis offloads I/O and key-eviction to helper threads, but command <em>logic</em> stays single-threaded <a href="#c2" class="cite">[2]</a>.)</li>
-  </ul>
-
-  <h3>2 · Persistence: RDB vs AOF — the durability tradeoff</h3>
-  <p>RAM is volatile, so Redis offers two on-disk persistence modes <a href="#c3" class="cite">[3]</a>. This is the most common "go deeper" prompt, because it is a pure durability-vs-performance tradeoff.</p>
-  <table>
-    <thead><tr><th></th><th>RDB (snapshot)</th><th>AOF (append-only file)</th></tr></thead>
-    <tbody>
-      <tr><td>What it writes</td><td>Point-in-time fork+dump of the whole dataset</td><td>A log of every write command, replayed on restart</td></tr>
-      <tr><td>Durability</td><td>Lose everything since the last snapshot (minutes)</td><td>Lose ≤1s with <code>everysec</code> fsync; near-zero with <code>always</code> <a href="#c3" class="cite">[3]</a></td></tr>
-      <tr><td>Restart speed</td><td>Fast — load one compact binary file</td><td>Slower — replay the log (mitigated by rewrite/compaction)</td></tr>
-      <tr><td>Runtime cost</td><td>Periodic fork can spike latency/memory</td><td>Constant small write + fsync overhead</td></tr>
-    </tbody>
-  </table>
-  <div class="box">
-    <b>The pick:</b> for maximum durability, run <b>AOF with <code>everysec</code></b> (≤1s loss) — the common default. For fast backups/restores, RDB. Production often runs <b>both</b>: AOF for recovery, RDB for compact backups <a href="#c3" class="cite">[3]</a>. And the honest caveat — even AOF <code>always</code> doesn't make Redis a system of record; if you need true ACID durability, your source of truth is the database, and Redis is the accelerant.
-  </div>
-
-  <h3>3 · Eviction &amp; TTL — what happens when RAM fills</h3>
-  <p>Set <code>maxmemory</code>, and when Redis hits it the eviction policy decides what goes <a href="#c4" class="cite">[4]</a>. Two failure shapes to know:</p>
-  <ul>
-    <li><b><code>noeviction</code></b> (default): reject writes with an error once full. Safe for a system of record; dangerous for a cache (writes start failing).</li>
-    <li><b><code>allkeys-lru</code> / <code>allkeys-lfu</code></b>: evict the least recently / frequently used key. The right choice for a <em>cache</em> — let cold data fall out. LFU resists one-off scans polluting the cache <a href="#c4" class="cite">[4]</a>.</li>
-    <li><b><code>volatile-*</code></b> variants only evict keys that carry a TTL, leaving persistent keys alone.</li>
-  </ul>
-  <p>TTL itself is per-key expiry (<code>EXPIRE</code> / <code>SET ... EX</code>). Redis expires keys <em>lazily</em> (on access) plus a background sampler — so an expired key can briefly occupy memory before it's reclaimed. The memory model: data + per-key overhead live in an allocator (jemalloc); fragmentation and that overhead mean usable data is meaningfully less than raw RAM — size with headroom.</p>
-
-  <h2>Patterns it powers</h2>
-  <p>Each pattern is "a data structure + an atomicity guarantee." That framing is the staff-level fluency.</p>
-  <table>
-    <thead><tr><th>Pattern</th><th>Structure &amp; mechanism</th></tr></thead>
-    <tbody>
-      <tr><td><b>Cache</b></td><td>String/hash + TTL, cache-aside. The default use — see <a href="0004-caching.html">Lesson 4 · Caching</a> for invalidation and stampede.</td></tr>
-      <tr><td><b>Rate limiting</b></td><td>Atomic <code>INCR</code> on a per-user windowed key with <code>EXPIRE</code>; a Lua script for sliding-window. See <a href="0022-rate-limiter.html">Lesson 22 · Rate Limiter</a>.</td></tr>
-      <tr><td><b>Leaderboard</b></td><td><b>Sorted set</b>: <code>ZADD</code> to score, <code>ZREVRANGE</code> for top-N, <code>ZRANK</code> for "my rank" — all log-time. See <a href="0047-leaderboard.html">Lesson 47 · Leaderboard</a>.</td></tr>
-      <tr><td><b>Distributed lock</b></td><td><code>SET key val NX PX ttl</code> for a single-node lock; <b>Redlock</b> across N independent nodes for HA — with caveats below.</td></tr>
-      <tr><td><b>Pub/Sub</b></td><td>Fire-and-forget channels. No persistence — a subscriber that's offline misses the message.</td></tr>
-      <tr><td><b>Queues / Streams</b></td><td>Lists for simple queues; <b>Streams</b> add an append-only log + consumer groups + acks for at-least-once delivery.</td></tr>
-    </tbody>
-  </table>
-  <div class="box">
-    <b>Redlock caveat (say this unprompted).</b> A single-node lock vanishes if that node dies. <b>Redlock</b> spreads the lock over N independent masters and needs a majority — but Martin Kleppmann's well-known critique shows it isn't safe for <em>correctness</em> under GC pauses, clock skew, or network delays. The staff stance: use Redis locks for <em>efficiency</em> (avoid duplicate work), and if you need correctness, add a <b>fencing token</b> or use a consensus store (ZooKeeper/etcd) instead.
-  </div>
-
-  <h2>Scaling &amp; high availability</h2>
-  <p>A single Redis is one process on one machine — bounded by one box's RAM and exposed to that box's failure. Three mechanisms address this <a href="#c5" class="cite">[5]</a>:</p>
-  <table>
-    <thead><tr><th>Mechanism</th><th>What it gives you</th></tr></thead>
-    <tbody>
-      <tr><td><b>Replication</b></td><td>Async primary→replica copies for read scaling and a warm standby. Async means a failover can lose the last writes the primary hadn't shipped yet.</td></tr>
-      <tr><td><b>Sentinel</b></td><td>A monitoring quorum that detects a dead primary and <b>auto-promotes</b> a replica, updating clients. HA without sharding.</td></tr>
-      <tr><td><b>Redis Cluster</b></td><td>Horizontal sharding across nodes via <b>16384 hash slots</b>; each key maps to a slot via CRC16, each node owns a slot range <a href="#c5" class="cite">[5]</a>. Scales beyond one box's RAM.</td></tr>
-    </tbody>
-  </table>
-  <p>Hash slots (not consistent hashing of keys directly) make resharding clean: to rebalance, you move <em>slots</em> between nodes, not rehash every key. Multi-key operations only work when keys share a slot — force that with <b>hash tags</b> like <code>user:{42}:cart</code>, where only the brace-wrapped part is hashed.</p>
-
-  <h3>Redis vs Memcached</h3>
-  <table>
-    <thead><tr><th></th><th>Redis</th><th>Memcached</th></tr></thead>
-    <tbody>
-      <tr><td>Data model</td><td>Rich typed structures</td><td>Opaque string/blob only</td></tr>
-      <tr><td>Persistence / HA</td><td>RDB+AOF, replication, Cluster</td><td>None — pure volatile cache</td></tr>
-      <tr><td>Threading</td><td>Single-threaded logic, atomic ops</td><td>Multi-threaded, scales cores for raw GET/SET</td></tr>
-      <tr><td>Pick it when</td><td>You need ranking, locks, counters, durability</td><td>You want dead-simple, multi-core key-value caching</td></tr>
-    </tbody>
-  </table>
-  <p>Default to Redis; reach for Memcached only when the job is genuinely "a big, dumb, multi-threaded cache of strings" and you want nothing else.</p>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    The senior answer is "use Redis." The staff answer leads with the tradeoff <em>before</em> being asked: "Redis as a cache-aside layer, AOF <code>everysec</code> since this is best-effort and the DB is the source of truth, <code>allkeys-lru</code> eviction, and Cluster with hash slots once we outgrow one node's RAM." You proactively flag the sharp edges — async replication can lose writes on failover, Redlock isn't a correctness lock, an O(N) command blocks the single thread — and you <em>don't</em> over-explain that it's in-memory. Picking a config and naming its failure mode in one breath is the move.
-  </div>
-
-  <h2>In the interview</h2>
-  <p>Redis almost never belongs in your first high-level pass. It enters in a <b>deep dive</b>, pulled in by a specific NFR — a latency target, a read-load problem, a "rank users by score" functional requirement. When it does, drive the conversation in this order: (1) <em>which structure</em> (sorted set, hash, string-counter), (2) <em>why it's safe</em> (single-threaded atomicity), (3) <em>the durability/eviction config</em> and what you're trading, (4) <em>how it fails and HA's answer</em> (replication lag, Sentinel/Cluster). Hitting all four unprompted is the difference between mentioning Redis and <em>owning</em> it.</p>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why is Redis being single-threaded a feature rather than a bottleneck?</p>
-      <button class="opt">Threads are spread evenly across every core to maximize raw CPU work</button>
-      <button class="opt">Commands run atomically with no locks, and RAM work is never CPU-bound</button>
-      <button class="opt">Disk writes get batched together so each query avoids the slow network</button>
-      <button class="opt">Replicas absorb all reads so the primary only ever processes write loads</button>
-      <p class="fb">In-memory work is microseconds, so the network is the bound, and one-at-a-time execution makes every command atomic with no locking.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="redis-sorted-set-use">
+        <p class="stem">Which structure is the canonical choice for a leaderboard?</p>
+        <button class="opt">Hash, since it maps a field to a value under one key</button>
+        <button class="opt">List, since it preserves push order at both ends</button>
+        <button class="opt">Sorted set, since members are ranked by a numeric score</button>
+        <p class="fb">A sorted set (ZSET) ranks members by score, giving log-time top-N and rank lookups — exactly what a leaderboard needs.</p>
+        <p class="hint">Reread the data types table — which row mentions "ranked" and "leaderboards"?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="redis-typed-structures-why">
+        <p class="stem">Why does naming the specific data structure ("sorted set") signal more depth than saying "store it in Redis"?</p>
+        <button class="opt">It shows you know which operations are actually available and cheap, not just that data can be cached somewhere</button>
+        <button class="opt">Interviewers only accept answers that use the word "Redis" once per sentence</button>
+        <button class="opt">Sorted sets are the only structure Redis actually supports in production</button>
+        <p class="fb">"Redis" alone is a name-drop. Naming the structure proves you know the operation set and complexity it buys you — the actual design decision.</p>
+        <p class="hint">Think about what "store it in Redis" leaves unanswered that "store it in a sorted set" does not.</p>
+      </div>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. Which persistence choice limits data loss to about one second of writes?</p>
-      <button class="opt">RDB snapshots taken on a fixed schedule by forking the whole dataset</button>
-      <button class="opt">Disabling persistence so that the dataset lives purely inside fast RAM</button>
-      <button class="opt">AOF logging every write command with an fsync flushed once each second</button>
-      <button class="opt">Replication alone, copying each write across to a warm standby replica</button>
-      <p class="fb">AOF with <code>everysec</code> fsync bounds loss to ≤1s; RDB loses everything since the last snapshot, which can be minutes.</p>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 6</p>
+    <h2>Internals — the part that wins follow-ups</h2>
+
+    <h3>1 · The single-threaded event loop</h3>
+    <p>Redis executes commands on a <b>single thread</b>, one at a time, via an event loop over multiplexed sockets <a href="#c2" class="cite">[2]</a>. Beginners hear "single-threaded" and assume slow — the opposite is true, and understanding why is the whole point.</p>
+    <ul>
+      <li><b>Why it's fine:</b> the work is in RAM, so each command is microseconds; the bottleneck is the network/syscalls, not CPU. One thread saturates a NIC before it saturates a core <a href="#c2" class="cite">[2]</a>.</li>
+      <li><b>The gift:</b> no locks, no race conditions <em>inside</em> Redis. Every command — including <code>INCR</code> and multi-key scripts — is <b>atomic</b> by construction <a href="#c2" class="cite">[2]</a>. This is precisely what makes the rate-limiter and lock patterns below correct.</li>
+      <li><b>The implication / trap:</b> a single <em>slow</em> command blocks everything. <code>KEYS *</code> or a giant <code>ZRANGE</code> over millions of elements stalls the whole server. Staff answer: avoid O(N) commands on big keys; use <code>SCAN</code>. (Modern Redis offloads I/O and key-eviction to helper threads, but command <em>logic</em> stays single-threaded <a href="#c2" class="cite">[2]</a>.)</li>
+    </ul>
+
+    <h3>2 · Persistence: RDB vs AOF — the durability tradeoff</h3>
+    <p>RAM is volatile, so Redis offers two on-disk persistence modes <a href="#c3" class="cite">[3]</a>. This is the most common "go deeper" prompt, because it is a pure durability-vs-performance tradeoff.</p>
+    <table>
+      <thead><tr><th></th><th>RDB (snapshot)</th><th>AOF (append-only file)</th></tr></thead>
+      <tbody>
+        <tr><td>What it writes</td><td>Point-in-time fork+dump of the whole dataset</td><td>A log of every write command, replayed on restart</td></tr>
+        <tr><td>Durability</td><td>Lose everything since the last snapshot (minutes)</td><td>Lose ≤1s with <code>everysec</code> fsync; near-zero with <code>always</code> <a href="#c3" class="cite">[3]</a></td></tr>
+        <tr><td>Restart speed</td><td>Fast — load one compact binary file</td><td>Slower — replay the log (mitigated by rewrite/compaction)</td></tr>
+        <tr><td>Runtime cost</td><td>Periodic fork can spike latency/memory</td><td>Constant small write + fsync overhead</td></tr>
+      </tbody>
+    </table>
+    <div class="box">
+      <b>The pick:</b> for maximum durability, run <b>AOF with <code>everysec</code></b> (≤1s loss) — the common default. For fast backups/restores, RDB. Production often runs <b>both</b>: AOF for recovery, RDB for compact backups <a href="#c3" class="cite">[3]</a>. And the honest caveat — even AOF <code>always</code> doesn't make Redis a system of record; if you need true ACID durability, your source of truth is the database, and Redis is the accelerant.
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. How does Redis Cluster decide which node owns a given key?</p>
-      <button class="opt">It hashes the key into one of 16384 slots, each owned by some node</button>
-      <button class="opt">It writes the key to every node and lets a quorum vote on ownership</button>
-      <button class="opt">It routes the key to whichever node currently holds the least memory</button>
-      <button class="opt">It keeps a central directory mapping each key to its assigned shard host</button>
-      <p class="fb">CRC16 maps each key to one of 16384 hash slots; nodes own slot ranges, so resharding moves slots rather than rehashing keys.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="redis-aof-everysec-bound">
+        <p class="stem">Which persistence choice limits data loss to about one second of writes?</p>
+        <button class="opt">RDB snapshots taken on a fixed schedule by forking the whole dataset</button>
+        <button class="opt">Disabling persistence so the dataset lives purely inside fast RAM</button>
+        <button class="opt">AOF logging every write command with an fsync flushed once each second</button>
+        <p class="fb">AOF with <code>everysec</code> fsync bounds loss to ≤1s; RDB loses everything since the last snapshot, which can be minutes.</p>
+        <p class="hint">Look at the "Durability" row of the RDB vs AOF table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="redis-single-thread-atomicity-why">
+        <p class="stem">Why does single-threaded execution make a multi-step command like <code>INCR</code> automatically safe from race conditions, with no locks needed?</p>
+        <button class="opt">Because Redis runs on multiple cores in parallel, so races cancel out statistically</button>
+        <button class="opt">Because only one command can ever execute at a time, so no second command can interleave and see a half-updated state</button>
+        <button class="opt">Because Redis stores every value twice for redundancy so races are detected and reverted</button>
+        <p class="fb">With one thread executing commands one at a time, there is no window for another command to read or write the same key mid-operation — atomicity falls out of the execution model itself.</p>
+        <p class="hint">Think about what "race condition" requires: two things running at once. Does Redis's event loop ever allow that for command execution?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="redis-slow-command-blocks-why">
+        <p class="stem">What actually breaks if you run <code>KEYS *</code> on a Redis instance holding millions of keys?</p>
+        <button class="opt">The single thread is occupied scanning the whole keyspace, so every other client's command stalls until it finishes</button>
+        <button class="opt">Nothing breaks, because <code>KEYS *</code> runs on a separate background thread reserved for admin commands</button>
+        <button class="opt">Only the replica nodes are affected; the primary continues serving all other commands normally</button>
+        <p class="fb">Because command logic is single-threaded, one O(N) command monopolizes the only thread — every other client waits. That is exactly why <code>SCAN</code> exists as the incremental alternative.</p>
+        <p class="hint">Reread "The implication / trap" bullet — what does "stalls the whole server" mean concretely for a single-threaded model?</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. What is the correct staff-level caveat about using Redis for locking?</p>
-      <button class="opt">Locks are fully ACID, so they safely guard any correctness-critical mutation</button>
-      <button class="opt">Redlock suits efficiency, not correctness; add fencing tokens for true safety</button>
-      <button class="opt">A single-node lock never expires, so it is immune to any kind of failover</button>
-      <button class="opt">Pub/sub channels persist locks durably, so a crashed holder keeps the lock</button>
-      <p class="fb">Redlock can break under GC pauses and clock skew; use it for efficiency and reach for fencing tokens or a consensus store for correctness.</p>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 6</p>
+    <h2>Eviction &amp; TTL — what happens when RAM fills</h2>
+    <p>Set <code>maxmemory</code>, and when Redis hits it the eviction policy decides what goes <a href="#c4" class="cite">[4]</a>. Two failure shapes to know:</p>
+    <ul>
+      <li><b><code>noeviction</code></b> (default): reject writes with an error once full. Safe for a system of record; dangerous for a cache (writes start failing).</li>
+      <li><b><code>allkeys-lru</code> / <code>allkeys-lfu</code></b>: evict the least recently / frequently used key. The right choice for a <em>cache</em> — let cold data fall out. LFU resists one-off scans polluting the cache <a href="#c4" class="cite">[4]</a>.</li>
+      <li><b><code>volatile-*</code></b> variants only evict keys that carry a TTL, leaving persistent keys alone.</li>
+    </ul>
+    <p>TTL itself is per-key expiry (<code>EXPIRE</code> / <code>SET ... EX</code>). Redis expires keys <em>lazily</em> (on access) plus a background sampler — so an expired key can briefly occupy memory before it's reclaimed. The memory model: data + per-key overhead live in an allocator (jemalloc); fragmentation and that overhead mean usable data is meaningfully less than raw RAM — size with headroom.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="redis-noeviction-danger">
+        <p class="stem">What happens under <code>noeviction</code> once <code>maxmemory</code> is reached?</p>
+        <button class="opt">Writes are rejected with an error; existing keys are left untouched</button>
+        <button class="opt">The least recently used key is silently evicted to make room</button>
+        <button class="opt">Only keys carrying a TTL are removed, one at a time, until space frees up</button>
+        <p class="fb"><code>noeviction</code> is the default: it protects existing data by refusing new writes rather than deleting anything.</p>
+        <p class="hint">Reread the first bullet under eviction policies.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="redis-lru-vs-noeviction-cache-choice">
+        <p class="stem">Why is <code>allkeys-lru</code> the right eviction policy for a cache, but <code>noeviction</code> is right for a system of record?</p>
+        <button class="opt">LRU is always faster to compute than noeviction regardless of workload</button>
+        <button class="opt">A system of record has no meaningful notion of "least recently used" data</button>
+        <button class="opt">A cache can tolerate silently losing cold data since the source of truth still has it; a system of record cannot afford to lose the only copy of anything</button>
+        <p class="fb">A cache is disposable and backed by a real store, so evicting cold keys is safe. A system of record is the only copy, so losing data to eviction is unacceptable — better to reject the write.</p>
+        <p class="hint">Ask what recovers the data after an eviction in each case — is there another copy anywhere?</p>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 6</p>
+    <h2>Patterns it powers</h2>
+    <p>Each pattern is "a data structure + an atomicity guarantee." That framing is the staff-level fluency.</p>
+    <table>
+      <thead><tr><th>Pattern</th><th>Structure &amp; mechanism</th></tr></thead>
+      <tbody>
+        <tr><td><b>Cache</b></td><td>String/hash + TTL, cache-aside. The default use — see <a href="0004-caching.html">Lesson 4 · Caching</a> for invalidation and stampede.</td></tr>
+        <tr><td><b>Rate limiting</b></td><td>Atomic <code>INCR</code> on a per-user windowed key with <code>EXPIRE</code>; a Lua script for sliding-window. See <a href="0022-rate-limiter.html">Lesson 22 · Rate Limiter</a>.</td></tr>
+        <tr><td><b>Leaderboard</b></td><td><b>Sorted set</b>: <code>ZADD</code> to score, <code>ZREVRANGE</code> for top-N, <code>ZRANK</code> for "my rank" — all log-time. See <a href="0047-leaderboard.html">Lesson 47 · Leaderboard</a>.</td></tr>
+        <tr><td><b>Distributed lock</b></td><td><code>SET key val NX PX ttl</code> for a single-node lock; <b>Redlock</b> across N independent nodes for HA — with caveats below.</td></tr>
+        <tr><td><b>Pub/Sub</b></td><td>Fire-and-forget channels. No persistence — a subscriber that's offline misses the message.</td></tr>
+        <tr><td><b>Queues / Streams</b></td><td>Lists for simple queues; <b>Streams</b> add an append-only log + consumer groups + acks for at-least-once delivery.</td></tr>
+      </tbody>
+    </table>
+    <div class="box">
+      <b>Redlock caveat (say this unprompted).</b> A single-node lock vanishes if that node dies. <b>Redlock</b> spreads the lock over N independent masters and needs a majority — but Martin Kleppmann's well-known critique shows it isn't safe for <em>correctness</em> under GC pauses, clock skew, or network delays. The staff stance: use Redis locks for <em>efficiency</em> (avoid duplicate work), and if you need correctness, add a <b>fencing token</b> or use a consensus store (ZooKeeper/etcd) instead.
+    </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="redis-redlock-caveat">
+        <p class="stem">What is the correct staff-level caveat about using Redis for locking?</p>
+        <button class="opt">Locks are fully ACID, so they safely guard any correctness-critical mutation</button>
+        <button class="opt">Redlock suits efficiency, not correctness; add fencing tokens for true safety</button>
+        <button class="opt">Pub/sub channels persist locks durably, so a crashed holder keeps the lock</button>
+        <p class="fb">Redlock can break under GC pauses and clock skew; use it for efficiency and reach for fencing tokens or a consensus store for correctness.</p>
+        <p class="hint">Reread the Redlock caveat box — what's the "staff stance"?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="redis-pubsub-no-persistence-why">
+        <p class="stem">Why can't Redis Pub/Sub guarantee a subscriber receives every message, while Streams can?</p>
+        <button class="opt">Pub/Sub only delivers to whoever is currently connected and keeps nothing on disk, while Streams append to a durable log a consumer can replay from</button>
+        <button class="opt">Pub/Sub is slower than Streams so messages time out before delivery</button>
+        <button class="opt">Streams use a different network protocol that Pub/Sub does not support</button>
+        <p class="fb">Pub/Sub is fire-and-forget with no backing log, so an offline subscriber simply misses messages. Streams persist an append-only log with consumer groups and acks, so a consumer can catch up later.</p>
+        <p class="hint">Compare "no persistence" under Pub/Sub with "append-only log" under Streams.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 6</p>
+    <h2>Scaling &amp; high availability</h2>
+    <p>A single Redis is one process on one machine — bounded by one box's RAM and exposed to that box's failure. Three mechanisms address this <a href="#c5" class="cite">[5]</a>:</p>
+    <table>
+      <thead><tr><th>Mechanism</th><th>What it gives you</th></tr></thead>
+      <tbody>
+        <tr><td><b>Replication</b></td><td>Async primary→replica copies for read scaling and a warm standby. Async means a failover can lose the last writes the primary hadn't shipped yet.</td></tr>
+        <tr><td><b>Sentinel</b></td><td>A monitoring quorum that detects a dead primary and <b>auto-promotes</b> a replica, updating clients. HA without sharding.</td></tr>
+        <tr><td><b>Redis Cluster</b></td><td>Horizontal sharding across nodes via <b>16384 hash slots</b>; each key maps to a slot via CRC16, each node owns a slot range <a href="#c5" class="cite">[5]</a>. Scales beyond one box's RAM.</td></tr>
+      </tbody>
+    </table>
+    <p>Hash slots (not consistent hashing of keys directly) make resharding clean: to rebalance, you move <em>slots</em> between nodes, not rehash every key. Multi-key operations only work when keys share a slot — force that with <b>hash tags</b> like <code>user:{42}:cart</code>, where only the brace-wrapped part is hashed.</p>
+
+    <h3>Redis vs Memcached</h3>
+    <table>
+      <thead><tr><th></th><th>Redis</th><th>Memcached</th></tr></thead>
+      <tbody>
+        <tr><td>Data model</td><td>Rich typed structures</td><td>Opaque string/blob only</td></tr>
+        <tr><td>Persistence / HA</td><td>RDB+AOF, replication, Cluster</td><td>None — pure volatile cache</td></tr>
+        <tr><td>Threading</td><td>Single-threaded logic, atomic ops</td><td>Multi-threaded, scales cores for raw GET/SET</td></tr>
+        <tr><td>Pick it when</td><td>You need ranking, locks, counters, durability</td><td>You want dead-simple, multi-core key-value caching</td></tr>
+      </tbody>
+    </table>
+    <p>Default to Redis; reach for Memcached only when the job is genuinely "a big, dumb, multi-threaded cache of strings" and you want nothing else.</p>
+
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      The senior answer is "use Redis." The staff answer leads with the tradeoff <em>before</em> being asked: "Redis as a cache-aside layer, AOF <code>everysec</code> since this is best-effort and the DB is the source of truth, <code>allkeys-lru</code> eviction, and Cluster with hash slots once we outgrow one node's RAM." You proactively flag the sharp edges — async replication can lose writes on failover, Redlock isn't a correctness lock, an O(N) command blocks the single thread — and you <em>don't</em> over-explain that it's in-memory. Picking a config and naming its failure mode in one breath is the move.
+    </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="redis-cluster-hash-slots">
+        <p class="stem">How does Redis Cluster decide which node owns a given key?</p>
+        <button class="opt">It hashes the key into one of 16384 slots, each owned by some node</button>
+        <button class="opt">It writes the key to every node and lets a quorum vote on ownership</button>
+        <button class="opt">It keeps a central directory mapping each key to its assigned shard host</button>
+        <p class="fb">CRC16 maps each key to one of 16384 hash slots; nodes own slot ranges, so resharding moves slots rather than rehashing keys.</p>
+        <p class="hint">Reread the Redis Cluster row of the scaling table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="redis-async-replication-failover-why">
+        <p class="stem">Why can promoting a replica after a primary failure silently lose recent writes?</p>
+        <button class="opt">Replicas store data in a different, incompatible format that must be converted on promotion</button>
+        <button class="opt">Sentinel deliberately discards the newest writes to speed up the promotion process</button>
+        <button class="opt">Replication is asynchronous, so writes the primary acknowledged to the client may not yet have reached the replica when it dies</button>
+        <p class="fb">Async replication means the primary can ack a write to the client before shipping it downstream. If it crashes in that gap, the promoted replica never had that write.</p>
+        <p class="hint">Look at the "Replication" row — what does "async means a failover can lose the last writes" imply about acknowledgment timing?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="redis-hash-tags-why">
+        <p class="stem">Why do multi-key operations in Redis Cluster require a hash tag like <code>user:{42}:cart</code>?</p>
+        <button class="opt">Hash tags make the key shorter, which speeds up network transfer</button>
+        <button class="opt">Multi-key commands only work when all keys land in the same slot, and the brace-wrapped part is the only part hashed, forcing colocation</button>
+        <button class="opt">Hash tags are required by CRC16 to compute any hash at all</button>
+        <p class="fb">Without a shared hash tag, related keys could land on different nodes, and multi-key commands can't span nodes. The tag forces only the tagged substring into the hash, colocating the keys.</p>
+        <p class="hint">Reread the sentence right after the hash slots table — what problem do hash tags solve?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 6</p>
+    <h2>In the interview</h2>
+    <p>Redis almost never belongs in your first high-level pass. It enters in a <b>deep dive</b>, pulled in by a specific NFR — a latency target, a read-load problem, a "rank users by score" functional requirement. When it does, drive the conversation in this order: (1) <em>which structure</em> (sorted set, hash, string-counter), (2) <em>why it's safe</em> (single-threaded atomicity), (3) <em>the durability/eviction config</em> and what you're trading, (4) <em>how it fails and HA's answer</em> (replication lag, Sentinel/Cluster). Hitting all four unprompted is the difference between mentioning Redis and <em>owning</em> it.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="redis-deep-dive-not-hld-why">
+        <p class="stem">Why does Redis "almost never belong in your first high-level pass," instead entering only via a deep dive?</p>
+        <button class="opt">Redis is too complex to draw as a box in a high-level diagram</button>
+        <button class="opt">Interviewers penalize any mention of caching before the API layer is defined</button>
+        <button class="opt">Introducing it too early adds complexity before you've shown which specific requirement demands it, which reads as reaching for a tool rather than solving a problem</button>
+        <p class="fb">Staff-level design pulls in a technology because a concrete NFR or bottleneck justifies it. Dropping Redis into the HLD before earning it looks like buzzword reflex, not judgement.</p>
+        <p class="hint">Recall the Delivery Framework idea: complexity should be justified by a need, not added by default.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check — comprehensive check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is what makes it stick. These questions also seed spaced review — expect variants back in a future session per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="redis-single-thread-fast-final">
+        <p class="stem">Why is Redis being single-threaded a feature rather than a bottleneck?</p>
+        <button class="opt">Threads are spread evenly across every core to maximize raw CPU work</button>
+        <button class="opt">Commands run atomically with no locks, and RAM work is never CPU-bound</button>
+        <button class="opt">Disk writes get batched together so each query avoids the slow network</button>
+        <p class="fb">In-memory work is microseconds, so the network is the bound, and one-at-a-time execution makes every command atomic with no locking.</p>
+        <p class="hint">Reread "The single-threaded event loop" section.</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="redis-cluster-slots-final">
+        <p class="stem">How does Redis Cluster decide which node owns a given key?</p>
+        <button class="opt">It writes the key to every node and lets a quorum vote on ownership</button>
+        <button class="opt">It routes the key to whichever node currently holds the least memory</button>
+        <button class="opt">It hashes the key into one of 16384 slots, each owned by some node</button>
+        <p class="fb">CRC16 maps each key to one of 16384 hash slots; nodes own slot ranges, so resharding moves slots rather than rehashing keys.</p>
+        <p class="hint">Reread the scaling &amp; high availability table.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="redis-lock-caveat-final">
+        <p class="stem">What is the correct staff-level caveat about using Redis for locking?</p>
+        <button class="opt">Redlock suits efficiency, not correctness; add fencing tokens for true safety</button>
+        <button class="opt">Locks are fully ACID, so they safely guard any correctness-critical mutation</button>
+        <button class="opt">A single-node lock never expires, so it is immune to any kind of failover</button>
+        <p class="fb">Redlock can break under GC pauses and clock skew; use it for efficiency and reach for fencing tokens or a consensus store for correctness.</p>
+        <p class="hint">Reread the Redlock caveat box.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="redis-aof-vs-rdb-tradeoff-final">
+        <p class="stem">If a candidate says "I'll just use RDB with default settings for durability," what is the staff-level pushback?</p>
+        <button class="opt">There is no pushback — RDB is always the safer default choice</button>
+        <button class="opt">RDB alone can lose everything since the last snapshot (minutes of writes); AOF with <code>everysec</code> bounds loss to about a second if durability matters</button>
+        <button class="opt">RDB should never be used because it has no runtime cost at all</button>
+        <p class="fb">RDB's snapshot interval is the exposure window. If the workload can't tolerate losing minutes of writes, AOF (or both together) is the correct call.</p>
+        <p class="hint">Compare the "Durability" row for RDB versus AOF in the persistence table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="redis-staff-vs-senior-final">
+        <p class="stem">What separates a staff-level Redis answer from a senior-level one, given both know the same facts?</p>
+        <button class="opt">The staff answer proactively states the config and its failure mode together, unprompted, instead of waiting to be asked about tradeoffs</button>
+        <button class="opt">The staff answer always recommends Memcached instead to sound more advanced</button>
+        <button class="opt">The staff answer avoids mentioning any specific eviction policy to keep the design flexible</button>
+        <p class="fb">Per the staff-level signal callout, naming the config and its sharp edge in one breath, before being asked, is what reads as staff rather than senior.</p>
+        <p class="hint">Reread the staff-level signal box in the scaling section.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this — push on it. Try: <em>"Walk me through a sliding-window rate limiter as a Redis Lua script and where it can race."</em> · <em>"Design a global leaderboard with sorted sets across a Redis Cluster — how do hash tags help?"</em> · <em>"Explain exactly how an async-replication failover can silently lose writes, and how to bound the risk."</em>
@@ -233,21 +404,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

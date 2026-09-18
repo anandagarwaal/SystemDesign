@@ -61,22 +61,33 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -97,6 +108,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 8</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -127,6 +140,29 @@
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Browsing needs availability, booking needs strict consistency. Let me size where those collide.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="ticketmaster-framing-sentence">
+      <p class="stem">What is the load-bearing framing sentence for this whole design?</p>
+      <button class="opt">Every single request should be served from a geo-distributed CDN edge</button>
+      <button class="opt">Strong consistency everywhere is required to keep all reads correct</button>
+      <button class="opt">Availability for browsing, but consistency for booking — no double-booking</button>
+      <p class="fb">Two consistency regimes in one system: AP for browse, CP for booking. Everything downstream follows from that split.</p>
+      <p class="hint">Reread the NFR section's opening sentence and the staff callout right after it.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="ticketmaster-two-regimes-why">
+      <p class="stem">Why is it safe to run two different consistency regimes (AP and CP) inside one system instead of picking one for everything?</p>
+      <button class="opt">Each path's correctness requirement only applies to that path's own data, so a stale search result never risks a double-sold seat</button>
+      <button class="opt">CP and AP are actually the same guarantee under a different name</button>
+      <button class="opt">Postgres automatically converts AP reads into CP reads internally</button>
+      <p class="fb">Browse failures (stale seat map) and booking failures (double sale) have completely different costs, so each path gets the model that matches its own risk.</p>
+      <p class="hint">Reread the staff callout box on "two consistency regimes."</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only estimate the numbers that change a decision. Work each one out loud; the implication column is what you say next.</p>
@@ -149,6 +185,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Average orders are ~6/s, but an on-sale is ~2M req/s against 50k seats. Let me define the entities where the consistency lives.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="ticketmaster-contention-not-throughput">
+      <p class="stem">If orders average only ~6 per second, why is this system hard at all?</p>
+      <button class="opt">Because storage of 500 GB/year is difficult to provision</button>
+      <button class="opt">Because ~10M users can target the same ~50k seats within minutes during an on-sale</button>
+      <button class="opt">Because search latency requirements are stricter than for any other case study</button>
+      <p class="fb">Average load is tiny; the real problem is concurrent contention on a small hot set of rows during a spike, not raw throughput.</p>
+      <p class="hint">Reread the capacity pushback box.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="ticketmaster-admission-control-why">
+      <p class="stem">Why does fixing the admit rate at ~150 users/s protect the database regardless of how many people are waiting?</p>
+      <button class="opt">Because Redis automatically rejects any request above 150/s system-wide</button>
+      <button class="opt">Because the waiting room deletes excess users from the queue instead of holding them</button>
+      <button class="opt">Because the database only ever sees the fixed trickle passed through admission, no matter how large the queue behind it grows</button>
+      <p class="fb">The queue absorbs unbounded demand; only the admitted trickle reaches the booking core, so DB load stays constant regardless of queue size.</p>
+      <p class="hint">Reread the "Admit rate" row's design implication in the capacity table.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p>Entities: <b>Event</b> (date, type, links to performer/venue), <b>Venue</b> (seat-map layout, capacity), <b>Performer</b>, <b>Ticket</b> (event id, seat coords, price, status: <code>available | reserved | booked</code>), and <b>Booking</b> (user id, ticket ids, total, status: <code>in-progress | confirmed</code>).<a href="#c1" class="cite">[1]</a> The <code>status</code> fields on Ticket and Booking are where the consistency story lives.</p>
@@ -182,6 +241,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Ticket status and holds are the contract; now I'll split browse from booking in the design.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="ticketmaster-partial-unique-index-backstop">
+      <p class="stem">What is the purpose of the partial unique index on <code>booking_tickets(ticket_id)</code> for confirmed bookings?</p>
+      <button class="opt">It guarantees the database refuses a second sale even if every cache and lock failed</button>
+      <button class="opt">It speeds up search queries against the events index</button>
+      <button class="opt">It replaces the need for a Redis hold entirely</button>
+      <p class="fb">The database constraint is the last line of defense: correctness lives in Postgres itself, independent of Redis or app-layer logic.</p>
+      <p class="hint">Reread the Data Model section's opening sentence.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="ticketmaster-redis-ttl-vs-status-column-why">
+      <p class="stem">Why does a Redis key with a TTL beat a plain status column for representing a seat hold?</p>
+      <button class="opt">Redis keys are always faster to query than any Postgres column</button>
+      <button class="opt">The TTL expires automatically with no sweeper job needed, while a status column needs a background process or inline check to notice expiry</button>
+      <button class="opt">Status columns cannot represent more than two possible values</button>
+      <p class="fb">Ephemeral state (a 10-minute hold) is naturally modeled by something that expires on its own — a column requires extra machinery to detect the same event.</p>
+      <p class="hint">Reread the Data Model pushback box on "why not just a status column."</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Component Diagram</h2>
 <pre class="diagram">
@@ -220,6 +302,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “The core problem is double-booking under a thundering herd, so that's where I'll go deep.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="ticketmaster-shared-primary-risk">
+      <p class="stem">Why can't browse and booking share the same database path?</p>
+      <button class="opt">Postgres cannot serve reads and writes from the same table at all</button>
+      <button class="opt">Browse is AP and spiky; sharing a primary could let seat-map refreshes starve booking transactions during an on-sale</button>
+      <button class="opt">Elasticsearch requires a fully separate Postgres instance to function</button>
+      <p class="fb">Booking's correctness-critical writes must not compete with browse's high-volume, latency-insensitive reads on the same primary.</p>
+      <p class="hint">Reread the High-Level Design pushback box.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="ticketmaster-hld-write-path-isolation-why">
+      <p class="stem">Why does only the Booking Service write ticket status, while Event and Search services only read?</p>
+      <button class="opt">It is an arbitrary team ownership decision with no technical reason</button>
+      <button class="opt">Elasticsearch cannot accept writes from more than one service</button>
+      <button class="opt">Restricting writes to one service keeps the correctness-critical path narrow and auditable, and lets every other path scale freely without risking a double sale</button>
+      <p class="fb">A single writer for ticket status means the double-booking guarantee only has to be enforced in one place, and every read-side service can scale independently without touching that guarantee.</p>
+      <p class="hint">Reread the High-Level Design table and its note about only the Booking Service writing ticket status.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dive 1 — Preventing double-booking (the central problem)</h2>
   <p>The hazard: a user reaches the payment page, types their card, and the seat is gone — sold to someone faster.<a href="#c1" class="cite">[1]</a> You need a <em>hold</em> on the seat during the reserve→pay window, that <em>auto-releases</em> if payment never lands. Four mechanisms, escalating in quality:</p>
@@ -304,6 +409,37 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Now how we run this safely in production.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="ticketmaster-select-for-update-worst">
+      <p class="stem">Why is holding <code>SELECT … FOR UPDATE</code> for the whole checkout the worst option?</p>
+      <button class="opt">It permits two buyers to confirm the very same seat together</button>
+      <button class="opt">It cannot ever express a per-seat reservation time-to-live</button>
+      <button class="opt">A minutes-long open transaction strains the DB and risks deadlock</button>
+      <p class="fb">A lock is not a business-duration tool — keeping a transaction open for the checkout window invites contention and deadlocks.</p>
+      <p class="hint">Reread Deep Dive 1's mechanism table, row 1.</p>
+    </div>
+    <div class="q" data-correct="a" data-concept="ticketmaster-waiting-queue-purpose">
+      <p class="stem">What does the virtual waiting queue fundamentally do for the booking core?</p>
+      <button class="opt">Converts an unbounded spike into a bounded, paced admission stream</button>
+      <button class="opt">Replaces the database row locks with a faster optimistic check</button>
+      <button class="opt">Synchronizes the Elasticsearch index against Postgres in realtime</button>
+      <p class="fb">It serializes and rate-limits admission so the contended core only ever sees load it can handle.</p>
+      <p class="hint">Reread Deep Dive 3's closing sentence on load-shedding.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="ticketmaster-ttl-no-process-why">
+      <p class="stem">Why is "expiry that requires no process to run" specifically called out as the staff-level insight in Deep Dive 2?</p>
+      <button class="opt">Because processes are always slower than data structures in every system</button>
+      <button class="opt">A background sweeper is itself a new failure mode you must monitor and alert on; a TTL or lazy check has nothing that can fail to run</button>
+      <button class="opt">Because Redis cannot run any background jobs under any circumstances</button>
+      <p class="fb">Choosing a mechanism with fewer moving parts eliminates an entire class of incident (the sweeper silently failing and leaving seats stuck).</p>
+      <p class="hint">Reread the Deep Dive 2 staff callout box.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -357,6 +493,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Last: 10× on-sales and what it costs.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="ticketmaster-occ-conflict-signal">
+      <p class="stem">What does a nonzero rate of confirm-time OCC conflicts most directly signal?</p>
+      <button class="opt">Redis holds let two users through to confirm the same seat, which is a bug signal</button>
+      <button class="opt">The waiting room admit rate is set too low</button>
+      <button class="opt">The CDN cache hit ratio has dropped below target</button>
+      <p class="fb">The Observability table states this directly: OCC conflicts greater than zero mean the Redis hold layer let a race through.</p>
+      <p class="hint">Reread the Observability table's "Booking funnel metrics" row.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="ticketmaster-payment-tokenization-why">
+      <p class="stem">Why does tokenizing card data with the payment provider keep Ticketmaster mostly out of PCI scope?</p>
+      <button class="opt">PCI compliance only applies to companies that sell physical goods</button>
+      <button class="opt">Tokenization makes card data travel faster over the network</button>
+      <button class="opt">If raw card data never touches Ticketmaster's systems, the strict compliance requirements attach to the provider instead</button>
+      <p class="fb">Compliance scope follows where sensitive data is actually handled — offloading storage and processing of card numbers to the provider narrows what Ticketmaster itself must certify.</p>
+      <p class="hint">Reread the Privacy section's "Payments" sentence.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+  <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = 100M users on one on-sale, 10× browse traffic, 10× concurrent on-sales.</p>
@@ -391,46 +550,82 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “To wrap up:”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="ticketmaster-10x-unchanged-core">
+      <p class="stem">At 100M users for one on-sale, what happens to the booking core itself?</p>
+      <button class="opt">It doesn't change, because admission control keeps its load constant</button>
+      <button class="opt">It must be re-architected with a distributed lock service</button>
+      <button class="opt">It needs 10x more Postgres primaries per event</button>
+      <p class="fb">The waiting room absorbs the growth; the admit rate to the booking core stays the same regardless of queue size.</p>
+      <p class="hint">Reread the cost pushback box on "100M users for one on-sale."</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="ticketmaster-event-id-shard-key-why">
+      <p class="stem">Why does <code>event_id</code> work well as the natural shard key for scaling Postgres to 10x concurrent on-sales?</p>
+      <button class="opt">Because event_id values are always sequential integers</button>
+      <button class="opt">Bookings never span events, so each event's data and transactions can live entirely on one shard without cross-shard coordination</button>
+      <button class="opt">Because Elasticsearch requires the same shard key as Postgres</button>
+      <p class="fb">A shard key is only clean if the unit of transactional work never crosses shards — bookings are always scoped to one event, so event_id satisfies that.</p>
+      <p class="hint">Reread the Scaling 10x table's Postgres row and the "what forces a redesign" sentence about cross-event bookings.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-8" hidden>
+  <p class="chunk-label">8 of 8</p>
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Ticketmaster needs different guarantees on different paths. Browse and search are AP: CDN, cache, read replicas and Elasticsearch. Booking is CP: a seat is held with a Redis TTL key that expires on its own, and confirmation is an optimistic update in Postgres, so a seat can never sell twice. Average load is tiny, but an on-sale is ~2M req/s against 50k seats, so a virtual waiting room admits users at a rate the database can handle. At 10× only the waiting room scales. Payment fees dwarf infrastructure cost.</p></div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why is holding <code>SELECT … FOR UPDATE</code> for the whole checkout the worst option?</p>
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">Final check</p>
+  <h2>Everything from this lesson</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up. This also seeds spaced review.</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="c" data-concept="ticketmaster-final-select-for-update">
+      <p class="stem">Why is holding <code>SELECT … FOR UPDATE</code> for the whole checkout the worst option?</p>
       <button class="opt">It permits two buyers to confirm the very same seat together</button>
       <button class="opt">It cannot ever express a per-seat reservation time-to-live</button>
       <button class="opt">A minutes-long open transaction strains the DB and risks deadlock</button>
-      <button class="opt">It needs a separate Redis cluster running beside the database</button>
       <p class="fb">A lock is not a business-duration tool — keeping a transaction open for the checkout window invites contention and deadlocks.</p>
+      <p class="hint">Deep Dive 1's mechanism table.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. Why is a Redis TTL key the cleanest seat-release mechanism?</p>
+    <div class="q" data-correct="b" data-concept="ticketmaster-final-ttl-cleanest">
+      <p class="stem">Why is a Redis TTL key the cleanest seat-release mechanism?</p>
       <button class="opt">It guarantees the booking primary database can never go offline</button>
       <button class="opt">Expiry is a property of the data, so no process can fail to run</button>
       <button class="opt">It makes the seat map update instantly for every browsing user</button>
-      <button class="opt">It removes the need for the payment confirm step to be atomic</button>
       <p class="fb">A TTL key just expires — there is no sweeper job whose failure could leave seats stuck.</p>
+      <p class="hint">Deep Dive 2's staff callout.</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What does the virtual waiting queue fundamentally do for the booking core?</p>
+    <div class="q" data-correct="a" data-concept="ticketmaster-final-queue-purpose">
+      <p class="stem">What does the virtual waiting queue fundamentally do for the booking core?</p>
       <button class="opt">Converts an unbounded spike into a bounded, paced admission stream</button>
       <button class="opt">Replaces the database row locks with a faster optimistic check</button>
       <button class="opt">Synchronizes the Elasticsearch index against Postgres in realtime</button>
-      <button class="opt">Caches the static seat map at the CDN edge for browsing users</button>
       <p class="fb">It serializes and rate-limits admission so the contended core only ever sees load it can handle.</p>
+      <p class="hint">Deep Dive 3.</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">4. What is the load-bearing framing sentence for this whole design?</p>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="ticketmaster-final-framing">
+      <p class="stem">What is the load-bearing framing sentence for this whole design?</p>
       <button class="opt">Every single request should be served from a geo-distributed CDN edge</button>
       <button class="opt">Strong consistency everywhere is required to keep all reads correct</button>
       <button class="opt">Availability for browsing, but consistency for booking — no double-booking</button>
-      <button class="opt">Storage capacity dominates because seat inventory grows without any bound</button>
       <p class="fb">Two consistency regimes in one system: AP for browse, CP for booking. Everything downstream follows from that split.</p>
+      <p class="hint">Non-Functional Requirements section, opening sentence.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="ticketmaster-final-belt-suspenders-why">
+      <p class="stem">Why does the design keep an OCC check in Postgres even though Redis already enforces the hold with SET NX?</p>
+      <button class="opt">So that a total Redis outage degrades the experience but still cannot cause a double sale</button>
+      <button class="opt">Because Postgres transactions are always faster than Redis operations</button>
+      <button class="opt">Because Redis cannot store a TTL longer than a few seconds</button>
+      <p class="fb">Redis is an optimization layered on top of a database that is itself correct — losing Redis loses convenience, not correctness.</p>
+      <p class="hint">Deep Dive 1's "Belt and suspenders" bullet.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic — push on the parts that feel shaky. Try:
@@ -457,21 +652,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

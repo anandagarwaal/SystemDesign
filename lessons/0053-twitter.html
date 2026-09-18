@@ -69,13 +69,26 @@
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
   .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
@@ -97,6 +110,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 9</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -126,6 +141,29 @@
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Read-heavy, eventually consistent timelines. Let me check whether precomputed timelines fit.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="twitter-nfr-priority">
+      <p class="stem">What does this design prioritize over strong consistency for the timeline?</p>
+      <button class="opt">Exactly-once delivery guarantees on every write</button>
+      <button class="opt">Strict global ordering of all tweets by timestamp</button>
+      <button class="opt">Availability and low read latency, with eventual consistency</button>
+      <p class="fb">The NFR table states the timeline favors availability and fast reads; a tweet appearing a few seconds late is an acceptable tradeoff.</p>
+      <p class="hint">Reread the NFR table row on Consistency.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="twitter-followcount-why-tracked">
+      <p class="stem">Why does the follower-count distribution matter for the design, not just the total user count?</p>
+      <button class="opt">Because it is bimodal — most accounts are small but a tiny tail is enormous, so one uniform strategy can't serve both well</button>
+      <button class="opt">Because follower counts change the tweet body format that gets stored</button>
+      <button class="opt">Because it determines how many database replicas the API gateway needs</button>
+      <p class="fb">A near-zero-follower average account and a 100M-follower account impose wildly different costs on the same operation, forcing a strategy that treats them differently.</p>
+      <p class="hint">Look at the "ask before you design" bullet about follower distribution.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 9</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only compute numbers that <em>change a decision</em>. Two numbers matter here: can we afford to precompute timelines for everyone, and what is the write blast-radius of the worst-case poster? (Figures below are my own back-of-envelope estimates, not quoted from a source.)</p>
@@ -150,6 +188,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Precomputed timelines fit in memory, but celebrity tweets fan out to 100M. Let me define the entities.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="twitter-capacity-bottleneck">
+      <p class="stem">Per the capacity estimate, what is the real bottleneck this design must answer?</p>
+      <button class="opt">Total storage needed for all precomputed timelines</button>
+      <button class="opt">Fan-out amplification at the celebrity tail</button>
+      <button class="opt">Average tweet-ingest throughput across all users</button>
+      <p class="fb">Precomputed storage is cheap (~2-3TB) and average ingest is small; the killer is a single celebrity tweet triggering ~100M writes.</p>
+      <p class="hint">Reread the bolded "Implication" lines in the capacity box.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="twitter-precompute-affordability">
+      <p class="stem">Why is precomputing (materializing) a timeline per user affordable even for hundreds of millions of users?</p>
+      <button class="opt">Because Redis timelines never need any memory at all</button>
+      <button class="opt">Because most users never open the app so nothing gets written</button>
+      <button class="opt">Because each timeline only needs a few KB of tweet ids, so the total across all users stays in the low terabytes</button>
+      <p class="fb">A capped list of ~800 tweet ids is tiny per user; multiplied across ~500M users it's still only a few TB, cheap on modern infrastructure.</p>
+      <p class="hint">Look at the math in the "Can we precompute" bullet list.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 9</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p>Three core entities. Note that <code>Follow</code> is a uni-directional edge — modeling it as a directed graph is what later lets you query "who follows X" cheaply, which fan-out depends on.</p>
@@ -191,6 +252,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Follow is directed and User carries followerCount for the push/pull decision. Now the write and read paths.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="twitter-cursor-not-offset">
+      <p class="stem">Why does the timeline endpoint use a cursor instead of an offset?</p>
+      <button class="opt">A constantly-growing list makes offset paging skip or duplicate items</button>
+      <button class="opt">Cursors are shorter strings than integer offsets</button>
+      <button class="opt">Offsets cannot be passed as URL query parameters</button>
+      <p class="fb">As new tweets are inserted, offsets shift under you; a cursor anchored to a specific item stays stable across pages.</p>
+      <p class="hint">Reread the sentence right after the API table about cursor vs offset.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="twitter-followercount-cached-why">
+      <p class="stem">Why is followerCount cached directly on the User entity instead of computed by counting Follow edges on demand?</p>
+      <button class="opt">Follow edges cannot be counted at all once created</button>
+      <button class="opt">The fan-out decision needs a cheap, fast lookup on every tweet, and counting edges live would be too slow at scale</button>
+      <button class="opt">Users are not allowed to have more than one follower count</button>
+      <p class="fb">Every tweet triggers a push-vs-pull decision keyed on follower count; a precomputed field is a cheap read, while scanning the follow graph per tweet would be far too slow.</p>
+      <p class="hint">Look at the interviewer pushback right after the Data Model table.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 9</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Data Flow</h2>
   <p>Twitter is a feed-generation pipeline, so it's worth tracing the lifecycle of a single tweet end to end before we draw boxes.</p>
@@ -238,6 +322,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: fan-out strategies, the celebrity hybrid, storage and caching with trending.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="twitter-queue-purpose">
+      <p class="stem">Why is there a queue between the Tweet Service and the fan-out workers?</p>
+      <button class="opt">Queues are required by the REST specification for all POST endpoints</button>
+      <button class="opt">Posting can return immediately while fan-out happens asynchronously and can be retried</button>
+      <button class="opt">Queues make the tweet body compress to a smaller size</button>
+      <p class="fb">The write returns fast; fan-out to potentially thousands of timelines is bursty, async work best decoupled behind a queue with retry.</p>
+      <p class="hint">Reread the interviewer pushback right after the HLD table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="twitter-asymmetric-write-why">
+      <p class="stem">Why does the write path do "the heavy lifting" so the read path stays a near-instant lookup?</p>
+      <button class="opt">Because writes happen far less often than reads, so their cost doesn't matter</button>
+      <button class="opt">Because users never notice slow writes, only slow reads</button>
+      <button class="opt">Because timelines are read far more often than tweets are posted, so paying the assembly cost once at write time beats repeating it on every read</button>
+      <p class="fb">Given a ~100:1+ read:write ratio, doing the fan-out work once per tweet is cheaper overall than recomputing the merge on every one of the many reads.</p>
+      <p class="hint">Look at the "asymmetry is the whole story" line after the Data Flow steps.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 9</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dive 1 — Fan-out on write vs. fan-out on read</h2>
   <p>This is the heart of the problem. "Fan-out" = the work of getting one tweet in front of N followers. The only question is <em>when</em> you do it: at write time (push) or at read time (pull).</p>
@@ -275,6 +382,29 @@
     The senior says "use a hybrid." The staff candidate explains <em>why the threshold exists at all</em>: it's a knob set by the follower-count distribution, not a magic number. They say out loud, "Push is correct until write amplification exceeds the read cost it saves — which happens precisely at celebrity scale, so I move that tail to pull." They name the <b>celebrity fan-out as the real bottleneck</b>, size it (~100M writes per tweet), and design around <em>that</em> tail rather than the average case — and they admit they'd <b>measure</b> the threshold in production (and even make it per-account adaptive) rather than hard-code it.
   </div>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="twitter-hybrid-strategy">
+      <p class="stem">What hybrid strategy do staff candidates arrive at for Twitter's fan-out?</p>
+      <button class="opt">Pull for everyone at read time, then cache the merged result</button>
+      <button class="opt">Push for normal accounts, pull for huge accounts, merged on read</button>
+      <button class="opt">Push for everyone at write time regardless of follower count</button>
+      <p class="fb">Push handles the bulk of accounts cheaply; celebrities are excluded from fan-out and merged in live at read time.</p>
+      <p class="hint">Reread Deep Dive 2's numbered steps.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="twitter-threshold-not-magic">
+      <p class="stem">Why does the staff-level signal box say the push/pull threshold is "a knob... not a magic number"?</p>
+      <button class="opt">Because it should be measured against real write-amplification-vs-read-cost tradeoffs and can be tuned or made adaptive</button>
+      <button class="opt">Because the threshold value is randomly generated at each deploy</button>
+      <button class="opt">Because Twitter's engineers have never actually set a specific threshold</button>
+      <p class="fb">The right cutoff is wherever write amplification from pushing starts to exceed the read cost it would have saved — a measurable, tunable point, not folklore.</p>
+      <p class="hint">Reread the staff-level signal box right after Deep Dive 2's steps.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 9</p>
   <h2>Deep Dive 3 — Storing tweets &amp; the social graph</h2>
   <h3>The tweet store</h3>
   <p>Tweets are immutable, append-only, and read by ID or by author. A wide-column store (Cassandra) or a key-value store (DynamoDB) fits: partition by <code>authorId</code> with <code>createdAt</code> as the clustering key, so "recent tweets by author X" — exactly what celebrity pull needs — is a single efficient range scan. The timeline cache holds only IDs; bodies are hydrated from this store on read, kept hot behind a tweet-level cache.</p>
@@ -323,6 +453,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production concerns next.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="twitter-partition-by-author">
+      <p class="stem">Why partition the tweet store by authorId with createdAt as the clustering key?</p>
+      <button class="opt">"Recent tweets by author X" becomes one cheap range scan, which celebrity pull needs</button>
+      <button class="opt">It removes the need to store a tweet's author at all</button>
+      <button class="opt">It makes every tweet automatically replicate to every shard</button>
+      <p class="fb">Celebrity pull reads an author's most recent tweets at read time; author-partition + time-clustering makes that a single efficient range scan.</p>
+      <p class="hint">Reread "The tweet store" subsection of Deep Dive 3.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="twitter-replicated-cache-why">
+      <p class="stem">Why does replicating a viral tweet across cache nodes fix the hot-key problem that sharding alone can't?</p>
+      <button class="opt">Replication makes the tweet's content shorter so it fits in cache</button>
+      <button class="opt">Sharding already spreads any single tweet's reads across many nodes</button>
+      <button class="opt">A sharded cache pins one tweet to one node, so replicating it lets every node answer and the load balancer spread the read storm</button>
+      <p class="fb">Sharding maps one key to one node by design — great for spreading many keys, terrible when millions of reads target that one key. Replication removes the single point of contention.</p>
+      <p class="hint">Look at the sharded-vs-replicated table in "Hot / celebrity accounts on the read side."</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+  <p class="chunk-label">7 of 9</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -372,6 +525,29 @@
     <p class="pq">“How do you handle abuse and misinformation at scale?”</p>
     <p><b>Staff answer:</b> Rate limits and spam classifiers on posting, trust and safety labels applied at read time, and visibility filtering during hydration rather than rewriting fanned-out timelines.</p>
   </div>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="twitter-visibility-filter-time">
+      <p class="stem">Where does the design re-check blocks, mutes, and protected status before showing a tweet?</p>
+      <button class="opt">At fan-out time, before the tweet is written into any timeline</button>
+      <button class="opt">At hydration time, when the timeline is actually being read and rendered</button>
+      <button class="opt">Only once, when the account is first created</button>
+      <p class="fb">Fan-out happened earlier and can't know about a block/mute that occurs later, so visibility is re-checked at hydration, right before the content is shown.</p>
+      <p class="hint">Reread the Authentication &amp; Authorization table's "Timeline hydration" row.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="twitter-skew-unifying-insight">
+      <p class="stem">What single underlying phenomenon connects celebrity fan-out, viral hot-key tweets, and trending-topic computation?</p>
+      <button class="opt">All three require a graph database to be solved correctly</button>
+      <button class="opt">All three are caused by users posting too frequently</button>
+      <button class="opt">All three are extreme popularity skew, each tamed on its own side (write, read, stream) rather than by one shared mechanism</button>
+      <p class="fb">The staff-level signal box names this explicitly: one long-tail distribution drives all three bottlenecks, each solved locally where it bites.</p>
+      <p class="hint">Reread the second staff-level signal box, right after the Trending subsection.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-8" hidden>
+  <p class="chunk-label">8 of 9</p>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
 
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
@@ -412,38 +588,75 @@
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Twitter's timeline is hybrid fan-out. Tweets are stored by id in a partitioned store. For typical authors, async workers push tweet ids into followers' capped Redis timelines; celebrities are skipped and their recent tweets merged at read time. Reads fetch the timeline, merge celebrity tweets, apply light ranking and hydrate from caches. Viral tweets are replicated as hot keys, and trending comes from windowed stream counts. At 10× we add fan-out partitions and lower the celebrity threshold.</p></div>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why is pure fan-out on write a poor fit for celebrity accounts?</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="twitter-10x-first-bottleneck">
+      <p class="stem">At 10× scale, what is named as the first bottleneck?</p>
+      <button class="opt">Fan-out write throughput during global events</button>
+      <button class="opt">Running out of unique tweet ids to assign</button>
+      <button class="opt">The follow graph exceeding maximum edge count</button>
+      <p class="fb">Everything else scales by adding nodes/partitions; fan-out write rate during spikes (global events) is the tightest constraint, relieved by the threshold knob and pre-scaling.</p>
+      <p class="hint">Reread "First bottleneck" in the Scaling 10× section.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="twitter-dominant-cost-why">
+      <p class="stem">Why do durable tweet storage and fan-out writes dominate cost rather than the read path?</p>
+      <button class="opt">Reads are free because they only touch an in-memory cache</button>
+      <button class="opt">Every tweet triggers a write cost proportional to fan-out plus permanent storage, while a read is a cheap, already-optimized cache lookup</button>
+      <button class="opt">Twitter charges users to store their own tweets</button>
+      <p class="fb">Reads were engineered down to a single list lookup; writes still pay fan-out amplification and long-term storage, which is why they dominate the cost table.</p>
+      <p class="hint">Look at the Cost of Running table and the "Dominant driver" sentence.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">Final check</p>
+  <h2>Everything from this lesson</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is what makes it stick. These questions also seed spaced review — expect variants back in a future session per the forgetting curve.</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="b" data-concept="twitter-celebrity-write-amp-final">
+      <p class="stem">Why is pure fan-out on write a poor fit for celebrity accounts?</p>
       <button class="opt">It makes the timeline reads slower as the stored lists keep growing</button>
       <button class="opt">A single tweet triggers up to a hundred million writes to timelines</button>
       <button class="opt">It keeps far too many tweet copies and overruns the storage budget</button>
       <p class="fb">Storage is cheap (~2–3TB). The killer is write amplification: one celebrity tweet → ~100M timeline writes.</p>
+      <p class="hint">Revisit Deep Dive 1's fan-out-on-write section.</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. What hybrid strategy do staff candidates arrive at for Twitter?</p>
+    <div class="q" data-correct="c" data-concept="twitter-hybrid-strategy-final">
+      <p class="stem">What hybrid strategy do staff candidates arrive at for Twitter?</p>
       <button class="opt">Pull for everyone at read time, then cache the merged result in Redis</button>
       <button class="opt">Push for everyone at write time, then shard timeline cache by user id</button>
       <button class="opt">Push for normal users, pull for huge accounts, then merge on the read</button>
       <p class="fb">Normal authors are precomputed (push); celebrity tweets are pulled live and merged in — driven by the follower distribution.</p>
+      <p class="hint">Revisit Deep Dive 2's numbered steps.</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Why partition the tweet store by author with createdAt clustering?</p>
-      <button class="opt">"Recent tweets by author X" becomes one range scan, which pull needs</button>
-      <button class="opt">"Recent tweets by author X" must be fully replicated to all the nodes</button>
-      <button class="opt">"Recent tweets by author X" requires a graph database to be queried at</button>
-      <p class="fb">Celebrity pull asks for an author's recent tweets at read time — author partition + time clustering makes that a cheap range scan.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. How is "trending" fundamentally different from the home timeline?</p>
+    <div class="q" data-correct="b" data-concept="twitter-trending-topk-final">
+      <p class="stem">How is "trending" fundamentally different from the home timeline?</p>
       <button class="opt">It is a per-user materialized list assembled from each follow edge here</button>
       <button class="opt">It is an approximate top-K over a windowed stream of hashtag mentions</button>
       <button class="opt">It is a strongly consistent exact count maintained across each region</button>
-      <p class="fb">Trending is top-K over a sliding window of terms — solved with streaming approximation (Count-Min Sketch + heap), not per-user fan-out.</p>
+      <p class="fb">Trending is top-K over a sliding window of terms, solved with streaming approximation (Count-Min Sketch + heap), not per-user fan-out.</p>
+      <p class="hint">Revisit the Trending subsection of Deep Dive 4.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="twitter-remove-hybrid-final">
+      <p class="stem">If the celebrity exception were removed and every account used pure fan-out on write, what would break first at scale?</p>
+      <button class="opt">A single 100M-follower tweet would trigger ~100M synchronous timeline writes, overwhelming fan-out workers and delaying delivery for everyone</button>
+      <button class="opt">Nothing would break, since fan-out cost is the same for every account regardless of size</button>
+      <button class="opt">Only the tweet's own author would notice a slowdown</button>
+      <p class="fb">Removing the pull exception re-exposes the celebrity write-amplification cliff this whole hybrid design exists to avoid.</p>
+      <p class="hint">Think about what the box "Why neither alone wins" says push detonates on.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="twitter-skew-unifying-final">
+      <p class="stem">What connects celebrity fan-out, viral hot-key tweets, and trending computation as one underlying issue?</p>
+      <button class="opt">All three need a relational database with strict foreign keys</button>
+      <button class="opt">All three only occur during scheduled maintenance windows</button>
+      <button class="opt">All three are extreme popularity skew, tamed separately on the write side, read side, and stream side</button>
+      <p class="fb">One long-tail distribution of popularity drives all three; each is solved locally where it manifests rather than by one shared mechanism.</p>
+      <p class="hint">Revisit the second staff-level signal box after the Trending subsection.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this design — push back and go deeper:
@@ -470,21 +683,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

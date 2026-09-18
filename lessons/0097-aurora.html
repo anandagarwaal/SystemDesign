@@ -43,22 +43,35 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,96 +86,234 @@
     <strong>Why this lesson, for your mission:</strong> At L6/L7 it isn't enough to say "I'll use Aurora because it's managed Postgres." The interviewer wants to hear that you understand the one architectural move that makes Aurora interesting — <em>separating compute from a purpose-built, distributed storage layer and shipping only redo log records to it</em> — and can reason about what that buys you (less network I/O, fast crash recovery, near-instant replicas) and where it still hits a wall (one writer per cluster). Naming that single-writer ceiling and contrasting it with Spanner-class systems <em>before</em> you're cornered is the move that reads as staff.<a href="#c1" class="cite">[1]</a>
   </div>
 
-  <h2>What it is</h2>
-  <p>Amazon Aurora is a cloud-native, fully managed relational database that is <b>wire-compatible with MySQL and PostgreSQL</b>.<a href="#c2" class="cite">[2]</a> Your application keeps speaking the same protocol and SQL it already uses for <a href="../lessons/0088-postgresql.html">Postgres</a> or MySQL — drivers, ORMs, and queries don't change — but AWS replaces the storage engine underneath with its own distributed design.<a href="#c2" class="cite">[2]</a> So the deal is: keep the familiar relational engine and ACID semantics on top, swap the durability and replication machinery below for something built for the cloud.</p>
-  <p>The headline numbers AWS markets — several times the throughput of stock MySQL on the same hardware, storage that auto-grows in 10&nbsp;GB chunks up to 128&nbsp;TB, six copies of your data across three Availability Zones — all fall out of that re-architected storage tier.<a href="#c2" class="cite">[2]</a> Aurora is best understood not as "MySQL with better defaults" but as a different answer to the question <em>"where does durability live?"</em></p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 6</p>
+    <h2>What it is</h2>
+    <p>Amazon Aurora is a cloud-native, fully managed relational database that is <b>wire-compatible with MySQL and PostgreSQL</b>.<a href="#c2" class="cite">[2]</a> Your application keeps speaking the same protocol and SQL it already uses for <a href="../lessons/0088-postgresql.html">Postgres</a> or MySQL — drivers, ORMs, and queries don't change — but AWS replaces the storage engine underneath with its own distributed design.<a href="#c2" class="cite">[2]</a> So the deal is: keep the familiar relational engine and ACID semantics on top, swap the durability and replication machinery below for something built for the cloud.</p>
+    <p>The headline numbers AWS markets — several times the throughput of stock MySQL on the same hardware, storage that auto-grows in 10&nbsp;GB chunks up to 128&nbsp;TB, six copies of your data across three Availability Zones — all fall out of that re-architected storage tier.<a href="#c2" class="cite">[2]</a> Aurora is best understood not as "MySQL with better defaults" but as a different answer to the question <em>"where does durability live?"</em></p>
 
-  <h2>Internals — "the log is the database"</h2>
-  <p>This is the section that earns depth. In a traditional database, the engine writes both a <a href="../lessons/0088-postgresql.html">write-ahead/redo log</a> <em>and</em> the actual data pages, and to make a replica it ships full pages (or the binlog) over the network and replays them. That is a lot of writes for one logical change. Aurora's core insight, from the 2017 SIGMOD paper, is that <b>in a replicated, durable system the redo log is the only thing you truly need to send over the network — the data pages can be materialized from the log wherever they're needed.</b><a href="#c1" class="cite">[1]</a></p>
-
-  <h3>Storage–compute separation</h3>
-  <p>Aurora splits the database into two independently scaled tiers. The <b>compute tier</b> is a normal MySQL/Postgres engine instance that parses SQL, runs the query planner, manages the buffer cache, and enforces transactions — but it does <em>not</em> own durable storage. The <b>storage tier</b> is a purpose-built, multi-tenant, distributed service that stores data in 10&nbsp;GB segments and knows how to apply redo log records to pages.<a href="#c1" class="cite">[1]</a> The only thing the writer sends down to storage on a commit path is <b>redo log records</b>, not dirty data pages.<a href="#c1" class="cite">[1]</a></p>
-
-  <h3>6-way replication, 4/6 quorum</h3>
-  <p>Every log record is replicated <b>six ways across three Availability Zones</b> — two copies per AZ.<a href="#c1" class="cite">[1]</a> Writes use a <b>4-of-6 write quorum</b> and reads (when needed) a <b>3-of-6 read quorum</b>.<a href="#c1" class="cite">[1]</a> Why those numbers? They let Aurora tolerate failures without losing availability: it can lose an <em>entire AZ</em> (two copies) and still reach a write quorum of 4, and it can lose an AZ <em>plus one more node</em> and still serve reads.<a href="#c1" class="cite">[1]</a> The quorum, not synchronous mirroring of full pages, is what delivers durability — the same CAP/quorum reasoning from <a href="../lessons/0006-replication-and-cap.html">Lesson 06</a>, applied at the storage layer.</p>
-
-  <h3>Why this slashes network I/O</h3>
-  <p>Because only redo log records cross the network — not pages, not the binlog, not double-writes — Aurora collapses the write amplification of traditional replication. The SIGMOD paper reports that for the same workload Aurora performs roughly <b>an order of magnitude fewer network I/Os</b> than a mirrored MySQL setup, which is the bulk of where the throughput win comes from.<a href="#c1" class="cite">[1]</a> The storage nodes asynchronously coalesce log records into pages in the background, off the commit critical path, so the foreground write is cheap and the heavy page-materialization work is pushed to the storage fleet.<a href="#c1" class="cite">[1]</a></p>
-
-  <table>
-    <thead><tr><th></th><th>Traditional MySQL replication</th><th>Aurora</th></tr></thead>
-    <tbody>
-      <tr><td><b>Crosses network</b></td><td>Pages + redo + binlog + double-write</td><td>Redo log records only<a href="#c1" class="cite">[1]</a></td></tr>
-      <tr><td><b>Durability</b></td><td>Sync mirror to one standby</td><td>6 copies / 3 AZs, 4/6 quorum<a href="#c1" class="cite">[1]</a></td></tr>
-      <tr><td><b>Page writes</b></td><td>On the foreground commit path</td><td>Background, in the storage tier<a href="#c1" class="cite">[1]</a></td></tr>
-      <tr><td><b>Replica creation</b></td><td>Copy/replay the whole dataset</td><td>Attach to shared storage volume<a href="#c2" class="cite">[2]</a></td></tr>
-    </tbody>
-  </table>
-
-  <h3>Fast crash recovery</h3>
-  <p>In a classic engine, crash recovery means replaying the redo log from the last checkpoint at startup — and the further back the checkpoint, the longer you wait.<a href="#c1" class="cite">[1]</a> Aurora doesn't recover this way. Because the storage tier already applies redo continuously in the background, recovery isn't a foreground replay step the engine must finish before opening — the database can come back and let the distributed storage reconcile pages on demand.<a href="#c1" class="cite">[1]</a> The practical result is recovery measured in seconds rather than minutes, which directly improves your availability NFR.<a href="#c2" class="cite">[2]</a></p>
-
-  <h2>Replicas &amp; failover</h2>
-  <p>The shared-storage design pays off again here. Because the durable data lives in one storage volume that all instances see, adding a <b>read replica</b> means standing up a compute instance and pointing it at the <em>same</em> volume — there is <b>no re-replication of the dataset</b>.<a href="#c2" class="cite">[2]</a> Aurora supports <b>up to 15 reader replicas</b> per cluster, all reading from the shared storage, with replica lag typically in the low milliseconds because they're reading the same log-backed pages rather than replaying a stream.<a href="#c2" class="cite">[2]</a></p>
-  <p>That same property makes <b>failover fast</b>: if the writer dies, Aurora promotes one of the existing readers to writer. The new writer doesn't need to recover or copy data — the volume is already there and current — so failover is typically on the order of tens of seconds, not the minutes a copy-and-replay system needs.<a href="#c2" class="cite">[2]</a> A cluster endpoint (writer) and a reader endpoint abstract this so the app reconnects to the role, not a specific host.<a href="#c2" class="cite">[2]</a></p>
-  <p><b>Aurora Serverless v2</b> takes it further by auto-scaling the compute tier up and down in fine-grained capacity units in response to load, so you don't pre-provision a fixed instance size for spiky or unpredictable workloads.<a href="#c3" class="cite">[3]</a></p>
-
-  <h2>When to reach for it / when NOT</h2>
-  <table>
-    <thead><tr><th>Reach for Aurora when…</th><th>Reach elsewhere when…</th></tr></thead>
-    <tbody>
-      <tr><td>You want MySQL/Postgres semantics, managed, on AWS<a href="#c2" class="cite">[2]</a></td><td>You need multi-region <em>active-active writes</em> → Spanner / Cockroach</td></tr>
-      <tr><td>Read-heavy load that fans out to many replicas<a href="#c2" class="cite">[2]</a></td><td>Sustained write QPS beyond one writer → shard, or NoSQL</td></tr>
-      <tr><td>High durability + fast failover within a region<a href="#c1" class="cite">[1]</a></td><td>You're not on AWS / want to avoid lock-in → self-run Postgres</td></tr>
-      <tr><td>Spiky load that benefits from serverless autoscaling<a href="#c3" class="cite">[3]</a></td><td>Microsecond KV reads / counters → Redis</td></tr>
-    </tbody>
-  </table>
-  <p><b>The ceiling to name:</b> Aurora separates storage from compute, but a standard cluster still has <b>exactly one writer instance</b> — it scales <em>reads</em> brilliantly, not writes.<a href="#c2" class="cite">[2]</a> When sustained write throughput exceeds one writer, you're back to sharding (Aurora's own multi-writer and "Limitless" options exist but add complexity), or to a system designed for distributed writes from the ground up. That's the line where <a href="../lessons/0096-distributed-sql-spanner.html">Spanner / CockroachDB</a> belong: they use synchronized clocks and consensus to offer horizontally-scalable, multi-region <em>write</em> consistency, which Aurora's single-writer model does not.<a href="#c4" class="cite">[4]</a></p>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Seniors say "use Aurora, it's managed and durable." Staff candidates explain the <em>why</em> in one breath: "Aurora's trick is that the log is the database — the writer ships only redo records to a 6-way, 4/6-quorum storage tier across three AZs, so it does roughly an order of magnitude less network I/O than mirrored MySQL, recovers in seconds, and spins up readers on the same volume with no re-replication."<a href="#c1" class="cite">[1]</a> Then they <b>name the ceiling proactively</b>: "it's still one writer per cluster — great for read fan-out and fast failover, but if I need multi-region active-active writes I'd reach for Spanner-class distributed SQL instead." Knowing precisely what the architecture buys <em>and</em> where it stops — without over-explaining that it 'speaks SQL' — is the simple-by-default judgement the bar looks for.
-  </div>
-
-  <h2>In the interview</h2>
-  <p>When you put Aurora on the whiteboard, justify it in one line ("managed Postgres-compatible, durable across AZs, scales reads to 15 replicas"), then be ready for the predictable follow-ups. <em>"Why is it faster than RDS MySQL?"</em> → the log-is-the-database storage tier ships only redo, far less network I/O.<a href="#c1" class="cite">[1]</a> <em>"How does failover work?"</em> → promote an existing reader on the shared volume, tens of seconds, no data copy.<a href="#c2" class="cite">[2]</a> <em>"How does it scale writes?"</em> → here you must be honest: it doesn't past one writer; you fan out reads, then shard or move to distributed SQL.<a href="#c4" class="cite">[4]</a> Mentioning the 6-copy / 4-of-6 quorum or background page coalescing signals hands-on depth without lecturing on what ACID means.</p>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. What does an Aurora writer actually send to its storage tier?</p>
-      <button class="opt">Full data pages mirrored synchronously to one standby node</button>
-      <button class="opt">Both the binary log and the modified pages on every commit</button>
-      <button class="opt">Only redo log records that storage applies to pages later</button>
-      <button class="opt">Entire table snapshots copied to each replica on a commit</button>
-      <p class="fb">Aurora's core idea is "the log is the database": the writer ships only redo records, slashing network I/O.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="aurora-wire-compatibility">
+        <p class="stem">What actually stays the same when you move an app from Postgres/MySQL to Aurora?</p>
+        <button class="opt">The wire protocol and SQL — drivers, ORMs, and queries don't change</button>
+        <button class="opt">The on-disk storage engine and replication machinery</button>
+        <button class="opt">Nothing — Aurora requires a full application rewrite</button>
+        <p class="fb">Aurora is wire-compatible with MySQL/Postgres: the engine on top looks the same, only the storage tier underneath changes.</p>
+        <p class="hint">Reread the first paragraph — what does "wire-compatible" mean for your app code?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="aurora-durability-reframe-why">
+        <p class="stem">Why is it more accurate to call Aurora "a different answer to where durability lives" than "MySQL with better defaults"?</p>
+        <button class="opt">Because Aurora doesn't actually use MySQL or Postgres code at all</button>
+        <button class="opt">Because every headline number (throughput, auto-growing storage, 6 copies) traces back to one re-architected storage tier, not tuning</button>
+        <button class="opt">Because "better defaults" is a marketing term AWS never uses</button>
+        <p class="fb">The gains aren't config tweaks on the same engine — they fall out of replacing the storage tier's durability model entirely.</p>
+        <p class="hint">Look at what the second paragraph says all the headline numbers "fall out of."</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. How is Aurora storage durability actually achieved?</p>
-      <button class="opt">Three copies in one zone behind a synchronous mirror pair</button>
-      <button class="opt">Six copies over three AZs with a four-of-six write quorum</button>
-      <button class="opt">Four copies over two AZs with a six-of-six write quorum</button>
-      <button class="opt">Two copies over three AZs with a one-of-two write quorum</button>
-      <p class="fb">Six copies across three AZs with a 4/6 write quorum let Aurora lose a whole AZ and still commit.</p>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 6</p>
+    <h2>Internals — "the log is the database"</h2>
+    <p>This is the section that earns depth. In a traditional database, the engine writes both a <a href="../lessons/0088-postgresql.html">write-ahead/redo log</a> <em>and</em> the actual data pages, and to make a replica it ships full pages (or the binlog) over the network and replays them. That is a lot of writes for one logical change. Aurora's core insight, from the 2017 SIGMOD paper, is that <b>in a replicated, durable system the redo log is the only thing you truly need to send over the network — the data pages can be materialized from the log wherever they're needed.</b><a href="#c1" class="cite">[1]</a></p>
+
+    <h3>Storage–compute separation</h3>
+    <p>Aurora splits the database into two independently scaled tiers. The <b>compute tier</b> is a normal MySQL/Postgres engine instance that parses SQL, runs the query planner, manages the buffer cache, and enforces transactions — but it does <em>not</em> own durable storage. The <b>storage tier</b> is a purpose-built, multi-tenant, distributed service that stores data in 10&nbsp;GB segments and knows how to apply redo log records to pages.<a href="#c1" class="cite">[1]</a> The only thing the writer sends down to storage on a commit path is <b>redo log records</b>, not dirty data pages.<a href="#c1" class="cite">[1]</a></p>
+
+    <h3>6-way replication, 4/6 quorum</h3>
+    <p>Every log record is replicated <b>six ways across three Availability Zones</b> — two copies per AZ.<a href="#c1" class="cite">[1]</a> Writes use a <b>4-of-6 write quorum</b> and reads (when needed) a <b>3-of-6 read quorum</b>.<a href="#c1" class="cite">[1]</a> Why those numbers? They let Aurora tolerate failures without losing availability: it can lose an <em>entire AZ</em> (two copies) and still reach a write quorum of 4, and it can lose an AZ <em>plus one more node</em> and still serve reads.<a href="#c1" class="cite">[1]</a> The quorum, not synchronous mirroring of full pages, is what delivers durability — the same CAP/quorum reasoning from <a href="../lessons/0006-replication-and-cap.html">Lesson 06</a>, applied at the storage layer.</p>
+
+    <h3>Why this slashes network I/O</h3>
+    <p>Because only redo log records cross the network — not pages, not the binlog, not double-writes — Aurora collapses the write amplification of traditional replication. The SIGMOD paper reports that for the same workload Aurora performs roughly <b>an order of magnitude fewer network I/Os</b> than a mirrored MySQL setup, which is the bulk of where the throughput win comes from.<a href="#c1" class="cite">[1]</a> The storage nodes asynchronously coalesce log records into pages in the background, off the commit critical path, so the foreground write is cheap and the heavy page-materialization work is pushed to the storage fleet.<a href="#c1" class="cite">[1]</a></p>
+
+    <table>
+      <thead><tr><th></th><th>Traditional MySQL replication</th><th>Aurora</th></tr></thead>
+      <tbody>
+        <tr><td><b>Crosses network</b></td><td>Pages + redo + binlog + double-write</td><td>Redo log records only<a href="#c1" class="cite">[1]</a></td></tr>
+        <tr><td><b>Durability</b></td><td>Sync mirror to one standby</td><td>6 copies / 3 AZs, 4/6 quorum<a href="#c1" class="cite">[1]</a></td></tr>
+        <tr><td><b>Page writes</b></td><td>On the foreground commit path</td><td>Background, in the storage tier<a href="#c1" class="cite">[1]</a></td></tr>
+        <tr><td><b>Replica creation</b></td><td>Copy/replay the whole dataset</td><td>Attach to shared storage volume<a href="#c2" class="cite">[2]</a></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Fast crash recovery</h3>
+    <p>In a classic engine, crash recovery means replaying the redo log from the last checkpoint at startup — and the further back the checkpoint, the longer you wait.<a href="#c1" class="cite">[1]</a> Aurora doesn't recover this way. Because the storage tier already applies redo continuously in the background, recovery isn't a foreground replay step the engine must finish before opening — the database can come back and let the distributed storage reconcile pages on demand.<a href="#c1" class="cite">[1]</a> The practical result is recovery measured in seconds rather than minutes, which directly improves your availability NFR.<a href="#c2" class="cite">[2]</a></p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="aurora-writer-sends-only-redo">
+        <p class="stem">What does an Aurora writer actually send to its storage tier?</p>
+        <button class="opt">Full data pages mirrored synchronously to one standby node</button>
+        <button class="opt">Both the binary log and the modified pages on every commit</button>
+        <button class="opt">Only redo log records that storage applies to pages later</button>
+        <p class="fb">Aurora's core idea is "the log is the database": the writer ships only redo records, slashing network I/O.</p>
+        <p class="hint">Reread the storage-compute separation section — what crosses the network on commit?</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="aurora-quorum-model">
+        <p class="stem">How is Aurora storage durability actually achieved?</p>
+        <button class="opt">Three copies in one zone behind a synchronous mirror pair</button>
+        <button class="opt">Six copies over three AZs with a four-of-six write quorum</button>
+        <button class="opt">Four copies over two AZs with a six-of-six write quorum</button>
+        <p class="fb">Six copies across three AZs with a 4/6 write quorum let Aurora lose a whole AZ and still commit.</p>
+        <p class="hint">Look at the "6-way replication, 4/6 quorum" heading.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="aurora-why-log-only-cuts-io">
+        <p class="stem">Why does shipping only redo log records (instead of pages, binlog, and double-writes) cut network I/O by roughly an order of magnitude?</p>
+        <button class="opt">A single logical change produces one small log record, versus the multiple full-page and log writes traditional replication sends for the same change</button>
+        <button class="opt">Redo log records are compressed with a special AWS-only algorithm that pages can't use</button>
+        <button class="opt">Storage nodes in Aurora use faster network cards than standard MySQL replicas</button>
+        <p class="fb">Traditional replication duplicates work across pages, redo, binlog, and double-writes for one change; Aurora sends just the one small log record and lets storage materialize pages later.</p>
+        <p class="hint">Compare the two columns of the table — count how many things cross the network per write in each case.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="aurora-why-recovery-is-fast">
+        <p class="stem">Why does Aurora recover from a crash in seconds instead of minutes?</p>
+        <button class="opt">Aurora skips crash recovery entirely and just discards uncommitted data</button>
+        <button class="opt">Aurora keeps a spare compute instance permanently running as a hot standby</button>
+        <button class="opt">Redo has already been applied continuously in the background by the storage tier, so there's no big foreground replay to finish before opening</button>
+        <p class="fb">Because storage keeps coalescing log records into pages the whole time, there's no backlog of redo waiting to be replayed at startup.</p>
+        <p class="hint">Compare what a classic engine must do at startup versus what Aurora's storage tier has already been doing in the background.</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Why can Aurora add a read replica without copying data?</p>
-      <button class="opt">All instances attach to one shared distributed storage volume</button>
-      <button class="opt">Each new replica replays the whole binary log from scratch now</button>
-      <button class="opt">The writer ships a full page snapshot to the new reader node</button>
-      <button class="opt">A nightly backup is restored onto every fresh reader instance</button>
-      <p class="fb">Storage is shared, so a replica is just compute pointed at the existing volume — no re-replication, low lag.</p>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 6</p>
+    <h2>Replicas &amp; failover</h2>
+    <p>The shared-storage design pays off again here. Because the durable data lives in one storage volume that all instances see, adding a <b>read replica</b> means standing up a compute instance and pointing it at the <em>same</em> volume — there is <b>no re-replication of the dataset</b>.<a href="#c2" class="cite">[2]</a> Aurora supports <b>up to 15 reader replicas</b> per cluster, all reading from the shared storage, with replica lag typically in the low milliseconds because they're reading the same log-backed pages rather than replaying a stream.<a href="#c2" class="cite">[2]</a></p>
+    <p>That same property makes <b>failover fast</b>: if the writer dies, Aurora promotes one of the existing readers to writer. The new writer doesn't need to recover or copy data — the volume is already there and current — so failover is typically on the order of tens of seconds, not the minutes a copy-and-replay system needs.<a href="#c2" class="cite">[2]</a> A cluster endpoint (writer) and a reader endpoint abstract this so the app reconnects to the role, not a specific host.<a href="#c2" class="cite">[2]</a></p>
+    <p><b>Aurora Serverless v2</b> takes it further by auto-scaling the compute tier up and down in fine-grained capacity units in response to load, so you don't pre-provision a fixed instance size for spiky or unpredictable workloads.<a href="#c3" class="cite">[3]</a></p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="aurora-replica-no-copy">
+        <p class="stem">Why can Aurora add a read replica without copying data?</p>
+        <button class="opt">All instances attach to one shared distributed storage volume</button>
+        <button class="opt">Each new replica replays the whole binary log from scratch now</button>
+        <button class="opt">The writer ships a full page snapshot to the new reader node</button>
+        <p class="fb">Storage is shared, so a replica is just compute pointed at the existing volume — no re-replication, low lag.</p>
+        <p class="hint">Reread the first sentence of this section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="aurora-why-failover-is-fast">
+        <p class="stem">Why does promoting a reader to writer take tens of seconds instead of minutes?</p>
+        <button class="opt">Because AWS runs the promotion on faster hardware than the original writer</button>
+        <button class="opt">The promoted reader already has the current data via the shared volume, so there's no data copy or recovery step before it can accept writes</button>
+        <button class="opt">Because reader replicas are always kept one commit behind on purpose</button>
+        <p class="fb">The new writer isn't starting cold — it's already attached to the same up-to-date volume, so promotion skips the copy-and-replay a traditional failover needs.</p>
+        <p class="hint">Ask what a traditional failover has to do first (copy data) that Aurora's shared-volume design lets it skip.</p>
+      </div>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. Where does standard Aurora hit a wall versus Spanner?</p>
-      <button class="opt">It cannot survive the failure of an entire availability zone</button>
-      <button class="opt">It is unable to run any read replicas alongside the writer</button>
-      <button class="opt">It loses all committed writes whenever the writer instance dies</button>
-      <button class="opt">It allows one writer, so multi-region writes need other tools</button>
-      <p class="fb">Aurora scales reads but keeps a single writer; multi-region active-active writes call for distributed SQL.</p>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 6</p>
+    <h2>When to reach for it / when NOT</h2>
+    <table>
+      <thead><tr><th>Reach for Aurora when…</th><th>Reach elsewhere when…</th></tr></thead>
+      <tbody>
+        <tr><td>You want MySQL/Postgres semantics, managed, on AWS<a href="#c2" class="cite">[2]</a></td><td>You need multi-region <em>active-active writes</em> → Spanner / Cockroach</td></tr>
+        <tr><td>Read-heavy load that fans out to many replicas<a href="#c2" class="cite">[2]</a></td><td>Sustained write QPS beyond one writer → shard, or NoSQL</td></tr>
+        <tr><td>High durability + fast failover within a region<a href="#c1" class="cite">[1]</a></td><td>You're not on AWS / want to avoid lock-in → self-run Postgres</td></tr>
+        <tr><td>Spiky load that benefits from serverless autoscaling<a href="#c3" class="cite">[3]</a></td><td>Microsecond KV reads / counters → Redis</td></tr>
+      </tbody>
+    </table>
+    <p><b>The ceiling to name:</b> Aurora separates storage from compute, but a standard cluster still has <b>exactly one writer instance</b> — it scales <em>reads</em> brilliantly, not writes.<a href="#c2" class="cite">[2]</a> When sustained write throughput exceeds one writer, you're back to sharding (Aurora's own multi-writer and "Limitless" options exist but add complexity), or to a system designed for distributed writes from the ground up. That's the line where <a href="../lessons/0096-distributed-sql-spanner.html">Spanner / CockroachDB</a> belong: they use synchronized clocks and consensus to offer horizontally-scalable, multi-region <em>write</em> consistency, which Aurora's single-writer model does not.<a href="#c4" class="cite">[4]</a></p>
+
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Seniors say "use Aurora, it's managed and durable." Staff candidates explain the <em>why</em> in one breath: "Aurora's trick is that the log is the database — the writer ships only redo records to a 6-way, 4/6-quorum storage tier across three AZs, so it does roughly an order of magnitude less network I/O than mirrored MySQL, recovers in seconds, and spins up readers on the same volume with no re-replication."<a href="#c1" class="cite">[1]</a> Then they <b>name the ceiling proactively</b>: "it's still one writer per cluster — great for read fan-out and fast failover, but if I need multi-region active-active writes I'd reach for Spanner-class distributed SQL instead." Knowing precisely what the architecture buys <em>and</em> where it stops — without over-explaining that it 'speaks SQL' — is the simple-by-default judgement the bar looks for.
     </div>
-  </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="d" data-concept="aurora-single-writer-ceiling">
+        <p class="stem">Where does standard Aurora hit a wall versus Spanner?</p>
+        <button class="opt">It cannot survive the failure of an entire availability zone</button>
+        <button class="opt">It is unable to run any read replicas alongside the writer</button>
+        <button class="opt">It loses all committed writes whenever the writer instance dies</button>
+        <button class="opt">It allows one writer, so multi-region writes need other tools</button>
+        <p class="fb">Aurora scales reads but keeps a single writer; multi-region active-active writes call for distributed SQL.</p>
+        <p class="hint">Reread "The ceiling to name" paragraph.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="aurora-why-single-writer-not-fixed-by-storage-split">
+        <p class="stem">Storage-compute separation removed the storage bottleneck. Why does that not also remove the single-writer limit?</p>
+        <button class="opt">The one-writer rule comes from transaction ordering and lock coordination on the compute engine, not from storage capacity</button>
+        <button class="opt">AWS imposes the one-writer limit purely as a pricing decision, unrelated to the architecture</button>
+        <button class="opt">Storage actually is the bottleneck; adding a second writer would immediately exceed storage bandwidth</button>
+        <p class="fb">Scaling storage throughput doesn't solve the harder problem of coordinating concurrent writers' transaction order and locks — that needs a Spanner-style consensus layer, which Aurora's design doesn't add.</p>
+        <p class="hint">Ask what a second writer would need to coordinate with the first one that has nothing to do with disk bandwidth.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 6</p>
+    <h2>In the interview</h2>
+    <p>When you put Aurora on the whiteboard, justify it in one line ("managed Postgres-compatible, durable across AZs, scales reads to 15 replicas"), then be ready for the predictable follow-ups. <em>"Why is it faster than RDS MySQL?"</em> → the log-is-the-database storage tier ships only redo, far less network I/O.<a href="#c1" class="cite">[1]</a> <em>"How does failover work?"</em> → promote an existing reader on the shared volume, tens of seconds, no data copy.<a href="#c2" class="cite">[2]</a> <em>"How does it scale writes?"</em> → here you must be honest: it doesn't past one writer; you fan out reads, then shard or move to distributed SQL.<a href="#c4" class="cite">[4]</a> Mentioning the 6-copy / 4-of-6 quorum or background page coalescing signals hands-on depth without lecturing on what ACID means.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="aurora-honest-write-scaling-answer">
+        <p class="stem">Why should you answer "how does Aurora scale writes?" with an honest "it doesn't, past one writer" instead of describing the read-replica fan-out?</p>
+        <button class="opt">Because read replicas don't actually exist in Aurora, so there's nothing else to say</button>
+        <button class="opt">The question specifically asks about writes; conflating it with read scaling would misrepresent the architecture's actual ceiling to the interviewer</button>
+        <button class="opt">Because interviewers never ask about write scaling for managed databases</button>
+        <p class="fb">Precision about what the system can and can't do is the staff signal — dodging the real limit by talking about reads instead would be the senior-level mistake.</p>
+        <p class="hint">Reread the "how does it scale writes" follow-up and the ceiling paragraph in the previous chunk.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">6 of 6 — comprehensive check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also
+      seeds the spaced-review schedule — you'll see these again on future session starts
+      per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="c" data-concept="aurora-final-redo-only">
+        <p class="stem">What is the one thing an Aurora writer sends to storage on commit?</p>
+        <button class="opt">Full dirty data pages mirrored to a standby</button>
+        <button class="opt">The binary log plus every modified page</button>
+        <button class="opt">Only redo log records, applied to pages later by storage</button>
+        <p class="fb">"The log is the database" — only redo records cross the network on the commit path.</p>
+        <p class="hint">Reread chunk 2's opening idea.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="aurora-final-quorum-numbers">
+        <p class="stem">What is Aurora's replication and quorum scheme?</p>
+        <button class="opt">Six copies across three AZs, 4-of-6 write quorum, 3-of-6 read quorum</button>
+        <button class="opt">Three copies across one AZ, synchronous mirror to a single standby</button>
+        <button class="opt">Two copies across two AZs, unanimous quorum required for any write</button>
+        <p class="fb">6 copies / 3 AZs / 4-of-6 write / 3-of-6 read is the exact scheme that survives an AZ loss.</p>
+        <p class="hint">Reread the "6-way replication, 4/6 quorum" heading in chunk 2.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="aurora-final-replica-mechanism">
+        <p class="stem">Why can Aurora spin up a new read replica almost instantly?</p>
+        <button class="opt">Replicas pre-fetch data nightly from a backup snapshot</button>
+        <button class="opt">All compute instances attach to the same shared distributed storage volume</button>
+        <button class="opt">Replicas don't need any of the writer's data to begin serving reads</button>
+        <p class="fb">No re-replication needed — the reader just points at the existing shared volume.</p>
+        <p class="hint">Reread chunk 3's opening sentence.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="aurora-final-why-single-writer-persists">
+        <p class="stem">Storage-compute separation solved durability and I/O. Why didn't it also solve write scaling?</p>
+        <button class="opt">It did solve write scaling — Aurora clusters support unlimited writers</button>
+        <button class="opt">Write scaling was never a goal of the SIGMOD paper, so it's irrelevant</button>
+        <button class="opt">Coordinating concurrent writers' transaction order needs consensus, which a shared storage tier alone doesn't provide</button>
+        <p class="fb">Storage threw off the I/O bottleneck, but multiple writers still need to agree on transaction order — that's a consensus problem, which is what Spanner-class systems add and Aurora's single-writer model sidesteps.</p>
+        <p class="hint">Reread the "single-writer ceiling" reasoning in chunk 4.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="aurora-final-staff-vs-senior-answer">
+        <p class="stem">What separates a staff-level answer about Aurora from a senior-level one, per this lesson?</p>
+        <button class="opt">Explaining the log-is-the-database mechanism and proactively naming the single-writer ceiling before being asked</button>
+        <button class="opt">Listing every AWS marketing statistic about Aurora's throughput</button>
+        <button class="opt">Avoiding any mention of Aurora's limitations to sound confident</button>
+        <p class="fb">The staff move is explaining the mechanism that produces the benefits, then naming where it stops, unprompted.</p>
+        <p class="hint">Reread the staff-level signal callout in chunk 4.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Walk me through exactly why shipping redo-only beats mirroring pages, with the I/O math." · "Quiz me on the 4/6 and 3/6 quorum math and which failures Aurora survives." · "Give me a FAANG prompt and push me on when I'd pick Aurora versus Spanner or sharded Postgres."
@@ -186,21 +337,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

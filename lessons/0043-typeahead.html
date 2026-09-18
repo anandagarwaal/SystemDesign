@@ -61,22 +61,33 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -97,100 +108,171 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
-  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
-  <div class="asks">
-    <p class="lbl">Ask before you design</p>
-    <ul><li><b>“Are suggestions global popularity, or personalized per user?”</b> — Personalization breaks CDN caching of prefix responses.</li><li><b>“How fresh must trending queries be?”</b> — Minutes of staleness allows offline trie builds.</li><li><b>“Multiple languages or locales?”</b> — Locale multiplies tries and changes sharding.</li></ul>
-  </div>
-  <h2>Functional Requirements</h2>
-  <p>Strip the prompt to the few things the system must do. Typeahead is a read-dominated suggestion service.</p>
-  <table>
-    <tr><th>#</th><th>Requirement</th></tr>
-    <tr><td>1</td><td>As a user types a prefix, return the <b>top ~10 ranked completions</b> for that prefix, updated on each keystroke.<a href="#c1" class="cite">[1]</a></td></tr>
-    <tr><td>2</td><td>Suggestions are <b>ranked by popularity</b> (and lightly by recency), so common queries surface above rare ones.</td></tr>
-    <tr><td>3</td><td>The suggestion corpus is built from <b>what people actually search</b> — the trie is fed by aggregated query logs, not a static dictionary.</td></tr>
-  </table>
-  <p><b>Explicitly out of scope</b> (scoping out loud is a staff move): spell-correction / fuzzy matching, personalization per user, and multi-word semantic ranking. Pin it to prefix → popular completions and the design stays sharp. Say you'd add fuzzy matching as a follow-up rather than baking it into v1.</p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 8</p>
+    <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+    <div class="asks">
+      <p class="lbl">Ask before you design</p>
+      <ul><li><b>"Are suggestions global popularity, or personalized per user?"</b> — Personalization breaks CDN caching of prefix responses.</li><li><b>"How fresh must trending queries be?"</b> — Minutes of staleness allows offline trie builds.</li><li><b>"Multiple languages or locales?"</b> — Locale multiplies tries and changes sharding.</li></ul>
+    </div>
+    <h2>Functional Requirements</h2>
+    <p>Strip the prompt to the few things the system must do. Typeahead is a read-dominated suggestion service.</p>
+    <table>
+      <tr><th>#</th><th>Requirement</th></tr>
+      <tr><td>1</td><td>As a user types a prefix, return the <b>top ~10 ranked completions</b> for that prefix, updated on each keystroke.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>2</td><td>Suggestions are <b>ranked by popularity</b> (and lightly by recency), so common queries surface above rare ones.</td></tr>
+      <tr><td>3</td><td>The suggestion corpus is built from <b>what people actually search</b> — the trie is fed by aggregated query logs, not a static dictionary.</td></tr>
+    </table>
+    <p><b>Explicitly out of scope</b> (scoping out loud is a staff move): spell-correction / fuzzy matching, personalization per user, and multi-word semantic ranking. Pin it to prefix → popular completions and the design stays sharp. Say you'd add fuzzy matching as a follow-up rather than baking it into v1.</p>
 
-  <h2>Non-Functional Requirements</h2>
-  <table>
-    <tr><th>NFR</th><th>Target &amp; priority</th></tr>
-    <tr><td><b>Low latency (dominant)</b></td><td>Suggestions must return in <b>under ~100ms end-to-end</b>, ideally tens of ms server-side, or the UI feels laggy. This single constraint shapes everything.</td></tr>
-    <tr><td><b>Read-heavy scale</b></td><td>Reads dwarf writes by orders of magnitude — every keystroke is a read, but the corpus changes slowly. Optimize hard for reads.</td></tr>
-    <tr><td><b>Eventually-fresh ranking</b></td><td>A newly trending query can take minutes to hours to climb the rankings. Strict real-time freshness is <em>not</em> required.</td></tr>
-    <tr><td><b>High availability</b></td><td>Autocomplete is an enhancement, not the core flow — stale or degraded suggestions beat an error. Favor AP over CP here.</td></tr>
-  </table>
+    <h2>Non-Functional Requirements</h2>
+    <table>
+      <tr><th>NFR</th><th>Target &amp; priority</th></tr>
+      <tr><td><b>Low latency (dominant)</b></td><td>Suggestions must return in <b>under ~100ms end-to-end</b>, ideally tens of ms server-side, or the UI feels laggy. This single constraint shapes everything.</td></tr>
+      <tr><td><b>Read-heavy scale</b></td><td>Reads dwarf writes by orders of magnitude — every keystroke is a read, but the corpus changes slowly. Optimize hard for reads.</td></tr>
+      <tr><td><b>Eventually-fresh ranking</b></td><td>A newly trending query can take minutes to hours to climb the rankings. Strict real-time freshness is <em>not</em> required.</td></tr>
+      <tr><td><b>High availability</b></td><td>Autocomplete is an enhancement, not the core flow — stale or degraded suggestions beat an error. Favor AP over CP here.</td></tr>
+    </table>
 
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Notice the relaxations you <b>volunteer</b>: ranking can be eventually fresh, and suggestions can be slightly stale or approximate. Those two concessions are what let you precompute everything offline and serve from a read-only structure. A senior candidate tries to keep counts perfectly live and fights write amplification forever; a staff candidate negotiates "minutes-fresh is fine" up front and designs straight to a cheap, cacheable read path.
-  </div>
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Notice the relaxations you <b>volunteer</b>: ranking can be eventually fresh, and suggestions can be slightly stale or approximate. Those two concessions are what let you precompute everything offline and serve from a read-only structure. A senior candidate tries to keep counts perfectly live and fights write amplification forever; a staff candidate negotiates "minutes-fresh is fine" up front and designs straight to a cheap, cacheable read path.
+    </div>
 
-  <p class="transition"><span class="lbl">Say to move on →</span> “Latency under ~100 ms end-to-end dominates everything. Let me size prefix QPS.”</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Latency under ~100 ms end-to-end dominates everything. Let me size prefix QPS."</p>
 
-  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
-  <h2>Capacity Estimation</h2>
-  <p>Only the numbers that change the design. These are back-of-envelope estimates — derive them out loud, don't memorize them.</p>
-  <table>
-    <tr><th>Quantity</th><th>Estimate (my BOTE)</th><th>Design implication</th></tr>
-    <tr><td>Suggestion QPS</td><td>~500M searches/day, ~5–6 keystrokes each → ~3B prefix queries/day ≈ <b>~35k QPS</b> average, multiples higher at peak</td><td>Far too hot to recompute per request. Forces precomputation + heavy <a href="../lessons/0004-caching.html">caching</a>.</td></tr>
-    <tr><td>Distinct prefixes / phrases</td><td>Tens of millions of distinct popular queries; prefixes of those number in the <b>low billions</b></td><td>The trie is big but not insane. With top-K stored per node it's tens of GB — fits in memory across a handful of shards.</td></tr>
-    <tr><td>Read : write ratio</td><td><b>~1000 : 1</b> or more — corpus updates hourly/daily, reads are constant</td><td>Justifies a build-once / read-many design: precompute the trie offline, serve a read-only replica.</td></tr>
-  </table>
-  <p>The punchline: the answer per keystroke is tiny (10 short strings), traffic is enormous, and the data changes slowly. That asymmetry says <em>precompute aggressively, cache everything, and make reads touch almost nothing</em>.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="typeahead-nfr-relax">
+        <p class="stem">Which NFR relaxation is most critical to precompute the whole trie offline?</p>
+        <button class="opt">Rankings can be eventually fresh, not live</button>
+        <button class="opt">Objects stay cached indefinitely without timeout</button>
+        <button class="opt">Spell correction is optional and never needed</button>
+        <p class="fb">Accepting minutes of staleness lets the entire build+precompute happen offline, so every read is a lookup, not a compute.</p>
+        <p class="hint">What must be true about how fresh the top-K list is for you to build it once and reuse it?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="typeahead-latency-dominant">
+        <p class="stem">Why does "latency under 100ms" as the cardinal NFR immediately point toward precomputation over query-time ranking?</p>
+        <button class="opt">The network is so fast that 100ms is plenty of time for any algorithm</button>
+        <button class="opt">At millions of queries/s, computing top-K live would exceed the budget; precompute moves work offline</button>
+        <button class="opt">Users inherently prefer results that took longer to compute because they trust the ranking</button>
+        <p class="fb">The budget is fixed and tight. Every millisecond spent computing is a millisecond not spent on the network roundtrip.</p>
+        <p class="hint">If you have 35k QPS average and each query needs to sort, how many sorts per second must a single machine do?</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why not query the search logs database on each keystroke?”</p>
-    <p><b>Staff answer:</b> Aggregating popularity per prefix at tens of thousands of QPS within tens of milliseconds is impossible. Precompute top-K per prefix offline.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “~35k QPS average and answers of just 10 strings: precompute and cache. Let me define the API.”</p>
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 8</p>
+    <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
+    <h2>Capacity Estimation</h2>
+    <p>Only the numbers that change the design. These are back-of-envelope estimates — derive them out loud, don't memorize them.</p>
+    <table>
+      <tr><th>Quantity</th><th>Estimate (my BOTE)</th><th>Design implication</th></tr>
+      <tr><td>Suggestion QPS</td><td>~500M searches/day, ~5–6 keystrokes each → ~3B prefix queries/day ≈ <b>~35k QPS</b> average, multiples higher at peak</td><td>Far too hot to recompute per request. Forces precomputation + heavy <a href="../lessons/0004-caching.html">caching</a>.</td></tr>
+      <tr><td>Distinct prefixes / phrases</td><td>Tens of millions of distinct popular queries; prefixes of those number in the <b>low billions</b></td><td>The trie is big but not insane. With top-K stored per node it's tens of GB — fits in memory across a handful of shards.</td></tr>
+      <tr><td>Read : write ratio</td><td><b>~1000 : 1</b> or more — corpus updates hourly/daily, reads are constant</td><td>Justifies a build-once / read-many design: precompute the trie offline, serve a read-only replica.</td></tr>
+    </table>
+    <p>The punchline: the answer per keystroke is tiny (10 short strings), traffic is enormous, and the data changes slowly. That asymmetry says <em>precompute aggressively, cache everything, and make reads touch almost nothing</em>.</p>
 
-  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
-  <h2>Core Entities &amp; API</h2>
-  <p><b>Entities:</b> <code>Suggestion</code> (a completion string + its popularity score), <code>TrieNode</code> (a character/prefix that stores its own precomputed top-K list), and <code>QueryEvent</code> (a logged search that feeds ranking).<a href="#c1" class="cite">[1]</a></p>
-  <p>The hot path is one read endpoint. Logging a completed search is a separate, asynchronous write — it is <em>not</em> on the suggestion path.</p>
-  <table>
-    <tr><th>Endpoint</th><th>Purpose</th></tr>
-    <tr><td><code>GET /v1/suggestions?prefix={p}&amp;limit=10</code></td><td>Return the ranked completions <code>[{ phrase, score }]</code> for prefix <code>p</code>. Anonymous-readable; caller identity (if present) comes from the auth token, not the query.</td></tr>
-    <tr><td><code>POST /v1/search-events</code></td><td>Fire-and-forget log of a <em>completed</em> search <code>{ phrase, ts }</code>; user derived from the auth token. Feeds the offline ranking pipeline, never blocks reads.</td></tr>
-  </table>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"Why not query the search logs database on each keystroke?"</p>
+      <p><b>Staff answer:</b> Aggregating popularity per prefix at tens of thousands of QPS within tens of milliseconds is impossible. Precompute top-K per prefix offline.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "~35k QPS average and answers of just 10 strings: precompute and cache. Let me define the API."</p>
 
-  <h2>Data Model</h2>
-  <p>The serving structure is an <b>immutable, versioned trie snapshot</b>, not a mutable database: each build writes new shard files to object storage, replicas load them, and a version pointer flips atomically. Nodes store phrase <em>ids</em> in their top-K lists (strings live once in a dictionary), which is what keeps top-K-per-node affordable. Counts live in the streaming pipeline, never on the read path.</p>
-  <table>
-    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
-    <tr><td><b>QueryEvent</b> {normalized_phrase, locale, ts, session_hash}</td><td>Kafka <code>search-events</code></td><td>key = normalized phrase</td><td>Windowed counting</td></tr>
-    <tr><td><b>phrase_scores</b> (locale, phrase, count_1h, count_7d, decayed_score, updated_at)</td><td>Flink state → Cassandra snapshot per build</td><td>PK <code>(locale, phrase)</code></td><td>Input to the trie build; heavy hitters via count-min for the long tail</td></tr>
-    <tr><td><b>Phrase dictionary</b> (phrase_id, text)</td><td>Bundled in each trie version</td><td><code>phrase_id</code></td><td>Resolve ids in top-K lists</td></tr>
-    <tr><td><b>Trie shard file</b> (node → children, top-K [(phrase_id, score)])</td><td>S3 <code>trie/{locale}/{version}/{shard}.bin</code>, memory-mapped by replicas</td><td>shard = hash(prefix[:3]) mod N</td><td>O(prefix length) descent, then read the node's list</td></tr>
-    <tr><td><b>Shard map / active version</b></td><td>etcd / config service</td><td><code>/trie/{locale}/active</code></td><td>Atomic version flip; rollback = flip back</td></tr>
-    <tr><td><b>Prefix response cache</b></td><td>Redis + CDN</td><td><code>sugg:{locale}:{version}:{prefix}</code></td><td>TTL ~10 min; version in key invalidates on rebuild</td></tr>
-    <tr><td><b>Blocklist</b> (phrase_pattern, reason)</td><td>Postgres</td><td>PK pattern</td><td>Applied at build time and as a read-time filter for emergencies</td></tr>
-  </table>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="typeahead-qps-implication">
+        <p class="stem">~35k QPS of prefix queries. What makes precomputation non-optional?</p>
+        <button class="opt">Query latency is already fast enough without any optimization</button>
+        <button class="opt">Computing top-K on each request at that scale would exceed the latency budget</button>
+        <button class="opt">Precomputation is always better, regardless of the QPS number</button>
+        <p class="fb">35k sorts per second is an impossible workload per request; offline precompute lets the read be a lookup.</p>
+        <p class="hint">Estimate the compute needed: if you had to sort on every request, how many machines would you need just for sorting?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="typeahead-read-write-ratio">
+        <p class="stem">A 1000:1 read-to-write ratio. Why does that ratio specifically favor precomputation over incremental updates?</p>
+        <button class="opt">Amortizing one expensive offline build across 1000 reads makes the write amplification invisible</button>
+        <button class="opt">The ratio has no bearing on precomputation; both strategies would work equally well</button>
+        <button class="opt">1000:1 means you never need to update rankings or the trie at all</button>
+        <p class="fb">A massive read surplus means you can afford a heavier build because every read amortizes the cost. Per-read computation would kill latency.</p>
+        <p class="hint">If build costs $100 and you have 1000 queries, is that $100 per query or per batch?</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why is logging a completed search a separate async write?”</p>
-    <p><b>Staff answer:</b> The hot path must stay a pure read; logging feeds ranking via a stream and never adds latency to suggestions.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “One read endpoint, plus an async logging stream. Now the decoupled read and build paths.”</p>
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 8</p>
+    <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
+    <h2>Core Entities &amp; API</h2>
+    <p><b>Entities:</b> <code>Suggestion</code> (a completion string + its popularity score), <code>TrieNode</code> (a character/prefix that stores its own precomputed top-K list), and <code>QueryEvent</code> (a logged search that feeds ranking).<a href="#c1" class="cite">[1]</a></p>
+    <p>The hot path is one read endpoint. Logging a completed search is a separate, asynchronous write — it is <em>not</em> on the suggestion path.</p>
+    <table>
+      <tr><th>Endpoint</th><th>Purpose</th></tr>
+      <tr><td><code>GET /v1/suggestions?prefix={p}&amp;limit=10</code></td><td>Return the ranked completions <code>[{ phrase, score }]</code> for prefix <code>p</code>. Anonymous-readable; caller identity (if present) comes from the auth token, not the query.</td></tr>
+      <tr><td><code>POST /v1/search-events</code></td><td>Fire-and-forget log of a <em>completed</em> search <code>{ phrase, ts }</code>; user derived from the auth token. Feeds the offline ranking pipeline, never blocks reads.</td></tr>
+    </table>
 
-  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
-  <h2>Data Flow</h2>
-  <p>Typeahead has a real data-processing back end (query logs → ranked trie), so trace it before drawing boxes.</p>
-  <div class="box">
-    <ol style="margin:.2rem 0 .2rem 1.1rem; padding:0;">
-      <li><b>Collect</b> — completed searches land in a query log via <code>POST /v1/search-events</code>.</li>
-      <li><b>Aggregate</b> — a streaming pipeline counts phrase frequency over rolling windows, weighting recent activity.</li>
-      <li><b>Build</b> — a batch/stream job constructs (or updates) the trie, computing the <b>top-K completions at every node</b>.</li>
-      <li><b>Distribute</b> — the immutable trie is sharded by prefix and shipped to read replicas; popular prefixes are warmed into cache.</li>
-      <li><b>Serve</b> — <code>GET /v1/suggestions</code> hits CDN/cache first, then a trie replica for a single node lookup.</li>
-    </ol>
-  </div>
-  <p>Stages 2–4 are the offline brain (where ranking and the top-K layout live); stage 5 is the deliberately dumb, fast read path. The separation is the whole design.</p>
+    <h2>Data Model</h2>
+    <p>The serving structure is an <b>immutable, versioned trie snapshot</b>, not a mutable database: each build writes new shard files to object storage, replicas load them, and a version pointer flips atomically. Nodes store phrase <em>ids</em> in their top-K lists (strings live once in a dictionary), which is what keeps top-K-per-node affordable. Counts live in the streaming pipeline, never on the read path.</p>
+    <table>
+      <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+      <tr><td><b>QueryEvent</b> {normalized_phrase, locale, ts, session_hash}</td><td>Kafka <code>search-events</code></td><td>key = normalized phrase</td><td>Windowed counting</td></tr>
+      <tr><td><b>phrase_scores</b> (locale, phrase, count_1h, count_7d, decayed_score, updated_at)</td><td>Flink state → Cassandra snapshot per build</td><td>PK <code>(locale, phrase)</code></td><td>Input to the trie build; heavy hitters via count-min for the long tail</td></tr>
+      <tr><td><b>Phrase dictionary</b> (phrase_id, text)</td><td>Bundled in each trie version</td><td><code>phrase_id</code></td><td>Resolve ids in top-K lists</td></tr>
+      <tr><td><b>Trie shard file</b> (node → children, top-K [(phrase_id, score)])</td><td>S3 <code>trie/{locale}/{version}/{shard}.bin</code>, memory-mapped by replicas</td><td>shard = hash(prefix[:3]) mod N</td><td>O(prefix length) descent, then read the node's list</td></tr>
+      <tr><td><b>Shard map / active version</b></td><td>etcd / config service</td><td><code>/trie/{locale}/active</code></td><td>Atomic version flip; rollback = flip back</td></tr>
+      <tr><td><b>Prefix response cache</b></td><td>Redis + CDN</td><td><code>sugg:{locale}:{version}:{prefix}</code></td><td>TTL ~10 min; version in key invalidates on rebuild</td></tr>
+      <tr><td><b>Blocklist</b> (phrase_pattern, reason)</td><td>Postgres</td><td>PK pattern</td><td>Applied at build time and as a read-time filter for emergencies</td></tr>
+    </table>
 
-  <h2>Component Diagram</h2>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"Why is logging a completed search a separate async write?"</p>
+      <p><b>Staff answer:</b> The hot path must stay a pure read; logging feeds ranking via a stream and never adds latency to suggestions.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "One read endpoint, plus an async logging stream. Now the decoupled read and build paths."</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="typeahead-async-logging">
+        <p class="stem">Why decouple search-event logging from the GET suggestions path?</p>
+        <button class="opt">Logging immediately into a database updates rankings in real time</button>
+        <button class="opt">Reads stay pure and fast; logging feeds ranking offline so no request waits</button>
+        <button class="opt">Decoupling prevents the trie from ever being built or updated</button>
+        <p class="fb">A synchronous log write blocks the read path and breaks the latency budget. Async keeps reads at tens of ms.</p>
+        <p class="hint">If logging took 50ms and was in the critical path, how much would that eat of your 100ms budget?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="typeahead-immutable-trie">
+        <p class="stem">Why store the trie as an immutable versioned snapshot instead of a mutable database?</p>
+        <button class="opt">Immutability + versioning allows atomic swaps, rolling back, and read-only replicas without write coordination</button>
+        <button class="opt">Immutable data is always faster than mutable data in any system</button>
+        <button class="opt">Mutable tries cannot store top-K at all because updates would corrupt the list</button>
+        <p class="fb">Immutability means reads never compete with writers, replicas stay consistent across a version flip, and you can rollback instantly.</p>
+        <p class="hint">If the trie was mutable and two builders tried to update it, what coordination would you need?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 8</p>
+    <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+    <h2>Data Flow</h2>
+    <p>Typeahead has a real data-processing back end (query logs → ranked trie), so trace it before drawing boxes.</p>
+    <div class="box">
+      <ol style="margin:.2rem 0 .2rem 1.1rem; padding:0;">
+        <li><b>Collect</b> — completed searches land in a query log via <code>POST /v1/search-events</code>.</li>
+        <li><b>Aggregate</b> — a streaming pipeline counts phrase frequency over rolling windows, weighting recent activity.</li>
+        <li><b>Build</b> — a batch/stream job constructs (or updates) the trie, computing the <b>top-K completions at every node</b>.</li>
+        <li><b>Distribute</b> — the immutable trie is sharded by prefix and shipped to read replicas; popular prefixes are warmed into cache.</li>
+        <li><b>Serve</b> — <code>GET /v1/suggestions</code> hits CDN/cache first, then a trie replica for a single node lookup.</li>
+      </ol>
+    </div>
+    <p>Stages 2–4 are the offline brain (where ranking and the top-K layout live); stage 5 is the deliberately dumb, fast read path. The separation is the whole design.</p>
+
+    <h2>Component Diagram</h2>
 <pre class="diagram">
  READ PATH
  [Client: debounce 100 ms, local filter] --GET /v1/suggestions--&gt; [CDN edge cache]
@@ -207,223 +289,318 @@
  WRITE PATH (offline)                                                   |
  [Completed searches] --events--&gt; [Kafka query log] ------&gt; [Flink rank + trie build]
 </pre>
-  <p style="font-size:.85rem; color:var(--muted);">Reads touch the CDN, then Redis, then a single node lookup in an in-memory trie shard. The offline path counts completed searches, rebuilds the ranked trie every few minutes, publishes it to S3, and replicas swap versions atomically.</p>
+    <p style="font-size:.85rem; color:var(--muted);">Reads touch the CDN, then Redis, then a single node lookup in an in-memory trie shard. The offline path counts completed searches, rebuilds the ranked trie every few minutes, publishes it to S3, and replicas swap versions atomically.</p>
 
-  <h2>High-Level Design</h2>
-  <p>The write path (logging + rebuild) and the read path (suggestions) are fully decoupled — classic for a precompute-heavy system.</p>
-  <table>
-    <tr><th>Component</th><th>Role</th></tr>
-    <tr><td>Suggestion service (stateless)</td><td>Front door for <code>GET /v1/suggestions</code>; checks cache, then queries the right trie shard. Trivially replicable for read scale.</td></tr>
-    <tr><td>CDN + suggestion cache (Redis)</td><td>Absorbs the bulk of QPS. Popular prefixes (<code>"y" → youtube</code>) are served without ever touching the trie.<a href="#c1" class="cite">[1]</a></td></tr>
-    <tr><td>Trie store (sharded, in-memory)</td><td>The ranked prefix tree with top-K stored per node, <a href="../lessons/0005-sharding-and-consistent-hashing.html">sharded</a> by prefix; read-only replicas behind the service.</td></tr>
-    <tr><td>Query log (Kafka)</td><td>Durable buffer of completed-search events feeding the ranking pipeline; never on the read path.</td></tr>
-    <tr><td>Ranking / build pipeline (Flink/Spark)</td><td>Aggregates counts, computes scores, and rebuilds the top-K trie offline, publishing new versions.</td></tr>
-  </table>
-  <p><b>Read path:</b> <code>GET /v1/suggestions</code> → CDN/cache → (on miss) suggestion service → trie shard → single node lookup → return precomputed top-10. <b>Write path:</b> completed search → Kafka → pipeline aggregates &amp; ranks → rebuild trie → publish new immutable version → replicas swap atomically. Reads never wait on writes.</p>
+    <h2>High-Level Design</h2>
+    <p>The write path (logging + rebuild) and the read path (suggestions) are fully decoupled — classic for a precompute-heavy system.</p>
+    <table>
+      <tr><th>Component</th><th>Role</th></tr>
+      <tr><td>Suggestion service (stateless)</td><td>Front door for <code>GET /v1/suggestions</code>; checks cache, then queries the right trie shard. Trivially replicable for read scale.</td></tr>
+      <tr><td>CDN + suggestion cache (Redis)</td><td>Absorbs the bulk of QPS. Popular prefixes (<code>"y" → youtube</code>) are served without ever touching the trie.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Trie store (sharded, in-memory)</td><td>The ranked prefix tree with top-K stored per node, <a href="../lessons/0005-sharding-and-consistent-hashing.html">sharded</a> by prefix; read-only replicas behind the service.</td></tr>
+      <tr><td>Query log (Kafka)</td><td>Durable buffer of completed-search events feeding the ranking pipeline; never on the read path.</td></tr>
+      <tr><td>Ranking / build pipeline (Flink/Spark)</td><td>Aggregates counts, computes scores, and rebuilds the top-K trie offline, publishing new versions.</td></tr>
+    </table>
+    <p><b>Read path:</b> <code>GET /v1/suggestions</code> → CDN/cache → (on miss) suggestion service → trie shard → single node lookup → return precomputed top-10. <b>Write path:</b> completed search → Kafka → pipeline aggregates &amp; ranks → rebuild trie → publish new immutable version → replicas swap atomically. Reads never wait on writes.</p>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why a CDN in front of a suggestion service?”</p>
-    <p><b>Staff answer:</b> Short prefixes are shared by millions of users, so their responses are extremely cacheable. The CDN absorbs most traffic near users.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: the trie with top-K per node, precompute vs query time, sharding and ranking.”</p>
-
-  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
-  <h2>Deep Dives</h2>
-
-  <h3>1 · The trie with top-K stored at each node</h3>
-  <p>The naive trie stores the corpus and, at query time, descends to the prefix node and then walks its entire subtree collecting and sorting every descendant phrase. That subtree can hold thousands of completions; sorting them per keystroke under a 100ms budget at 35k+ QPS is the wall.<a href="#c1" class="cite">[1]</a></p>
-  <div class="box">
-    <b>The fix: precompute top-K <em>at</em> each node.</b> When the trie is built offline, every node caches the K (≈10) highest-ranked completions of its own subtree. A query for prefix <code>p</code> walks <code>p.length</code> nodes to the prefix node and reads its stored list — done. No subtree scan, no per-request sort.
-    <ul style="margin-top:.6rem;">
-      <li><b>Read cost:</b> O(length of prefix) to descend, then O(1) to grab the cached list. This is what buys the latency.</li>
-      <li><b>Cost paid:</b> extra storage (every node carries ~10 entries) and a heavier <em>build</em> — but build is offline and amortized over a million reads.</li>
-      <li>It's the same instinct as <a href="../lessons/0028-youtube-top-k.html">Top-K</a>: the result is tiny, so move the expensive ranking work off the hot path and store the answer.</li>
-    </ul>
-  </div>
-
-  <h3>2 · Precompute vs query-time top-K</h3>
-  <p>This is the core tradeoff fork, and naming both sides with a justified pick is the interview-relevant part.</p>
-  <table>
-    <tr><th>Approach</th><th>How it works</th><th>Cost / when</th></tr>
-    <tr><td><b>Query-time top-K</b></td><td>Store only the corpus; on each request descend, scan the subtree, rank, and return.</td><td>Cheap to build &amp; always fresh, but reads are slow and CPU-heavy. Only viable at low QPS or tiny subtrees.</td></tr>
-    <tr><td><b>Precomputed top-K</b></td><td>Build job ranks once and writes the top-K into every node; reads just read.</td><td>Fast, cacheable reads; costs storage and a rebuild lag. <b>The default</b> for this read:write ratio.</td></tr>
-  </table>
-  <p>Pick precompute, then state the honest cost: <b>staleness</b>. A new trending phrase isn't suggestable until the next rebuild. Mitigate with frequent incremental rebuilds (minutes) and a small "fresh/trending" overlay merged at read time if the interviewer pushes on real-time freshness — but only if asked. Don't over-engineer freshness the NFR didn't demand.</p>
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    The depth here isn't "use a trie" — it's articulating <em>why precompute wins</em> in one breath: "reads outnumber writes ~1000:1 and the answer is 10 strings, so I pay a one-time offline build to make every read O(prefix length); the cost is bounded staleness, which the eventually-fresh NFR already allows." Connecting the read:write asymmetry → precomputation → the staleness tradeoff → the NFR that licenses it is the staff move. Mentioning the query-time alternative and dismissing it <em>with a reason</em> shows judgment, not just recall.
-  </div>
-
-  <h3>3 · Sharding the trie by prefix — and the hot-prefix problem</h3>
-  <p>The trie is too big and too hot for one box, so <a href="../lessons/0005-sharding-and-consistent-hashing.html">shard</a> it. The natural key is the prefix itself — route all queries for prefixes starting <code>"a…"</code> to one shard, <code>"b…"</code> to another.</p>
-  <div class="box">
-    <b>The hot-prefix problem.</b> Prefix popularity is wildly skewed — short, common prefixes (<code>"a"</code>, <code>"th"</code>, <code>"yo"</code>) take a huge share of traffic, while most long prefixes are nearly idle.<a href="#c1" class="cite">[1]</a> Sharding by first letter dumps all that heat onto a few shards while others sit idle — a textbook hot-shard / celebrity problem.
-    <ul style="margin-top:.6rem;">
-      <li><b>Mitigation 1 — shard by a hash of the whole prefix</b> (e.g. first 2–3 chars hashed) to spread load more evenly, accepting that one logical prefix's data is co-located on one shard.</li>
-      <li><b>Mitigation 2 — cache the hot prefixes hard.</b> The skew that hurts sharding <em>helps</em> caching: a tiny set of popular prefixes serves most traffic, so a high cache/CDN hit rate means the hot shard is rarely touched at all.</li>
-      <li><b>Mitigation 3 — replicate hot shards</b> so reads for the hottest prefixes fan out across several replicas.</li>
-    </ul>
-  </div>
-  <p>The clean answer: hash-based sharding to flatten the distribution, <em>plus</em> caching popular prefixes so the long tail is what actually reaches the trie. Don't rely on one mechanism alone.</p>
-
-  <h3>4 · Ranking from a streaming pipeline; caching &amp; the latency budget</h3>
-  <p>Two coupled concerns close the design: where the popularity scores come from, and how the ~100ms budget is actually met.</p>
-  <p><b>Ranking by popularity &amp; recency.</b> Scores come from aggregated query counts, not guesses. Completed searches stream into Kafka; a processor (Flink/Spark) maintains windowed frequency counts and a recency-weighted score, then feeds the trie build. Because exact, perfectly-fresh counts aren't required, the pipeline can aggregate in rolling windows and even use approximate counters for the long tail — the same heavy-hitters logic as <a href="../lessons/0028-youtube-top-k.html">Top-K</a>. New rankings land on the next rebuild.</p>
-  <div class="box">
-    <b>Meeting the sub-100ms budget</b> is a stack of cheap wins, not one trick:
-    <ul style="margin-top:.4rem;">
-      <li><b>Client-side debouncing</b> — wait ~50–150ms after the last keystroke before firing a request, collapsing a burst of keystrokes into one call. This cuts QPS dramatically and is the first thing to mention.</li>
-      <li><b>CDN + edge cache</b> of popular-prefix responses — many keystrokes are answered before the request reaches your data center.<a href="#c1" class="cite">[1]</a></li>
-      <li><b>In-memory trie</b> with precomputed top-K — the server-side lookup is O(prefix length), no disk, no sort.</li>
-      <li><b>Prefetch &amp; trim on the client</b> — return a few extra results so the next keystroke can often be filtered locally without a round trip.</li>
-    </ul>
-  </div>
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Many candidates obsess over server internals and forget the cheapest latency win lives on the <b>client</b>: debouncing turns "a request per keystroke" into "a request per pause," slashing load by ~5–10×. Staff candidates reason about the <em>whole</em> latency budget — network RTT, edge cache, debounce, server lookup — and spend effort where the milliseconds actually are, rather than micro-optimizing a trie lookup that's already sub-millisecond.
-  </div>
-
-  <h2>Alternative Approaches &amp; Tradeoffs</h2>
-  <table>
-    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
-    <tr><td><b>A. Offline-built trie with top-K per node, sharded in memory, cached at CDN/Redis</b> (chosen)</td><td>As drawn</td><td>O(prefix) reads, tiny payloads, extremely cacheable, cheap</td><td>Minutes of staleness; custom build pipeline</td><td>Popularity-ranked global suggestions</td></tr>
-    <tr><td><b>B. Precomputed prefix → top-K table in a KV store</b></td><td>Batch job emits every prefix (up to ~20 chars) with its top-K list into Redis/DynamoDB; reads are a single GET</td><td>No trie code; one key lookup; trivially sharded by key hash</td><td>Many more keys (every prefix materialized); larger rebuild writes; partial updates harder</td><td>Simplest implementation when the prefix set is bounded</td></tr>
-    <tr><td><b>C. Search engine completion suggesters</b> (Elasticsearch completion/edge-n-gram fields)</td><td>Index phrases with weights; query-time FST lookups return top suggestions, with fuzzy matching and filters</td><td>Fuzzy/typo tolerance, per-user or per-context filters, fast to build</td><td>Heavier per-query compute; cluster cost at 100k QPS; ranking customization limited</td><td>When fuzzy matching or personalization are in scope</td></tr>
-  </table>
-  <p><b>Pick A</b> (or its simpler cousin B) because the NFR is pure latency at huge read volume; move toward C only when typo tolerance or personalization becomes a requirement.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why store top-K at every trie node?”</p>
-    <p><b>Staff answer:</b> A read becomes O(prefix length) plus returning a stored list, instead of traversing the whole subtree and sorting on each keystroke.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Production concerns, including filtering offensive suggestions.”</p>
-
-  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
-  <h2>Observability</h2>
-  <table>
-    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
-    <tr><td>Latency budget</td><td>Client-measured keystroke → suggestions rendered; server p50/p99; CDN vs Redis vs trie hit ratios</td><td>The &lt; 100 ms NFR lives on the client</td></tr>
-    <tr><td>Quality</td><td>Suggestion click-through rate by position, zero-result prefix rate, keystrokes saved per search</td><td>A broken build ships bad rankings silently</td></tr>
-    <tr><td>Shards</td><td>QPS and CPU per shard (hot-prefix skew), memory of loaded versions, version per replica</td><td>Mixed versions or hot shards</td></tr>
-    <tr><td>Pipeline</td><td>Kafka lag, build duration, last successful build time, phrases added/removed per build, blocklist hits</td><td>Freshness NFR</td></tr>
-    <tr><td>Logs &amp; traces</td><td>Sampled (0.1%) request traces; prefixes logged only in aggregate</td><td>Per-keystroke logging is both expensive and privacy-sensitive</td></tr>
-  </table>
-
-  <h2>Monitoring</h2>
-  <table>
-    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
-    <tr><td>Server p99 &lt; 20 ms; client p95 &lt; 100 ms</td><td>Above target for 10 min</td><td>Page</td></tr>
-    <tr><td>Availability 99.9% (fallback: empty suggestions, never errors in the UI)</td><td>Burn rate over 1 h / 6 h</td><td>Ticket (feature degrades gracefully)</td></tr>
-    <tr><td>Freshness: new build every ≤ 30 min</td><td>No successful build in 2 h</td><td>Ticket</td></tr>
-    <tr><td>Quality guardrail</td><td>CTR drops &gt; 10% after a version flip → auto-rollback</td><td>Page</td></tr>
-  </table>
-  <p><b>Synthetic probes:</b> fixed prefixes per locale ("wea" → "weather") checked from several regions every minute. <b>Dashboards:</b> latency waterfall (client, CDN, service, trie), cache hit ratios, build history.</p>
-
-  <h2>Authentication &amp; Authorization</h2>
-  <table>
-    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
-    <tr><td>Anyone → GET suggestions</td><td>None (public, CDN-cached)</td><td>Rate limited per IP/device at the edge</td></tr>
-    <tr><td>Client → POST search-events</td><td>Session token when signed in; anonymous session id otherwise</td><td>Events weighted by trust (signed-in, non-bot) to resist manipulation</td></tr>
-    <tr><td>Trust &amp; safety tools → blocklist</td><td>SSO + MFA</td><td>RBAC; emergency suppression audited</td></tr>
-    <tr><td>Build pipeline → S3, replicas → S3</td><td>IAM roles</td><td>Only the build job publishes versions; replicas read-only</td></tr>
-  </table>
-
-  <h2>Security</h2>
-  <table>
-    <tr><th>Threat</th><th>Mitigation</th></tr>
-    <tr><td>Suggestion manipulation (bots searching a phrase to push it into autocomplete)</td><td>Count distinct trusted users rather than raw events, bot filtering, velocity anomaly detection</td></tr>
-    <tr><td>Offensive or defamatory suggestions</td><td>Blocklists and classifiers at build time; fast emergency suppression path</td></tr>
-    <tr><td>Scraping / high-rate enumeration of the corpus</td><td>Edge rate limits, bot management</td></tr>
-    <tr><td>Cache poisoning</td><td>Responses generated only from trie data; cache keys include version and locale</td></tr>
-    <tr><td>Bad build published</td><td>Validation checks (size, CTR on shadow traffic) before version flip; one-step rollback</td></tr>
-    <tr><td>Baseline</td><td>TLS, encryption at rest for logs and S3, least-privilege IAM</td></tr>
-  </table>
-
-  <h2>Privacy</h2>
-  <p>Typed prefixes and search queries can contain <b>names, addresses, medical questions — even passwords typed in the wrong box</b>. <b>k-anonymity threshold:</b> a phrase becomes suggestable only if searched by at least N distinct users, so a private query never surfaces to others. <b>Minimization:</b> the suggestion endpoint doesn't log prefixes per user; search events carry a hashed, rotating session id; raw events retained ~30 days then aggregated. <b>PII filters</b> at build time drop phrases that look like emails, phone numbers or card numbers. <b>Removal:</b> legal/right-to-be-forgotten requests go into the blocklist and take effect at the next build (emergency read-time filter immediately).</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“How do you keep offensive or dangerous suggestions out?”</p>
-    <p><b>Staff answer:</b> Filter at build time with blocklists and classifiers, apply a serving-time blocklist that updates quickly, and never suggest personal data.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
-
-  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
-  <h2>Scaling 10× Without Changing the Architecture</h2>
-  <p>10× = ~1M prefix QPS at peak, 10× phrases and locales.</p>
-  <table>
-    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
-    <tr><td>CDN</td><td>~90B requests/month</td><td>~900B</td><td>CDN capacity; longer TTLs for short prefixes</td></tr>
-    <tr><td>Suggestion service</td><td>~10 nodes</td><td>~100</td><td>Stateless scale-out</td></tr>
-    <tr><td>Trie shards</td><td>8 shards × 3 replicas</td><td>More replicas (reads) and shards (size)</td><td>Add replicas for hot shards; re-shard by prefix hash</td></tr>
-    <tr><td>Redis</td><td>~20 GB</td><td>~200 GB</td><td>More cluster shards</td></tr>
-    <tr><td>Pipeline</td><td>Minutes-scale builds</td><td>10× events</td><td>More Kafka partitions and Flink parallelism; incremental builds</td></tr>
-  </table>
-  <p><b>First bottleneck:</b> build time growing past the freshness target — switch to incremental subtree rebuilds. <b>What forces a redesign:</b> per-user personalization, which breaks shared caching and adds a per-request ranking stage.</p>
-
-  <h2>Cost of Running</h2>
-  <p>Assumptions: ~3B prefix requests/day (~90B/month) after client debouncing, ~70% served from CDN cache, ~1 KB responses, ~50 GB trie per version, list prices from the course price sheet.</p>
-  <table>
-    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
-    <tr><td>CDN requests + egress</td><td>90B × $0.50/M + ~90 TB</td><td>$47,000</td></tr>
-    <tr><td>Trie shard replicas</td><td>24 memory-optimized nodes</td><td>$6,000</td></tr>
-    <tr><td>Pipeline (Kafka + Flink/Spark builds)</td><td>3 brokers + build cluster</td><td>$4,500</td></tr>
-    <tr><td>Suggestion service</td><td>~10 × 8 vCPU</td><td>$2,400</td></tr>
-    <tr><td>Redis cache, S3 versions, etcd</td><td></td><td>$800</td></tr>
-    <tr><td><b>Total</b></td><td></td><td><b>≈ $61,000</b></td></tr>
-  </table>
-  <p><b>Unit cost:</b> ≈ $0.70 per million keystroke requests. <b>Dominant driver:</b> per-request CDN charges — the backend is cheap. <b>Levers:</b> debounce longer and prefetch deeper (return 20 results so the next few keystrokes filter locally), and cache short-prefix responses in the client itself.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“What breaks at 10×?”</p>
-    <p><b>Staff answer:</b> Hot short prefixes on a shard. Add replicas for those shards and cache aggressively; client debouncing cuts load further.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “To recap:”</p>
-
-  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
-  <h2>Closing Summary (60 seconds)</h2>
-  <div class="summary"><p>Typeahead is a precompute-and-cache system. Search logs stream into an aggregation pipeline that periodically builds a trie with the top 10 completions stored at every node, sharded by prefix and loaded into memory. The read path is client debouncing → CDN → stateless suggestion service → trie shard, so each keystroke is an O(prefix) lookup returning a tiny payload in tens of milliseconds. Offensive terms are filtered at build and serving time. At 10× we add replicas and CDN capacity.</p></div>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="a">
-      <p class="stem">1. Why precompute and store the top-K completions at each trie node?</p>
-      <button class="opt">A read becomes a single node lookup, not a subtree scan</button>
-      <button class="opt">The entire trie can then fit inside one machine main memory</button>
-      <button class="opt">Every completion the service returns becomes correctly spelled by design now</button>
-      <button class="opt">Ranking results by popularity is no longer required at all here</button>
-      <p class="fb">Each node caches its subtree's top-K, so a query just descends the prefix and reads the list — O(prefix length), no per-request sort.</p>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"Why a CDN in front of a suggestion service?"</p>
+      <p><b>Staff answer:</b> Short prefixes are shared by millions of users, so their responses are extremely cacheable. The CDN absorbs most traffic near users.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. What is the main risk of sharding the trie by prefix range?</p>
-      <button class="opt">Cold shards waste memory holding rare prefixes nobody will ever search</button>
-      <button class="opt">A few popular prefixes create hot shards that receive most traffic</button>
-      <button class="opt">Word completions can span shards, so each read fans out widely</button>
-      <button class="opt">The trie can no longer store its precomputed top-K lists anywhere</button>
-      <p class="fb">Prefix popularity is heavily skewed, so first-letter sharding overloads a few hot shards. Hash-sharding plus caching the hot prefixes fixes it.</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Deep dives: the trie with top-K per node, precompute vs query time, sharding and ranking."</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="typeahead-hld-paths">
+        <p class="stem">In the HLD, why are read and write paths fully decoupled?</p>
+        <button class="opt">So writes can fail without breaking reads, but reads also fail immediately</button>
+        <button class="opt">Read is a lookup in precomputed data; write is offline ranking that never touches reads</button>
+        <button class="opt">Coupling them would speed up the read path by letting writes optimize it</button>
+        <p class="fb">Precomputation happens offline. Reads are just lookups. They don't need to coordinate.</p>
+        <p class="hint">When does the trie get built, relative to when a client does GET?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="typeahead-cdn-hit-rate">
+        <p class="stem">Why does the CDN see a very high hit rate on typeahead even with constantly changing results?</p>
+        <button class="opt">Short prefixes (a, th, yo) are global and shared; cache hits serve millions of users</button>
+        <button class="opt">The CDN cache is the same as the Redis cache, so results are always identical</button>
+        <button class="opt">Long prefixes are never queried, so the CDN only caches short strings</button>
+        <p class="fb">Prefix popularity is skewed: "y", "yo", "you" are queried by millions; each gets one cached response. Long prefixes are rare.</p>
+        <p class="hint">How many users in the world search for "apple"? How many search for "xyzabc"?</p>
+      </div>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">3. How are popularity counts kept fresh without slowing the read path?</p>
-      <button class="opt">Each typed keystroke synchronously writes the new count into the trie</button>
-      <button class="opt">Readers recompute every node's top-K list live on each incoming query</button>
-      <button class="opt">A streaming pipeline aggregates counts offline and updates the trie async</button>
-      <button class="opt">Counts live only inside the CDN and never reach the trie</button>
-      <p class="fb">Completed searches stream into Kafka; an offline pipeline aggregates scores and rebuilds the trie, so reads stay read-only and fast.</p>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 8</p>
+    <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
+    <h2>Deep Dives</h2>
+
+    <h3>1 · The trie with top-K stored at each node</h3>
+    <p>The naive trie stores the corpus and, at query time, descends to the prefix node and then walks its entire subtree collecting and sorting every descendant phrase. That subtree can hold thousands of completions; sorting them per keystroke under a 100ms budget at 35k+ QPS is the wall.<a href="#c1" class="cite">[1]</a></p>
+    <div class="box">
+      <b>The fix: precompute top-K <em>at</em> each node.</b> When the trie is built offline, every node caches the K (≈10) highest-ranked completions of its own subtree. A query for prefix <code>p</code> walks <code>p.length</code> nodes to the prefix node and reads its stored list — done. No subtree scan, no per-request sort.
+      <ul style="margin-top:.6rem;">
+        <li><b>Read cost:</b> O(length of prefix) to descend, then O(1) to grab the cached list. This is what buys the latency.</li>
+        <li><b>Cost paid:</b> extra storage (every node carries ~10 entries) and a heavier <em>build</em> — but build is offline and amortized over a million reads.</li>
+        <li>It's the same instinct as <a href="../lessons/0028-youtube-top-k.html">Top-K</a>: the result is tiny, so move the expensive ranking work off the hot path and store the answer.</li>
+      </ul>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">4. Which tactics together keep typeahead latency under the ~100ms budget?</p>
-      <button class="opt">Client-side debouncing plus CDN and cache hits on popular prefixes</button>
-      <button class="opt">Synchronous database writes on every keystroke across all the shards</button>
-      <button class="opt">Recomputing the global top-K from raw logs on each request</button>
-      <button class="opt">Routing each request through several extra microservice hops every time</button>
-      <p class="fb">Debouncing collapses keystroke bursts into one call, and CDN/cache answers popular prefixes near the edge before they hit the trie.</p>
+
+    <h3>2 · Precompute vs query-time top-K</h3>
+    <p>This is the core tradeoff fork, and naming both sides with a justified pick is the interview-relevant part.</p>
+    <table>
+      <tr><th>Approach</th><th>How it works</th><th>Cost / when</th></tr>
+      <tr><td><b>Query-time top-K</b></td><td>Store only the corpus; on each request descend, scan the subtree, rank, and return.</td><td>Cheap to build &amp; always fresh, but reads are slow and CPU-heavy. Only viable at low QPS or tiny subtrees.</td></tr>
+      <tr><td><b>Precomputed top-K</b></td><td>Build job ranks once and writes the top-K into every node; reads just read.</td><td>Fast, cacheable reads; costs storage and a rebuild lag. <b>The default</b> for this read:write ratio.</td></tr>
+    </table>
+    <p>Pick precompute, then state the honest cost: <b>staleness</b>. A new trending phrase isn't suggestable until the next rebuild. Mitigate with frequent incremental rebuilds (minutes) and a small "fresh/trending" overlay merged at read time if the interviewer pushes on real-time freshness — but only if asked. Don't over-engineer freshness the NFR didn't demand.</p>
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      The depth here isn't "use a trie" — it's articulating <em>why precompute wins</em> in one breath: "reads outnumber writes ~1000:1 and the answer is 10 strings, so I pay a one-time offline build to make every read O(prefix length); the cost is bounded staleness, which the eventually-fresh NFR already allows." Connecting the read:write asymmetry → precomputation → the staleness tradeoff → the NFR that licenses it is the staff move. Mentioning the query-time alternative and dismissing it <em>with a reason</em> shows judgment, not just recall.
     </div>
-  </div>
+
+    <h3>3 · Sharding the trie by prefix — and the hot-prefix problem</h3>
+    <p>The trie is too big and too hot for one box, so <a href="../lessons/0005-sharding-and-consistent-hashing.html">shard</a> it. The natural key is the prefix itself — route all queries for prefixes starting <code>"a…"</code> to one shard, <code>"b…"</code> to another.</p>
+    <div class="box">
+      <b>The hot-prefix problem.</b> Prefix popularity is wildly skewed — short, common prefixes (<code>"a"</code>, <code>"th"</code>, <code>"yo"</code>) take a huge share of traffic, while most long prefixes are nearly idle.<a href="#c1" class="cite">[1]</a> Sharding by first letter dumps all that heat onto a few shards while others sit idle — a textbook hot-shard / celebrity problem.
+      <ul style="margin-top:.6rem;">
+        <li><b>Mitigation 1 — shard by a hash of the whole prefix</b> (e.g. first 2–3 chars hashed) to spread load more evenly, accepting that one logical prefix's data is co-located on one shard.</li>
+        <li><b>Mitigation 2 — cache the hot prefixes hard.</b> The skew that hurts sharding <em>helps</em> caching: a tiny set of popular prefixes serves most traffic, so a high cache/CDN hit rate means the hot shard is rarely touched at all.</li>
+        <li><b>Mitigation 3 — replicate hot shards</b> so reads for the hottest prefixes fan out across several replicas.</li>
+      </ul>
+    </div>
+    <p>The clean answer: hash-based sharding to flatten the distribution, <em>plus</em> caching popular prefixes so the long tail is what actually reaches the trie. Don't rely on one mechanism alone.</p>
+
+    <h3>4 · Ranking from a streaming pipeline; caching &amp; the latency budget</h3>
+    <p>Two coupled concerns close the design: where the popularity scores come from, and how the ~100ms budget is actually met.</p>
+    <p><b>Ranking by popularity &amp; recency.</b> Scores come from aggregated query counts, not guesses. Completed searches stream into Kafka; a processor (Flink/Spark) maintains windowed frequency counts and a recency-weighted score, then feeds the trie build. Because exact, perfectly-fresh counts aren't required, the pipeline can aggregate in rolling windows and even use approximate counters for the long tail — the same heavy-hitters logic as <a href="../lessons/0028-youtube-top-k.html">Top-K</a>. New rankings land on the next rebuild.</p>
+    <div class="box">
+      <b>Meeting the sub-100ms budget</b> is a stack of cheap wins, not one trick:
+      <ul style="margin-top:.4rem;">
+        <li><b>Client-side debouncing</b> — wait ~50–150ms after the last keystroke before firing a request, collapsing a burst of keystrokes into one call. This cuts QPS dramatically and is the first thing to mention.</li>
+        <li><b>CDN + edge cache</b> of popular-prefix responses — many keystrokes are answered before the request reaches your data center.<a href="#c1" class="cite">[1]</a></li>
+        <li><b>In-memory trie</b> with precomputed top-K — the server-side lookup is O(prefix length), no disk, no sort.</li>
+        <li><b>Prefetch &amp; trim on the client</b> — return a few extra results so the next keystroke can often be filtered locally without a round trip.</li>
+      </ul>
+    </div>
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Many candidates obsess over server internals and forget the cheapest latency win lives on the <b>client</b>: debouncing turns "a request per keystroke" into "a request per pause," slashing load by ~5–10×. Staff candidates reason about the <em>whole</em> latency budget — network RTT, edge cache, debounce, server lookup — and spend effort where the milliseconds actually are, rather than micro-optimizing a trie lookup that's already sub-millisecond.
+    </div>
+
+    <h2>Alternative Approaches &amp; Tradeoffs</h2>
+    <table>
+      <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+      <tr><td><b>A. Offline-built trie with top-K per node, sharded in memory, cached at CDN/Redis</b> (chosen)</td><td>As drawn</td><td>O(prefix) reads, tiny payloads, extremely cacheable, cheap</td><td>Minutes of staleness; custom build pipeline</td><td>Popularity-ranked global suggestions</td></tr>
+      <tr><td><b>B. Precomputed prefix → top-K table in a KV store</b></td><td>Batch job emits every prefix (up to ~20 chars) with its top-K list into Redis/DynamoDB; reads are a single GET</td><td>No trie code; one key lookup; trivially sharded by key hash</td><td>Many more keys (every prefix materialized); larger rebuild writes; partial updates harder</td><td>Simplest implementation when the prefix set is bounded</td></tr>
+      <tr><td><b>C. Search engine completion suggesters</b> (Elasticsearch completion/edge-n-gram fields)</td><td>Index phrases with weights; query-time FST lookups return top suggestions, with fuzzy matching and filters</td><td>Fuzzy/typo tolerance, per-user or per-context filters, fast to build</td><td>Heavier per-query compute; cluster cost at 100k QPS; ranking customization limited</td><td>When fuzzy matching or personalization are in scope</td></tr>
+    </table>
+    <p><b>Pick A</b> (or its simpler cousin B) because the NFR is pure latency at huge read volume; move toward C only when typo tolerance or personalization becomes a requirement.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"Why store top-K at every trie node?"</p>
+      <p><b>Staff answer:</b> A read becomes O(prefix length) plus returning a stored list, instead of traversing the whole subtree and sorting on each keystroke.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Production concerns, including filtering offensive suggestions."</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="typeahead-topk-benefit">
+        <p class="stem">Why store top-K at every trie node instead of computing it at request time?</p>
+        <button class="opt">Reads become O(1) after descent; no per-request sort over potentially thousands of items</button>
+        <button class="opt">Nodes must store pointers; precomputing lets us remove the pointer indirection</button>
+        <button class="opt">Request-time computation is always slower, regardless of scale or read volume</button>
+        <p class="fb">Computing top-10 from thousands of descendants per request at 35k QPS is infeasible. Precompute once, read it repeatedly.</p>
+        <p class="hint">If a prefix subtree has 5,000 phrases and you need top-10, is that sort better done offline or on each of 35k requests?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="typeahead-hot-prefix-cache">
+        <p class="stem">Why does caching help solve the hot-prefix sharding problem?</p>
+        <button class="opt">Caching removes the shard entirely so there is no hot shard</button>
+        <button class="opt">A tiny set of popular prefixes gets cached; most traffic hits the cache, never the shards</button>
+        <button class="opt">Caching distributes the hot prefix load equally across all shards</button>
+        <p class="fb">Prefix popularity is skewed the same way that's bad for sharding — but it's gold for caching. Cache the few hot ones; long tail reaches shards evenly.</p>
+        <p class="hint">If "y" gets 10M requests and 90% hit the cache, how many actually reach the trie shard?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 8</p>
+    <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+    <h2>Observability</h2>
+    <table>
+      <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+      <tr><td>Latency budget</td><td>Client-measured keystroke → suggestions rendered; server p50/p99; CDN vs Redis vs trie hit ratios</td><td>The &lt; 100 ms NFR lives on the client</td></tr>
+      <tr><td>Quality</td><td>Suggestion click-through rate by position, zero-result prefix rate, keystrokes saved per search</td><td>A broken build ships bad rankings silently</td></tr>
+      <tr><td>Shards</td><td>QPS and CPU per shard (hot-prefix skew), memory of loaded versions, version per replica</td><td>Mixed versions or hot shards</td></tr>
+      <tr><td>Pipeline</td><td>Kafka lag, build duration, last successful build time, phrases added/removed per build, blocklist hits</td><td>Freshness NFR</td></tr>
+      <tr><td>Logs &amp; traces</td><td>Sampled (0.1%) request traces; prefixes logged only in aggregate</td><td>Per-keystroke logging is both expensive and privacy-sensitive</td></tr>
+    </table>
+
+    <h2>Monitoring</h2>
+    <table>
+      <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+      <tr><td>Server p99 &lt; 20 ms; client p95 &lt; 100 ms</td><td>Above target for 10 min</td><td>Page</td></tr>
+      <tr><td>Availability 99.9% (fallback: empty suggestions, never errors in the UI)</td><td>Burn rate over 1 h / 6 h</td><td>Ticket (feature degrades gracefully)</td></tr>
+      <tr><td>Freshness: new build every ≤ 30 min</td><td>No successful build in 2 h</td><td>Ticket</td></tr>
+      <tr><td>Quality guardrail</td><td>CTR drops &gt; 10% after a version flip → auto-rollback</td><td>Page</td></tr>
+    </table>
+    <p><b>Synthetic probes:</b> fixed prefixes per locale ("wea" → "weather") checked from several regions every minute. <b>Dashboards:</b> latency waterfall (client, CDN, service, trie), cache hit ratios, build history.</p>
+
+    <h2>Authentication &amp; Authorization</h2>
+    <table>
+      <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+      <tr><td>Anyone → GET suggestions</td><td>None (public, CDN-cached)</td><td>Rate limited per IP/device at the edge</td></tr>
+      <tr><td>Client → POST search-events</td><td>Session token when signed in; anonymous session id otherwise</td><td>Events weighted by trust (signed-in, non-bot) to resist manipulation</td></tr>
+      <tr><td>Trust &amp; safety tools → blocklist</td><td>SSO + MFA</td><td>RBAC; emergency suppression audited</td></tr>
+      <tr><td>Build pipeline → S3, replicas → S3</td><td>IAM roles</td><td>Only the build job publishes versions; replicas read-only</td></tr>
+    </table>
+
+    <h2>Security</h2>
+    <table>
+      <tr><th>Threat</th><th>Mitigation</th></tr>
+      <tr><td>Suggestion manipulation (bots searching a phrase to push it into autocomplete)</td><td>Count distinct trusted users rather than raw events, bot filtering, velocity anomaly detection</td></tr>
+      <tr><td>Offensive or defamatory suggestions</td><td>Blocklists and classifiers at build time; fast emergency suppression path</td></tr>
+      <tr><td>Scraping / high-rate enumeration of the corpus</td><td>Edge rate limits, bot management</td></tr>
+      <tr><td>Cache poisoning</td><td>Responses generated only from trie data; cache keys include version and locale</td></tr>
+      <tr><td>Bad build published</td><td>Validation checks (size, CTR on shadow traffic) before version flip; one-step rollback</td></tr>
+      <tr><td>Baseline</td><td>TLS, encryption at rest for logs and S3, least-privilege IAM</td></tr>
+    </table>
+
+    <h2>Privacy</h2>
+    <p>Typed prefixes and search queries can contain <b>names, addresses, medical questions — even passwords typed in the wrong box</b>. <b>k-anonymity threshold:</b> a phrase becomes suggestable only if searched by at least N distinct users, so a private query never surfaces to others. <b>Minimization:</b> the suggestion endpoint doesn't log prefixes per user; search events carry a hashed, rotating session id; raw events retained ~30 days then aggregated. <b>PII filters</b> at build time drop phrases that look like emails, phone numbers or card numbers. <b>Removal:</b> legal/right-to-be-forgotten requests go into the blocklist and take effect at the next build (emergency read-time filter immediately).</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"How do you keep offensive or dangerous suggestions out?"</p>
+      <p><b>Staff answer:</b> Filter at build time with blocklists and classifiers, apply a serving-time blocklist that updates quickly, and never suggest personal data.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Then 10× and cost."</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="typeahead-privacy-kanon">
+        <p class="stem">What does k-anonymity for suggestions accomplish?</p>
+        <button class="opt">Only phrases searched by N+ users are suggestable; private rare queries never surface</button>
+        <button class="opt">It requires all users to have identical IP addresses</button>
+        <button class="opt">It prevents any search from ever reaching the trie</button>
+        <p class="fb">If one user searches something unique, that phrase stays invisible until enough others search it — protecting outliers.</p>
+        <p class="hint">If someone searches their SSN, how many people need to search it for it to become a suggestion?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="typeahead-blocklist-timing">
+        <p class="stem">Why do you need both a build-time blocklist AND a serving-time emergency path?</p>
+        <button class="opt">The serving-time path ensures no suggestion is ever offensive regardless of the blocklist</button>
+        <button class="opt">Build-time is too slow for emergency; serving-time lets you suppress instantly; build-time catches new crud systematically</button>
+        <button class="opt">One of them is redundant; you only need either the build-time or serving-time filter</button>
+        <p class="fb">Build takes 5–10 minutes; an offensive trend can surface in seconds. Emergency suppression is immediate; systemic filtering happens at build.</p>
+        <p class="hint">If a phrase becomes trending and offensive right now, how long until the next build deploys it?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 8</p>
+    <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+    <h2>Scaling 10× Without Changing the Architecture</h2>
+    <p>10× = ~1M prefix QPS at peak, 10× phrases and locales.</p>
+    <table>
+      <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+      <tr><td>CDN</td><td>~90B requests/month</td><td>~900B</td><td>CDN capacity; longer TTLs for short prefixes</td></tr>
+      <tr><td>Suggestion service</td><td>~10 nodes</td><td>~100</td><td>Stateless scale-out</td></tr>
+      <tr><td>Trie shards</td><td>8 shards × 3 replicas</td><td>More replicas (reads) and shards (size)</td><td>Add replicas for hot shards; re-shard by prefix hash</td></tr>
+      <tr><td>Redis</td><td>~20 GB</td><td>~200 GB</td><td>More cluster shards</td></tr>
+      <tr><td>Pipeline</td><td>Minutes-scale builds</td><td>10× events</td><td>More Kafka partitions and Flink parallelism; incremental builds</td></tr>
+    </table>
+    <p><b>First bottleneck:</b> build time growing past the freshness target — switch to incremental subtree rebuilds. <b>What forces a redesign:</b> per-user personalization, which breaks shared caching and adds a per-request ranking stage.</p>
+
+    <h2>Cost of Running</h2>
+    <p>Assumptions: ~3B prefix requests/day (~90B/month) after client debouncing, ~70% served from CDN cache, ~1 KB responses, ~50 GB trie per version, list prices from the course price sheet.</p>
+    <table>
+      <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+      <tr><td>CDN requests + egress</td><td>90B × $0.50/M + ~90 TB</td><td>$47,000</td></tr>
+      <tr><td>Trie shard replicas</td><td>24 memory-optimized nodes</td><td>$6,000</td></tr>
+      <tr><td>Pipeline (Kafka + Flink/Spark builds)</td><td>3 brokers + build cluster</td><td>$4,500</td></tr>
+      <tr><td>Suggestion service</td><td>~10 × 8 vCPU</td><td>$2,400</td></tr>
+      <tr><td>Redis cache, S3 versions, etcd</td><td></td><td>$800</td></tr>
+      <tr><td><b>Total</b></td><td></td><td><b>≈ $61,000</b></td></tr>
+    </table>
+    <p><b>Unit cost:</b> ≈ $0.70 per million keystroke requests. <b>Dominant driver:</b> per-request CDN charges — the backend is cheap. <b>Levers:</b> debounce longer and prefetch deeper (return 20 results so the next few keystrokes filter locally), and cache short-prefix responses in the client itself.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"What breaks at 10×?"</p>
+      <p><b>Staff answer:</b> Hot short prefixes on a shard. Add replicas for those shards and cache aggressively; client debouncing cuts load further.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "To recap:"</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="typeahead-scale-bottleneck">
+        <p class="stem">At 10× scale, what is the first architectural bottleneck?</p>
+        <button class="opt">The CDN has infinite capacity and never saturates</button>
+        <button class="opt">Build time exceeds the freshness SLO; switch to incremental rebuilds</button>
+        <button class="opt">Queries can no longer be routed to the trie at all</button>
+        <p class="fb">3B queries × 10 means build pipeline must stay sub-30min; incremental updates solve it.</p>
+        <p class="hint">If builds currently take 10 minutes, and you 10× the data, what happens to build time?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="typeahead-cost-cdn-dominant">
+        <p class="stem">Why does the cost analysis show CDN is the dominant driver, not the backend?</p>
+        <button class="opt">CDN charges per-request; backend is amortized across millions of users</button>
+        <button class="opt">The backend doesn't actually cost anything if it's running already</button>
+        <button class="opt">CDN is always more expensive than any storage or compute service</button>
+        <p class="fb">90B requests × $0.50/M = $45k. The trie replicas (~$6k) and service (~$2.4k) are tiny by comparison.</p>
+        <p class="hint">Calculate: what fraction of cost is CDN vs the suggestion service nodes?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">8 of 8 — comprehensive check</p>
+    <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+    <h2>Closing Summary (60 seconds)</h2>
+    <div class="summary"><p>Typeahead is a precompute-and-cache system. Search logs stream into an aggregation pipeline that periodically builds a trie with the top 10 completions stored at every node, sharded by prefix and loaded into memory. The read path is client debouncing → CDN → stateless suggestion service → trie shard, so each keystroke is an O(prefix) lookup returning a tiny payload in tens of milliseconds. Offensive terms are filtered at build and serving time. At 10× we add replicas and CDN capacity.</p></div>
+
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed spaced review.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="typeahead-core-decision">
+        <p class="stem">The core L6 decision in typeahead design is:</p>
+        <button class="opt">Building a fast trie structure for prefix matching</button>
+        <button class="opt">Recognizing a latency problem and precomputing all answers offline</button>
+        <button class="opt">Choosing the best database to store suggestions</button>
+        <p class="fb">The system's entire shape comes from one insight: build once, read many times. Everything else follows.</p>
+        <p class="hint">What separates a staff candidate from a senior candidate on this problem?</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="typeahead-tradeoff-staleness">
+        <p class="stem">The honest cost of precomputing the trie is:</p>
+        <button class="opt">Staleness between builds; mitigated by frequent rebuilds and emergency blocklists</button>
+        <button class="opt">Suggestions can never be accurate or ranked properly</button>
+        <button class="opt">No cost; precomputation is strictly better in every way</button>
+        <p class="fb">Minutes of staleness is the price; the NFR said "eventually fresh" so it's paid and budgeted.</p>
+        <p class="hint">If a new trending phrase hits and the next build is in 5 minutes, when is it suggestable?</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="typeahead-latency-stack">
+        <p class="stem">Meeting the 100ms latency budget relies on which tactics? (Pick the one most often overlooked.)</p>
+        <button class="opt">Having a fast trie and plenty of replicas</button>
+        <button class="opt">Encrypting responses and using HTTPS</button>
+        <button class="opt">Client-side debouncing to collapse keystrokes into fewer requests</button>
+        <p class="fb">Debouncing is the cheapest win and the one most candidates skip, thinking the server internals matter most.</p>
+        <p class="hint">If debouncing saves 90% of requests, what is the actual network load?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="typeahead-why-async-logging">
+        <p class="stem">Why does decoupling search-event logging from reads justify calling this design "staff-level"?</p>
+        <button class="opt">Async logging is always faster than synchronous logging, so it's the obvious choice</button>
+        <button class="opt">It shows judgment: knowing the read path is sacred and that measurement feeds ranking offline</button>
+        <button class="opt">Decoupling is a generic principle everyone should apply everywhere</button>
+        <p class="fb">Recognizing that reads must stay pure fast, and that instrumentation is deferred work, is the insight that makes the rest work.</p>
+        <p class="hint">If you logged synchronously, what would happen to the 100ms SLO?</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic — push on it. Try: <em>"Walk me through building the top-K-per-node trie offline and swapping a new version in atomically."</em> · <em>"How would you add fuzzy / typo-tolerant matching without blowing the latency budget?"</em> · <em>"When would you reach for a search engine like Elasticsearch's completion suggester instead of a hand-rolled trie?"</em>
@@ -444,21 +621,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

@@ -61,22 +61,34 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
   .q{margin:1.3rem 0;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
   .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -91,6 +103,8 @@
     <strong>Why this lesson, for your mission:</strong> Hotel booking reads like a CRUD listing site until you notice that "is this room free for these dates?" is a <em>range-overlap consistency</em> question and that two guests can race for the last room on the same night. The L6/L7 signal is splitting the system into an availability-first <em>search/browse</em> path and a consistency-first <em>reservation</em> path, then picking the simplest correct concurrency mechanism for the latter. That same instinct powers <a href="../lessons/0015-ticketmaster.html">Ticketmaster</a> and <a href="../lessons/0023-online-auction.html">online auctions</a> — reuse it, don't reinvent it.
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 8</p>
   <div class="agenda">
     <p class="lbl">Interview walkthrough · 60 minutes</p>
     <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
@@ -128,6 +142,29 @@
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Consistency for reservations and availability for search, just like Ticketmaster. Let me size it.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="hotel-booking-consistency-split">
+      <p class="stem">Which consistency regime does this design apply where?</p>
+      <button class="opt">Strong consistency everywhere, for both search and reservations</button>
+      <button class="opt">Eventually consistent search, strongly consistent reservations</button>
+      <button class="opt">Eventually consistent reservations, strongly consistent search</button>
+      <p class="fb">Search is AP: staleness for a few seconds is fine. Reservations are CP: a room-night must never sell twice.</p>
+      <p class="hint">Reread the NFR table — which row is bolded and why?</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="hotel-booking-why-split-consistency">
+      <p class="stem">Why would forcing reservations to run through the same relaxed, cache-heavy path as search be dangerous?</p>
+      <button class="opt">A stale read could let two guests both believe the same room-night is free and both confirm it</button>
+      <button class="opt">Search traffic is too low in volume to justify a separate path from reservations</button>
+      <button class="opt">Reservations never need to read availability data before writing to it</button>
+      <p class="fb">Search tolerating staleness is fine because a stale search result is just a bad browse experience; the same staleness in the booking write path is a double-booked room.</p>
+      <p class="hint">Ask what a "stale" answer means concretely for a guest who is about to pay.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only estimate numbers that change a decision. Two facts matter; all figures here are my own back-of-envelope estimates.</p>
@@ -145,6 +182,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Searches outnumber bookings ~1000:1, and contention sits on a few hot room-nights. Let me define entities.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="hotel-booking-real-bottleneck">
+      <p class="stem">Given a few billion availability rows, what is the actual bottleneck?</p>
+      <button class="opt">Total disk storage for the availability table across all shards</button>
+      <button class="opt">The cost of running geo queries against billions of rows</button>
+      <button class="opt">Concurrent contention on a small, hot set of room-night rows</button>
+      <p class="fb">Rows are keyed lookups shardable by listing; the hard part is many guests racing for the same few room-nights, not volume.</p>
+      <p class="hint">Reread the pushback box on "isn't a few billion rows a storage problem?"</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="hotel-booking-why-readwrite-ratio-matters">
+      <p class="stem">Why does a ~1000:1 read-to-write ratio justify optimizing reads and writes independently, instead of one shared code path?</p>
+      <button class="opt">Writes are so rare they can be safely dropped without anyone noticing</button>
+      <button class="opt">Reads can tolerate looser guarantees at huge scale, while the rare write must stay correct even if it's slower</button>
+      <button class="opt">Reads and writes always require identical consistency guarantees in any system</button>
+      <p class="fb">A shared path forces the rare-but-critical write to inherit either the read path's laxness (unsafe) or its own strictness onto every read (slow at scale). Splitting lets each optimize for what it actually needs.</p>
+      <p class="hint">Think about what happens if the write path's correctness requirements leaked into every search request.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p>Entities: <b>Listing</b> (host id, geo lat/lng, type, amenities, nightly base price), <b>Availability</b> (listing id, date, status: <code>available | held | booked</code>, price for that night), and <b>Reservation</b> (guest id, listing id, check-in, check-out, total, status: <code>pending | confirmed | cancelled</code>).<a href="#c1" class="cite">[1]</a> The <code>status</code> on Availability is where the consistency story lives.</p>
@@ -180,6 +240,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Availability is a per-night row with status and price. Now search and reservation paths.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="hotel-booking-per-night-row-reason">
+      <p class="stem">Why does availability use one row per listing per night, not a stored date range?</p>
+      <button class="opt">It turns "free for these dates?" into a keyed-row lookup instead of a range-overlap scan</button>
+      <button class="opt">It cuts total storage compared to storing one row per reservation range</button>
+      <button class="opt">It removes the need for any index on the availability table</button>
+      <p class="fb">Per-night rows make quoting, locking, and checking availability all read the same simple keyed structure.</p>
+      <p class="hint">Reread the pushback: "why one row per night instead of date ranges?"</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="hotel-booking-why-exclusion-constraint-backstop">
+      <p class="stem">The design adds a Postgres exclusion constraint on reservations even though the app already checks availability before booking. What breaks if that constraint were removed?</p>
+      <button class="opt">Nothing breaks; the constraint is purely for query performance, not correctness</button>
+      <button class="opt">Search results would become stale immediately without the constraint present</button>
+      <button class="opt">A bug or race in the application logic could still let two overlapping bookings slip through undetected</button>
+      <p class="fb">Application-level checks can have bugs or races; the database constraint is the last line of defense that makes an overlapping booking physically impossible, independent of app code.</p>
+      <p class="hint">Ask what "physically impossible even if every hold mechanism above it fails" is describing.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Component Diagram</h2>
 <pre class="diagram">
@@ -213,6 +296,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: date-range and geo search, no double-booking, pricing and ranking.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="hotel-booking-only-writer-availability">
+      <p class="stem">Which component is the only writer of availability status?</p>
+      <button class="opt">The Search Service, after re-indexing from Elasticsearch</button>
+      <button class="opt">The Reservation Service, on hold, confirm, and cancel</button>
+      <button class="opt">The Listing Service, whenever a cache entry expires</button>
+      <p class="fb">Reservation Service owns every state change to availability; search and listing services only read replicas/caches.</p>
+      <p class="hint">Reread the HLD table's "Role" column for each component.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="hotel-booking-why-search-off-primary">
+      <p class="stem">Why does keeping search off the reservation database matter, beyond just "it's a different store"?</p>
+      <button class="opt">A spike in browse traffic can't slow down or contend with the booking write path if they share no critical-path infrastructure</button>
+      <button class="opt">Elasticsearch is required by law to be a separate physical server from Postgres</button>
+      <button class="opt">Search queries and reservation writes use the exact same SQL syntax either way</button>
+      <p class="fb">Isolating the high-volume, latency-sensitive read path from the low-volume, correctness-critical write path means neither can starve the other of resources.</p>
+      <p class="hint">Reread the pushback: "why keep search off the reservation database?"</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dive 1 — Availability search by date range + geo</h2>
   <p>A search is two filters ANDed together: "listings near (lat,lng) within radius" and "every night in [checkIn, checkOut) is available." Each needs a different index.</p>
@@ -293,6 +399,30 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness next.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="hotel-booking-staff-pick-hold">
+      <p class="stem">What is the staff pick for preventing a double-booking, and why?</p>
+      <button class="opt">A long FOR UPDATE row lock held open across the entire checkout window</button>
+      <button class="opt">A Redis hold with a TTL per night, backstopped by an OCC check at confirm</button>
+      <button class="opt">A nightly cron sweeper that resets every expired held row, alone</button>
+      <button class="opt">A search-index flag that hides any room already shown as booked</button>
+      <p class="fb">Ephemeral hold in Redis (TTL is the expiry), plus an OCC check inside the confirm transaction so even a Redis outage can't cause a double-book.</p>
+      <p class="hint">Reread the "staff pick — and why" box in Deep Dive 2.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="hotel-booking-why-atomic-multinight-hold">
+      <p class="stem">A guest books a 3-night stay. Why must the Redis hold acquire all three night-keys atomically via one Lua script, rather than one key at a time?</p>
+      <button class="opt">Lua scripts are simply faster than issuing three separate Redis commands</button>
+      <button class="opt">Redis cannot store more than one key per listing at all</button>
+      <button class="opt">Acquiring keys one at a time could leave the guest holding some nights but not all, with no clean way to back out the partial hold</button>
+      <p class="fb">If night 1 and 2 succeed but night 3 is taken by a racing guest, a non-atomic acquire leaves a half-held stay; the all-or-nothing script prevents that partial, unrecoverable state.</p>
+      <p class="hint">Picture two guests booking overlapping ranges where each is missing exactly one middle night.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -345,6 +475,30 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="hotel-booking-consistency-slo">
+      <p class="stem">Which SLO in this design is paged as the most severe, non-negotiable failure?</p>
+      <button class="opt">Any exclusion-constraint violation or overlapping confirmed reservations</button>
+      <button class="opt">Search freshness lagging by more than 60 seconds via CDC</button>
+      <button class="opt">Search p99 latency exceeding 500 milliseconds occasionally</button>
+      <p class="fb">Zero double bookings is the one SLO with no acceptable degraded state; everything else can degrade gracefully.</p>
+      <p class="hint">Reread the Monitoring table's Severity column.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="hotel-booking-why-address-hidden-until-booking">
+      <p class="stem">Why does the design hide a listing's exact address until after a confirmed booking, rather than always showing it in search results?</p>
+      <button class="opt">Exact addresses take up too much storage space in the search index</button>
+      <button class="opt">Revealing the precise address to any anonymous searcher creates safety and off-platform-booking risks with no offsetting benefit before payment</button>
+      <button class="opt">Geo search cannot technically function using exact street addresses</button>
+      <button class="opt">Hosts are legally required to keep their addresses secret from all guests</button>
+      <p class="fb">An approximate location circle is enough to evaluate a listing; the exact address is sensitive PII with no need-to-know until a real booking exists.</p>
+      <p class="hint">Reread the Privacy section's "exposure limits" sentence.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+  <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = 100M listings (~36B availability rows) or 10× search and booking traffic.</p>
@@ -379,46 +533,89 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="hotel-booking-tenx-first-bottleneck">
+      <p class="stem">At 10×, what is named as the first bottleneck the team would actually hit?</p>
+      <button class="opt">Running out of possible geohash prefixes to assign to new listings</button>
+      <button class="opt">The exclusion constraint failing to scale past a fixed row count</button>
+      <button class="opt">Keeping search availability fresh during peak booking seasons via CDC and indexing volume</button>
+      <p class="fb">CDC/indexing volume is the first thing to strain; a full architecture change isn't forced until dynamic per-request pricing at ~100×.</p>
+      <p class="hint">Reread the "First bottleneck" sentence right after the scaling table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="hotel-booking-why-photos-dominate-cost">
+      <p class="stem">The reservation core, which does all the hard consistency work, is cheap, while photo CDN egress is ~90% of cost. Why doesn't the harder engineering problem cost the most?</p>
+      <button class="opt">Reservations are low-volume keyed writes on small rows, while every browse serves many large images to a much bigger audience</button>
+      <button class="opt">Photo storage is billed at a much higher per-gigabyte rate than any database storage tier</button>
+      <button class="opt">Cost always tracks engineering difficulty directly, so this is an unusual exception with no clear cause</button>
+      <p class="fb">Cost follows bytes moved times request volume, not difficulty. Millions of daily searches each pulling ~10 photos dwarfs the comparatively rare, small reservation writes.</p>
+      <p class="hint">Reread the capacity numbers: read:write ratio and photos-per-view versus bookings-per-day.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-8" hidden>
+  <p class="chunk-label">8 of 8</p>
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Hotel booking splits an AP search path from a CP reservation path. Listings are indexed in Elasticsearch with geo and coarse availability via CDC, and results are ranked and cached. Availability and price are per-night rows sharded by listing. A reservation holds nights with a TTL key during payment and confirms in one transaction that flips all nights from available, backed by a database constraint, so a room-night can't be sold twice. It's the same hold-with-TTL pattern as Ticketmaster. At 10× we add shards and search replicas.</p></div>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why model availability as one row per listing per night?</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check — everything from this lesson</span>
+    <div class="q" data-correct="c" data-concept="hotel-booking-per-night-row-recall-final">
+      <p class="stem">Why model availability as one row per listing per night?</p>
       <button class="opt">It lets the search index stay perfectly fresh to the millisecond</button>
       <button class="opt">It removes the need for any hold during the reserve-pay window</button>
       <button class="opt">It turns a date-range check into a clean keyed-row lookup and lock</button>
       <button class="opt">It guarantees the nightly price is the same across all the dates</button>
       <p class="fb">Per-night rows make "free for these dates?" a lookup over those rows, and make the reservation transaction simple to lock and flip.</p>
+      <p class="hint">Reread the Data Model section's opening paragraph.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. What is the staff pick for preventing a double-booking?</p>
+    <div class="q" data-correct="b" data-concept="hotel-booking-staff-pick-recall-final">
+      <p class="stem">What is the staff pick for preventing a double-booking?</p>
       <button class="opt">A long FOR UPDATE row lock held open across the whole checkout</button>
       <button class="opt">A Redis hold with a TTL per night, plus an OCC check at confirm</button>
       <button class="opt">A nightly cron sweeper that resets every expired held row alone</button>
       <button class="opt">A search-index flag that hides any room already shown as booked</button>
       <p class="fb">Ephemeral hold in Redis (TTL = expiry), backstopped by an OCC check in the confirm transaction so even a Redis outage can't double-book.</p>
+      <p class="hint">Reread Deep Dive 2's mechanism table and staff-pick box.</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Why is search availability treated as only best-effort?</p>
+    <div class="q" data-correct="a" data-concept="hotel-booking-search-best-effort-final">
+      <p class="stem">Why is search availability treated as only best-effort?</p>
       <button class="opt">Bookings change it constantly; the reservation path is the real truth</button>
       <button class="opt">The geo index cannot represent calendar dates in any usable form</button>
       <button class="opt">Guests rarely filter their listing searches by check-in or check-out</button>
       <button class="opt">Strong consistency on reads is cheaper than caching the result pages</button>
       <p class="fb">Keeping every listing's calendar fresh in the index is too costly; search prunes, the reservation transaction is authoritative, so worst case is a "just taken" message.</p>
+      <p class="hint">Reread the "Why search availability is only best effort" box in Deep Dive 1.</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">4. Why pin the quoted total onto the reservation at reserve time?</p>
+    <div class="q" data-correct="c" data-concept="hotel-booking-pinned-price-final">
+      <p class="stem">Why pin the quoted total onto the reservation at reserve time?</p>
       <button class="opt">So the search ranking can sort listings by their cheapest total first</button>
       <button class="opt">So the cron sweeper knows which held rows it is allowed to release</button>
       <button class="opt">So a per-night price change mid-checkout cannot surprise the guest</button>
       <button class="opt">So the geo index and the listings database never drift out of sync</button>
       <p class="fb">Availability and price share the per-night row; freezing the total onto the Reservation makes the charge match what the guest saw.</p>
+      <p class="hint">Reread Deep Dive 3's last paragraph.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="hotel-booking-one-problem-three-costumes-final">
+      <p class="stem">This lesson claims double-booking, seat contention (Ticketmaster), and bid contention (auctions) are "one problem in three costumes." What is that shared underlying problem?</p>
+      <button class="opt">All three systems use the exact same database vendor under the hood</button>
+      <button class="opt">Multiple actors racing to claim exclusive ownership of one scarce, shared resource before anyone else does</button>
+      <button class="opt">All three systems are read-heavy and need the same caching strategy</button>
+      <p class="fb">A room-night, a seat, and a winning bid are all a single unit that can go to only one party — the ladder of lock → status+TTL → status+OCC → Redis+TTL solves that same race everywhere it appears.</p>
+      <p class="hint">Reread the staff-level signal box in Deep Dive 2 about recognizing patterns instead of inventing from scratch.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="hotel-booking-what-if-no-exclusion-final">
+      <p class="stem">Suppose Redis holds are working correctly, but the Postgres exclusion constraint is silently dropped. What is the actual consequence?</p>
+      <button class="opt">A bug in the confirm transaction's OCC logic could now let two overlapping reservations become confirmed with nothing left to stop it</button>
+      <button class="opt">Nothing changes at all, since Redis alone is fully sufficient to prevent every double-booking</button>
+      <button class="opt">Search results would instantly become inconsistent with the availability calendar</button>
+      <p class="fb">Redis holds reduce contention during the hold window, but the constraint is the final, database-enforced guarantee; removing it turns "belt and suspenders" into "belt only."</p>
+      <p class="hint">Reread the "belt and suspenders" bullet in the staff-pick box of Deep Dive 2.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic — push on the parts that feel shaky. Try:
@@ -445,21 +642,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

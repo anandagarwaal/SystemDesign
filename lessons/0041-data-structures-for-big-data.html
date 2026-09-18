@@ -43,22 +43,33 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,84 +84,181 @@
     <strong>Why this lesson, for your mission:</strong> At scale, "just store it in a set / hash map" silently becomes a multi-gigabyte memory bomb. The staff move is to recognize when <em>exact is unaffordable and approximate is fine</em>, then name the right probabilistic structure and its error profile in one breath. This is the single most reusable deep-dive lever across the case studies — it shows up in the crawler, Tinder, YouTube, and dedup pipelines.<a href="#c1" class="cite">[1]</a></p>
   </div>
 
-  <h2>1 · The big idea: trade a little accuracy for 1000× memory</h2>
-  <p>Probabilistic data structures (PDS) use <b>hash functions</b> to represent a huge set in a tiny, fixed footprint, returning an approximate answer with a <em>bounded, predictable error</em>.<a href="#c4" class="cite">[4]</a> When data grows to billions of items, exact counting and membership become prohibitively expensive; PDS deliver ~1000× memory reduction with a configurable error rate.<a href="#c2" class="cite">[2]</a> The decision rule:</p>
-  <div class="box">
-    <b>Reach for a probabilistic structure when</b> the dataset is huge, you can tolerate a small bounded error, and the exact structure (a set, a hash map of counters) won't fit in memory. <b>Stay exact when</b> the data is small or an error has real consequences (money, auth, correctness).<a href="#c1" class="cite">[1]</a>
-  </div>
-
-  <h2>2 · The cheat table — question → structure</h2>
-  <p>You pick the structure by the <em>question</em> you're asking, not the data. Memorize this row-by-row.<a href="#c1" class="cite">[1]</a><a href="#c5" class="cite">[5]</a></p>
-  <table>
-    <thead><tr><th>Question you're asking</th><th>Structure</th><th>Error type</th><th>Memory</th></tr></thead>
-    <tbody>
-      <tr><td>Is X in the set?</td><td><b>Bloom filter</b></td><td>False positives only — never false negatives</td><td>~bits per item</td></tr>
-      <tr><td>How many <em>unique</em> X?</td><td><b>HyperLogLog</b></td><td>±0.81% symmetric</td><td>~12 KB fixed<a href="#c2" class="cite">[2]</a></td></tr>
-      <tr><td>How often does X appear?</td><td><b>Count-Min Sketch</b></td><td>Over-counts only — never under</td><td>fixed matrix</td></tr>
-      <tr><td>What's the p99 latency?</td><td>t-digest</td><td>±1% at the tails</td><td>~10 KB</td></tr>
-      <tr><td>How similar are A and B?</td><td>MinHash / SimHash</td><td>±Jaccard estimate</td><td>small signature</td></tr>
-    </tbody>
-  </table>
-
-  <h2>3 · Bloom filter — set membership</h2>
-  <p>A bit array plus <em>k</em> hash functions. To add an item, hash it <em>k</em> ways and set those bits. To test membership, hash it <em>k</em> ways and check those bits: if <em>any</em> bit is 0 the item is <b>definitely absent</b>; if all are 1 it's <b>probably present</b>.<a href="#c5" class="cite">[5]</a> The asymmetry is the whole point — <b>zero false negatives, only false positives</b>. You tune the false-positive rate <code>p</code> with the bit-array size: <code>m = -n·ln(p) / (ln2)²</code>.<a href="#c1" class="cite">[1]</a></p>
-  <p>Classic uses: a web crawler's "have I seen this URL?" gate (a maybe-hit falls through to the authoritative DB), Tinder's "already swiped?" set, and <a href="0004-caching.html">cache penetration</a> defense. You met it in <a href="0035-web-crawler.html">Lesson 35</a> and <a href="0017-tinder.html">Lesson 17</a> — this is the same tool, generalized.</p>
-
-  <h2>4 · HyperLogLog — cardinality (count distinct)</h2>
-  <p>Counting 1 billion <em>unique</em> user IDs in an exact set costs ~12 <b>GB</b> of RAM. HyperLogLog (HLL) does it in ~12 <b>KB</b> — a million-to-one reduction — with ~0.81% standard error, regardless of how many items you add.<a href="#c2" class="cite">[2]</a> The trick: hash each element, count the <b>leading zeros</b> in the hash, and track the maximum seen across a set of registers. Seeing many leading zeros is statistically rare, so the max observed is a logarithmic proxy for cardinality; the estimate is the harmonic mean across registers.<a href="#c4" class="cite">[4]</a></p>
-  <p>Uses: unique visitors, distinct search terms, "how many unique videos were watched" — exactly the unique-view counting noted in <a href="0033-youtube.html">Lesson 33</a>. HLLs also <b>merge</b> (union two sketches by taking per-register maxima), which makes them perfect for distributed roll-ups.<a href="#c4" class="cite">[4]</a></p>
-
-  <h2>5 · Count-Min Sketch — frequency / heavy hitters</h2>
-  <p>A <code>d × w</code> matrix of counters with <em>d</em> hash functions, one per row. Insert: hash the item with each row and increment that cell. Query: hash with each row, read the <em>d</em> cells, return the <b>minimum</b>.<a href="#c4" class="cite">[4]</a> Collisions can only push counts <em>up</em>, so the minimum is an upper bound — <b>it over-counts but never under-counts</b>.<a href="#c5" class="cite">[5]</a> Fixed memory regardless of how many distinct keys stream through, O(1) per update.</p>
-  <p>Pair it with a min-heap to track the <b>top-K</b> heaviest items — the exact recipe from <a href="0028-youtube-top-k.html">Lesson 28</a> (trending videos), and the standard tool for network-traffic monitoring and abuse detection.<a href="#c3" class="cite">[3]</a></p>
-
-  <h2>6 · The honorable mentions</h2>
-  <table>
-    <thead><tr><th>Structure</th><th>One-line role</th></tr></thead>
-    <tbody>
-      <tr><td><b>t-digest</b></td><td>Streaming percentiles (p50/p99) in ~10 KB — the right answer for latency SLOs.<a href="#c5" class="cite">[5]</a></td></tr>
-      <tr><td><b>MinHash / SimHash</b></td><td>Near-duplicate detection by similarity fingerprint (deduping articles, pages) — see <a href="0014-news-aggregator.html">Lesson 14</a>.</td></tr>
-      <tr><td><b>LSM-tree + SSTables</b></td><td>Not probabilistic, but <em>the</em> big-data <em>storage</em> structure: buffer writes in memory, flush as immutable sorted files. Backs Cassandra/RocksDB and uses Bloom filters internally. See <a href="0003-databases-and-indexing.html">Lesson 03</a>.</td></tr>
-    </tbody>
-  </table>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Naming "Bloom filter" isn't the signal — <em>justifying it with its error direction</em> is. The staff sentence connects the NFR, the bottleneck, and the structure: <em>"exact dedup is 1.6 GB and we don't need certainty, so a Bloom filter gives O(1) membership with no false negatives — the only failure is occasionally re-skipping a novel item, invisible at this scale."</em> The deepest tell is choosing the structure by the <b>direction of acceptable error</b>: Bloom never says "no" wrongly; Count-Min never under-counts; HLL is symmetric ±0.81%. A senior builds exact-first and struggles to scale; staff negotiates the relaxed accuracy NFR up front and designs straight to kilobytes.<a href="#c3" class="cite">[3]</a></p>
-  </div>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="a">
-      <p class="stem">1. Which structure answers "have I seen this key?" with zero false negatives?</p>
-      <button class="opt">A Bloom filter over the set of previously seen keys</button>
-      <button class="opt">A HyperLogLog register array counting the seen keys</button>
-      <button class="opt">A Count-Min Sketch matrix tracking each key count</button>
-      <p class="fb">A Bloom filter never gives a false negative: "no" means definitely absent, "yes" means probably present.</p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 5</p>
+    <h2>The core idea: approximate answers, tiny footprint</h2>
+    <p>Probabilistic data structures (PDS) use <b>hash functions</b> to represent a huge set in a tiny, fixed footprint, returning an approximate answer with a <em>bounded, predictable error</em>.<a href="#c4" class="cite">[4]</a> When data grows to billions of items, exact counting and membership become prohibitively expensive; PDS deliver ~1000× memory reduction with a configurable error rate.<a href="#c2" class="cite">[2]</a></p>
+    <div class="box">
+      <b>Reach for a probabilistic structure when</b> the dataset is huge, you can tolerate a small bounded error, and the exact structure (a set, a hash map of counters) won't fit in memory. <b>Stay exact when</b> the data is small or an error has real consequences (money, auth, correctness).<a href="#c1" class="cite">[1]</a>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. You must count ~1B unique visitors in about 12 KB. Reach for…</p>
-      <button class="opt">A Count-Min Sketch with a wide counter matrix grid</button>
-      <button class="opt">A HyperLogLog with leading-zero register buckets set</button>
-      <button class="opt">A Bloom filter sized to hold one billion entries in</button>
-      <p class="fb">HyperLogLog estimates cardinality in ~12 KB fixed with ±0.81% error, regardless of set size.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="big-data-structures-pds-purpose">
+        <p class="stem">What is the main reason to use a probabilistic data structure?</p>
+        <button class="opt">To trade a small bounded error for massive memory savings at huge scale</button>
+        <button class="opt">To guarantee exact answers faster than any traditional algorithm could</button>
+        <button class="opt">To eliminate all errors at the cost of quadratic time complexity</button>
+        <p class="fb">PDS deliver ~1000× memory reduction with a configurable error rate — exactly when exact structures become unaffordable.</p>
+        <p class="hint">Reread the opening paragraph of this chunk.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="big-data-structures-when-not-pds">
+        <p class="stem">When should you stay exact instead of using a probabilistic structure?</p>
+        <button class="opt">Exact is always strictly better if the dataset fits in a larger server's memory</button>
+        <button class="opt">When data is small or an error carries real consequences like money or auth</button>
+        <button class="opt">Only if the interviewer explicitly says not to use probabilistic methods</button>
+        <p class="fb">Error has real consequences in auth, payments, and correctness paths — no approximation there, even if it's large.</p>
+        <p class="hint">What are three scenarios where being slightly wrong is genuinely unacceptable?</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. A Count-Min Sketch's frequency estimate errs in which direction?</p>
-      <button class="opt">It may over-count an item but it never under-counts</button>
-      <button class="opt">It may under-count an item but it never over-counts</button>
-      <button class="opt">It may drift in either direction quite unpredictably</button>
-      <p class="fb">Hash collisions only increase counters, so the minimum across rows is an upper bound — it never underestimates.</p>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 5</p>
+    <h2>The cheat table — question to structure</h2>
+    <p>You pick the structure by the <em>question</em> you're asking, not the data. Memorize this row-by-row.<a href="#c1" class="cite">[1]</a><a href="#c5" class="cite">[5]</a></p>
+    <table>
+      <thead><tr><th>Question you're asking</th><th>Structure</th><th>Error type</th><th>Memory</th></tr></thead>
+      <tbody>
+        <tr><td>Is X in the set?</td><td><b>Bloom filter</b></td><td>False positives only — never false negatives</td><td>~bits per item</td></tr>
+        <tr><td>How many <em>unique</em> X?</td><td><b>HyperLogLog</b></td><td>±0.81% symmetric</td><td>~12 KB fixed<a href="#c2" class="cite">[2]</a></td></tr>
+        <tr><td>How often does X appear?</td><td><b>Count-Min Sketch</b></td><td>Over-counts only — never under</td><td>fixed matrix</td></tr>
+        <tr><td>What's the p99 latency?</td><td>t-digest</td><td>±1% at the tails</td><td>~10 KB</td></tr>
+        <tr><td>How similar are A and B?</td><td>MinHash / SimHash</td><td>±Jaccard estimate</td><td>small signature</td></tr>
+      </tbody>
+    </table>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="big-data-structures-bloom-membership">
+        <p class="stem">Which structure answers "have I seen this key?" with zero false negatives?</p>
+        <button class="opt">A Bloom filter over the set of previously seen keys</button>
+        <button class="opt">A HyperLogLog register array counting the seen keys</button>
+        <button class="opt">A Count-Min Sketch matrix tracking each key count</button>
+        <p class="fb">A Bloom filter never gives a false negative: "no" means definitely absent, "yes" means probably present.</p>
+        <p class="hint">Look at the "Error type" column for Bloom filter in the table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="big-data-structures-hll-cardinality">
+        <p class="stem">Why does HyperLogLog fit cardinality counting in 12 KB regardless of how many billions of items arrive?</p>
+        <button class="opt">It stores one bit per possible item ID in a compressed bitmap</button>
+        <button class="opt">It tracks leading zeros in hashes, not the items themselves, so size is fixed</button>
+        <button class="opt">It randomly deletes older items to keep the structure bounded</button>
+        <p class="fb">The estimate is the harmonic mean of leading-zero buckets — the max observed leading zeros is a logarithmic proxy for cardinality, independent of the true count.</p>
+        <p class="hint">Reread the description of HLL in the next chunk — does it store every unique ID you've seen?</p>
+      </div>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">4. What actually justifies the accuracy loss of these structures?</p>
-      <button class="opt">They return fully exact answers using far less memory</button>
-      <button class="opt">They remove the need to ever shard the dataset at all</button>
-      <button class="opt">They use tiny fixed memory with a bounded error rate</button>
-      <p class="fb">PDS trade a small, bounded error for ~1000× memory savings and O(1) speed — worth it only when error is tolerable.</p>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 5</p>
+    <h2>Bloom filters and HyperLogLog in depth</h2>
+    <p><b>Bloom filter:</b> A bit array plus <em>k</em> hash functions. To add an item, hash it <em>k</em> ways and set those bits. To test membership, hash it <em>k</em> ways and check those bits: if <em>any</em> bit is 0 the item is <b>definitely absent</b>; if all are 1 it's <b>probably present</b>.<a href="#c5" class="cite">[5]</a> The asymmetry is the whole point — <b>zero false negatives, only false positives</b>. You tune the false-positive rate <code>p</code> with the bit-array size: <code>m = -n·ln(p) / (ln2)²</code>.<a href="#c1" class="cite">[1]</a></p>
+    <p>Classic uses: a web crawler's "have I seen this URL?" gate (a maybe-hit falls through to the authoritative DB), Tinder's "already swiped?" set, and <a href="0004-caching.html">cache penetration</a> defense. You met it in <a href="0035-web-crawler.html">Lesson 35</a> and <a href="0017-tinder.html">Lesson 17</a> — this is the same tool, generalized.</p>
+    <p><b>HyperLogLog:</b> Counting 1 billion <em>unique</em> user IDs in an exact set costs ~12 <b>GB</b> of RAM. HyperLogLog (HLL) does it in ~12 <b>KB</b> — a million-to-one reduction — with ~0.81% standard error, regardless of how many items you add.<a href="#c2" class="cite">[2]</a> The trick: hash each element, count the <b>leading zeros</b> in the hash, and track the maximum seen across a set of registers. Seeing many leading zeros is statistically rare, so the max observed is a logarithmic proxy for cardinality; the estimate is the harmonic mean across registers.<a href="#c4" class="cite">[4]</a></p>
+    <p>Uses: unique visitors, distinct search terms, "how many unique videos were watched" — exactly the unique-view counting noted in <a href="0033-youtube.html">Lesson 33</a>. HLLs also <b>merge</b> (union two sketches by taking per-register maxima), which makes them perfect for distributed roll-ups.<a href="#c4" class="cite">[4]</a></p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="big-data-structures-hll-scale">
+        <p class="stem">You must count 1B unique visitors in roughly 12 KB. Reach for…</p>
+        <button class="opt">A Count-Min Sketch with a very wide counter matrix grid</button>
+        <button class="opt">A HyperLogLog with leading-zero register buckets set</button>
+        <button class="opt">A Bloom filter sized to hold one billion entries in</button>
+        <p class="fb">HyperLogLog estimates cardinality in ~12 KB fixed with ±0.81% error, regardless of set size.</p>
+        <p class="hint">Which structure is specifically for counting unique items and fits in 12 KB?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="big-data-structures-bloom-why-asymmetry">
+        <p class="stem">Why can't a Bloom filter say "definitely present" only "probably present"?</p>
+        <button class="opt">Hash collisions from different items can set overlapping bits, causing false positives</button>
+        <button class="opt">It would require twice the memory as what a Bloom filter currently uses</button>
+        <button class="opt">Saying "definitely present" is not mathematically possible in computers</button>
+        <p class="fb">Multiple items can hash to overlapping bit positions; if all k bits are set, some bits could be from collision, not from the query item.</p>
+        <p class="hint">If you check the k hash bit positions and all are 1, could those 1s come from collisions with other items?</p>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 5</p>
+    <h2>Count-Min Sketch and the honorable mentions</h2>
+    <p><b>Count-Min Sketch:</b> A <code>d × w</code> matrix of counters with <em>d</em> hash functions, one per row. Insert: hash the item with each row and increment that cell. Query: hash with each row, read the <em>d</em> cells, return the <b>minimum</b>.<a href="#c4" class="cite">[4]</a> Collisions can only push counts <em>up</em>, so the minimum is an upper bound — <b>it over-counts but never under-counts</b>.<a href="#c5" class="cite">[5]</a> Fixed memory regardless of how many distinct keys stream through, O(1) per update.</p>
+    <p>Pair it with a min-heap to track the <b>top-K</b> heaviest items — the exact recipe from <a href="0028-youtube-top-k.html">Lesson 28</a> (trending videos), and the standard tool for network-traffic monitoring and abuse detection.<a href="#c3" class="cite">[3]</a></p>
+    <p><b>The honorable mentions:</b> <b>t-digest</b> streams percentiles (p50/p99) in ~10 KB — the right answer for latency SLOs.<a href="#c5" class="cite">[5]</a> <b>MinHash / SimHash</b> near-duplicate detection by similarity fingerprint (deduping articles, pages) — see <a href="0014-news-aggregator.html">Lesson 14</a>. <b>LSM-tree + SSTables</b> — not probabilistic, but <em>the</em> big-data <em>storage</em> structure: buffer writes in memory, flush as immutable sorted files. Backs Cassandra/RocksDB and uses Bloom filters internally. See <a href="0003-databases-and-indexing.html">Lesson 03</a>.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="big-data-structures-cms-error-direction">
+        <p class="stem">A Count-Min Sketch's frequency estimate errs in which direction?</p>
+        <button class="opt">It may over-count an item but it never under-counts</button>
+        <button class="opt">It may under-count an item but it never over-counts</button>
+        <button class="opt">It may drift in either direction unpredictably</button>
+        <p class="fb">Hash collisions only increase counters, so the minimum across rows is an upper bound — it never underestimates.</p>
+        <p class="hint">Reread the paragraph defining Count-Min Sketch.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="big-data-structures-error-direction-matters">
+        <p class="stem">Why does the direction of error matter for choosing between Bloom, HLL, and Count-Min?</p>
+        <button class="opt">Some directions are mathematically impossible in computers</button>
+        <button class="opt">The interviewer grades you on knowing all the error bounds by memory</button>
+        <button class="opt">The error direction matches the consequence — "never say no wrongly" vs. "never under-count" vs. "symmetric error"</button>
+        <p class="fb">Bloom (no false negatives) suits membership gates; CMS (no under-counts) suits fraud detection; HLL (symmetric ±0.81%) suits analytics aggregation.</p>
+        <p class="hint">If you're guarding against fraud and CMS over-counts, why is that safe? What if it under-counted?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 5</p>
+    <h2>Staff-level signal</h2>
+    <p>Naming "Bloom filter" isn't the signal — <em>justifying it with its error direction</em> is. The staff sentence connects the NFR, the bottleneck, and the structure: <em>"exact dedup is 1.6 GB and we don't need certainty, so a Bloom filter gives O(1) membership with no false negatives — the only failure is occasionally re-skipping a novel item, invisible at this scale."</em> The deepest tell is choosing the structure by the <b>direction of acceptable error</b>: Bloom never says "no" wrongly; Count-Min never under-counts; HLL is symmetric ±0.81%. A senior builds exact-first and struggles to scale; staff negotiates the relaxed accuracy NFR up front and designs straight to kilobytes.<a href="#c3" class="cite">[3]</a></p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="big-data-structures-choose-structure">
+        <p class="stem">What justifies the accuracy loss of these structures?</p>
+        <button class="opt">They return fully exact answers using far less memory overall</button>
+        <button class="opt">They remove the need to ever shard the dataset at all</button>
+        <button class="opt">They use tiny fixed memory with a bounded error rate</button>
+        <p class="fb">PDS trade a small, bounded error for ~1000× memory savings and O(1) speed — worth it only when error is tolerable.</p>
+        <p class="hint">Reread the opening paragraph of the lesson.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="big-data-structures-error-tradeoff-interview">
+        <p class="stem">In an interview, why does explaining the error direction of your chosen structure signal staff-level thinking?</p>
+        <button class="opt">Interviewers always already know all error bounds and will dislike you for restating them</button>
+        <button class="opt">It shows you've negotiated the accuracy NFR intentionally and matched the tool to the consequence</button>
+        <button class="opt">Only junior engineers ever describe errors; seniors know to hide them</button>
+        <p class="fb">Staff internalize that error direction is a feature, not a bug — it's the reason you picked this tool for this specific problem, proving deep design thinking.</p>
+        <p class="hint">Reread the staff signal paragraph — what's the "deepest tell" mentioned?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also seeds the spaced-review schedule — you'll see these again on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="big-data-structures-cms-top-k">
+        <p class="stem">Why pair Count-Min Sketch with a min-heap to track top-K?</p>
+        <button class="opt">The heap guarantees exact answers where CMS provides only approximation</button>
+        <button class="opt">CMS computes frequencies in O(1); the heap keeps the heaviest K items efficiently</button>
+        <button class="opt">A heap is required to make Count-Min Sketch work at all</button>
+        <p class="fb">CMS gives you O(1) frequency estimates; a heap sorts to find the top-K without storing all N items.</p>
+        <p class="hint">What does a min-heap do that CMS alone doesn't?</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="big-data-structures-hll-merge">
+        <p class="stem">Why can HyperLogLogs merge but Bloom filters only union if sized identically?</p>
+        <button class="opt">HLL merges by taking per-register maxima, losing no information; Bloom union assumes identical bit layout</button>
+        <button class="opt">HyperLogLogs are newer and therefore strictly more composable than Bloom filters</button>
+        <button class="opt">Merging is a feature only HLL supports; Bloom filters can never be combined</button>
+        <p class="fb">HLL tracks register maxima independently — merging two HLLs just re-maxes per bucket. Bloom bit union assumes identical dimensions.</p>
+        <p class="hint">What does merging do mechanically in each structure?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="big-data-structures-final-choose-rule">
+        <p class="stem">If asked "when do you reach for a probabilistic structure," which reason is most fundamental?</p>
+        <button class="opt">Probabilistic structures are faster than any exact algorithm for all workloads</button>
+        <button class="opt">They are cheaper than exact structures if you have enough money for better servers</button>
+        <button class="opt">The exact structure simply won't fit in memory, and you can tolerate bounded error</button>
+        <p class="fb">When exact is unaffordable (memory or speed) and error is tolerable, probabilistic structures are the only option that works at scale.</p>
+        <p class="hint">Reread the decision rule in the first chunk's box.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic — drill me. Try: <em>"Walk me through sizing a Bloom filter for 10B URLs at a 1% false-positive rate."</em> · <em>"Why can HyperLogLogs be merged but Bloom filters only unioned if sized identically?"</em> · <em>"Give me three FAANG prompts and quiz me on which structure I'd reach for and its error direction."</em>
@@ -175,21 +283,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

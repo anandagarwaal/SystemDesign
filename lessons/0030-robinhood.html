@@ -61,22 +61,33 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -91,97 +102,169 @@
     <strong>Why this lesson, for your mission:</strong> Trading is the canonical interview where you must <em>refuse</em> to treat the whole system uniformly. The price path can drop a tick and nobody dies; the order path can never lose, duplicate, or misreport a trade. Staff candidates split these two paths on the first whiteboard stroke and pick wildly different consistency, durability, and delivery guarantees for each. That split — plus idempotent submission and an append-only ledger — is the whole interview.
   </div>
 
-  <div class="agenda">
-    <p class="lbl">Interview walkthrough · 60 minutes</p>
-    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
-    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
-  </div>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 8 — Phase 1 · Clarify the problem</p>
 
-  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
-  <div class="asks">
-    <p class="lbl">Ask before you design</p>
-    <ul><li><b>“Are we a broker routing orders to exchanges, or the exchange matching orders?”</b> — A broker doesn't build a matching engine; it integrates with external venues.</li><li><b>“Must every price tick reach clients, or is conflation acceptable?”</b> — Conflated updates make fan-out to millions tractable.</li><li><b>“Which order types — market, limit, stop?”</b> — Limit orders introduce long-lived open states and async fills.</li></ul>
-  </div>
-  <h2>Functional Requirements</h2>
-  <p>Robinhood is a <b>broker, not an exchange</b> — it doesn't match buyers to sellers itself; it routes orders to external market makers / exchanges and reflects the result back.<a href="#c1" class="cite">[1]</a> Scope the three things a user actually does:</p>
-  <table>
-    <tr><th>#</th><th>User can…</th><th>Why it shapes the design</th></tr>
-    <tr><td>1</td><td>View <b>live prices</b> for the symbols on their watchlist</td><td>Real-time, high-fan-out, lossy-tolerant <em>read</em> path</td></tr>
-    <tr><td>2</td><td>Place a <b>buy / sell order</b> (market or limit), routed to an external exchange</td><td>Correctness-critical <em>write</em> path with an external dependency</td></tr>
-    <tr><td>3</td><td>View their <b>portfolio / positions</b> (holdings, cost basis, value)</td><td>Derived from the order/fill history — a computed read</td></tr>
-  </table>
-  <p><b>Out of scope</b> (say so explicitly): options, crypto, ETFs, extended-hours trading, and showing the full exchange order book.<a href="#c1" class="cite">[1]</a> Naming exclusions is itself a senior signal — it bounds the 45 minutes.</p>
+    <div class="agenda">
+      <p class="lbl">Interview walkthrough · 60 minutes</p>
+      <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
+      <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
+    </div>
 
-  <h2>Non-Functional Requirements</h2>
-  <p>This is where you draw the line down the middle of the system. The two paths get <em>opposite</em> guarantees, and saying so out loud is the headline move.</p>
-  <table>
-    <tr><th>NFR</th><th>Target / priority</th><th>Applies to</th></tr>
-    <tr><td><b>Real-time delivery</b></td><td>Price updates pushed to clients in &lt;~200&nbsp;ms; lossy is acceptable (a dropped tick is superseded by the next)</td><td>Price path</td></tr>
-    <tr><td><b>Correctness &amp; strong consistency</b></td><td>No lost, duplicated, or phantom orders — ever. An order is in exactly one state at all times</td><td>Order path</td></tr>
-    <tr><td><b>Durability &amp; auditability</b></td><td>Every state change persisted before acknowledged; full append-only audit trail for regulators</td><td>Order path</td></tr>
-    <tr><td><b>Low latency on submit</b></td><td>Order accepted/rejected fast; fills arrive asynchronously</td><td>Order path</td></tr>
-    <tr><td><b>Availability</b></td><td>High, with brutal load spikes at market open (9:30 ET)</td><td>Both</td></tr>
-  </table>
-  <div class="box">
-    <b>The one sentence that frames everything:</b> "Prices are <b>soft real-time and lossy</b>; orders are <b>strongly consistent and durable</b>. I'll build two separate paths so neither compromises the other." Say this before any boxes.
-  </div>
+    <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+    <div class="asks">
+      <p class="lbl">Ask before you design</p>
+      <ul><li><b>“Are we a broker routing orders to exchanges, or the exchange matching orders?”</b> — A broker doesn't build a matching engine; it integrates with external venues.</li><li><b>“Must every price tick reach clients, or is conflation acceptable?”</b> — Conflated updates make fan-out to millions tractable.</li><li><b>“Which order types — market, limit, stop?”</b> — Limit orders introduce long-lived open states and async fills.</li></ul>
+    </div>
+    <h2>Functional Requirements</h2>
+    <p>Robinhood is a <b>broker, not an exchange</b> — it doesn't match buyers to sellers itself; it routes orders to external market makers / exchanges and reflects the result back.<a href="#c1" class="cite">[1]</a> Scope the three things a user actually does:</p>
+    <table>
+      <tr><th>#</th><th>User can…</th><th>Why it shapes the design</th></tr>
+      <tr><td>1</td><td>View <b>live prices</b> for the symbols on their watchlist</td><td>Real-time, high-fan-out, lossy-tolerant <em>read</em> path</td></tr>
+      <tr><td>2</td><td>Place a <b>buy / sell order</b> (market or limit), routed to an external exchange</td><td>Correctness-critical <em>write</em> path with an external dependency</td></tr>
+      <tr><td>3</td><td>View their <b>portfolio / positions</b> (holdings, cost basis, value)</td><td>Derived from the order/fill history — a computed read</td></tr>
+    </table>
+    <p><b>Out of scope</b> (say so explicitly): options, crypto, ETFs, extended-hours trading, and showing the full exchange order book.<a href="#c1" class="cite">[1]</a> Naming exclusions is itself a senior signal — it bounds the 45 minutes.</p>
 
-  <p class="transition"><span class="lbl">Say to move on →</span> “Two paths with opposite guarantees: lossy real-time prices and exact orders. Let me size both.”</p>
+    <h2>Non-Functional Requirements</h2>
+    <p>This is where you draw the line down the middle of the system. The two paths get <em>opposite</em> guarantees, and saying so out loud is the headline move.</p>
+    <table>
+      <tr><th>NFR</th><th>Target / priority</th><th>Applies to</th></tr>
+      <tr><td><b>Real-time delivery</b></td><td>Price updates pushed to clients in &lt;~200&nbsp;ms; lossy is acceptable (a dropped tick is superseded by the next)</td><td>Price path</td></tr>
+      <tr><td><b>Correctness &amp; strong consistency</b></td><td>No lost, duplicated, or phantom orders — ever. An order is in exactly one state at all times</td><td>Order path</td></tr>
+      <tr><td><b>Durability &amp; auditability</b></td><td>Every state change persisted before acknowledged; full append-only audit trail for regulators</td><td>Order path</td></tr>
+      <tr><td><b>Low latency on submit</b></td><td>Order accepted/rejected fast; fills arrive asynchronously</td><td>Order path</td></tr>
+      <tr><td><b>Availability</b></td><td>High, with brutal load spikes at market open (9:30 ET)</td><td>Both</td></tr>
+    </table>
+    <div class="box">
+      <b>The one sentence that frames everything:</b> "Prices are <b>soft real-time and lossy</b>; orders are <b>strongly consistent and durable</b>. I'll build two separate paths so neither compromises the other." Say this before any boxes.
+    </div>
 
-  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
-  <h2>Capacity Estimation</h2>
-  <p>Estimate only the numbers that <em>change a decision</em>. Two dominate: price fan-out and order throughput.</p>
-  <table>
-    <tr><th>Quantity</th><th>Rough math</th><th>Design implication</th></tr>
-    <tr><td>Concurrent users at open</td><td>~20M active, say 10M connected at once</td><td>10M live WebSocket connections → need a horizontally-scaled connection tier</td></tr>
-    <tr><td>Price update <b>fan-out</b></td><td>A hot symbol (AAPL) ticks many times/sec and is watched by millions. Naive: ticks × watchers = billions of msgs/sec</td><td>Cannot broadcast every tick to everyone. Must subscribe clients only to symbols they watch + collapse update rate</td></tr>
-    <tr><td>Order volume</td><td>20M users × a few orders/day ≈ low millions/day ≈ <b>tens–hundreds of orders/sec</b>, spiking at open/close</td><td>Tiny compared to prices. The order path is bound by <em>correctness</em>, not throughput — a single Postgres can hold the ledger</td></tr>
-  </table>
-  <p>The asymmetry is the punchline: the price path is a <b>scale</b> problem (millions of connections, huge fan-out) while the order path is a <b>correctness</b> problem (modest volume, zero tolerance for error). Different problems → different machines.</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Two paths with opposite guarantees: lossy real-time prices and exact orders. Let me size both.”</p>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why not broadcast every tick to every client?”</p>
-    <p><b>Staff answer:</b> Hot symbols tick many times a second to millions of watchers, which means billions of messages. Subscribe clients only to their watchlist and conflate to a few updates per second.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Prices are a fan-out problem with ~10M sockets; orders are low volume but zero-error. Let me define entities and endpoints.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="robinhood-broker-not-exchange">
+        <p class="stem">Why does the design treat Robinhood as a broker rather than an exchange?</p>
+        <button class="opt">It matches buyers and sellers internally using its own book</button>
+        <button class="opt">It routes orders out to external exchanges and reflects results back</button>
+        <button class="opt">It skips order routing entirely and only shows price quotes</button>
+        <p class="fb">Robinhood doesn't build a matching engine; it integrates with external venues and relays fills.</p>
+        <p class="hint">Reread the first line under Functional Requirements.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="robinhood-nfr-split-why">
+        <p class="stem">Why must the price path and the order path get opposite consistency guarantees instead of one uniform standard?</p>
+        <button class="opt">A dropped tick is harmless since the next one supersedes it, but a dropped or duplicate order is a real financial loss</button>
+        <button class="opt">Prices change too slowly to need any consistency guarantee at all in practice</button>
+        <button class="opt">Regulators require every subsystem in a brokerage to share one uniform guarantee</button>
+        <p class="fb">Lossy-but-fast serves prices well; the order path needs zero tolerance for loss or duplication because real money moves.</p>
+        <p class="hint">Look at the boxed sentence: what does "lossy" cost you on prices versus on orders?</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
-  <h2>Core Entities &amp; API</h2>
-  <p><b>Entities:</b> <code>User</code>, <code>Symbol</code> (ticker + current quote), <code>Order</code> (the durable state machine: side, qty, type, status), <code>Execution/Fill</code> (a confirmed match from the exchange), <code>Position</code> (computed holding per symbol), and an append-only <code>LedgerEntry</code>.</p>
-  <p>User identity comes from the auth token, never the body.</p>
-  <table>
-    <tr><th>Endpoint</th><th>Purpose</th></tr>
-    <tr><td><code>WS /v1/prices?symbols=AAPL,TSLA</code></td><td>Open a WebSocket; subscribe to per-symbol price channels. Server pushes quote updates only for subscribed symbols.</td></tr>
-    <tr><td><code>POST /v1/orders</code></td><td>Place an order. Body includes <code>symbol, side, qty, type</code> and a client-generated <code>idempotency_key</code>. Returns the created order (<code>submitted</code>). Duplicate key → <code>409</code>, returns the original.<a href="#c2" class="cite">[2]</a></td></tr>
-    <tr><td><code>DELETE /v1/orders/{id}</code></td><td>Request cancellation (routed to the exchange; may race a fill).</td></tr>
-    <tr><td><code>GET /v1/orders/{id}</code></td><td>Read current order status from the state machine.</td></tr>
-    <tr><td><code>GET /v1/portfolio</code></td><td>Return positions, cost basis, and current market value.</td></tr>
-  </table>
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 8 — Phase 2 · Estimate what matters</p>
+    <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
+    <h2>Capacity Estimation</h2>
+    <p>Estimate only the numbers that <em>change a decision</em>. Two dominate: price fan-out and order throughput.</p>
+    <table>
+      <tr><th>Quantity</th><th>Rough math</th><th>Design implication</th></tr>
+      <tr><td>Concurrent users at open</td><td>~20M active, say 10M connected at once</td><td>10M live WebSocket connections → need a horizontally-scaled connection tier</td></tr>
+      <tr><td>Price update <b>fan-out</b></td><td>A hot symbol (AAPL) ticks many times/sec and is watched by millions. Naive: ticks × watchers = billions of msgs/sec</td><td>Cannot broadcast every tick to everyone. Must subscribe clients only to symbols they watch + collapse update rate</td></tr>
+      <tr><td>Order volume</td><td>20M users × a few orders/day ≈ low millions/day ≈ <b>tens–hundreds of orders/sec</b>, spiking at open/close</td><td>Tiny compared to prices. The order path is bound by <em>correctness</em>, not throughput — a single Postgres can hold the ledger</td></tr>
+    </table>
+    <p>The asymmetry is the punchline: the price path is a <b>scale</b> problem (millions of connections, huge fan-out) while the order path is a <b>correctness</b> problem (modest volume, zero tolerance for error). Different problems → different machines.</p>
 
-  <h2>Data Model</h2>
-  <p>Two very different stores for the two paths. The order path is a relational, append-only model: orders carry a unique idempotency key, every transition is an immutable event, and money moves as <b>double-entry ledger rows</b> that must sum to zero per transaction. Positions are a materialized fold of fills, rebuildable at any time. The price path stores nothing durable — only the latest quote per symbol.</p>
-  <table>
-    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
-    <tr><td><b>orders</b> (order_id, account_id, symbol, side, type, qty, limit_price, status, idempotency_key, created_at)</td><td>Postgres (sync standby)</td><td>PK <code>order_id</code></td><td>UNIQUE <code>(account_id, idempotency_key)</code>; <code>(account_id, created_at)</code>; partial index on open statuses for the status poller</td></tr>
-    <tr><td><b>order_events</b> (order_id, seq, type, payload, ts)</td><td>Postgres, append-only (no UPDATE/DELETE grants)</td><td>PK <code>(order_id, seq)</code></td><td>Audit trail; order state = fold of events</td></tr>
-    <tr><td><b>executions</b> (execution_id, order_id, qty, price, venue, ts)</td><td>Postgres</td><td>PK <code>execution_id</code> (from the exchange)</td><td>Unique PK makes duplicate fill callbacks no-ops</td></tr>
-    <tr><td><b>ledger_entries</b> (entry_id, txn_id, account_id, asset, amount, ts)</td><td>Postgres, append-only</td><td>PK <code>entry_id</code></td><td><code>(account_id, asset, ts)</code>; each txn_id balances to zero (cash − / shares +)</td></tr>
-    <tr><td><b>positions</b> (account_id, symbol, qty, cost_basis, version)</td><td>Postgres (materialized) + Redis cache</td><td>PK <code>(account_id, symbol)</code></td><td>Updated in the same txn as the fill's ledger entries</td></tr>
-    <tr><td><b>Quote</b></td><td>Redis hash <code>quote:{symbol}</code></td><td>symbol</td><td>Latest bid/ask/last; seeds new subscribers</td></tr>
-    <tr><td><b>Price ticks</b></td><td>Kafka, partitioned by symbol, short retention</td><td>key = symbol</td><td>Gateways consume only subscribed symbols</td></tr>
-    <tr><td><b>Regulatory archive</b></td><td>S3 with Object Lock (WORM)</td><td>by date / account</td><td>Immutable copy of order events and ledger for books-and-records rules</td></tr>
-  </table>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“Why not broadcast every tick to every client?”</p>
+      <p><b>Staff answer:</b> Hot symbols tick many times a second to millions of watchers, which means billions of messages. Subscribe clients only to their watchlist and conflate to a few updates per second.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Prices are a fan-out problem with ~10M sockets; orders are low volume but zero-error. Let me define entities and endpoints.”</p>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why an append-only ledger instead of updating a balance column?”</p>
-    <p><b>Staff answer:</b> Every cash and share movement must be auditable and reconcilable with the clearing firm. Balances are derived from ledger entries.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Orders are a state machine and the ledger is append-only. Now the price column and the order column.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="robinhood-order-volume-tiny">
+        <p class="stem">Why does order volume not force a horizontally-sharded database from day one?</p>
+        <button class="opt">Orders are cached entirely in Redis so the database never sees them</button>
+        <button class="opt">Every order gets batched into one transaction per trading day</button>
+        <button class="opt">Order volume is only tens to hundreds per second, well within one primary DB</button>
+        <p class="fb">Compared to price fan-out, order throughput is modest — the bottleneck there is correctness, not scale.</p>
+        <p class="hint">Compare the two "Rough math" rows for prices versus orders.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="robinhood-scale-vs-correctness-why">
+        <p class="stem">The capacity numbers reveal the price path is a scale problem and the order path is a correctness problem. Why does that distinction matter for the architecture?</p>
+        <button class="opt">It doesn't matter, since both problems get solved by adding more servers</button>
+        <button class="opt">Each problem needs a different kind of engineering investment, so the two paths should use different machinery entirely</button>
+        <button class="opt">Correctness problems always require more hardware than scale problems do</button>
+        <p class="fb">Scale problems are solved by horizontal fan-out and conflation; correctness problems are solved by transactions, idempotency, and auditability — mixing the two designs wastes effort on the wrong risk.</p>
+        <p class="hint">Ask what kind of fix actually solves "billions of messages" versus what kind of fix solves "never lose an order."</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
-  <h2>Component Diagram</h2>
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 8 — Phase 3 · API &amp; data model</p>
+    <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
+    <h2>Core Entities &amp; API</h2>
+    <p><b>Entities:</b> <code>User</code>, <code>Symbol</code> (ticker + current quote), <code>Order</code> (the durable state machine: side, qty, type, status), <code>Execution/Fill</code> (a confirmed match from the exchange), <code>Position</code> (computed holding per symbol), and an append-only <code>LedgerEntry</code>.</p>
+    <p>User identity comes from the auth token, never the body.</p>
+    <table>
+      <tr><th>Endpoint</th><th>Purpose</th></tr>
+      <tr><td><code>WS /v1/prices?symbols=AAPL,TSLA</code></td><td>Open a WebSocket; subscribe to per-symbol price channels. Server pushes quote updates only for subscribed symbols.</td></tr>
+      <tr><td><code>POST /v1/orders</code></td><td>Place an order. Body includes <code>symbol, side, qty, type</code> and a client-generated <code>idempotency_key</code>. Returns the created order (<code>submitted</code>). Duplicate key → <code>409</code>, returns the original.<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><code>DELETE /v1/orders/{id}</code></td><td>Request cancellation (routed to the exchange; may race a fill).</td></tr>
+      <tr><td><code>GET /v1/orders/{id}</code></td><td>Read current order status from the state machine.</td></tr>
+      <tr><td><code>GET /v1/portfolio</code></td><td>Return positions, cost basis, and current market value.</td></tr>
+    </table>
+
+    <h2>Data Model</h2>
+    <p>Two very different stores for the two paths. The order path is a relational, append-only model: orders carry a unique idempotency key, every transition is an immutable event, and money moves as <b>double-entry ledger rows</b> that must sum to zero per transaction. Positions are a materialized fold of fills, rebuildable at any time. The price path stores nothing durable — only the latest quote per symbol.</p>
+    <table>
+      <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+      <tr><td><b>orders</b> (order_id, account_id, symbol, side, type, qty, limit_price, status, idempotency_key, created_at)</td><td>Postgres (sync standby)</td><td>PK <code>order_id</code></td><td>UNIQUE <code>(account_id, idempotency_key)</code>; <code>(account_id, created_at)</code>; partial index on open statuses for the status poller</td></tr>
+      <tr><td><b>order_events</b> (order_id, seq, type, payload, ts)</td><td>Postgres, append-only (no UPDATE/DELETE grants)</td><td>PK <code>(order_id, seq)</code></td><td>Audit trail; order state = fold of events</td></tr>
+      <tr><td><b>executions</b> (execution_id, order_id, qty, price, venue, ts)</td><td>Postgres</td><td>PK <code>execution_id</code> (from the exchange)</td><td>Unique PK makes duplicate fill callbacks no-ops</td></tr>
+      <tr><td><b>ledger_entries</b> (entry_id, txn_id, account_id, asset, amount, ts)</td><td>Postgres, append-only</td><td>PK <code>entry_id</code></td><td><code>(account_id, asset, ts)</code>; each txn_id balances to zero (cash − / shares +)</td></tr>
+      <tr><td><b>positions</b> (account_id, symbol, qty, cost_basis, version)</td><td>Postgres (materialized) + Redis cache</td><td>PK <code>(account_id, symbol)</code></td><td>Updated in the same txn as the fill's ledger entries</td></tr>
+      <tr><td><b>Quote</b></td><td>Redis hash <code>quote:{symbol}</code></td><td>symbol</td><td>Latest bid/ask/last; seeds new subscribers</td></tr>
+      <tr><td><b>Price ticks</b></td><td>Kafka, partitioned by symbol, short retention</td><td>key = symbol</td><td>Gateways consume only subscribed symbols</td></tr>
+      <tr><td><b>Regulatory archive</b></td><td>S3 with Object Lock (WORM)</td><td>by date / account</td><td>Immutable copy of order events and ledger for books-and-records rules</td></tr>
+    </table>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“Why an append-only ledger instead of updating a balance column?”</p>
+      <p><b>Staff answer:</b> Every cash and share movement must be auditable and reconcilable with the clearing firm. Balances are derived from ledger entries.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Orders are a state machine and the ledger is append-only. Now the price column and the order column.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="robinhood-idempotency-key-api">
+        <p class="stem">What does the client send with POST /v1/orders to make retries safe?</p>
+        <button class="opt">A client-generated idempotency_key that dedupes duplicate submissions</button>
+        <button class="opt">A server-generated execution_id created after the order fills</button>
+        <button class="opt">A timestamp header used only for analytics purposes</button>
+        <p class="fb">A duplicate idempotency_key returns 409 with the original order instead of creating a new one.</p>
+        <p class="hint">Look at the POST /v1/orders row in the API table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="robinhood-positions-derived-why">
+        <p class="stem">Why is the positions table described as "materialized" rather than the source of truth for holdings?</p>
+        <button class="opt">Positions must be manually re-entered by compliance staff every day</button>
+        <button class="opt">Redis cannot store integers, so positions live only in Postgres as text</button>
+        <button class="opt">A position is a computed fold over ledger entries, so it can always be rebuilt if it drifts</button>
+        <p class="fb">Treating positions as a cache over the ledger, not independent truth, is what makes them safe to recompute after any bug or outage.</p>
+        <p class="hint">Reread the intro sentence to the Data Model section about what positions are "a materialized fold of."</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 8 — Phase 4 · High-level design</p>
+    <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+    <h2>Component Diagram</h2>
 <pre class="diagram">
  PRICE PATH (soft real-time, lossy)
  [Exchange feed] --&gt; [Price Ingestor] --&gt; [Kafka per symbol] --&gt; [WS gateways]
@@ -201,217 +284,351 @@
                                                     v submit    | fills
                                             [External exchange / market makers]
 </pre>
-  <p style="font-size:.85rem; color:var(--muted);">Two systems that share only the client and auth. Prices fan out through per-symbol topics to gateways that subscribe on demand. Orders are committed before they leave for the exchange, and fills come back as idempotent ledger events that update positions.</p>
+    <p style="font-size:.85rem; color:var(--muted);">Two systems that share only the client and auth. Prices fan out through per-symbol topics to gateways that subscribe on demand. Orders are committed before they leave for the exchange, and fills come back as idempotent ledger events that update positions.</p>
 
-  <h2>High-Level Design</h2>
-  <p>Draw two columns. They share auth and a client, and almost nothing else.</p>
-  <table>
-    <tr><th>Component</th><th>Path</th><th>Role</th></tr>
-    <tr><td><b>Price Ingestor</b></td><td>Price</td><td>Consumes the exchange's trade/quote feed for all symbols; normalizes ticks.<a href="#c1" class="cite">[1]</a></td></tr>
-    <tr><td><b>Pub/Sub (Kafka-style topics)</b></td><td>Price</td><td>One channel <em>per symbol</em>. Decouples ingest rate from delivery.<a href="#c2" class="cite">[2]</a></td></tr>
-    <tr><td><b>WebSocket / Connection tier</b></td><td>Price</td><td>Stateful gateway holding millions of client sockets; each gateway subscribes to only the symbols its connected clients watch and pushes updates out.</td></tr>
-    <tr><td><b>Order Gateway / Service</b></td><td>Order</td><td>Validates, dedupes on idempotency key, writes the order to durable storage <em>before</em> routing to the exchange.</td></tr>
-    <tr><td><b>Order DB + append-only ledger</b></td><td>Order</td><td>Strongly-consistent store (e.g. Postgres) for order state + an immutable event log of every transition.</td></tr>
-    <tr><td><b>Exchange Adapter</b></td><td>Order</td><td>Talks to the external exchange's order API (synchronous submit/cancel) and ingests the asynchronous <b>fill callback</b>.<a href="#c1" class="cite">[1]</a></td></tr>
-    <tr><td><b>Portfolio Service</b></td><td>Read</td><td>Derives positions from the fill/ledger history (live + cached).</td></tr>
-  </table>
-  <p><b>Flows.</b> A price flows: exchange feed → Ingestor → per-symbol topic → WebSocket gateways → only subscribed clients. An order flows: <code>POST /orders</code> → dedupe → persist (<code>submitted</code>) → route to exchange (<code>routed</code>) → later, an async callback marks it <code>filled</code> → ledger appended → portfolio updated. Notice the order is durable <em>before</em> it ever leaves for the exchange.</p>
+    <h2>High-Level Design</h2>
+    <p>Draw two columns. They share auth and a client, and almost nothing else.</p>
+    <table>
+      <tr><th>Component</th><th>Path</th><th>Role</th></tr>
+      <tr><td><b>Price Ingestor</b></td><td>Price</td><td>Consumes the exchange's trade/quote feed for all symbols; normalizes ticks.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Pub/Sub (Kafka-style topics)</b></td><td>Price</td><td>One channel <em>per symbol</em>. Decouples ingest rate from delivery.<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td><b>WebSocket / Connection tier</b></td><td>Price</td><td>Stateful gateway holding millions of client sockets; each gateway subscribes to only the symbols its connected clients watch and pushes updates out.</td></tr>
+      <tr><td><b>Order Gateway / Service</b></td><td>Order</td><td>Validates, dedupes on idempotency key, writes the order to durable storage <em>before</em> routing to the exchange.</td></tr>
+      <tr><td><b>Order DB + append-only ledger</b></td><td>Order</td><td>Strongly-consistent store (e.g. Postgres) for order state + an immutable event log of every transition.</td></tr>
+      <tr><td><b>Exchange Adapter</b></td><td>Order</td><td>Talks to the external exchange's order API (synchronous submit/cancel) and ingests the asynchronous <b>fill callback</b>.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Portfolio Service</b></td><td>Read</td><td>Derives positions from the fill/ledger history (live + cached).</td></tr>
+    </table>
+    <p><b>Flows.</b> A price flows: exchange feed → Ingestor → per-symbol topic → WebSocket gateways → only subscribed clients. An order flows: <code>POST /orders</code> → dedupe → persist (<code>submitted</code>) → route to exchange (<code>routed</code>) → later, an async callback marks it <code>filled</code> → ledger appended → portfolio updated. Notice the order is durable <em>before</em> it ever leaves for the exchange.</p>
 
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    The whole interview is one judgement: <b>don't let the price firehose and the money ledger share a code path or a consistency model.</b> A senior engineer builds one nice real-time pipeline. A staff engineer says "these are two systems" in the first minute, gives prices best-effort pub/sub fan-out and gives orders idempotent writes + an append-only ledger, and can defend why a dropped tick is fine but a dropped fill is a regulatory incident.
-  </div>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why can Postgres handle the order path?”</p>
-    <p><b>Staff answer:</b> Orders are thousands per second at peak, well within one primary. Correctness, auditing and transactions matter more than horizontal scale.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: streaming prices, order correctness, async fills and portfolio computation.”</p>
-
-  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
-  <h2>Deep Dive 1 — Streaming live prices to millions</h2>
-  <p>The exchange exposes a trade feed that pushes data every time a trade occurs.<a href="#c1" class="cite">[1]</a> The challenge is purely <b>fan-out</b>: a few hot symbols are watched by nearly everyone (see Lesson 19 on fan-out, Lesson 24 on WebSockets / SSE).</p>
-  <h3>Why naive broadcast explodes</h3>
-  <p>If every gateway forwarded every tick to every connected client, a single popular symbol ticking dozens of times a second against millions of watchers is billions of messages per second. Two tools tame it:</p>
-  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem;">
-    <li><b>Per-symbol channels, demand-driven.</b> Ingestor publishes each symbol to its own pub/sub topic. A WebSocket gateway only subscribes to the union of symbols its connected clients are watching — so a gateway with no TSLA watchers never receives TSLA traffic.<a href="#c2" class="cite">[2]</a> Fan-out happens <em>at the edge</em> (gateway → its own sockets), not centrally.</li>
-    <li><b>Rate collapsing / conflation.</b> A human can't read 50 price changes/sec. Coalesce to the latest value per symbol on a short tick (e.g. push at most every 200&nbsp;ms). Because prices are <b>lossy by design</b>, dropping intermediate ticks is correct, not a bug — the newest quote supersedes all prior ones.</li>
-  </ul>
-  <div class="box">
-    <b>The scaling lever:</b> connections scale with <b>users</b> (add gateways), but message volume scales with <b>symbols × update rate</b>, which conflation caps. Decoupling the two is what makes 10M connections affordable. Hot quotes also live in an in-memory cache so a fresh subscriber gets the current price immediately, not on the next tick.
-  </div>
-
-  <h2>Deep Dive 2 — Order placement correctness</h2>
-  <p>Here, every guarantee flips. Model an order as a <b>deterministic, persisted state machine</b>, not a single action — each transition durable and auditable.<a href="#c4" class="cite">[4]</a></p>
-  <p><code>submitted</code> → <code>routed</code> → <code>partially_filled</code> → <code>filled</code> (or <code>rejected</code> / <code>canceled</code>). The order row is written and committed <em>before</em> we call the exchange, so a crash mid-route leaves a durable <code>submitted</code> record we can recover and reconcile — never a lost order.</p>
-  <h3>Idempotency: the duplicate-order killer</h3>
-  <p>The client generates an <code>idempotency_key</code> per order intent and sends it with <code>POST /orders</code>. On a network timeout the client retries with the <b>same</b> key. The server stores the key uniquely; a second request with a seen key returns the original order (or <code>409</code>) instead of placing a second trade.<a href="#c2" class="cite">[2]</a> Without this, a flaky connection at market open buys a stock twice — a real financial loss, not a UI glitch.</p>
-  <h3>Consistency with the external exchange</h3>
-  <p>The exchange is the source of truth for <em>fills</em>; our DB is the source of truth for <em>intent</em>. They drift (timeouts, missed callbacks). Defenses:</p>
-  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem;">
-    <li><b>Append-only ledger (event sourcing).</b> Never mutate an order in place; append an immutable event for every transition. Current state is a fold over events. This gives a perfect audit trail and lets you replay/recover after any failure.</li>
-    <li><b>Reconciliation job.</b> Periodically (and end-of-day) compare our ledger against the exchange's authoritative record, flagging any discrepancy for investigation — the same pattern brokers use to reconcile internal balances against external statements.<a href="#c3" class="cite">[3]</a></li>
-  </ul>
-
-  <h2>Deep Dive 3 — The async fill callback</h2>
-  <p>Submit is synchronous; <b>execution is not</b>. A market order may fill in milliseconds; a limit order may sit for hours. So routing returns immediately, and the exchange later calls back with the fill.<a href="#c1" class="cite">[1]</a></p>
-  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem;">
-    <li><b>Make the callback idempotent too.</b> Exchanges retry callbacks; key fills by execution ID so a re-delivered fill doesn't double-count the position.</li>
-    <li><b>Apply the fill as a ledger event,</b> transition the order state, then notify the user (push/WebSocket).</li>
-    <li><b>Missed-callback recovery.</b> Don't trust the network. A poller queries open orders' status from the exchange to catch fills whose callbacks never arrived — reconciliation as a safety net.</li>
-  </ul>
-
-  <h2>Deep Dive 4 — Portfolio computation</h2>
-  <p>A position is <b>derived state</b>, not stored truth: fold the fill history per symbol → net quantity and cost basis. Two presentations:</p>
-  <ul style="font-family:-apple-system,sans-serif; font-size:.9rem;">
-    <li><b>Quantity &amp; cost basis</b> come from the ledger (exact, slow-changing) — cache a materialized position per user and update it on each fill event.</li>
-    <li><b>Current market value</b> = cached position × the live quote from Deep Dive 1's price cache. This cleanly reuses the price path for the display number while keeping the holding itself sourced from the authoritative ledger.</li>
-  </ul>
-  <p>The elegance: the lossy price path supplies the "what's it worth right now" number, while the durable order path supplies "what do I own" — exactly the split from the NFRs, visible in a single screen.</p>
-
-  <h2>Alternative Approaches &amp; Tradeoffs</h2>
-  <table>
-    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
-    <tr><td><b>A. Split paths: pub/sub price fan-out + Postgres state machine and ledger</b> (chosen)</td><td>As drawn</td><td>Each path gets exactly the guarantees it needs; single SQL ledger is simple to audit and reconcile</td><td>One ledger primary is a vertical ceiling (far above broker order volume)</td><td>Retail broker scale (hundreds of orders/s)</td></tr>
-    <tr><td><b>B. Full event sourcing on a log</b> (Kafka as the source of truth, projections for orders/positions)</td><td>Every command and exchange response is an event on a durable partitioned log; order state, ledger and positions are projections</td><td>Natural replay, audit and new read models; scales writes horizontally by account partition</td><td>Harder read-your-writes and uniqueness guarantees (idempotency needs its own store); operationally complex for a regulated ledger</td><td>Very high order volume or many downstream consumers of order events</td></tr>
-    <tr><td><b>C. Buy it: broker-dealer-as-a-service / clearing-firm APIs, managed market-data streaming</b></td><td>Orders, custody and ledger run at a partner's platform; you build the app, portfolio view and price display on their APIs</td><td>Fastest path to launch; regulatory burden largely on the partner</td><td>Per-trade/per-account fees; limited control over routing, latency and product features; partner outages are your outages</td><td>Startups and fintech apps adding trading as a feature</td></tr>
-  </table>
-  <p><b>Pick A:</b> order volume is small and correctness is everything, so one strongly-consistent SQL ledger is the simplest thing that can be proven correct; B is where you go if order events become a platform for many consumers.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“The user taps Buy twice on a flaky connection. What happens?”</p>
-    <p><b>Staff answer:</b> The client sends an idempotency key; the order row has a UNIQUE constraint on it, so the second request returns the first order instead of creating another.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, which for a regulated broker is critical.”</p>
-
-  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
-  <h2>Observability</h2>
-  <table>
-    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
-    <tr><td>Price path</td><td>Exchange feed → client latency (per symbol, sampled), ticks in vs updates out (conflation ratio), gateway sockets, subscriptions per symbol, feed gaps/sequence breaks</td><td>Stale prices at market open are the visible failure</td></tr>
-    <tr><td>Order state machine</td><td>Orders by state and age; time in <code>routed</code> without an ack; idempotency hits (retries); rejects by reason</td><td>Stuck orders are money-at-risk</td></tr>
-    <tr><td>Exchange integration</td><td>Submit latency, callback latency, missed-callback detections by the poller, FIX session disconnects</td><td>External dependency health</td></tr>
-    <tr><td>Ledger integrity</td><td>Per-txn balance check failures (must be 0), reconciliation mismatches vs the exchange/clearing records</td><td>Regulatory-grade correctness</td></tr>
-    <tr><td>Logs &amp; traces</td><td>order_id / idempotency_key / execution_id on every line; 100% tracing of order flows; immutable audit logs to WORM storage</td><td>Regulators and dispute resolution</td></tr>
-  </table>
-
-  <h2>Monitoring</h2>
-  <table>
-    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
-    <tr><td>Order submit availability 99.99% during market hours; p99 accept &lt; 300 ms</td><td>Burn rate over 5 min / 1 h (tight windows during trading hours)</td><td>Page</td></tr>
-    <tr><td>Zero lost/duplicated orders</td><td>Any ledger imbalance; any reconciliation mismatch; any order in <code>routed</code> &gt; 60 s without exchange ack</td><td>Page</td></tr>
-    <tr><td>Price delivery p95 &lt; 200 ms</td><td>p95 &gt; 500 ms for 5 min; feed gap detected</td><td>Page</td></tr>
-    <tr><td>Market-open readiness</td><td>Gateway capacity headroom &lt; 50% at 9:15 ET</td><td>Page</td></tr>
-  </table>
-  <p><b>Synthetic probes:</b> a test account places and cancels a far-from-market limit order every minute during trading hours; price probes subscribe to a few symbols and measure staleness. <b>Dashboards:</b> market-open war room (sockets, order rate, exchange latency), ledger integrity, reconciliation status.</p>
-
-  <h2>Authentication &amp; Authorization</h2>
-  <table>
-    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
-    <tr><td>User → app, portfolio, prices</td><td>OIDC login + mandatory MFA (TOTP / passkey); short-lived JWT; device binding</td><td>Access only to own accounts</td></tr>
-    <tr><td>User → place / cancel order</td><td>Same session; step-up re-auth for sensitive actions (new device, large orders, withdrawals)</td><td>Account must be approved (KYC), have buying power, and be permitted for the instrument; pattern-day-trader and margin rules enforced server-side</td></tr>
-    <tr><td>Exchange / clearing → fill callbacks</td><td>Dedicated FIX sessions or mutually-authenticated TLS; source-IP allow-lists</td><td>Callbacks accepted only for orders routed on that session</td></tr>
-    <tr><td>Operations / compliance staff</td><td>SSO + hardware MFA</td><td>RBAC with separation of duties; every account access logged</td></tr>
-    <tr><td>Service → service</td><td>mTLS</td><td>Only Order Svc writes orders; ledger tables append-only for all roles</td></tr>
-  </table>
-
-  <h2>Security</h2>
-  <table>
-    <tr><th>Threat</th><th>Mitigation</th></tr>
-    <tr><td>Account takeover leading to unauthorized trades or withdrawals</td><td>MFA, device binding, anomaly detection (new device + liquidation + withdrawal), withdrawal holds to new bank accounts</td></tr>
-    <tr><td>Duplicate or phantom orders</td><td>Idempotency keys, commit-before-route, unique execution ids, reconciliation</td></tr>
-    <tr><td>Market manipulation / wash trading by users</td><td>Surveillance on order patterns; compliance review queues</td></tr>
-    <tr><td>Insider tampering with the ledger</td><td>Append-only tables, WORM archive, separation of duties, database audit logs</td></tr>
-    <tr><td>Market-open load (and DDoS disguised as it)</td><td>Pre-scaled gateways, per-account order rate limits, degrade price conflation before orders</td></tr>
-    <tr><td>Baseline</td><td>TLS everywhere, encryption at rest, HSM/KMS-managed keys, secrets manager, WAF, regular penetration tests (regulatory expectation)</td></tr>
-  </table>
-
-  <h2>Privacy</h2>
-  <p>A brokerage holds <b>regulated PII</b>: legal name, SSN/tax id, date of birth, address, bank accounts (KYC/AML), plus trading history and net worth. <b>Encryption:</b> SSN and bank details field-level encrypted with KMS, visible only to KYC services. <b>Retention conflict:</b> books-and-records rules require keeping orders and ledger for years, so "right to erasure" becomes <em>restriction</em> — PII detached or pseudonymized where law allows, financial records retained. <b>Minimization:</b> price-path gateways never see account data; analytics use pseudonymous account ids. <b>Sharing:</b> order-flow data shared with market makers contains no customer identity. <b>Access:</b> staff access to customer data is ticket-justified and audited.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“What are the regulatory security requirements?”</p>
-    <p><b>Staff answer:</b> WORM audit logs, strong MFA and device binding, encryption, strict segregation of duties for ledger changes, and daily reconciliation with the clearing broker.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
-
-  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
-  <h2>Scaling 10× Without Changing the Architecture</h2>
-  <p>10× = ~100M connected clients at open, 10× order volume (thousands of orders/s at peak).</p>
-  <table>
-    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
-    <tr><td>WebSocket gateways</td><td>~100 nodes</td><td>~1,000</td><td>Add gateways; coarser conflation (500 ms) under load</td></tr>
-    <tr><td>Price topics / ingest</td><td>Per-symbol channels</td><td>Same symbols, more consumers</td><td>More partitions/replicas; volume scales with symbols, not users</td></tr>
-    <tr><td>Order Svc</td><td>~5 nodes</td><td>~50</td><td>Stateless</td></tr>
-    <tr><td>Ledger Postgres</td><td>One primary</td><td>10× writes</td><td>Bigger instance first; then shard by account_id (orders, events, ledger and positions are all per-account, so no cross-shard txns)</td></tr>
-    <tr><td>Exchange connectivity</td><td>A few FIX sessions</td><td>More sessions</td><td>Distribute accounts across sessions/venues</td></tr>
-  </table>
-  <p><b>First bottleneck:</b> market-open socket reconnect storms and gateway capacity. <b>What forces a redesign:</b> becoming an exchange or internalizing order matching, which moves the core to a deterministic single-threaded matching engine (see Lesson 73).</p>
-
-  <h2>Cost of Running</h2>
-  <p>Assumptions: 10M concurrent sockets at open, ~2 conflated updates/s per client (~80 B) during 6.5 trading hours × 21 days, ~3M orders/day, list prices from the course price sheet.</p>
-  <table>
-    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
-    <tr><td>Price egress</td><td>~800 TB × $0.05/GB</td><td>$40,000</td></tr>
-    <tr><td>WebSocket gateways</td><td>~100 × 8 vCPU (market hours pre-scaled)</td><td>$24,000</td></tr>
-    <tr><td>Exchange connectivity</td><td>Cross-connects / leased lines, FIX gateways</td><td>$10,000</td></tr>
-    <tr><td>Ledger Postgres</td><td>Primary + sync standby (32 vCPU) + 2 replicas + storage</td><td>$6,500</td></tr>
-    <tr><td>Order, portfolio, reconciliation services</td><td></td><td>$6,000</td></tr>
-    <tr><td>Kafka + ingestors + Redis quotes</td><td>5 brokers</td><td>$3,000</td></tr>
-    <tr><td>WORM audit archive + logs</td><td></td><td>$2,500</td></tr>
-    <tr><td><b>Infra total</b></td><td></td><td><b>≈ $92,000</b></td></tr>
-  </table>
-  <p><b>Unit cost:</b> ≈ $0.0015 of infrastructure per order, ≈ $0.005 per active user per month. <b>Dominant cost is outside this table:</b> real-time market-data licensing and per-user display fees, plus clearing and regulatory fees, typically exceed the infrastructure bill. Within infra, the lever is conflation — fewer, smaller price updates cut both egress and gateway CPU.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“What changes at 10×?”</p>
-    <p><b>Staff answer:</b> More WebSocket gateways and coarser conflation under load. The ledger stays on one primary until order volume grows far beyond broker scale, then shard by account.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “To recap:”</p>
-
-  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
-  <h2>Closing Summary (60 seconds)</h2>
-  <div class="summary"><p>Robinhood is two systems with opposite guarantees. Prices flow from exchange feeds into per-symbol pub/sub topics, and WebSocket gateways push conflated updates only for symbols on a user's watchlist; drops are fine because the next tick supersedes them. Orders are an idempotent state machine in Postgres, routed to external venues. Fills arrive by idempotent callback and write to an append-only ledger from which positions are derived and reconciled. At 10× only the price path scales out.</p></div>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why are the price path and the order path designed with opposite guarantees?</p>
-      <button class="opt">Prices need durable storage while orders only need fast in-memory caches for speed</button>
-      <button class="opt">Prices are soft-real-time and lossy while orders must be strongly consistent and durable</button>
-      <button class="opt">Prices require idempotency keys while orders can safely tolerate occasional duplicates</button>
-      <p class="fb">A dropped tick is superseded by the next; a dropped or duplicated order is a financial and regulatory failure.</p>
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      The whole interview is one judgement: <b>don't let the price firehose and the money ledger share a code path or a consistency model.</b> A senior engineer builds one nice real-time pipeline. A staff engineer says "these are two systems" in the first minute, gives prices best-effort pub/sub fan-out and gives orders idempotent writes + an append-only ledger, and can defend why a dropped tick is fine but a dropped fill is a regulatory incident.
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. What keeps the live-price fan-out from exploding to billions of messages per second?</p>
-      <button class="opt">Writing every single exchange tick straight into the durable append-only order ledger</button>
-      <button class="opt">Broadcasting all symbols to all clients but compressing each message payload heavily</button>
-      <button class="opt">Per-symbol channels with edge fan-out plus conflating ticks to the latest value</button>
-      <button class="opt">Routing every price update through the synchronous external exchange order API</button>
-      <p class="fb">Gateways subscribe only to watched symbols and push at most the newest quote per short interval — lossy is fine.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“Why can Postgres handle the order path?”</p>
+      <p><b>Staff answer:</b> Orders are thousands per second at peak, well within one primary. Correctness, auditing and transactions matter more than horizontal scale.</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What does the client-generated idempotency key on POST /orders prevent?</p>
-      <button class="opt">A network timeout and retry turning one buy intent into two real trades</button>
-      <button class="opt">The exchange feed from pushing stale quotes to a freshly subscribed client</button>
-      <button class="opt">The portfolio service from reading an outdated cost basis on a position</button>
-      <button class="opt">The reconciliation job from flagging a discrepancy that does not exist</button>
-      <p class="fb">A retry with the same key returns the original order (or 409) instead of placing a duplicate.</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: streaming prices, order correctness, async fills and portfolio computation.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="robinhood-order-durable-before-route">
+        <p class="stem">In the order flow, at what point is the order persisted relative to being routed to the exchange?</p>
+        <button class="opt">After the exchange confirms the fill, to avoid writing unfilled orders</button>
+        <button class="opt">Before it is routed, so a crash mid-route still leaves a durable record</button>
+        <button class="opt">Only once per day, in an end-of-day batch reconciliation job</button>
+        <p class="fb">Persist-then-route means a crash after persisting but before routing never loses the order — it is recoverable.</p>
+        <p class="hint">Reread the sentence ending "Notice the order is durable..."</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="robinhood-shared-nothing-why">
+        <p class="stem">What would go wrong if the price pipeline and the order pipeline shared the same message queue and consistency model?</p>
+        <button class="opt">The order path would inherit the price path's lossy, best-effort delivery, risking silently dropped trades</button>
+        <button class="opt">Nothing changes, since both paths already use Kafka underneath</button>
+        <button class="opt">Prices would suddenly require idempotency keys they don't otherwise need</button>
+        <p class="fb">Sharing infrastructure built for lossy fan-out would let an order get dropped the same way a stale tick is — acceptable for quotes, catastrophic for money.</p>
+        <p class="hint">Reread the staff-signal box: what's the one thing it says never to let happen?</p>
+      </div>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. Why is an append-only ledger the right model for orders rather than mutating rows in place?</p>
-      <button class="opt">It lets the system broadcast each order state change to millions of watching clients</button>
-      <button class="opt">It removes the need to ever talk to the slow external exchange order routing API</button>
-      <button class="opt">It allows orders to be dropped safely because newer events supersede the old ones</button>
-      <button class="opt">It gives a perfect audit trail and lets state be replayed and reconciled after failures</button>
-      <p class="fb">Immutable events = auditability for regulators plus recoverability — state is a fold over the log.</p>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 8 — Phase 5 · Deep dives (prices &amp; orders)</p>
+    <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
+    <h2>Deep Dive 1 — Streaming live prices to millions</h2>
+    <p>The exchange exposes a trade feed that pushes data every time a trade occurs.<a href="#c1" class="cite">[1]</a> The challenge is purely <b>fan-out</b>: a few hot symbols are watched by nearly everyone (see Lesson 19 on fan-out, Lesson 24 on WebSockets / SSE).</p>
+    <h3>Why naive broadcast explodes</h3>
+    <p>If every gateway forwarded every tick to every connected client, a single popular symbol ticking dozens of times a second against millions of watchers is billions of messages per second. Two tools tame it:</p>
+    <ul style="font-family:-apple-system,sans-serif; font-size:.9rem;">
+      <li><b>Per-symbol channels, demand-driven.</b> Ingestor publishes each symbol to its own pub/sub topic. A WebSocket gateway only subscribes to the union of symbols its connected clients are watching — so a gateway with no TSLA watchers never receives TSLA traffic.<a href="#c2" class="cite">[2]</a> Fan-out happens <em>at the edge</em> (gateway → its own sockets), not centrally.</li>
+      <li><b>Rate collapsing / conflation.</b> A human can't read 50 price changes/sec. Coalesce to the latest value per symbol on a short tick (e.g. push at most every 200&nbsp;ms). Because prices are <b>lossy by design</b>, dropping intermediate ticks is correct, not a bug — the newest quote supersedes all prior ones.</li>
+    </ul>
+    <div class="box">
+      <b>The scaling lever:</b> connections scale with <b>users</b> (add gateways), but message volume scales with <b>symbols × update rate</b>, which conflation caps. Decoupling the two is what makes 10M connections affordable. Hot quotes also live in an in-memory cache so a fresh subscriber gets the current price immediately, not on the next tick.
     </div>
-  </div>
+
+    <h2>Deep Dive 2 — Order placement correctness</h2>
+    <p>Here, every guarantee flips. Model an order as a <b>deterministic, persisted state machine</b>, not a single action — each transition durable and auditable.<a href="#c4" class="cite">[4]</a></p>
+    <p><code>submitted</code> → <code>routed</code> → <code>partially_filled</code> → <code>filled</code> (or <code>rejected</code> / <code>canceled</code>). The order row is written and committed <em>before</em> we call the exchange, so a crash mid-route leaves a durable <code>submitted</code> record we can recover and reconcile — never a lost order.</p>
+    <h3>Idempotency: the duplicate-order killer</h3>
+    <p>The client generates an <code>idempotency_key</code> per order intent and sends it with <code>POST /orders</code>. On a network timeout the client retries with the <b>same</b> key. The server stores the key uniquely; a second request with a seen key returns the original order (or <code>409</code>) instead of placing a second trade.<a href="#c2" class="cite">[2]</a> Without this, a flaky connection at market open buys a stock twice — a real financial loss, not a UI glitch.</p>
+    <h3>Consistency with the external exchange</h3>
+    <p>The exchange is the source of truth for <em>fills</em>; our DB is the source of truth for <em>intent</em>. They drift (timeouts, missed callbacks). Defenses:</p>
+    <ul style="font-family:-apple-system,sans-serif; font-size:.9rem;">
+      <li><b>Append-only ledger (event sourcing).</b> Never mutate an order in place; append an immutable event for every transition. Current state is a fold over events. This gives a perfect audit trail and lets you replay/recover after any failure.</li>
+      <li><b>Reconciliation job.</b> Periodically (and end-of-day) compare our ledger against the exchange's authoritative record, flagging any discrepancy for investigation — the same pattern brokers use to reconcile internal balances against external statements.<a href="#c3" class="cite">[3]</a></li>
+    </ul>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“The user taps Buy twice on a flaky connection. What happens?”</p>
+      <p><b>Staff answer:</b> The client sends an idempotency key; the order row has a UNIQUE constraint on it, so the second request returns the first order instead of creating another.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Next: what happens after the order routes — the async fill callback and portfolio math.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="robinhood-conflation-mechanism">
+        <p class="stem">What technique keeps a hot symbol's price updates from overwhelming a client, given prices are allowed to be lossy?</p>
+        <button class="opt">Storing every tick permanently in the append-only order ledger</button>
+        <button class="opt">Routing all tick delivery synchronously through the exchange adapter</button>
+        <button class="opt">Conflating to the latest value per symbol on a short fixed interval</button>
+        <p class="fb">Because the newest quote supersedes older ones, coalescing to one push per short window (e.g. 200ms) is correct, not lossy in a harmful sense.</p>
+        <p class="hint">Reread the "Rate collapsing / conflation" bullet.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="robinhood-idempotency-why-not-lock">
+        <p class="stem">Why solve the double-buy problem with a client-generated idempotency key rather than simply disabling the Buy button after one tap?</p>
+        <button class="opt">Disabling buttons is technically impossible in modern mobile apps</button>
+        <button class="opt">A UI-only fix doesn't protect against a client retry after a real network timeout, which the server must still dedupe</button>
+        <button class="opt">Idempotency keys are required by law for all financial transactions regardless of the failure mode</button>
+        <p class="fb">The button-disable is a UX nicety; the actual failure mode is a timed-out request that the client legitimately retries, and only a server-side unique key catches that.</p>
+        <p class="hint">Think about what happens on a network timeout, not a double-tap — who retries, and how does the server tell it apart from a new order?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 8 — Phase 5 · Deep dives (fills, portfolio) &amp; alternatives</p>
+    <h2>Deep Dive 3 — The async fill callback</h2>
+    <p>Submit is synchronous; <b>execution is not</b>. A market order may fill in milliseconds; a limit order may sit for hours. So routing returns immediately, and the exchange later calls back with the fill.<a href="#c1" class="cite">[1]</a></p>
+    <ul style="font-family:-apple-system,sans-serif; font-size:.9rem;">
+      <li><b>Make the callback idempotent too.</b> Exchanges retry callbacks; key fills by execution ID so a re-delivered fill doesn't double-count the position.</li>
+      <li><b>Apply the fill as a ledger event,</b> transition the order state, then notify the user (push/WebSocket).</li>
+      <li><b>Missed-callback recovery.</b> Don't trust the network. A poller queries open orders' status from the exchange to catch fills whose callbacks never arrived — reconciliation as a safety net.</li>
+    </ul>
+
+    <h2>Deep Dive 4 — Portfolio computation</h2>
+    <p>A position is <b>derived state</b>, not stored truth: fold the fill history per symbol → net quantity and cost basis. Two presentations:</p>
+    <ul style="font-family:-apple-system,sans-serif; font-size:.9rem;">
+      <li><b>Quantity &amp; cost basis</b> come from the ledger (exact, slow-changing) — cache a materialized position per user and update it on each fill event.</li>
+      <li><b>Current market value</b> = cached position × the live quote from Deep Dive 1's price cache. This cleanly reuses the price path for the display number while keeping the holding itself sourced from the authoritative ledger.</li>
+    </ul>
+    <p>The elegance: the lossy price path supplies the "what's it worth right now" number, while the durable order path supplies "what do I own" — exactly the split from the NFRs, visible in a single screen.</p>
+
+    <h2>Alternative Approaches &amp; Tradeoffs</h2>
+    <table>
+      <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+      <tr><td><b>A. Split paths: pub/sub price fan-out + Postgres state machine and ledger</b> (chosen)</td><td>As drawn</td><td>Each path gets exactly the guarantees it needs; single SQL ledger is simple to audit and reconcile</td><td>One ledger primary is a vertical ceiling (far above broker order volume)</td><td>Retail broker scale (hundreds of orders/s)</td></tr>
+      <tr><td><b>B. Full event sourcing on a log</b> (Kafka as the source of truth, projections for orders/positions)</td><td>Every command and exchange response is an event on a durable partitioned log; order state, ledger and positions are projections</td><td>Natural replay, audit and new read models; scales writes horizontally by account partition</td><td>Harder read-your-writes and uniqueness guarantees (idempotency needs its own store); operationally complex for a regulated ledger</td><td>Very high order volume or many downstream consumers of order events</td></tr>
+      <tr><td><b>C. Buy it: broker-dealer-as-a-service / clearing-firm APIs, managed market-data streaming</b></td><td>Orders, custody and ledger run at a partner's platform; you build the app, portfolio view and price display on their APIs</td><td>Fastest path to launch; regulatory burden largely on the partner</td><td>Per-trade/per-account fees; limited control over routing, latency and product features; partner outages are your outages</td><td>Startups and fintech apps adding trading as a feature</td></tr>
+    </table>
+    <p><b>Pick A:</b> order volume is small and correctness is everything, so one strongly-consistent SQL ledger is the simplest thing that can be proven correct; B is where you go if order events become a platform for many consumers.</p>
+
+    <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, which for a regulated broker is critical.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="robinhood-fill-callback-idempotent">
+        <p class="stem">Why key fill callbacks by execution ID?</p>
+        <button class="opt">So a retried, re-delivered fill callback doesn't double-count the position</button>
+        <button class="opt">So the exchange can bill the broker per callback received</button>
+        <button class="opt">So the WebSocket gateway can subscribe to fill events directly</button>
+        <p class="fb">A unique execution ID makes a duplicate delivery a no-op rather than an accidental double-fill.</p>
+        <p class="hint">Reread "Make the callback idempotent too."</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="robinhood-alt-b-tradeoff-why">
+        <p class="stem">Why is full event sourcing on a log (Alternative B) not the chosen approach despite its replay and audit advantages?</p>
+        <button class="opt">Kafka cannot store financial data under any regulatory framework</button>
+        <button class="opt">Event sourcing is strictly worse than Postgres in every measurable way</button>
+        <button class="opt">It adds operational complexity and harder uniqueness guarantees that aren't needed at retail-broker order volume</button>
+        <button class="opt">Alternative B is only usable for read-heavy systems, not write-heavy ones</button>
+        <p class="fb">Order volume here is modest, so the simplest provably-correct option (one SQL ledger) wins; B pays off only at much higher volume or many downstream consumers.</p>
+        <p class="hint">Reread the "Pick A" justification line right after the alternatives table.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 8 — Phase 6 · Production readiness</p>
+    <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+    <h2>Observability</h2>
+    <table>
+      <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+      <tr><td>Price path</td><td>Exchange feed → client latency (per symbol, sampled), ticks in vs updates out (conflation ratio), gateway sockets, subscriptions per symbol, feed gaps/sequence breaks</td><td>Stale prices at market open are the visible failure</td></tr>
+      <tr><td>Order state machine</td><td>Orders by state and age; time in <code>routed</code> without an ack; idempotency hits (retries); rejects by reason</td><td>Stuck orders are money-at-risk</td></tr>
+      <tr><td>Exchange integration</td><td>Submit latency, callback latency, missed-callback detections by the poller, FIX session disconnects</td><td>External dependency health</td></tr>
+      <tr><td>Ledger integrity</td><td>Per-txn balance check failures (must be 0), reconciliation mismatches vs the exchange/clearing records</td><td>Regulatory-grade correctness</td></tr>
+      <tr><td>Logs &amp; traces</td><td>order_id / idempotency_key / execution_id on every line; 100% tracing of order flows; immutable audit logs to WORM storage</td><td>Regulators and dispute resolution</td></tr>
+    </table>
+
+    <h2>Monitoring</h2>
+    <table>
+      <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+      <tr><td>Order submit availability 99.99% during market hours; p99 accept &lt; 300 ms</td><td>Burn rate over 5 min / 1 h (tight windows during trading hours)</td><td>Page</td></tr>
+      <tr><td>Zero lost/duplicated orders</td><td>Any ledger imbalance; any reconciliation mismatch; any order in <code>routed</code> &gt; 60 s without exchange ack</td><td>Page</td></tr>
+      <tr><td>Price delivery p95 &lt; 200 ms</td><td>p95 &gt; 500 ms for 5 min; feed gap detected</td><td>Page</td></tr>
+      <tr><td>Market-open readiness</td><td>Gateway capacity headroom &lt; 50% at 9:15 ET</td><td>Page</td></tr>
+    </table>
+    <p><b>Synthetic probes:</b> a test account places and cancels a far-from-market limit order every minute during trading hours; price probes subscribe to a few symbols and measure staleness. <b>Dashboards:</b> market-open war room (sockets, order rate, exchange latency), ledger integrity, reconciliation status.</p>
+
+    <h2>Authentication &amp; Authorization</h2>
+    <table>
+      <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+      <tr><td>User → app, portfolio, prices</td><td>OIDC login + mandatory MFA (TOTP / passkey); short-lived JWT; device binding</td><td>Access only to own accounts</td></tr>
+      <tr><td>User → place / cancel order</td><td>Same session; step-up re-auth for sensitive actions (new device, large orders, withdrawals)</td><td>Account must be approved (KYC), have buying power, and be permitted for the instrument; pattern-day-trader and margin rules enforced server-side</td></tr>
+      <tr><td>Exchange / clearing → fill callbacks</td><td>Dedicated FIX sessions or mutually-authenticated TLS; source-IP allow-lists</td><td>Callbacks accepted only for orders routed on that session</td></tr>
+      <tr><td>Operations / compliance staff</td><td>SSO + hardware MFA</td><td>RBAC with separation of duties; every account access logged</td></tr>
+      <tr><td>Service → service</td><td>mTLS</td><td>Only Order Svc writes orders; ledger tables append-only for all roles</td></tr>
+    </table>
+
+    <h2>Security</h2>
+    <table>
+      <tr><th>Threat</th><th>Mitigation</th></tr>
+      <tr><td>Account takeover leading to unauthorized trades or withdrawals</td><td>MFA, device binding, anomaly detection (new device + liquidation + withdrawal), withdrawal holds to new bank accounts</td></tr>
+      <tr><td>Duplicate or phantom orders</td><td>Idempotency keys, commit-before-route, unique execution ids, reconciliation</td></tr>
+      <tr><td>Market manipulation / wash trading by users</td><td>Surveillance on order patterns; compliance review queues</td></tr>
+      <tr><td>Insider tampering with the ledger</td><td>Append-only tables, WORM archive, separation of duties, database audit logs</td></tr>
+      <tr><td>Market-open load (and DDoS disguised as it)</td><td>Pre-scaled gateways, per-account order rate limits, degrade price conflation before orders</td></tr>
+      <tr><td>Baseline</td><td>TLS everywhere, encryption at rest, HSM/KMS-managed keys, secrets manager, WAF, regular penetration tests (regulatory expectation)</td></tr>
+    </table>
+
+    <h2>Privacy</h2>
+    <p>A brokerage holds <b>regulated PII</b>: legal name, SSN/tax id, date of birth, address, bank accounts (KYC/AML), plus trading history and net worth. <b>Encryption:</b> SSN and bank details field-level encrypted with KMS, visible only to KYC services. <b>Retention conflict:</b> books-and-records rules require keeping orders and ledger for years, so "right to erasure" becomes <em>restriction</em> — PII detached or pseudonymized where law allows, financial records retained. <b>Minimization:</b> price-path gateways never see account data; analytics use pseudonymous account ids. <b>Sharing:</b> order-flow data shared with market makers contains no customer identity. <b>Access:</b> staff access to customer data is ticket-justified and audited.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“What are the regulatory security requirements?”</p>
+      <p><b>Staff answer:</b> WORM audit logs, strong MFA and device binding, encryption, strict segregation of duties for ledger changes, and daily reconciliation with the clearing broker.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="robinhood-privacy-retention-conflict">
+        <p class="stem">Why can't Robinhood simply delete a user's order history on a "right to erasure" request?</p>
+        <button class="opt">Deleting rows from Postgres is technically not supported by the database</button>
+        <button class="opt">Books-and-records regulations require retaining orders and ledger entries for years</button>
+        <button class="opt">Users are contractually barred from ever requesting data deletion</button>
+        <p class="fb">Retention law wins here, so erasure becomes restriction: PII is detached/pseudonymized while financial records are kept.</p>
+        <p class="hint">Reread the "Retention conflict" sentence in Privacy.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="robinhood-append-only-security-why">
+        <p class="stem">Why does making ledger tables append-only (no UPDATE/DELETE) help defend against insider tampering, beyond just aiding audits?</p>
+        <button class="opt">An insider with write access can add new events but cannot silently rewrite or erase past history</button>
+        <button class="opt">Append-only tables are automatically encrypted at rest by every database engine</button>
+        <button class="opt">It prevents any employee from ever reading the ledger's contents</button>
+        <button class="opt">It replaces the need for authentication on internal database connections</button>
+        <p class="fb">Removing UPDATE/DELETE grants means the only way to alter recorded history is to add a new, separately-logged compensating event — tampering leaves a trail instead of vanishing.</p>
+        <p class="hint">Think about what "no UPDATE/DELETE grants" specifically prevents versus what encryption or auditing alone would prevent.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-8" hidden>
+    <p class="chunk-label">8 of 8 — Phase 7 · Scale &amp; cost</p>
+    <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+    <h2>Scaling 10× Without Changing the Architecture</h2>
+    <p>10× = ~100M connected clients at open, 10× order volume (thousands of orders/s at peak).</p>
+    <table>
+      <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+      <tr><td>WebSocket gateways</td><td>~100 nodes</td><td>~1,000</td><td>Add gateways; coarser conflation (500 ms) under load</td></tr>
+      <tr><td>Price topics / ingest</td><td>Per-symbol channels</td><td>Same symbols, more consumers</td><td>More partitions/replicas; volume scales with symbols, not users</td></tr>
+      <tr><td>Order Svc</td><td>~5 nodes</td><td>~50</td><td>Stateless</td></tr>
+      <tr><td>Ledger Postgres</td><td>One primary</td><td>10× writes</td><td>Bigger instance first; then shard by account_id (orders, events, ledger and positions are all per-account, so no cross-shard txns)</td></tr>
+      <tr><td>Exchange connectivity</td><td>A few FIX sessions</td><td>More sessions</td><td>Distribute accounts across sessions/venues</td></tr>
+    </table>
+    <p><b>First bottleneck:</b> market-open socket reconnect storms and gateway capacity. <b>What forces a redesign:</b> becoming an exchange or internalizing order matching, which moves the core to a deterministic single-threaded matching engine (see Lesson 73).</p>
+
+    <h2>Cost of Running</h2>
+    <p>Assumptions: 10M concurrent sockets at open, ~2 conflated updates/s per client (~80 B) during 6.5 trading hours × 21 days, ~3M orders/day, list prices from the course price sheet.</p>
+    <table>
+      <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+      <tr><td>Price egress</td><td>~800 TB × $0.05/GB</td><td>$40,000</td></tr>
+      <tr><td>WebSocket gateways</td><td>~100 × 8 vCPU (market hours pre-scaled)</td><td>$24,000</td></tr>
+      <tr><td>Exchange connectivity</td><td>Cross-connects / leased lines, FIX gateways</td><td>$10,000</td></tr>
+      <tr><td>Ledger Postgres</td><td>Primary + sync standby (32 vCPU) + 2 replicas + storage</td><td>$6,500</td></tr>
+      <tr><td>Order, portfolio, reconciliation services</td><td></td><td>$6,000</td></tr>
+      <tr><td>Kafka + ingestors + Redis quotes</td><td>5 brokers</td><td>$3,000</td></tr>
+      <tr><td>WORM audit archive + logs</td><td></td><td>$2,500</td></tr>
+      <tr><td><b>Infra total</b></td><td></td><td><b>≈ $92,000</b></td></tr>
+    </table>
+    <p><b>Unit cost:</b> ≈ $0.0015 of infrastructure per order, ≈ $0.005 per active user per month. <b>Dominant cost is outside this table:</b> real-time market-data licensing and per-user display fees, plus clearing and regulatory fees, typically exceed the infrastructure bill. Within infra, the lever is conflation — fewer, smaller price updates cut both egress and gateway CPU.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“What changes at 10×?”</p>
+      <p><b>Staff answer:</b> More WebSocket gateways and coarser conflation under load. The ledger stays on one primary until order volume grows far beyond broker scale, then shard by account.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “To recap:”</p>
+
+    <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+    <h2>Closing Summary (60 seconds)</h2>
+    <div class="summary"><p>Robinhood is two systems with opposite guarantees. Prices flow from exchange feeds into per-symbol pub/sub topics, and WebSocket gateways push conflated updates only for symbols on a user's watchlist; drops are fine because the next tick supersedes them. Orders are an idempotent state machine in Postgres, routed to external venues. Fills arrive by idempotent callback and write to an append-only ledger from which positions are derived and reconciled. At 10× only the price path scales out.</p></div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="robinhood-shard-key-account">
+        <p class="stem">If the ledger ever needs to shard at far higher order volume, what's the natural shard key?</p>
+        <button class="opt">Symbol, since price data is already partitioned that way</button>
+        <button class="opt">Order status, grouping all filled orders separately from open ones</button>
+        <button class="opt">Account_id, since orders, events, ledger and positions are all per-account</button>
+        <p class="fb">Sharding by account_id avoids cross-shard transactions since everything for one account stays together.</p>
+        <p class="hint">Reread the "Ledger Postgres" row's "Knob turned" column.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="robinhood-10x-price-only-why">
+        <p class="stem">Why does 10× scale mostly stress the price path's gateways and not the order ledger's core design?</p>
+        <button class="opt">Connections and message fan-out grow linearly with users, while order volume stays a correctness problem a single well-sized primary can absorb for a long time</button>
+        <button class="opt">The order ledger is stateless so it automatically scales without any changes</button>
+        <button class="opt">Price data is small so it never actually needs more gateways at 10x</button>
+        <p class="fb">Price fan-out scales with users and hot symbols, quickly outrunning fixed infrastructure; order volume, even at 10x, is still modest against what one strongly-consistent primary can handle.</p>
+        <p class="hint">Compare the "At 10x" column for WebSocket gateways versus Ledger Postgres.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check — comprehensive</p>
+    <h2>Everything from this case study</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up. This block also seeds spaced review.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="robinhood-final-nfr-split">
+        <p class="stem">Why are the price path and the order path designed with opposite guarantees?</p>
+        <button class="opt">Prices need durable storage while orders only need fast in-memory caches for speed</button>
+        <button class="opt">Prices are soft-real-time and lossy while orders must be strongly consistent and durable</button>
+        <button class="opt">Prices require idempotency keys while orders can safely tolerate occasional duplicates</button>
+        <p class="fb">A dropped tick is superseded by the next; a dropped or duplicated order is a financial and regulatory failure.</p>
+        <p class="hint">Reread the NFR table and the boxed one-sentence framing.</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="robinhood-final-fanout-mechanism">
+        <p class="stem">What keeps the live-price fan-out from exploding to billions of messages per second?</p>
+        <button class="opt">Writing every single exchange tick straight into the durable append-only order ledger</button>
+        <button class="opt">Broadcasting all symbols to all clients but compressing each message payload heavily</button>
+        <button class="opt">Per-symbol channels with edge fan-out plus conflating ticks to the latest value</button>
+        <button class="opt">Routing every price update through the synchronous external exchange order API</button>
+        <p class="fb">Gateways subscribe only to watched symbols and push at most the newest quote per short interval — lossy is fine.</p>
+        <p class="hint">Reread Deep Dive 1's two bullets.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="robinhood-final-idempotency-purpose">
+        <p class="stem">What does the client-generated idempotency key on POST /orders prevent?</p>
+        <button class="opt">A network timeout and retry turning one buy intent into two real trades</button>
+        <button class="opt">The exchange feed from pushing stale quotes to a freshly subscribed client</button>
+        <button class="opt">The portfolio service from reading an outdated cost basis on a position</button>
+        <button class="opt">The reconciliation job from flagging a discrepancy that does not exist</button>
+        <p class="fb">A retry with the same key returns the original order (or 409) instead of placing a duplicate.</p>
+        <p class="hint">Reread the "Idempotency: the duplicate-order killer" section.</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="robinhood-final-append-only-purpose">
+        <p class="stem">Why is an append-only ledger the right model for orders rather than mutating rows in place?</p>
+        <button class="opt">It lets the system broadcast each order state change to millions of watching clients</button>
+        <button class="opt">It removes the need to ever talk to the slow external exchange order routing API</button>
+        <button class="opt">It allows orders to be dropped safely because newer events supersede the old ones</button>
+        <button class="opt">It gives a perfect audit trail and lets state be replayed and reconciled after failures</button>
+        <p class="fb">Immutable events = auditability for regulators plus recoverability — state is a fold over the log.</p>
+        <p class="hint">Reread "Append-only ledger (event sourcing)" in Deep Dive 2.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="robinhood-final-one-decision">
+        <p class="stem">If you had to name the single judgement call that defines a staff-level answer to this whole problem, what is it?</p>
+        <button class="opt">Choosing WebSockets over Server-Sent Events for the connection tier</button>
+        <button class="opt">Recognizing these are two systems with opposite guarantees and refusing to unify their code paths or consistency model</button>
+        <button class="opt">Picking Postgres over a NoSQL database for storing orders</button>
+        <button class="opt">Deciding to skip capacity estimation because the numbers are obvious</button>
+        <p class="fb">Every deep dive, the data model split, and the alternatives table all trace back to treating prices and orders as fundamentally different problems from the first minute.</p>
+        <p class="hint">Reread the staff-level signal box in the High-Level Design chunk.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this one — push on it. Try: "Walk me through what happens to an in-flight order if the order service crashes right after routing to the exchange." Or: "How would partial fills change the state machine and the portfolio math?" Or: "Compare per-symbol Kafka topics vs. a single topic with client-side filtering for the price fan-out."
@@ -435,21 +652,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

@@ -43,22 +43,35 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -77,191 +90,369 @@
     workload genuinely needs both strong consistency and horizontal scale, and reject it when a cheaper design wins.
   </div>
 
-  <h2>Why NewSQL exists</h2>
-  <p>
-    For a decade the scaling story had two unhappy ends. <b>Single-node SQL</b> (Postgres, MySQL — Lesson 89) gives
-    you ACID transactions, joins, and a real query language, but one primary can only hold so much data and serve so
-    many writes; you scale it by sharding manually in the application, and the moment a transaction spans two shards
-    you lose atomicity. <b>NoSQL</b> (Dynamo, Cassandra) scaled writes horizontally by <em>giving up</em> the things
-    that made SQL pleasant: multi-key transactions, secondary indexes, joins, and often strong consistency.<a href="#c1" class="cite">[1]</a>
-  </p>
-  <p>
-    Distributed SQL (the "NewSQL" category) refuses the tradeoff. The goal: <b>a relational, strongly-consistent,
-    transactional database that scales out by adding nodes</b>, with the database — not your application code —
-    handling the sharding, replication, and cross-shard transactions.<a href="#c1" class="cite">[1]</a><a href="#c2" class="cite">[2]</a>
-  </p>
-  <table>
-    <tr><th>Family</th><th>Scales writes?</th><th>What you give up</th></tr>
-    <tr><td>Single-node SQL</td><td>No — one primary; manual sharding only</td><td>Nothing locally; atomicity breaks across shards</td></tr>
-    <tr><td>NoSQL (Dynamo/Cassandra)</td><td>Yes — horizontally</td><td>SQL, joins, multi-key ACID, often strong consistency</td></tr>
-    <tr><td>Distributed SQL (Spanner/CRDB)</td><td>Yes — horizontally</td><td>Low write latency (you pay for consensus)</td></tr>
-  </table>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 7</p>
+    <h2>Why NewSQL exists</h2>
+    <p>
+      For a decade the scaling story had two unhappy ends. <b>Single-node SQL</b> (Postgres, MySQL — Lesson 89) gives
+      you ACID transactions, joins, and a real query language, but one primary can only hold so much data and serve so
+      many writes; you scale it by sharding manually in the application, and the moment a transaction spans two shards
+      you lose atomicity. <b>NoSQL</b> (Dynamo, Cassandra) scaled writes horizontally by <em>giving up</em> the things
+      that made SQL pleasant: multi-key transactions, secondary indexes, joins, and often strong consistency.<a href="#c1" class="cite">[1]</a>
+    </p>
+    <p>
+      Distributed SQL (the "NewSQL" category) refuses the tradeoff. The goal: <b>a relational, strongly-consistent,
+      transactional database that scales out by adding nodes</b>, with the database — not your application code —
+      handling the sharding, replication, and cross-shard transactions.<a href="#c1" class="cite">[1]</a><a href="#c2" class="cite">[2]</a>
+    </p>
+    <table>
+      <tr><th>Family</th><th>Scales writes?</th><th>What you give up</th></tr>
+      <tr><td>Single-node SQL</td><td>No — one primary; manual sharding only</td><td>Nothing locally; atomicity breaks across shards</td></tr>
+      <tr><td>NoSQL (Dynamo/Cassandra)</td><td>Yes — horizontally</td><td>SQL, joins, multi-key ACID, often strong consistency</td></tr>
+      <tr><td>Distributed SQL (Spanner/CRDB)</td><td>Yes — horizontally</td><td>Low write latency (you pay for consensus)</td></tr>
+    </table>
 
-  <h2>Internals — how it actually works</h2>
-  <p>
-    Both Spanner and CockroachDB are built from the same three layers. Understanding them is the whole game.
-  </p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="spanner-newsql-goal">
+        <p class="stem">What is the core goal that distributed SQL / NewSQL systems refuse to trade away?</p>
+        <button class="opt">Eventual consistency in exchange for unlimited write throughput</button>
+        <button class="opt">A single primary node that keeps every commit strictly local</button>
+        <button class="opt">Relational, strongly-consistent, transactional data that also scales horizontally</button>
+        <p class="fb">Distributed SQL wants both sides at once: SQL/ACID like a single-node database, and horizontal scale like NoSQL.</p>
+        <p class="hint">Reread the second paragraph — what does the "goal" sentence say the database itself handles?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="spanner-nosql-tradeoff-why">
+        <p class="stem">Why did NoSQL systems like Dynamo and Cassandra give up joins and multi-key transactions in the first place?</p>
+        <button class="opt">Coordinating multiple keys or tables across many nodes needs cross-node agreement, which is exactly what horizontal write scaling tries to avoid</button>
+        <button class="opt">Joins and transactions were patented technology only single-node vendors could license</button>
+        <button class="opt">Application developers never asked for joins so vendors removed them to save engineering time</button>
+        <p class="fb">Multi-key operations require coordinating across nodes; NoSQL systems sidestepped that coordination cost to scale writes, at the price of those features.</p>
+        <p class="hint">Think about what a join or a multi-row transaction requires when the rows involved live on different machines.</p>
+      </div>
+    </div>
+  </section>
 
-  <h3>1. Data is split into ranges (tablets), and the splits are automatic</h3>
-  <p>
-    The full key space is sorted and chopped into contiguous chunks. Spanner calls them <em>splits</em> /
-    tablets; CockroachDB calls them <em>ranges</em> (~512&nbsp;MB each by default).<a href="#c2" class="cite">[2]</a>
-    Because the keys stay <em>sorted</em>, range scans and <code>ORDER BY</code> are cheap — this is range-based
-    sharding (Lesson 05), not hash sharding. When a range grows too big or too hot, the system splits it and
-    rebalances pieces across nodes automatically. The application never picks a shard key by hand.<a href="#c2" class="cite">[2]</a>
-  </p>
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 7</p>
+    <h2>Internals — how it actually works</h2>
+    <p>
+      Both Spanner and CockroachDB are built from the same three layers. Understanding them is the whole game.
+    </p>
 
-  <h3>2. Each range is replicated by a consensus group</h3>
-  <p>
-    Every range is stored on (typically) <b>3 or 5</b> replicas, and those replicas form a consensus group.
-    <b>Spanner uses Paxos</b>; <b>CockroachDB uses Raft</b> — different algorithms, same job: agree on an ordered
-    log of writes so a majority always shares the same committed history.<a href="#c1" class="cite">[1]</a><a href="#c2" class="cite">[2]</a>
-    One replica is the leader (Raft leader / Paxos leader); writes go through it, get appended to the log, and
-    commit once a <em>majority</em> (quorum, Lesson 06) acknowledges. This buys two things at once:
-  </p>
-  <ul>
-    <li><b>Strong consistency</b> — the quorum agrees on every write's order before it commits.</li>
-    <li><b>High availability</b> — lose a minority of replicas and the range keeps serving; a new leader is elected automatically.<a href="#c2" class="cite">[2]</a></li>
-  </ul>
-  <p>
-    Note the scope: consensus is <em>per range</em>, not per cluster. A 1,000-node cluster runs thousands of
-    independent Raft/Paxos groups in parallel — that's what lets writes scale instead of funneling through one log.<a href="#c2" class="cite">[2]</a>
-  </p>
+    <h3>1. Data is split into ranges (tablets), and the splits are automatic</h3>
+    <p>
+      The full key space is sorted and chopped into contiguous chunks. Spanner calls them <em>splits</em> /
+      tablets; CockroachDB calls them <em>ranges</em> (~512&nbsp;MB each by default).<a href="#c2" class="cite">[2]</a>
+      Because the keys stay <em>sorted</em>, range scans and <code>ORDER BY</code> are cheap — this is range-based
+      sharding (Lesson 05), not hash sharding. When a range grows too big or too hot, the system splits it and
+      rebalances pieces across nodes automatically. The application never picks a shard key by hand.<a href="#c2" class="cite">[2]</a>
+    </p>
 
-  <h3>3. Cross-range transactions use two-phase commit (2PC)</h3>
-  <p>
-    A transaction touching one range is easy: the range's consensus leader orders it. But a transaction that
-    spans <em>multiple</em> ranges (transfer money from account A on range&nbsp;1 to account B on range&nbsp;9)
-    needs atomicity across independent consensus groups. The solution is <b>two-phase commit layered on top of
-    consensus</b>: a coordinator runs PREPARE across every participating range, each range durably
-    consensus-commits its intent, and only after all vote yes does the coordinator send COMMIT.<a href="#c1" class="cite">[1]</a><a href="#c2" class="cite">[2]</a>
-  </p>
-  <div class="box">
-    <b>Why 2PC isn't fragile here.</b> Classic 2PC's weakness is the coordinator crashing mid-commit and blocking
-    everyone. In distributed SQL the coordinator's state and each participant's vote are themselves stored in
-    consensus-replicated ranges — so a crashed coordinator is recovered by its own Raft/Paxos group and the
-    transaction still resolves. 2PC handles <em>atomicity</em>; consensus handles <em>durability of the 2PC state</em>.<a href="#c2" class="cite">[2]</a>
-  </div>
-
-  <h3>4. The clock problem — TrueTime vs HLC</h3>
-  <p>
-    To behave like a single database, the system needs <b>external consistency</b> (a.k.a. linearizability /
-    strict serializability): if transaction T1 commits before T2 starts in real time, every observer must see T1's
-    effects before T2's. Achieving that across machines means agreeing on the <em>order in time</em> of commits —
-    and machine clocks drift. This is where Spanner and CockroachDB diverge.<a href="#c1" class="cite">[1]</a><a href="#c3" class="cite">[3]</a>
-  </p>
-  <table>
-    <tr><th></th><th>Spanner — TrueTime</th><th>CockroachDB — HLC</th></tr>
-    <tr>
-      <td>Idea</td>
-      <td>Clocks backed by GPS + atomic clocks expose time as an <em>interval</em> <code>[earliest, latest]</code> with bounded uncertainty <code>ε</code>.<a href="#c3" class="cite">[3]</a></td>
-      <td>Hybrid Logical Clock = wall-clock time fused with a logical counter; no special hardware.<a href="#c2" class="cite">[2]</a></td>
-    </tr>
-    <tr>
-      <td>Commit trick</td>
-      <td><b>Commit wait:</b> after picking a commit timestamp, deliberately wait out the uncertainty <code>ε</code> (a few ms) so no later transaction can claim an earlier time.<a href="#c3" class="cite">[3]</a></td>
-      <td>On a read that hits uncertain data, <b>restart the transaction</b> at a higher timestamp (uncertainty restart) within a bounded max-offset window.<a href="#c2" class="cite">[2]</a></td>
-    </tr>
-    <tr>
-      <td>Guarantee</td>
-      <td>External consistency globally, even across continents.<a href="#c3" class="cite">[3]</a></td>
-      <td>Serializable isolation; single-key linearizable, slightly weaker cross-key ordering guarantees.<a href="#c2" class="cite">[2]</a></td>
-    </tr>
-    <tr>
-      <td>Cost</td>
-      <td>Requires Google's GPS/atomic-clock infrastructure.</td>
-      <td>Runs on commodity hardware / any cloud.</td>
-    </tr>
-  </table>
-  <p>
-    The headline: <b>Spanner buys correctness by waiting</b> (commit wait spends the clock uncertainty up front);
-    <b>CockroachDB buys deployability by occasionally retrying</b> (it tolerates commodity clocks by restarting
-    transactions that read inside the uncertainty window).<a href="#c2" class="cite">[2]</a><a href="#c3" class="cite">[3]</a>
-  </p>
-
-  <h2>Tradeoffs — and when (not) to reach for it</h2>
-  <p>
-    Nothing is free, and the price of "ACID at scale" is concrete and worth naming:
-  </p>
-  <table>
-    <tr><th>Cost</th><th>Why it happens</th></tr>
-    <tr><td>Higher write latency</td><td>Every write needs a consensus round trip to a majority of replicas — often cross-AZ or cross-region. Single-node Postgres commits locally; here you pay quorum latency on every commit.<a href="#c2" class="cite">[2]</a></td></tr>
-    <tr><td>Expensive cross-range txns</td><td>Multi-range transactions add 2PC coordination on top of consensus — more round trips, more contention. Keeping related data in one range (locality) is a real design lever.<a href="#c2" class="cite">[2]</a></td></tr>
-    <tr><td>Write hotspots</td><td>Sequential keys (auto-increment IDs, timestamps) all land on the newest range → one leader takes all writes. Fix: hash-prefix or UUID keys to spread load.<a href="#c2" class="cite">[2]</a></td></tr>
-    <tr><td>Operational/cost weight</td><td>3–5× storage from replication; Spanner needs Google infra, CRDB needs careful topology tuning.</td></tr>
-  </table>
-  <div class="box">
-    <b>Reach for distributed SQL when:</b>
+    <h3>2. Each range is replicated by a consensus group</h3>
+    <p>
+      Every range is stored on (typically) <b>3 or 5</b> replicas, and those replicas form a consensus group.
+      <b>Spanner uses Paxos</b>; <b>CockroachDB uses Raft</b> — different algorithms, same job: agree on an ordered
+      log of writes so a majority always shares the same committed history.<a href="#c1" class="cite">[1]</a><a href="#c2" class="cite">[2]</a>
+      One replica is the leader (Raft leader / Paxos leader); writes go through it, get appended to the log, and
+      commit once a <em>majority</em> (quorum, Lesson 06) acknowledges. This buys two things at once:
+    </p>
     <ul>
-      <li>You genuinely need <b>multi-row ACID transactions AND horizontal scale</b> — payments, ledgers, inventory, orders.</li>
-      <li>You need <b>strong consistency across regions</b> (a global bank balance, not eventual).</li>
-      <li>You're outgrowing a single Postgres primary but refuse to hand-roll sharding + cross-shard txns.</li>
+      <li><b>Strong consistency</b> — the quorum agrees on every write's order before it commits.</li>
+      <li><b>High availability</b> — lose a minority of replicas and the range keeps serving; a new leader is elected automatically.<a href="#c2" class="cite">[2]</a></li>
     </ul>
-    <b>Do NOT reach for it when:</b>
-    <ul>
-      <li>A single Postgres/MySQL primary (with read replicas) still fits — it's simpler and lower-latency. Don't pay consensus tax you don't need.</li>
-      <li>The workload is append-heavy / eventually-consistent-friendly (feeds, logs, metrics) — Cassandra/Dynamo is cheaper and faster.</li>
-      <li>You need the absolute lowest single-row write latency — local commits beat quorum commits.</li>
-    </ul>
-  </div>
+    <p>
+      Note the scope: consensus is <em>per range</em>, not per cluster. A 1,000-node cluster runs thousands of
+      independent Raft/Paxos groups in parallel — that's what lets writes scale instead of funneling through one log.<a href="#c2" class="cite">[2]</a>
+    </p>
 
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    A senior says "let's use Spanner, it scales." A staff candidate frames it as a <strong>deliberate tradeoff</strong>:
-    "This ledger needs cross-account ACID and is going multi-region, so I'll accept ~10ms quorum write latency to
-    keep one strongly-consistent store instead of hand-rolling sharding plus 2PC in the app." The deeper signal is
-    knowing the <em>mechanism</em> — per-range Raft/Paxos for consistency+HA, 2PC for cross-range atomicity,
-    TrueTime/HLC for external consistency — and the <em>limits</em>: calling out the sequential-key hotspot and
-    proposing hashed keys before the interviewer does, and being willing to say "actually, a single Postgres
-    primary still fits here — distributed SQL would be over-engineering." Reaching for the powerful tool <em>and</em>
-    knowing when not to is the judgement they're testing.
-  </div>
+    <h3>3. Cross-range transactions use two-phase commit (2PC)</h3>
+    <p>
+      A transaction touching one range is easy: the range's consensus leader orders it. But a transaction that
+      spans <em>multiple</em> ranges (transfer money from account A on range&nbsp;1 to account B on range&nbsp;9)
+      needs atomicity across independent consensus groups. The solution is <b>two-phase commit layered on top of
+      consensus</b>: a coordinator runs PREPARE across every participating range, each range durably
+      consensus-commits its intent, and only after all vote yes does the coordinator send COMMIT.<a href="#c1" class="cite">[1]</a><a href="#c2" class="cite">[2]</a>
+    </p>
+    <div class="box">
+      <b>Why 2PC isn't fragile here.</b> Classic 2PC's weakness is the coordinator crashing mid-commit and blocking
+      everyone. In distributed SQL the coordinator's state and each participant's vote are themselves stored in
+      consensus-replicated ranges — so a crashed coordinator is recovered by its own Raft/Paxos group and the
+      transaction still resolves. 2PC handles <em>atomicity</em>; consensus handles <em>durability of the 2PC state</em>.<a href="#c2" class="cite">[2]</a>
+    </div>
 
-  <h2>In the interview</h2>
-  <p>How this earns points in a design loop:</p>
-  <ol style="font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.92rem;">
-    <li><strong>Trigger it from an NFR, not a buzzword.</strong> "Orders need multi-item atomicity and we're multi-region → this is a distributed-SQL case, not a Cassandra case."</li>
-    <li><strong>Name the mechanism in one breath.</strong> "Each range is Raft-replicated for consistency and HA; cross-range order transactions use 2PC over those groups."</li>
-    <li><strong>Pre-empt the hotspot.</strong> "Order IDs are sequential, so I'll hash-prefix the key to avoid hammering one range's leader."</li>
-    <li><strong>Show restraint.</strong> "If this were single-region and fit one primary, I'd use plain Postgres — distributed SQL only earns its latency cost at this scale."</li>
-  </ol>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="spanner-per-range-consensus">
+        <p class="stem">In distributed SQL, what mechanism keeps each individual data range consistent and available?</p>
+        <button class="opt">A single global primary node orders every write for all ranges</button>
+        <button class="opt">A per-range consensus group replicating an ordered log via quorum</button>
+        <button class="opt">A gossip protocol that lets replicas converge to a value eventually</button>
+        <p class="fb">Each range runs its own Raft (CRDB) or Paxos (Spanner) group; a majority commits each write, giving consistency + HA.</p>
+        <p class="hint">Reread "Each range is replicated by a consensus group" — what does the majority agree on?</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="spanner-cross-range-2pc">
+        <p class="stem">A transaction spans two different ranges. How is its atomicity guaranteed across them?</p>
+        <button class="opt">By routing the entire transaction to one shared coordinator cache</button>
+        <button class="opt">By forbidding writes that ever touch more than a single range</button>
+        <button class="opt">By two-phase commit layered on top of each range's consensus</button>
+        <p class="fb">Cross-range writes use 2PC; the 2PC state itself lives in consensus-replicated ranges, so a crashed coordinator recovers.</p>
+        <p class="hint">Look at the "Cross-range transactions" section — what protocol coordinates the PREPARE and COMMIT steps?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="spanner-why-2pc-not-fragile">
+        <p class="stem">Classic 2PC is famous for blocking forever if the coordinator crashes mid-commit. Why doesn't that happen here?</p>
+        <button class="opt">The coordinator's state and each vote are stored in consensus-replicated ranges, so a crashed coordinator's own Raft/Paxos group recovers it</button>
+        <button class="opt">Distributed SQL systems never use a coordinator at all, so there's nothing to crash</button>
+        <button class="opt">Every participant range independently guesses the outcome and they always happen to agree</button>
+        <p class="fb">Consensus gives 2PC's coordinator state durability, so recovery is automatic instead of leaving participants blocked indefinitely.</p>
+        <p class="hint">Reread the "Why 2PC isn't fragile here" box — what layer recovers the coordinator's state?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="spanner-per-range-scaling-why">
+        <p class="stem">Why does running consensus "per range" instead of "per cluster" matter for write scalability?</p>
+        <button class="opt">Per-range consensus means only one range in the whole cluster can ever accept writes at a time</button>
+        <button class="opt">Thousands of independent consensus groups can commit writes in parallel instead of funneling every write through one shared log</button>
+        <button class="opt">Per-range consensus removes the need for any replication at all</button>
+        <p class="fb">A single cluster-wide log would serialize every write through one leader. Independent per-range groups let unrelated writes commit concurrently.</p>
+        <p class="hint">Compare "one global log" versus "one log per range" — which one lets 1,000 nodes commit writes at the same time?</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. In distributed SQL, what mechanism keeps each individual data range consistent and available?</p>
-      <button class="opt">A single global primary node orders every write for all ranges</button>
-      <button class="opt">A per-range consensus group replicating an ordered log via quorum</button>
-      <button class="opt">A gossip protocol that lets replicas converge to a value eventually</button>
-      <button class="opt">A shared cache layer that fronts all reads and writes for a table</button>
-      <p class="fb">Each range runs its own Raft (CRDB) or Paxos (Spanner) group; a majority commits each write, giving consistency + HA.</p>
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 7</p>
+    <h2>The clock problem — TrueTime vs HLC</h2>
+    <p>
+      To behave like a single database, the system needs <b>external consistency</b> (a.k.a. linearizability /
+      strict serializability): if transaction T1 commits before T2 starts in real time, every observer must see T1's
+      effects before T2's. Achieving that across machines means agreeing on the <em>order in time</em> of commits —
+      and machine clocks drift. This is where Spanner and CockroachDB diverge.<a href="#c1" class="cite">[1]</a><a href="#c3" class="cite">[3]</a>
+    </p>
+    <table>
+      <tr><th></th><th>Spanner — TrueTime</th><th>CockroachDB — HLC</th></tr>
+      <tr>
+        <td>Idea</td>
+        <td>Clocks backed by GPS + atomic clocks expose time as an <em>interval</em> <code>[earliest, latest]</code> with bounded uncertainty <code>ε</code>.<a href="#c3" class="cite">[3]</a></td>
+        <td>Hybrid Logical Clock = wall-clock time fused with a logical counter; no special hardware.<a href="#c2" class="cite">[2]</a></td>
+      </tr>
+      <tr>
+        <td>Commit trick</td>
+        <td><b>Commit wait:</b> after picking a commit timestamp, deliberately wait out the uncertainty <code>ε</code> (a few ms) so no later transaction can claim an earlier time.<a href="#c3" class="cite">[3]</a></td>
+        <td>On a read that hits uncertain data, <b>restart the transaction</b> at a higher timestamp (uncertainty restart) within a bounded max-offset window.<a href="#c2" class="cite">[2]</a></td>
+      </tr>
+      <tr>
+        <td>Guarantee</td>
+        <td>External consistency globally, even across continents.<a href="#c3" class="cite">[3]</a></td>
+        <td>Serializable isolation; single-key linearizable, slightly weaker cross-key ordering guarantees.<a href="#c2" class="cite">[2]</a></td>
+      </tr>
+      <tr>
+        <td>Cost</td>
+        <td>Requires Google's GPS/atomic-clock infrastructure.</td>
+        <td>Runs on commodity hardware / any cloud.</td>
+      </tr>
+    </table>
+    <p>
+      The headline: <b>Spanner buys correctness by waiting</b> (commit wait spends the clock uncertainty up front);
+      <b>CockroachDB buys deployability by occasionally retrying</b> (it tolerates commodity clocks by restarting
+      transactions that read inside the uncertainty window).<a href="#c2" class="cite">[2]</a><a href="#c3" class="cite">[3]</a>
+    </p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="spanner-truetime-commit-wait">
+        <p class="stem">How does Spanner's TrueTime give external consistency on top of clocks that drift?</p>
+        <button class="opt">It waits out the bounded clock uncertainty before each commit returns</button>
+        <button class="opt">It speeds up the slowest replica using extra atomic-clock timestamps</button>
+        <button class="opt">It drops any commit whose timestamp falls behind the previous write</button>
+        <p class="fb">Commit wait deliberately sleeps for the uncertainty interval ε so no later transaction can claim an earlier real-time order.</p>
+        <p class="hint">Reread the "Commit trick" row for Spanner — what does it do after picking a timestamp?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="spanner-truetime-why-external-consistency">
+        <p class="stem">Why would skipping commit wait break external consistency, even though the clock uncertainty ε is often just a few milliseconds?</p>
+        <button class="opt">Skipping it would only slow down reads, never affect correctness</button>
+        <button class="opt">Without waiting out ε, a later transaction could pick a timestamp that looks earlier than one that already committed, reversing the real-time order observers see</button>
+        <button class="opt">Commit wait is purely a legacy step with no effect on correctness today</button>
+        <p class="fb">External consistency requires that real-time order matches commit-timestamp order. Uncertainty ε means two nearby timestamps could overlap in real time; waiting it out guarantees separation.</p>
+        <p class="hint">Think about two transactions committing within ε of each other, and what "external consistency" promises about their real-time order.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="spanner-hlc-vs-truetime-tradeoff">
+        <p class="stem">What is the fundamental tradeoff CockroachDB makes by using HLC and uncertainty restarts instead of TrueTime?</p>
+        <button class="opt">HLC is strictly better in every way, so there is no tradeoff at all</button>
+        <button class="opt">HLC gives up SQL support entirely in exchange for commodity hardware</button>
+        <button class="opt">HLC avoids needing specialized GPS/atomic-clock hardware, but pays for it with occasional transaction restarts instead of Spanner's upfront wait</button>
+        <p class="fb">Spanner pays a fixed small wait on every commit using expensive hardware; CockroachDB avoids that hardware but occasionally retries transactions that land inside the uncertainty window.</p>
+        <p class="hint">Compare the "Cost" row for each system, and what each one does instead of relying on tightly bounded clock hardware.</p>
+      </div>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. A transaction spans two different ranges. How is its atomicity guaranteed across them?</p>
-      <button class="opt">By routing the entire transaction to one shared coordinator cache</button>
-      <button class="opt">By forbidding writes that ever touch more than a single range</button>
-      <button class="opt">By two-phase commit layered on top of each range's consensus</button>
-      <button class="opt">By replaying the transaction until both ranges happen to agree</button>
-      <p class="fb">Cross-range writes use 2PC; the 2PC state itself lives in consensus-replicated ranges, so a crashed coordinator recovers.</p>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 7</p>
+    <h2>Tradeoffs — and when (not) to reach for it</h2>
+    <p>
+      Nothing is free, and the price of "ACID at scale" is concrete and worth naming:
+    </p>
+    <table>
+      <tr><th>Cost</th><th>Why it happens</th></tr>
+      <tr><td>Higher write latency</td><td>Every write needs a consensus round trip to a majority of replicas — often cross-AZ or cross-region. Single-node Postgres commits locally; here you pay quorum latency on every commit.<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td>Expensive cross-range txns</td><td>Multi-range transactions add 2PC coordination on top of consensus — more round trips, more contention. Keeping related data in one range (locality) is a real design lever.<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td>Write hotspots</td><td>Sequential keys (auto-increment IDs, timestamps) all land on the newest range → one leader takes all writes. Fix: hash-prefix or UUID keys to spread load.<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td>Operational/cost weight</td><td>3–5× storage from replication; Spanner needs Google infra, CRDB needs careful topology tuning.</td></tr>
+    </table>
+    <div class="box">
+      <b>Reach for distributed SQL when:</b>
+      <ul>
+        <li>You genuinely need <b>multi-row ACID transactions AND horizontal scale</b> — payments, ledgers, inventory, orders.</li>
+        <li>You need <b>strong consistency across regions</b> (a global bank balance, not eventual).</li>
+        <li>You're outgrowing a single Postgres primary but refuse to hand-roll sharding + cross-shard txns.</li>
+      </ul>
+      <b>Do NOT reach for it when:</b>
+      <ul>
+        <li>A single Postgres/MySQL primary (with read replicas) still fits — it's simpler and lower-latency. Don't pay consensus tax you don't need.</li>
+        <li>The workload is append-heavy / eventually-consistent-friendly (feeds, logs, metrics) — Cassandra/Dynamo is cheaper and faster.</li>
+        <li>You need the absolute lowest single-row write latency — local commits beat quorum commits.</li>
+      </ul>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. How does Spanner's TrueTime give external consistency on top of clocks that drift?</p>
-      <button class="opt">It waits out the bounded clock uncertainty before each commit returns</button>
-      <button class="opt">It speeds up the slowest replica using extra atomic-clock timestamps</button>
-      <button class="opt">It drops any commit whose timestamp falls behind the previous write</button>
-      <button class="opt">It assigns every commit the exact same timestamp across all regions</button>
-      <p class="fb">Commit wait deliberately sleeps for the uncertainty interval ε so no later transaction can claim an earlier real-time order.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="spanner-weakest-fit-workload">
+        <p class="stem">Which workload is the WEAKEST fit for reaching for distributed SQL?</p>
+        <button class="opt">A multi-region ledger needing cross-account atomic money transfers</button>
+        <button class="opt">An append-only metrics feed that tolerates eventual consistency fine</button>
+        <button class="opt">An order system needing multi-item ACID beyond one primary's limit</button>
+        <p class="fb">Append-heavy, eventually-consistent workloads are cheaper and faster on Cassandra/Dynamo — paying the consensus tax buys nothing here.</p>
+        <p class="hint">Reread "Do NOT reach for it when" — which bullet names this exact workload shape?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="spanner-hotspot-why-sequential-keys">
+        <p class="stem">Why do sequential keys like auto-increment IDs create a write hotspot in a range-sharded distributed SQL system?</p>
+        <button class="opt">Every new sequential key sorts to the end of the key space, so all new writes land on the same newest range and its single leader</button>
+        <button class="opt">Sequential keys are stored on every range simultaneously, tripling storage cost</button>
+        <button class="opt">Sequential keys disable consensus entirely for that table</button>
+        <p class="fb">Because ranges are sorted by key, monotonically increasing keys keep appending to the same range, funneling all writes through that range's one leader.</p>
+        <p class="hint">Remember: ranges are sorted contiguous chunks of key space. Where do ever-increasing keys always land?</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. Which workload is the WEAKEST fit for reaching for distributed SQL?</p>
-      <button class="opt">A multi-region ledger needing cross-account atomic money transfers</button>
-      <button class="opt">An append-only metrics feed that tolerates eventual consistency fine</button>
-      <button class="opt">An order system needing multi-item ACID beyond one primary's limit</button>
-      <button class="opt">A global inventory count that must stay strongly consistent always</button>
-      <p class="fb">Append-heavy, eventually-consistent workloads are cheaper and faster on Cassandra/Dynamo — paying the consensus tax buys nothing here.</p>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 7</p>
+    <h2>Staff-level signal</h2>
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      A senior says "let's use Spanner, it scales." A staff candidate frames it as a <strong>deliberate tradeoff</strong>:
+      "This ledger needs cross-account ACID and is going multi-region, so I'll accept ~10ms quorum write latency to
+      keep one strongly-consistent store instead of hand-rolling sharding plus 2PC in the app." The deeper signal is
+      knowing the <em>mechanism</em> — per-range Raft/Paxos for consistency+HA, 2PC for cross-range atomicity,
+      TrueTime/HLC for external consistency — and the <em>limits</em>: calling out the sequential-key hotspot and
+      proposing hashed keys before the interviewer does, and being willing to say "actually, a single Postgres
+      primary still fits here — distributed SQL would be over-engineering." Reaching for the powerful tool <em>and</em>
+      knowing when not to is the judgement they're testing.
     </div>
-  </div>
+
+    <h2>In the interview</h2>
+    <p>How this earns points in a design loop:</p>
+    <ol style="font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.92rem;">
+      <li><strong>Trigger it from an NFR, not a buzzword.</strong> "Orders need multi-item atomicity and we're multi-region → this is a distributed-SQL case, not a Cassandra case."</li>
+      <li><strong>Name the mechanism in one breath.</strong> "Each range is Raft-replicated for consistency and HA; cross-range order transactions use 2PC over those groups."</li>
+      <li><strong>Pre-empt the hotspot.</strong> "Order IDs are sequential, so I'll hash-prefix the key to avoid hammering one range's leader."</li>
+      <li><strong>Show restraint.</strong> "If this were single-region and fit one primary, I'd use plain Postgres — distributed SQL only earns its latency cost at this scale."</li>
+    </ol>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="spanner-staff-vs-senior-signal">
+        <p class="stem">What most separates a staff-level answer from a senior-level answer when reaching for distributed SQL?</p>
+        <button class="opt">The staff candidate names more buzzwords in the same amount of time</button>
+        <button class="opt">The staff candidate always recommends Spanner over CockroachDB</button>
+        <button class="opt">The staff candidate frames it as a deliberate tradeoff tied to a specific NFR, names the mechanism, and is willing to say it's not needed</button>
+        <button class="opt">The staff candidate skips explaining any mechanism to save time</button>
+        <p class="fb">The staff signal is judgement: trigger from a real requirement, explain the mechanism, and know when to say no — not just naming the technology.</p>
+        <p class="hint">Reread the staff callout — what three things does it list as "the deeper signal"?</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="spanner-interview-preempt-hotspot">
+        <p class="stem">Per the "In the interview" guidance, what should you proactively call out about order IDs before the interviewer asks?</p>
+        <button class="opt">That sequential IDs create a write hotspot, so you'd hash-prefix the key</button>
+        <button class="opt">That order IDs should never be stored in a distributed SQL system at all</button>
+        <button class="opt">That order IDs require a separate NoSQL database</button>
+        <p class="fb">Pre-empting the hotspot is one of the four staff-signal moves: name the sequential-key problem and its fix before being prompted.</p>
+        <p class="hint">Look at point 3 in the numbered interview list.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 7</p>
+    <h2>When to choose Spanner-style SQL vs. the alternatives</h2>
+    <p>
+      Pulling the tradeoffs and mechanisms together: the decision is never "distributed SQL is better than NoSQL."
+      It's "does this workload need multi-key ACID and horizontal scale at the same time." If yes, and the
+      consensus/2PC/clock costs above are acceptable, distributed SQL wins. If the workload can tolerate eventual
+      consistency or never needs multi-key transactions, a cheaper system wins instead.<a href="#c1" class="cite">[1]</a><a href="#c2" class="cite">[2]</a>
+    </p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="spanner-decision-rule-why">
+        <p class="stem">Why is "does this workload need multi-key ACID AND horizontal scale simultaneously" the right decision question, rather than "is distributed SQL more powerful"?</p>
+        <button class="opt">Because distributed SQL is always more powerful and should always be the default choice</button>
+        <button class="opt">Because the extra power of distributed SQL comes with real, concrete costs (write latency, 2PC overhead, hotspot risk), so it should only be paid for when the workload's requirements actually demand both properties at once</button>
+        <button class="opt">Because power and cost are unrelated to each other in distributed systems</button>
+        <p class="fb">Every capability in this lesson (consensus, 2PC, TrueTime/HLC) has a latency or complexity cost. The right lens is "does the workload need what only this combination provides," not raw capability.</p>
+        <p class="hint">Revisit the tradeoffs chunk — every mechanism that gives distributed SQL its power also appears as a line item in the cost table.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">7 of 7 — comprehensive check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also
+      seeds the spaced-review schedule — you'll see these again on future session starts
+      per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="c" data-concept="spanner-final-goal">
+        <p class="stem">What problem does distributed SQL / NewSQL solve that neither single-node SQL nor NoSQL solved alone?</p>
+        <button class="opt">It removes the need for replication entirely</button>
+        <button class="opt">It makes eventual consistency stronger than strong consistency</button>
+        <button class="opt">It provides relational ACID transactions that also scale horizontally across nodes</button>
+        <p class="fb">That combination, strong consistency plus horizontal scale, is exactly the gap between single-node SQL and NoSQL.</p>
+        <p class="hint">Reread chunk 1 — what did single-node SQL and NoSQL each fail to offer?</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="spanner-final-2pc-recovery">
+        <p class="stem">Why does a distributed SQL system's 2PC coordinator not permanently block on a crash, unlike classic 2PC?</p>
+        <button class="opt">There is no coordinator, only leaderless gossip</button>
+        <button class="opt">The coordinator's state is itself stored in consensus-replicated ranges, so it recovers automatically</button>
+        <button class="opt">2PC is abandoned entirely in favor of eventual consistency</button>
+        <p class="fb">Consensus underpins the 2PC coordinator's durability, which is what avoids the classic blocking failure mode.</p>
+        <p class="hint">Reread the "Why 2PC isn't fragile here" box in chunk 2.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="spanner-final-truetime-intuition">
+        <p class="stem">If Spanner removed commit wait to make commits faster, what would break?</p>
+        <button class="opt">Two transactions could commit within the clock's uncertainty window in an order that contradicts real time, breaking external consistency</button>
+        <button class="opt">Nothing would break, since commit wait is only a debugging aid</button>
+        <button class="opt">Replication would stop working across all ranges</button>
+        <p class="fb">Commit wait exists precisely to prevent a later transaction from appearing to precede an earlier one within the uncertainty window.</p>
+        <p class="hint">Revisit chunk 3 — what does commit wait guarantee about real-time order versus timestamp order?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="spanner-final-when-not-to-use">
+        <p class="stem">A candidate proposes distributed SQL for a single-region app with one write-heavy table and no multi-row transactions. What's the staff-level pushback?</p>
+        <button class="opt">Agree immediately, since distributed SQL is always the safest choice</button>
+        <button class="opt">Reject it because distributed SQL cannot run in a single region</button>
+        <button class="opt">Question it: without multi-row ACID or multi-region needs, a single Postgres primary is simpler and avoids paying quorum write latency for nothing</button>
+        <p class="fb">Reaching for distributed SQL without a workload reason that needs it is exactly the over-engineering the staff signal warns against.</p>
+        <p class="hint">Reread "Do NOT reach for it when" and the staff-level signal callout.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="spanner-final-hotspot-fix">
+        <p class="stem">What is the standard fix for a write hotspot caused by sequential primary keys?</p>
+        <button class="opt">Hash-prefix or randomize the key so writes spread across ranges</button>
+        <button class="opt">Switch the table to use a single global range with no splits</button>
+        <button class="opt">Disable consensus for that specific table</button>
+        <p class="fb">Hashing or randomizing the key breaks up the sequential ordering that funnels all writes into the newest range.</p>
+        <p class="hint">Reread the "Write hotspots" row in the tradeoffs table.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your tutor for this topic. Try:
@@ -295,21 +486,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

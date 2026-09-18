@@ -43,22 +43,35 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,147 +86,277 @@
     <strong>Why this lesson, for your mission:</strong> Every case study eventually asks "what do you store this in?" A senior answer names a database. A staff answer runs a small decision procedure out loud — access pattern, then consistency need, then scale and shape — and lands on a pick they can defend against "why not X instead?" This lesson is that procedure, distilled from the individual database deep dives (<a href="0088-postgresql.html">Postgres</a>, <a href="0089-mysql.html">MySQL</a>, <a href="0090-cassandra.html">Cassandra</a>, <a href="0091-dynamodb.html">DynamoDB</a>, <a href="0092-mongodb.html">MongoDB</a>, <a href="0093-redis.html">Redis</a>, <a href="0094-elasticsearch.html">Elasticsearch</a>, <a href="0095-clickhouse-olap.html">ClickHouse</a>) into one reusable framework.
   </div>
 
-  <h2>The order of questions, not a table of products</h2>
-  <p>The mistake is starting from "which database is best" and working backward. The fix is starting from <em>your workload</em> and asking, in order:</p>
-  <table>
-    <thead><tr><th>#</th><th>Question</th><th>What it eliminates</th></tr></thead>
-    <tbody>
-      <tr><td>1</td><td>What does a typical read/write actually look like?</td><td>Whether you need joins, range scans, full-text, or a single-key lookup</td></tr>
-      <tr><td>2</td><td>What happens if two writes to the same record race?</td><td>Whether you need strong consistency/transactions or can tolerate eventual</td></tr>
-      <tr><td>3</td><td>How much data, and how fast does it grow?</td><td>Whether a single-node relational DB is enough or you need to shard/go wide-column</td></tr>
-      <tr><td>4</td><td>Is this the source of truth, or a derived view?</td><td>Whether it needs durability/ACID at all, or can be a cache/index rebuilt from the truth</td></tr>
-    </tbody>
-  </table>
-  <p>Answer these four, in this order, and the field of "50 databases" collapses to 1–2 defensible candidates before you've named a single product.</p>
-
-  <h2>Question 1 — access pattern</h2>
-  <p>This is the highest-leverage question because it determines the <em>category</em>, not just the vendor.</p>
-  <table>
-    <thead><tr><th>Access pattern</th><th>Category</th><th>Example</th></tr></thead>
-    <tbody>
-      <tr><td>Lookup by key, simple relations, need joins/transactions across entities</td><td>Relational (SQL)</td><td>Orders + line items + customers</td></tr>
-      <tr><td>Lookup by key only, one entity, extreme write throughput, flexible schema</td><td>Wide-column / key-value (NoSQL)</td><td>Sensor readings keyed by device_id</td></tr>
-      <tr><td>Sub-millisecond lookup, ephemeral or semi-durable, rich in-memory structures</td><td>In-memory store</td><td>Session state, leaderboard, rate limiter</td></tr>
-      <tr><td>Full-text search, relevance ranking, faceted filtering</td><td>Search index</td><td>Product search, log search</td></tr>
-      <tr><td>Aggregate over huge historical volumes, few writes, many large scans</td><td>Columnar / OLAP</td><td>"Revenue by region by day for 2 years"</td></tr>
-      <tr><td>Ordered by time, high write rate, queries are always range-by-time</td><td>Time-series</td><td>Metrics, IoT telemetry</td></tr>
-      <tr><td>Similarity search over high-dimensional embeddings</td><td>Vector</td><td>Semantic search, RAG retrieval</td></tr>
-    </tbody>
-  </table>
-  <div class="box">
-    <b>One system, one store — usually.</b> Don't reach for a second datastore to solve a problem the first one already solves adequately. A Postgres <code>GIN</code> index handles modest full-text search; you don't need Elasticsearch until relevance ranking or query volume genuinely demands it. Every extra store is an extra thing to keep in sync, monitor, and back up.
-  </div>
-
-  <h2>Question 2 — consistency and contention</h2>
-  <p>This is the question that decides SQL-family vs. most NoSQL, independent of scale. Ask: <em>"if two writes hit the same row at the same instant, what must happen?"</em></p>
-  <table>
-    <thead><tr><th>Answer</th><th>Need</th><th>Fits</th></tr></thead>
-    <tbody>
-      <tr><td>Must serialize — money, inventory counts, seat holds</td><td>ACID transactions, often row-level locking or optimistic concurrency</td><td>Postgres/MySQL, or a distributed SQL store (CockroachDB, Spanner) at large scale</td></tr>
-      <tr><td>Can merge/last-write-wins — profile edits, likes, view counts</td><td>Eventual consistency, tunable per-request if needed</td><td>Cassandra, DynamoDB</td></tr>
-      <tr><td>Never conflicts by construction — append-only events, logs</td><td>No coordination needed; writes are independent</td><td>Kafka-backed log, wide-column store keyed to avoid collisions</td></tr>
-    </tbody>
-  </table>
-  <p>This is exactly the AP/CP framing from <a href="0006-replication-and-cap.html">Replication &amp; CAP</a>, applied one level earlier — before you pick a specific product, decide which side of that line each piece of your data sits on. Most real systems split: strongly consistent for the money/inventory path, eventually consistent for everything else. See <a href="0062-ecommerce-flash-sale.html">flash sale</a> and <a href="0123-inventory-management.html">inventory management</a> for two worked examples of exactly that split.</p>
-
-  <h2>Question 3 — scale and shape</h2>
-  <p>Only after 1 and 2 does raw size matter, because it decides single-node vs. distributed, not category.</p>
-  <table>
-    <thead><tr><th>Signal</th><th>Implication</th></tr></thead>
-    <tbody>
-      <tr><td>Fits on one well-provisioned node with room to grow (most systems, even at millions of users)</td><td>A single primary + read replicas is enough. Don't shard prematurely.</td></tr>
-      <tr><td>Write volume alone exceeds one node's disk/IOPS, no matter how you tune it</td><td>Shard by a key that matches your access pattern (see <a href="0005-sharding-and-consistent-hashing.html">Sharding</a>) or move to a store built to shard natively (Cassandra, DynamoDB).</td></tr>
-      <tr><td>Data is inherently unbounded and append-only (logs, events, metrics)</td><td>LSM-tree-based stores (Cassandra, ClickHouse) beat B-tree stores on write-heavy ingest.</td></tr>
-      <tr><td>Read pattern is "one row" vs. "scan millions of rows and aggregate"</td><td>Row-oriented (Postgres) vs. column-oriented (ClickHouse) storage — the physical layout should match the query shape.</td></tr>
-    </tbody>
-  </table>
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    The single most common interview mistake is reaching for a distributed NoSQL store because the numbers in the prompt "sound big." Most numbers that sound big (millions of users, thousands of requests/sec) fit comfortably on a well-tuned single-primary Postgres instance with caching and read replicas <a href="#c1" class="cite">[1]</a>. Justify a NoSQL or sharded pick with a specific bottleneck — write throughput past one node's IOPS ceiling, a query shape a relational engine can't serve — not with vibes about "web scale."
-  </div>
-
-  <h2>Question 4 — source of truth vs. derived view</h2>
-  <p>Not every piece of data needs a durable, ACID-compliant home. Ask what happens if this copy is lost:</p>
-  <table>
-    <thead><tr><th>If lost…</th><th>Treatment</th></tr></thead>
-    <tbody>
-      <tr><td>Business fact is gone forever — an order, a payment, a stock movement</td><td>Source of truth: durable, transactional store (relational, or an append-only ledger — see <a href="0123-inventory-management.html">inventory management</a>)</td></tr>
-      <tr><td>Can be rebuilt from the source of truth — a cache, a search index, a materialized aggregate</td><td>Derived view: optimize purely for its read pattern (Redis, Elasticsearch, a rollup table), rebuild via <a href="0113-change-data-capture.html">CDC</a> if it drifts</td></tr>
-    </tbody>
-  </table>
-  <p>This split is why a well-designed system often has three or four different stores and that's <em>not</em> over-engineering: one relational source of truth, one cache for hot reads, one search index for text queries, one CDC-fed aggregate for analytics — each doing the one thing it's good at, none of them the only copy of anything important.</p>
-
-  <h2>Putting it together</h2>
-  <div class="box">
-    <b>The four-question walk, worked on a real prompt.</b> "Design an inventory system across warehouses."
-    <ul>
-      <li><b>Access pattern:</b> point lookups and small conditional updates by (warehouse, SKU); occasional cross-warehouse aggregation. → Relational for the hot path, a rollup store for aggregates.</li>
-      <li><b>Consistency:</b> a stock decrement must never lose a concurrent update. → Needs transactions/optimistic concurrency per row — rules out plain eventual-consistency stores for this table.</li>
-      <li><b>Scale:</b> write volume per warehouse is modest; total volume is large but naturally partitions by warehouse. → Single-node relational per shard, sharded by warehouse_id — no need for a natively-distributed NoSQL store.</li>
-      <li><b>Source of truth vs. derived:</b> the movement ledger is truth; the cached stock level and the cross-warehouse aggregate are derived and rebuildable. → Postgres (truth) + Redis (cache) + a materialized view (aggregate), wired by CDC.</li>
-    </ul>
-    Four short answers, zero product names mentioned until the end — that ordering is what an interviewer is listening for.
-  </div>
-
-  <h2>The honest SQL vs. NoSQL table</h2>
-  <p>Once the four questions are answered, this table is just a confirmation, not a starting point.</p>
-  <table>
-    <thead><tr><th></th><th>SQL (Postgres/MySQL)</th><th>NoSQL (Cassandra/DynamoDB/Mongo)</th></tr></thead>
-    <tbody>
-      <tr><td>Schema</td><td>Fixed, enforced</td><td>Flexible, enforced by the app</td></tr>
-      <tr><td>Transactions</td><td>Multi-row ACID</td><td>Usually single-row/partition only</td></tr>
-      <tr><td>Joins</td><td>Native</td><td>Denormalize instead, or join in application code</td></tr>
-      <tr><td>Scaling writes</td><td>Vertical first, then manual sharding</td><td>Horizontal by design</td></tr>
-      <tr><td>Consistency default</td><td>Strong</td><td>Eventual (tunable in DynamoDB/Cassandra)</td></tr>
-      <tr><td>Best default when unsure</td><td><b>Yes — start here</b></td><td>Only once a specific need rules SQL out</td></tr>
-    </tbody>
-  </table>
-  <p>See the <a href="../reference/decision-guides.html">Decision Guides</a> reference page for the full datastore lookup table and messaging-system equivalent; this lesson is the reasoning that gets you to that table, not a replacement for it.</p>
-
-  <h2>How this shows up in an interview</h2>
-  <p>State the pick once, in the data model section, with a one-line justification per entity ("orders in Postgres — need cross-table transactions; view counts in Redis — high write rate, approximate is fine"). Don't re-litigate it unless the interviewer pushes. If they do, walk the same four questions out loud rather than defending the product name — the questions are the actual signal.</p>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    When an interviewer asks "why not just use X instead?", the weak answer defends the chosen product. The strong answer restates which of the four questions X fails on — "DynamoDB would lose the multi-row transaction across the reservation and the order, which this workflow needs." Arguing from the requirement, not from database trivia, is what reads as staff.
-  </div>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. What should you determine first when choosing a database for a new entity?</p>
-      <button class="opt">Which single vendor is most popular in industry today</button>
-      <button class="opt">The access pattern: lookups, joins, ranges, search, or scans</button>
-      <button class="opt">The exact number of servers the final cluster will need</button>
-      <button class="opt">Whether the team has previously operated a NoSQL cluster</button>
-      <p class="fb">Access pattern decides the category (relational, key-value, search, columnar, time-series) before any product or scale question matters.</p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 5</p>
+    <h2>The order of questions, not a table of products</h2>
+    <p>The mistake is starting from "which database is best" and working backward. The fix is starting from <em>your workload</em> and asking, in order:</p>
+    <table>
+      <thead><tr><th>#</th><th>Question</th><th>What it eliminates</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>What does a typical read/write actually look like?</td><td>Whether you need joins, range scans, full-text, or a single-key lookup</td></tr>
+        <tr><td>2</td><td>What happens if two writes to the same record race?</td><td>Whether you need strong consistency/transactions or can tolerate eventual</td></tr>
+        <tr><td>3</td><td>How much data, and how fast does it grow?</td><td>Whether a single-node relational DB is enough or you need to shard/go wide-column</td></tr>
+        <tr><td>4</td><td>Is this the source of truth, or a derived view?</td><td>Whether it needs durability/ACID at all, or can be a cache/index rebuilt from the truth</td></tr>
+      </tbody>
+    </table>
+    <p>Answer these four, in this order, and the field of "50 databases" collapses to 1–2 defensible candidates before you've named a single product.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="choosing-db-question-order">
+        <p class="stem">What is the correct order of the four questions?</p>
+        <button class="opt">Access pattern, then consistency, then scale, then source-of-truth</button>
+        <button class="opt">Scale, then source-of-truth, then access pattern, then consistency</button>
+        <button class="opt">Source-of-truth, then scale, then consistency, then access pattern</button>
+        <p class="fb">Access pattern picks the category; consistency picks the concurrency model; scale picks single-node vs. distributed; source-of-truth decides if durability is even needed.</p>
+        <p class="hint">Reread the four-row table — the "#" column gives the order.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="choosing-db-why-order-matters">
+        <p class="stem">Why does starting from "which database is best" instead of this order lead you astray?</p>
+        <button class="opt">Because database names are confidential during interviews</button>
+        <button class="opt">Because every database is equally good at everything</button>
+        <button class="opt">Because a product choice made before naming the workload has no requirement to justify it against</button>
+        <p class="fb">Picking a product first means you're now searching for reasons to justify it, instead of letting the actual workload constraints narrow the field.</p>
+        <p class="hint">Think about what "defensible pick" means — defensible against what?</p>
+      </div>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. A prompt mentions "millions of users" and a candidate immediately proposes Cassandra. What's the staff-level response?</p>
-      <button class="opt">Agree, since any large user count always requires a NoSQL store</button>
-      <button class="opt">Propose MongoDB instead, since it also scales horizontally</button>
-      <button class="opt">Ask what specific bottleneck rules out a single relational node</button>
-      <button class="opt">Add a second cache layer in front of whichever store is picked</button>
-      <p class="fb">Most "millions of users" workloads fit on a well-tuned single-primary relational database with caching and replicas; a distributed NoSQL pick needs a concrete bottleneck to justify it.</p>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 5</p>
+    <h2>Question 1 — access pattern</h2>
+    <p>This is the highest-leverage question because it determines the <em>category</em>, not just the vendor.</p>
+    <table>
+      <thead><tr><th>Access pattern</th><th>Category</th><th>Example</th></tr></thead>
+      <tbody>
+        <tr><td>Lookup by key, simple relations, need joins/transactions across entities</td><td>Relational (SQL)</td><td>Orders + line items + customers</td></tr>
+        <tr><td>Lookup by key only, one entity, extreme write throughput, flexible schema</td><td>Wide-column / key-value (NoSQL)</td><td>Sensor readings keyed by device_id</td></tr>
+        <tr><td>Sub-millisecond lookup, ephemeral or semi-durable, rich in-memory structures</td><td>In-memory store</td><td>Session state, leaderboard, rate limiter</td></tr>
+        <tr><td>Full-text search, relevance ranking, faceted filtering</td><td>Search index</td><td>Product search, log search</td></tr>
+        <tr><td>Aggregate over huge historical volumes, few writes, many large scans</td><td>Columnar / OLAP</td><td>"Revenue by region by day for 2 years"</td></tr>
+        <tr><td>Ordered by time, high write rate, queries are always range-by-time</td><td>Time-series</td><td>Metrics, IoT telemetry</td></tr>
+        <tr><td>Similarity search over high-dimensional embeddings</td><td>Vector</td><td>Semantic search, RAG retrieval</td></tr>
+      </tbody>
+    </table>
+    <div class="box">
+      <b>One system, one store — usually.</b> Don't reach for a second datastore to solve a problem the first one already solves adequately. A Postgres <code>GIN</code> index handles modest full-text search; you don't need Elasticsearch until relevance ranking or query volume genuinely demands it. Every extra store is an extra thing to keep in sync, monitor, and back up.
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Why might one system reasonably use four different datastores at once?</p>
-      <button class="opt">One store of truth plus derived, rebuildable views each optimized for its own read pattern</button>
-      <button class="opt">Every additional datastore automatically increases the system's overall availability</button>
-      <button class="opt">Regulatory rules generally require physically separating every table by vendor</button>
-      <button class="opt">A single vendor cannot legally host more than one entity type at once</button>
-      <p class="fb">A relational source of truth plus a cache, search index, and CDC-fed aggregate is not over-engineering — each derived view is rebuildable and optimized for its own query shape.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="choosing-db-access-pattern-first">
+        <p class="stem">Why is access pattern the highest-leverage question of the four?</p>
+        <button class="opt">Because it is always asked first by interviewers regardless of context</button>
+        <button class="opt">Because it determines the category of store, not merely which vendor within a category</button>
+        <button class="opt">Because it is the only question with a numeric answer</button>
+        <p class="fb">Access pattern separates relational from key-value from search from OLAP from time-series from vector — a category-level decision that later questions only refine.</p>
+        <p class="hint">Reread the intro sentence of this section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="choosing-db-one-store-why">
+        <p class="stem">Why does adding Elasticsearch alongside Postgres for "modest full-text search" often cost more than it earns?</p>
+        <button class="opt">Because a second store means a second thing to keep in sync, monitor, and back up, for a need Postgres's GIN index already covers</button>
+        <button class="opt">Because Elasticsearch cannot index any text shorter than 1000 characters</button>
+        <button class="opt">Because full-text search is impossible to implement outside Elasticsearch</button>
+        <p class="fb">The tax is operational, not technical: a redundant store multiplies ops burden for a capability the existing store adequately provides.</p>
+        <p class="hint">What does the box say every extra store costs you?</p>
+      </div>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. When an interviewer pushes back with "why not X instead," what's the strongest reply?</p>
-      <button class="opt">Concede immediately and switch the design to whichever store they named</button>
-      <button class="opt">Cite that store's marketing benchmarks from its documentation site</button>
-      <button class="opt">Point out that the current design was already fully implemented</button>
-      <button class="opt">Name which specific requirement — consistency, joins, scale — X fails</button>
-      <p class="fb">Arguing from the requirement the alternative fails to meet (not from product trivia) is what demonstrates the reasoning, not just the memorized pick.</p>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 5</p>
+    <h2>Question 2 — consistency and contention</h2>
+    <p>This is the question that decides SQL-family vs. most NoSQL, independent of scale. Ask: <em>"if two writes hit the same row at the same instant, what must happen?"</em></p>
+    <table>
+      <thead><tr><th>Answer</th><th>Need</th><th>Fits</th></tr></thead>
+      <tbody>
+        <tr><td>Must serialize — money, inventory counts, seat holds</td><td>ACID transactions, often row-level locking or optimistic concurrency</td><td>Postgres/MySQL, or a distributed SQL store (CockroachDB, Spanner) at large scale</td></tr>
+        <tr><td>Can merge/last-write-wins — profile edits, likes, view counts</td><td>Eventual consistency, tunable per-request if needed</td><td>Cassandra, DynamoDB</td></tr>
+        <tr><td>Never conflicts by construction — append-only events, logs</td><td>No coordination needed; writes are independent</td><td>Kafka-backed log, wide-column store keyed to avoid collisions</td></tr>
+      </tbody>
+    </table>
+    <p>This is exactly the AP/CP framing from <a href="0006-replication-and-cap.html">Replication &amp; CAP</a>, applied one level earlier — before you pick a specific product, decide which side of that line each piece of your data sits on. Most real systems split: strongly consistent for the money/inventory path, eventually consistent for everything else. See <a href="0062-ecommerce-flash-sale.html">flash sale</a> and <a href="0123-inventory-management.html">inventory management</a> for two worked examples of exactly that split.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="choosing-db-consistency-question">
+        <p class="stem">What question decides SQL-family vs. most NoSQL, independent of scale?</p>
+        <button class="opt">How many total tables the schema will eventually contain</button>
+        <button class="opt">Which cloud provider hosts the production environment</button>
+        <button class="opt">What must happen if two writes hit the same row at the same instant</button>
+        <p class="fb">Concurrent-write behavior — serialize, merge, or never conflict — is the consistency question, and it's orthogonal to raw data volume.</p>
+        <p class="hint">Reread the italicized question at the top of this section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="choosing-db-why-split-consistency">
+        <p class="stem">Why do most real systems split — strongly consistent for money/inventory, eventually consistent for everything else — rather than picking one consistency model for the whole system?</p>
+        <button class="opt">Because regulations require at least two different databases in production</button>
+        <button class="opt">Because different data has different tolerance for a lost or reordered update, so one uniform choice either overpays for guarantees the data doesn't need or underdelivers where it does</button>
+        <button class="opt">Because a single database engine cannot physically store more than one table</button>
+        <p class="fb">A view-count race costing a stale display is cheap; a stock-count race costing an oversell is not. Matching the guarantee to the actual cost of a race avoids both under- and over-engineering.</p>
+        <p class="hint">Compare the cost of a lost update on a "likes" counter versus on a stock count.</p>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 5</p>
+    <h2>Question 3 — scale and shape</h2>
+    <p>Only after 1 and 2 does raw size matter, because it decides single-node vs. distributed, not category.</p>
+    <table>
+      <thead><tr><th>Signal</th><th>Implication</th></tr></thead>
+      <tbody>
+        <tr><td>Fits on one well-provisioned node with room to grow (most systems, even at millions of users)</td><td>A single primary + read replicas is enough. Don't shard prematurely.</td></tr>
+        <tr><td>Write volume alone exceeds one node's disk/IOPS, no matter how you tune it</td><td>Shard by a key that matches your access pattern (see <a href="0005-sharding-and-consistent-hashing.html">Sharding</a>) or move to a store built to shard natively (Cassandra, DynamoDB).</td></tr>
+        <tr><td>Data is inherently unbounded and append-only (logs, events, metrics)</td><td>LSM-tree-based stores (Cassandra, ClickHouse) beat B-tree stores on write-heavy ingest.</td></tr>
+        <tr><td>Read pattern is "one row" vs. "scan millions of rows and aggregate"</td><td>Row-oriented (Postgres) vs. column-oriented (ClickHouse) storage — the physical layout should match the query shape.</td></tr>
+      </tbody>
+    </table>
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      The single most common interview mistake is reaching for a distributed NoSQL store because the numbers in the prompt "sound big." Most numbers that sound big (millions of users, thousands of requests/sec) fit comfortably on a well-tuned single-primary Postgres instance with caching and read replicas <a href="#c1" class="cite">[1]</a>. Justify a NoSQL or sharded pick with a specific bottleneck — write throughput past one node's IOPS ceiling, a query shape a relational engine can't serve — not with vibes about "web scale."
+    </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="choosing-db-scale-order">
+        <p class="stem">Why does scale get evaluated only after access pattern and consistency, not first?</p>
+        <button class="opt">Because scale decides single-node vs. distributed, while the first two questions already decided the category and concurrency model</button>
+        <button class="opt">Because scale is impossible to estimate before writing code</button>
+        <button class="opt">Because interviewers never ask about scale in practice</button>
+        <p class="fb">Scale is a sizing decision layered on top of a category and consistency model that are already fixed — it never changes which family of store you're in.</p>
+        <p class="hint">Reread the first sentence of this section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="choosing-db-vibes-vs-bottleneck">
+        <p class="stem">A candidate hears "millions of users" and immediately proposes a sharded NoSQL store. What's the intuition failure here?</p>
+        <button class="opt">Millions of users is technically impossible to serve with any database</button>
+        <button class="opt">NoSQL databases cannot handle millions of rows under any circumstances</button>
+        <button class="opt">A large-sounding user count is being used as a proxy for a concrete bottleneck, when most such workloads fit a single well-tuned primary with replicas and caching</button>
+        <button class="opt">Sharding requires regulatory approval before implementation</button>
+        <p class="fb">"Sounds big" is not a bottleneck. The staff move is naming the specific ceiling (IOPS, disk, a query shape) that a single node actually can't clear.</p>
+        <p class="hint">Reread the staff-signal box — what should justify a NoSQL/sharded pick instead of "vibes"?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 5</p>
+    <h2>Question 4, putting it together, and the honest SQL vs. NoSQL table</h2>
+    <p>Not every piece of data needs a durable, ACID-compliant home. Ask what happens if this copy is lost:</p>
+    <table>
+      <thead><tr><th>If lost…</th><th>Treatment</th></tr></thead>
+      <tbody>
+        <tr><td>Business fact is gone forever — an order, a payment, a stock movement</td><td>Source of truth: durable, transactional store (relational, or an append-only ledger — see <a href="0123-inventory-management.html">inventory management</a>)</td></tr>
+        <tr><td>Can be rebuilt from the source of truth — a cache, a search index, a materialized aggregate</td><td>Derived view: optimize purely for its read pattern (Redis, Elasticsearch, a rollup table), rebuild via <a href="0113-change-data-capture.html">CDC</a> if it drifts</td></tr>
+      </tbody>
+    </table>
+    <p>This split is why a well-designed system often has three or four different stores and that's <em>not</em> over-engineering: one relational source of truth, one cache for hot reads, one search index for text queries, one CDC-fed aggregate for analytics — each doing the one thing it's good at, none of them the only copy of anything important.</p>
+
+    <div class="box">
+      <b>The four-question walk, worked on a real prompt.</b> "Design an inventory system across warehouses."
+      <ul>
+        <li><b>Access pattern:</b> point lookups and small conditional updates by (warehouse, SKU); occasional cross-warehouse aggregation. → Relational for the hot path, a rollup store for aggregates.</li>
+        <li><b>Consistency:</b> a stock decrement must never lose a concurrent update. → Needs transactions/optimistic concurrency per row — rules out plain eventual-consistency stores for this table.</li>
+        <li><b>Scale:</b> write volume per warehouse is modest; total volume is large but naturally partitions by warehouse. → Single-node relational per shard, sharded by warehouse_id — no need for a natively-distributed NoSQL store.</li>
+        <li><b>Source of truth vs. derived:</b> the movement ledger is truth; the cached stock level and the cross-warehouse aggregate are derived and rebuildable. → Postgres (truth) + Redis (cache) + a materialized view (aggregate), wired by CDC.</li>
+      </ul>
+      Four short answers, zero product names mentioned until the end — that ordering is what an interviewer is listening for.
+    </div>
+
+    <h3>The honest SQL vs. NoSQL table</h3>
+    <p>Once the four questions are answered, this table is just a confirmation, not a starting point.</p>
+    <table>
+      <thead><tr><th></th><th>SQL (Postgres/MySQL)</th><th>NoSQL (Cassandra/DynamoDB/Mongo)</th></tr></thead>
+      <tbody>
+        <tr><td>Schema</td><td>Fixed, enforced</td><td>Flexible, enforced by the app</td></tr>
+        <tr><td>Transactions</td><td>Multi-row ACID</td><td>Usually single-row/partition only</td></tr>
+        <tr><td>Joins</td><td>Native</td><td>Denormalize instead, or join in application code</td></tr>
+        <tr><td>Scaling writes</td><td>Vertical first, then manual sharding</td><td>Horizontal by design</td></tr>
+        <tr><td>Consistency default</td><td>Strong</td><td>Eventual (tunable in DynamoDB/Cassandra)</td></tr>
+        <tr><td>Best default when unsure</td><td><b>Yes — start here</b></td><td>Only once a specific need rules SQL out</td></tr>
+      </tbody>
+    </table>
+    <p>See the <a href="../reference/decision-guides.html">Decision Guides</a> reference page for the full datastore lookup table and messaging-system equivalent; this lesson is the reasoning that gets you to that table, not a replacement for it.</p>
+
+    <h3>How this shows up in an interview</h3>
+    <p>State the pick once, in the data model section, with a one-line justification per entity ("orders in Postgres — need cross-table transactions; view counts in Redis — high write rate, approximate is fine"). Don't re-litigate it unless the interviewer pushes. If they do, walk the same four questions out loud rather than defending the product name — the questions are the actual signal.</p>
+
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      When an interviewer asks "why not just use X instead?", the weak answer defends the chosen product. The strong answer restates which of the four questions X fails on — "DynamoDB would lose the multi-row transaction across the reservation and the order, which this workflow needs." Arguing from the requirement, not from database trivia, is what reads as staff.
+    </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="choosing-db-source-of-truth-question">
+        <p class="stem">Question 4 asks what, exactly?</p>
+        <button class="opt">Which programming language the application backend is written in</button>
+        <button class="opt">How many read replicas the store currently has provisioned</button>
+        <button class="opt">What happens if this particular copy of the data is lost — is it the source of truth or a rebuildable derived view</button>
+        <p class="fb">If losing the copy loses a business fact forever, it needs a durable transactional home; if it's rebuildable, optimize it purely for its read pattern.</p>
+        <p class="hint">Reread the heading of this section's first table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="choosing-db-four-stores-not-overengineering">
+        <p class="stem">Why is a system running four different datastores at once not automatically over-engineering?</p>
+        <button class="opt">Because each store is either the one source of truth or a rebuildable derived view optimized for its own read pattern, not a duplicate copy of the same responsibility</button>
+        <button class="opt">Because more datastores always mean proportionally lower total infrastructure cost</button>
+        <button class="opt">Because every datastore in a system must store an identical copy of all data</button>
+        <p class="fb">Over-engineering is redundant capability, not division of labor. A cache, a search index, and an aggregate each do one job the source of truth doesn't do well, and can all be rebuilt from it.</p>
+        <p class="hint">Reread the paragraph right after the source-of-truth table.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also
+      seeds the spaced-review schedule — you'll see these again on future session starts
+      per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="choosing-db-first-question-final">
+        <p class="stem">What should you determine first when choosing a database for a new entity?</p>
+        <button class="opt">Which single vendor is most popular in industry today</button>
+        <button class="opt">The access pattern: lookups, joins, ranges, search, or scans</button>
+        <button class="opt">The exact number of servers the final cluster will need</button>
+        <button class="opt">Whether the team has previously operated a NoSQL cluster</button>
+        <p class="fb">Access pattern decides the category before any product or scale question matters.</p>
+        <p class="hint">This is Question 1 from the four-question walk.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="choosing-db-millions-users-final">
+        <p class="stem">A prompt mentions "millions of users" and a candidate immediately proposes Cassandra. What's the staff-level response?</p>
+        <button class="opt">Agree, since any large user count always requires a NoSQL store</button>
+        <button class="opt">Propose MongoDB instead, since it also scales horizontally</button>
+        <button class="opt">Ask what specific bottleneck rules out a single relational node</button>
+        <button class="opt">Add a second cache layer in front of whichever store is picked</button>
+        <p class="fb">Most "millions of users" workloads fit a well-tuned single-primary relational database with caching and replicas; a distributed NoSQL pick needs a concrete bottleneck.</p>
+        <p class="hint">This is the staff-signal box under Question 3.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="choosing-db-four-stores-final">
+        <p class="stem">Why might one system reasonably use four different datastores at once?</p>
+        <button class="opt">One store of truth plus derived, rebuildable views each optimized for its own read pattern</button>
+        <button class="opt">Every additional datastore automatically increases the system's overall availability</button>
+        <button class="opt">Regulatory rules generally require physically separating every table by vendor</button>
+        <button class="opt">A single vendor cannot legally host more than one entity type at once</button>
+        <p class="fb">A relational source of truth plus a cache, search index, and CDC-fed aggregate is not over-engineering — each derived view is rebuildable and optimized for its own query shape.</p>
+        <p class="hint">Reread Question 4's closing paragraph.</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="choosing-db-pushback-final">
+        <p class="stem">When an interviewer pushes back with "why not X instead," what's the strongest reply?</p>
+        <button class="opt">Concede immediately and switch the design to whichever store they named</button>
+        <button class="opt">Cite that store's marketing benchmarks from its documentation site</button>
+        <button class="opt">Point out that the current design was already fully implemented</button>
+        <button class="opt">Name which specific requirement — consistency, joins, scale — X fails</button>
+        <p class="fb">Arguing from the requirement the alternative fails to meet demonstrates the reasoning, not just the memorized pick.</p>
+        <p class="hint">Reread the final staff-signal box.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="choosing-db-order-vs-table-why">
+        <p class="stem">The lesson calls the SQL-vs-NoSQL table "a confirmation, not a starting point." What would go wrong if you used it as the starting point instead?</p>
+        <button class="opt">Nothing — the table alone is sufficient to pick a database in every case</button>
+        <button class="opt">You'd be choosing a category from generic tradeoffs before knowing your own access pattern, consistency need, or scale — the same backward reasoning the lesson opens by warning against</button>
+        <button class="opt">The table only lists databases that no longer exist</button>
+        <button class="opt">Interviewers are forbidden from discussing tables of any kind</button>
+        <p class="fb">The table is a generic summary; it can't know your workload. Skipping straight to it reproduces the "which database is best" mistake the lesson opens with.</p>
+        <p class="hint">Reread the very first chunk's opening paragraph about the mistake to avoid.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this — push on it. Try: <em>"Walk the four questions for a chat app's message store versus its user-presence store."</em> · <em>"When would you actually need a distributed SQL store like CockroachDB or Spanner instead of sharded Postgres?"</em> · <em>"Give me a case where mixing SQL and NoSQL in one system is the wrong call."</em>
@@ -234,21 +377,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

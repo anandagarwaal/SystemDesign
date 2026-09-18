@@ -43,22 +43,35 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,145 +86,293 @@
     <strong>Why this lesson, for your mission:</strong> At L6/L7 you'll be asked <em>why</em> Cassandra, not just <em>whether</em>. A senior says "it scales writes." A staff candidate explains the LSM write path that makes writes append-only and cheap, sketches the token ring that removes the leader bottleneck, and then tunes <code>R+W&gt;N</code> live on the whiteboard to trade latency for consistency.<a href="#c1" class="cite">[1]</a> This lesson gives you that machinery so you can reason from first principles instead of reciting a marketing line.
   </div>
 
-  <h2>What it is &amp; the data model</h2>
-  <p>Cassandra is a <b>wide-column, leaderless, distributed database</b> originally built at Facebook and now an Apache project, drawing its replication and partitioning ideas from Amazon's Dynamo paper and its data model from Google's Bigtable.<a href="#c1" class="cite">[1]</a><a href="#c3" class="cite">[3]</a> "Wide-column" means a row lives under a partition and can hold many columns, and different rows need not share the same columns — think of each partition as an ordered map of rows, each row an ordered map of columns.<a href="#c1" class="cite">[1]</a></p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 6</p>
+    <h2>What it is &amp; the data model</h2>
+    <p>Cassandra is a <b>wide-column, leaderless, distributed database</b> originally built at Facebook and now an Apache project, drawing its replication and partitioning ideas from Amazon's Dynamo paper and its data model from Google's Bigtable.<a href="#c1" class="cite">[1]</a><a href="#c3" class="cite">[3]</a> "Wide-column" means a row lives under a partition and can hold many columns, and different rows need not share the same columns — think of each partition as an ordered map of rows, each row an ordered map of columns.<a href="#c1" class="cite">[1]</a></p>
 
-  <p>The whole model hangs on the <b>primary key</b>, which has two parts:</p>
-  <table>
-    <thead><tr><th>Key part</th><th>Job</th><th>Interview one-liner</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><b>Partition key</b></td>
-        <td>Hashed to a token; decides <em>which node(s)</em> store the row. All rows with the same partition key live together.<a href="#c1" class="cite">[1]</a></td>
-        <td>"This is my shard key — every query must name it."</td>
-      </tr>
-      <tr>
-        <td><b>Clustering columns</b></td>
-        <td>Sort rows <em>within</em> a partition on disk, so range scans inside a partition are sequential and cheap.<a href="#c1" class="cite">[1]</a></td>
-        <td>"This is how I get sorted, paginated reads for free."</td>
-      </tr>
-    </tbody>
-  </table>
+    <p>The whole model hangs on the <b>primary key</b>, which has two parts:</p>
+    <table>
+      <thead><tr><th>Key part</th><th>Job</th><th>Interview one-liner</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Partition key</b></td>
+          <td>Hashed to a token; decides <em>which node(s)</em> store the row. All rows with the same partition key live together.<a href="#c1" class="cite">[1]</a></td>
+          <td>"This is my shard key — every query must name it."</td>
+        </tr>
+        <tr>
+          <td><b>Clustering columns</b></td>
+          <td>Sort rows <em>within</em> a partition on disk, so range scans inside a partition are sequential and cheap.<a href="#c1" class="cite">[1]</a></td>
+          <td>"This is how I get sorted, paginated reads for free."</td>
+        </tr>
+      </tbody>
+    </table>
 
-  <p>The cardinal rule is <b>query-first modeling</b>: you decide the queries before you design the table, then build one table per query pattern, duplicating data freely across tables.<a href="#c1" class="cite">[1]</a> There are <b>no joins</b> and no ad-hoc <code>WHERE</code> on un-keyed columns — the engine has no way to find a row except by partition key. A messaging app stores the same message in a <code>messages_by_conversation</code> table and a <code>messages_by_user</code> table because each serves a different read. Denormalization is not a smell here; it is the design. Contrast that with the relational, joins-and-normalize world of <a href="0089-mysql.html">MySQL (Lesson 89)</a>.</p>
+    <p>The cardinal rule is <b>query-first modeling</b>: you decide the queries before you design the table, then build one table per query pattern, duplicating data freely across tables.<a href="#c1" class="cite">[1]</a> There are <b>no joins</b> and no ad-hoc <code>WHERE</code> on un-keyed columns — the engine has no way to find a row except by partition key. A messaging app stores the same message in a <code>messages_by_conversation</code> table and a <code>messages_by_user</code> table because each serves a different read. Denormalization is not a smell here; it is the design. Contrast that with the relational, joins-and-normalize world of <a href="0089-mysql.html">MySQL (Lesson 89)</a>.</p>
 
-  <div class="box">
-    <b>The schema knobs that matter</b>
-    <ul>
-      <li><b>Partition key</b> — pick high cardinality and even access so load spreads; a celebrity user or a per-day key creates a <em>hot partition</em>.<a href="#c1" class="cite">[1]</a></li>
-      <li><b>Clustering columns</b> — order by what you page over (e.g. <code>(user_id) , (ts DESC)</code> for a feed).</li>
-      <li><b>Keep partitions bounded</b> — a partition should not grow without limit; cap it (e.g. bucket by month) so a single read stays fast.</li>
-    </ul>
-  </div>
-
-  <h2>Internals — where the speed comes from</h2>
-
-  <h3>The LSM write path: commit log → memtable → SSTables</h3>
-  <p>Cassandra's storage engine is a <b>log-structured merge-tree (LSM tree)</b>, the same family covered in <a href="0041-data-structures-for-big-data.html">Data Structures for Big Data (Lesson 41)</a>. A write does two cheap things and returns:<a href="#c2" class="cite">[2]</a></p>
-  <ol>
-    <li><b>Append to the commit log</b> — a sequential, on-disk write-ahead log for durability; if the node crashes, it replays from here.<a href="#c2" class="cite">[2]</a></li>
-    <li><b>Insert into the memtable</b> — an in-memory, sorted structure per table.<a href="#c2" class="cite">[2]</a></li>
-  </ol>
-  <p>That's it — no read, no in-place update, no seek. When a memtable fills, it is <b>flushed</b> to an immutable <b>SSTable</b> (Sorted String Table) on disk, written once and never modified.<a href="#c2" class="cite">[2]</a> Updates and deletes don't overwrite anything: an update is just a newer row in a newer SSTable, and a delete writes a <b>tombstone</b> marker.<a href="#c2" class="cite">[2]</a></p>
-
-  <p><b>Why writes are fast:</b> every write is a sequential append (commit log) plus an in-memory insert (memtable). There is no random-access disk seek and no read-modify-write, so the engine sidesteps the slowest thing a disk does. This is the structural reason Cassandra ingests writes far faster than a B-tree store that must locate and mutate a page in place.<a href="#c2" class="cite">[2]</a></p>
-
-  <h3>Compaction — paying the debt later</h3>
-  <p>The cost of "never overwrite" is that data for one row gets scattered across many SSTables. <b>Compaction</b> is the background process that merges SSTables, keeps the latest value per cell, and discards tombstones and superseded data — reclaiming space and keeping reads from having to touch too many files.<a href="#c2" class="cite">[2]</a> It's the deferred work that makes the cheap write path sustainable.</p>
-
-  <h3>The read path + Bloom filters</h3>
-  <p>A read may have to consult the memtable <em>and</em> several SSTables and merge by timestamp. To avoid scanning files that can't contain the key, each SSTable has a <b>Bloom filter</b> — a probabilistic set membership structure (also from <a href="0041-data-structures-for-big-data.html">Lesson 41</a>) that answers "is this key <em>possibly</em> here?" with no false negatives and a tunable false-positive rate.<a href="#c2" class="cite">[2]</a> A negative lets Cassandra skip an SSTable's disk I/O entirely, so most reads touch only the files that truly hold the key. Partition-key and row indexes plus a key cache then pinpoint the offset. Reads are still inherently more work than writes — the LSM design trades read cost for write speed.<a href="#c2" class="cite">[2]</a></p>
-
-  <h3>The ring: consistent hashing + virtual nodes</h3>
-  <p>There is no leader. Nodes form a <b>ring</b>, and the partition key is hashed to a <b>token</b> that maps to a position on the ring; the node owning that token range stores the data.<a href="#c1" class="cite">[1]</a> This is <b>consistent hashing</b> — the same primitive from <a href="0005-sharding-and-consistent-hashing.html">Sharding &amp; Consistent Hashing (Lesson 5)</a> — so adding or removing a node only reshuffles a slice of the keyspace, not everything.<a href="#c1" class="cite">[1]</a> Modern Cassandra assigns each physical node many <b>virtual nodes (vnodes)</b> — many small token ranges instead of one big one — which spreads data and streaming load more evenly and makes rebalancing after a node change far smoother.<a href="#c1" class="cite">[1]</a></p>
-
-  <h3>Gossip &amp; replication factor</h3>
-  <p>Nodes track each other's state with a <b>gossip</b> protocol: each node periodically exchanges membership and liveness info with a few peers, so knowledge of who is up/down propagates without any central coordinator.<a href="#c1" class="cite">[1]</a> The <b>replication factor (RF)</b> is how many copies of each partition exist; with RF=3 the data is stored on the token owner plus the next replicas around the ring, optionally placed across racks and data centers for fault tolerance.<a href="#c1" class="cite">[1]</a> Any node can serve as the <b>coordinator</b> for a request and forward it to the replicas — that leaderless symmetry is what lets writes scale horizontally with no single bottleneck.<a href="#c1" class="cite">[1]</a></p>
-
-  <h2>Tunable consistency</h2>
-  <p>Because Cassandra is leaderless with RF copies, <em>you</em> choose, per query, how many replicas must acknowledge. The write consistency level <code>W</code> and read level <code>R</code> trade latency and availability against freshness.<a href="#c1" class="cite">[1]</a> The classic guarantee:</p>
-  <div class="box">
-    <b>The quorum rule: <code>R + W &gt; N</code></b>
-    <ul>
-      <li><b>N</b> = replication factor (copies of the data).</li>
-      <li><b>W</b> = replicas that must ack a write; <b>R</b> = replicas that must answer a read.</li>
-      <li>If <b>R + W &gt; N</b>, the read and write replica sets must overlap by at least one node, so a read is guaranteed to see the latest acknowledged write — <em>strong consistency</em> on that key.<a href="#c1" class="cite">[1]</a> Example: N=3, <code>QUORUM</code> reads and writes (R=W=2) → 2+2&gt;3. ✓</li>
-      <li>Choose <code>W=ONE, R=ONE</code> for lowest latency and highest availability, accepting <b>eventual consistency</b> — a read may briefly miss a recent write.<a href="#c1" class="cite">[1]</a></li>
-    </ul>
-  </div>
-
-  <p><b>Hinted handoff:</b> if a replica is down when a write arrives, the coordinator stores a <em>hint</em> and replays it when the node returns, so the write isn't lost and the replica catches up.<a href="#c1" class="cite">[1]</a> Combined with read repair and anti-entropy repair, this is how replicas converge under eventual consistency.</p>
-
-  <p><b>Last-write-wins &amp; the clock problem:</b> Cassandra resolves conflicting versions of a cell by <b>last-write-wins (LWW)</b> using a timestamp.<a href="#c1" class="cite">[1]</a> The catch a staff candidate must name: those timestamps usually come from wall clocks across many machines, so <b>clock skew</b> can let a "later" write silently lose to one that actually happened earlier — and there are no multi-row transactions to protect you. This is why Cassandra suits append-mostly, conflict-light workloads, and why "I'll just update the same cell from two writers concurrently" is a design smell here.</p>
-
-  <h2>When to reach for it — and when NOT to</h2>
-  <table>
-    <thead><tr><th>Reach for Cassandra when…</th><th>Avoid it when…</th></tr></thead>
-    <tbody>
-      <tr>
-        <td>Write throughput is huge and sustained — time-series, event logs, IoT, metrics, messaging.<a href="#c1" class="cite">[1]</a></td>
-        <td>You need ad-hoc queries, joins, or flexible <code>WHERE</code> across non-key columns.<a href="#c1" class="cite">[1]</a></td>
-      </tr>
-      <tr>
-        <td>Access patterns are known up front and can be modeled query-first.<a href="#c1" class="cite">[1]</a></td>
-        <td>You need multi-row ACID transactions or strong cross-entity invariants (use <a href="0089-mysql.html">MySQL</a>).</td>
-      </tr>
-      <tr>
-        <td>You need horizontal, multi-region, always-on availability with no single leader.<a href="#c1" class="cite">[1]</a></td>
-        <td>Data is small or moderate — a single relational node would do; don't import the operational cost.</td>
-      </tr>
-      <tr>
-        <td>You can accept tunable / eventual consistency and design for it.<a href="#c1" class="cite">[1]</a></td>
-        <td>Workload is read-heavy with frequent in-place updates to the same cells (LWW + clocks bite).</td>
-      </tr>
-    </tbody>
-  </table>
-  <p>On CAP, Cassandra sits firmly on the AP side — it favors availability and partition tolerance, exposing consistency as a per-query dial rather than a fixed guarantee, which is exactly the trade discussed in <a href="0006-replication-and-cap.html">Replication &amp; CAP (Lesson 6)</a>.<a href="#c1" class="cite">[1]</a></p>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Senior candidates say "Cassandra scales writes." Staff candidates explain <em>the mechanism and its cost in the same breath</em>: "Writes are an append to the commit log plus a memtable insert, so there's no read-modify-write — that's the speed. The bill comes due at read time and in compaction, and Bloom filters keep reads from scanning every SSTable."<a href="#c2" class="cite">[2]</a> Then they pre-empt the trap: "Because it's leaderless with last-write-wins, I won't put a counter or a contended balance here — clock skew makes concurrent same-cell updates unsafe; that belongs in <a href="0089-mysql.html">MySQL</a> or a Lightweight-Transaction path." Naming the failure mode <em>before</em> the interviewer probes it is the whole game.<a href="#c1" class="cite">[1]</a>
-  </div>
-
-  <h2>In the interview</h2>
-  <p>When Cassandra is the right call, deliver it in this order: (1) <b>justify the pick</b> from the requirement — "write-heavy, predictable access, needs multi-region scale, can tolerate eventual consistency." (2) <b>Show the data model</b> — name the partition key and clustering columns and state the query each table serves. (3) <b>Go one level deep on the engine</b> — the LSM write path and why writes are cheap. (4) <b>Tune consistency out loud</b> — pick <code>QUORUM</code>/<code>QUORUM</code> for read-your-writes on critical keys, or <code>ONE</code> for max availability, citing <code>R+W&gt;N</code>. (5) <b>Name a boundary</b> — hot partitions, tombstone buildup from heavy deletes, or LWW conflicts — and how you'd avoid it. That arc is breadth-then-depth done right: a fast justification, then 60% depth on the mechanism that matters.<a href="#c1" class="cite">[1]</a></p>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why are Cassandra writes so fast?</p>
-      <button class="opt">They update the matching row in place after a quick seek</button>
-      <button class="opt">They append to a log and a sorted in-memory memtable</button>
-      <button class="opt">They build a fresh balanced B-tree index on each write</button>
-      <button class="opt">They wait for every replica to confirm before they return</button>
-      <p class="fb">LSM writes are a sequential commit-log append plus a memtable insert — no read-modify-write, no random seek.</p>
+    <div class="box">
+      <b>The schema knobs that matter</b>
+      <ul>
+        <li><b>Partition key</b> — pick high cardinality and even access so load spreads; a celebrity user or a per-day key creates a <em>hot partition</em>.<a href="#c1" class="cite">[1]</a></li>
+        <li><b>Clustering columns</b> — order by what you page over (e.g. <code>(user_id) , (ts DESC)</code> for a feed).</li>
+        <li><b>Keep partitions bounded</b> — a partition should not grow without limit; cap it (e.g. bucket by month) so a single read stays fast.</li>
+      </ul>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. With replication factor N=3, which setting guarantees strong reads?</p>
-      <button class="opt">Read at ONE and write at ONE for the lowest latency</button>
-      <button class="opt">Read at ONE and write at TWO so writes are durable</button>
-      <button class="opt">Read at QUORUM and write at QUORUM so R plus W exceeds N</button>
-      <button class="opt">Read at QUORUM and write at ONE so reads see the data</button>
-      <p class="fb">R+W &gt; N forces the read and write replica sets to overlap; QUORUM/QUORUM (2+2&gt;3) gives read-your-writes.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="cassandra-partition-key-role">
+        <p class="stem">What decides which node(s) store a given row in Cassandra?</p>
+        <button class="opt">The order the row was inserted into the table</button>
+        <button class="opt">The partition key, hashed to a token on the ring</button>
+        <button class="opt">The clustering column values chosen at write time</button>
+        <p class="fb">The partition key is hashed to a token, and the node owning that token range stores the row.</p>
+        <p class="hint">Reread the primary-key table — which part is described as "decides which node(s) store the row"?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="cassandra-denormalization-why">
+        <p class="stem">Why does query-first modeling push you toward duplicating data across many tables instead of normalizing?</p>
+        <button class="opt">Cassandra can only look up rows by partition key, so each distinct query needs its own table shaped for that lookup</button>
+        <button class="opt">Duplicated data is required to satisfy Cassandra's foreign-key constraints</button>
+        <button class="opt">Normalization is disallowed by the Apache license Cassandra ships under</button>
+        <p class="fb">With no joins and no lookup path except partition key, a query that needs a different access pattern needs its own table with the right key — hence deliberate duplication.</p>
+        <p class="hint">Think about what happens if two different queries need to read the same fact but neither can join.</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What does a Bloom filter do on the Cassandra read path?</p>
-      <button class="opt">Skips SSTables that cannot possibly hold the wanted key</button>
-      <button class="opt">Merges SSTables together to reclaim the deleted space</button>
-      <button class="opt">Decides which node on the ring owns a given token</button>
-      <button class="opt">Replays missed writes to a replica that was offline</button>
-      <p class="fb">A Bloom filter answers "possibly present / definitely absent," letting reads skip SSTables and avoid disk I/O.</p>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 6</p>
+    <h2>Internals — the LSM write path &amp; compaction</h2>
+
+    <h3>The LSM write path: commit log → memtable → SSTables</h3>
+    <p>Cassandra's storage engine is a <b>log-structured merge-tree (LSM tree)</b>, the same family covered in <a href="0041-data-structures-for-big-data.html">Data Structures for Big Data (Lesson 41)</a>. A write does two cheap things and returns:<a href="#c2" class="cite">[2]</a></p>
+    <ol>
+      <li><b>Append to the commit log</b> — a sequential, on-disk write-ahead log for durability; if the node crashes, it replays from here.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Insert into the memtable</b> — an in-memory, sorted structure per table.<a href="#c2" class="cite">[2]</a></li>
+    </ol>
+    <p>That's it — no read, no in-place update, no seek. When a memtable fills, it is <b>flushed</b> to an immutable <b>SSTable</b> (Sorted String Table) on disk, written once and never modified.<a href="#c2" class="cite">[2]</a> Updates and deletes don't overwrite anything: an update is just a newer row in a newer SSTable, and a delete writes a <b>tombstone</b> marker.<a href="#c2" class="cite">[2]</a></p>
+
+    <p><b>Why writes are fast:</b> every write is a sequential append (commit log) plus an in-memory insert (memtable). There is no random-access disk seek and no read-modify-write, so the engine sidesteps the slowest thing a disk does. This is the structural reason Cassandra ingests writes far faster than a B-tree store that must locate and mutate a page in place.<a href="#c2" class="cite">[2]</a></p>
+
+    <h3>Compaction — paying the debt later</h3>
+    <p>The cost of "never overwrite" is that data for one row gets scattered across many SSTables. <b>Compaction</b> is the background process that merges SSTables, keeps the latest value per cell, and discards tombstones and superseded data — reclaiming space and keeping reads from having to touch too many files.<a href="#c2" class="cite">[2]</a> It's the deferred work that makes the cheap write path sustainable.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="cassandra-lsm-write-fast">
+        <p class="stem">Why are Cassandra writes so fast?</p>
+        <button class="opt">They update the matching row in place after a quick seek</button>
+        <button class="opt">They append to a log and a sorted in-memory memtable</button>
+        <button class="opt">They build a fresh balanced B-tree index on each write</button>
+        <p class="fb">LSM writes are a sequential commit-log append plus a memtable insert — no read-modify-write, no random seek.</p>
+        <p class="hint">Reread "Why writes are fast" — what two cheap operations does a write actually do?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="cassandra-lsm-write-path-why">
+        <p class="stem">What would break if Cassandra tried to update a row in place instead of appending a newer version?</p>
+        <button class="opt">Nothing would change since SSTables are already mutable on disk</button>
+        <button class="opt">Reads would become faster since only one version would ever exist</button>
+        <button class="opt">Writes would need a disk seek to locate and mutate the old value, losing the sequential-append speed advantage</button>
+        <p class="fb">In-place update needs a seek to find the existing record. Append-only avoids that seek entirely, which is the whole source of write speed.</p>
+        <p class="hint">Compare a sequential append to a random-access disk seek — which one is the slow operation being avoided?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="cassandra-compaction-why">
+        <p class="stem">Why does Cassandra need compaction at all, given writes never touch existing SSTables?</p>
+        <button class="opt">Because never overwriting scatters one row's data and tombstones across many SSTables that must eventually be merged</button>
+        <button class="opt">Because compaction is what assigns tokens to nodes on the ring</button>
+        <button class="opt">Because commit logs would otherwise grow forever with no way to truncate them</button>
+        <p class="fb">Append-only writes trade immediate cost for a deferred bill: scattered versions across SSTables that compaction later merges and cleans up.</p>
+        <p class="hint">Reread the line "the cost of never overwrite is..." — what does it say gets scattered?</p>
+      </div>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. Which workload is the worst fit for Cassandra?</p>
-      <button class="opt">High-volume time-series events keyed by device and time</button>
-      <button class="opt">Append-mostly message history paged per conversation</button>
-      <button class="opt">Multi-region write ingest that tolerates eventual reads</button>
-      <button class="opt">Contended bank balances needing cross-row transactions</button>
-      <p class="fb">Leaderless last-write-wins plus no multi-row ACID makes contended, transactional updates a poor fit.</p>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 6</p>
+    <h2>Internals — read path, the ring &amp; gossip</h2>
+
+    <h3>The read path + Bloom filters</h3>
+    <p>A read may have to consult the memtable <em>and</em> several SSTables and merge by timestamp. To avoid scanning files that can't contain the key, each SSTable has a <b>Bloom filter</b> — a probabilistic set membership structure (also from <a href="0041-data-structures-for-big-data.html">Lesson 41</a>) that answers "is this key <em>possibly</em> here?" with no false negatives and a tunable false-positive rate.<a href="#c2" class="cite">[2]</a> A negative lets Cassandra skip an SSTable's disk I/O entirely, so most reads touch only the files that truly hold the key. Partition-key and row indexes plus a key cache then pinpoint the offset. Reads are still inherently more work than writes — the LSM design trades read cost for write speed.<a href="#c2" class="cite">[2]</a></p>
+
+    <h3>The ring: consistent hashing + virtual nodes</h3>
+    <p>There is no leader. Nodes form a <b>ring</b>, and the partition key is hashed to a <b>token</b> that maps to a position on the ring; the node owning that token range stores the data.<a href="#c1" class="cite">[1]</a> This is <b>consistent hashing</b> — the same primitive from <a href="0005-sharding-and-consistent-hashing.html">Sharding &amp; Consistent Hashing (Lesson 5)</a> — so adding or removing a node only reshuffles a slice of the keyspace, not everything.<a href="#c1" class="cite">[1]</a> Modern Cassandra assigns each physical node many <b>virtual nodes (vnodes)</b> — many small token ranges instead of one big one — which spreads data and streaming load more evenly and makes rebalancing after a node change far smoother.<a href="#c1" class="cite">[1]</a></p>
+
+    <h3>Gossip &amp; replication factor</h3>
+    <p>Nodes track each other's state with a <b>gossip</b> protocol: each node periodically exchanges membership and liveness info with a few peers, so knowledge of who is up/down propagates without any central coordinator.<a href="#c1" class="cite">[1]</a> The <b>replication factor (RF)</b> is how many copies of each partition exist; with RF=3 the data is stored on the token owner plus the next replicas around the ring, optionally placed across racks and data centers for fault tolerance.<a href="#c1" class="cite">[1]</a> Any node can serve as the <b>coordinator</b> for a request and forward it to the replicas — that leaderless symmetry is what lets writes scale horizontally with no single bottleneck.<a href="#c1" class="cite">[1]</a></p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="cassandra-bloom-filter-role">
+        <p class="stem">What does a Bloom filter do on the Cassandra read path?</p>
+        <button class="opt">Skips SSTables that cannot possibly hold the wanted key</button>
+        <button class="opt">Merges SSTables together to reclaim the deleted space</button>
+        <button class="opt">Decides which node on the ring owns a given token</button>
+        <p class="fb">A Bloom filter answers "possibly present / definitely absent," letting reads skip SSTables and avoid disk I/O.</p>
+        <p class="hint">Reread the read-path paragraph — what does a negative answer let Cassandra skip?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="cassandra-vnodes-why">
+        <p class="stem">Why do vnodes make adding or removing a node less disruptive than one big token range per node would?</p>
+        <button class="opt">Vnodes eliminate the need for consistent hashing entirely</button>
+        <button class="opt">Many small token ranges spread across all nodes mean a topology change reshuffles many small slices instead of one huge contiguous block</button>
+        <button class="opt">Vnodes remove the need for gossip since nodes no longer need to track each other's state</button>
+        <p class="fb">Splitting each node's ownership into many small ranges means rebalancing work distributes across the whole cluster instead of dumping a giant slab onto neighbors.</p>
+        <p class="hint">Think about what "one big token range per node" would mean for the neighbor node when a node leaves.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="cassandra-gossip-why">
+        <p class="stem">Why does Cassandra use gossip instead of a central coordinator to track node liveness?</p>
+        <button class="opt">Gossip is faster than any direct network call could ever be</button>
+        <button class="opt">A central coordinator would replace the leaderless write path with a leader</button>
+        <button class="opt">A central liveness tracker would become a single point of failure, defeating the leaderless, no-bottleneck design</button>
+        <p class="fb">The whole point of leaderless design is no single component whose failure stalls the cluster; gossip spreads liveness knowledge peer to peer instead.</p>
+        <p class="hint">Ask what a "central coordinator" would look like if it went down — does that match "no single bottleneck"?</p>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 6</p>
+    <h2>Tunable consistency</h2>
+    <p>Because Cassandra is leaderless with RF copies, <em>you</em> choose, per query, how many replicas must acknowledge. The write consistency level <code>W</code> and read level <code>R</code> trade latency and availability against freshness.<a href="#c1" class="cite">[1]</a> The classic guarantee:</p>
+    <div class="box">
+      <b>The quorum rule: <code>R + W &gt; N</code></b>
+      <ul>
+        <li><b>N</b> = replication factor (copies of the data).</li>
+        <li><b>W</b> = replicas that must ack a write; <b>R</b> = replicas that must answer a read.</li>
+        <li>If <b>R + W &gt; N</b>, the read and write replica sets must overlap by at least one node, so a read is guaranteed to see the latest acknowledged write — <em>strong consistency</em> on that key.<a href="#c1" class="cite">[1]</a> Example: N=3, <code>QUORUM</code> reads and writes (R=W=2) → 2+2&gt;3. ✓</li>
+        <li>Choose <code>W=ONE, R=ONE</code> for lowest latency and highest availability, accepting <b>eventual consistency</b> — a read may briefly miss a recent write.<a href="#c1" class="cite">[1]</a></li>
+      </ul>
+    </div>
+
+    <p><b>Hinted handoff:</b> if a replica is down when a write arrives, the coordinator stores a <em>hint</em> and replays it when the node returns, so the write isn't lost and the replica catches up.<a href="#c1" class="cite">[1]</a> Combined with read repair and anti-entropy repair, this is how replicas converge under eventual consistency.</p>
+
+    <p><b>Last-write-wins &amp; the clock problem:</b> Cassandra resolves conflicting versions of a cell by <b>last-write-wins (LWW)</b> using a timestamp.<a href="#c1" class="cite">[1]</a> The catch a staff candidate must name: those timestamps usually come from wall clocks across many machines, so <b>clock skew</b> can let a "later" write silently lose to one that actually happened earlier — and there are no multi-row transactions to protect you. This is why Cassandra suits append-mostly, conflict-light workloads, and why "I'll just update the same cell from two writers concurrently" is a design smell here.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="cassandra-quorum-strong-read">
+        <p class="stem">With replication factor N=3, which setting guarantees strong reads?</p>
+        <button class="opt">Read at ONE and write at ONE for the lowest latency</button>
+        <button class="opt">Read at ONE and write at TWO so writes are durable</button>
+        <button class="opt">Read at QUORUM and write at QUORUM so R plus W exceeds N</button>
+        <p class="fb">R+W &gt; N forces the read and write replica sets to overlap; QUORUM/QUORUM (2+2&gt;3) gives read-your-writes.</p>
+        <p class="hint">Reread the quorum rule box — which combination makes R+W exceed N=3?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="cassandra-quorum-read-repair-why">
+        <p class="stem">Why does R+W &gt; N mathematically guarantee a read sees the latest acknowledged write?</p>
+        <button class="opt">Because any read set and any write set of those sizes must share at least one common replica that holds the newest value</button>
+        <button class="opt">Because the coordinator always contacts every replica regardless of the consistency level</button>
+        <button class="opt">Because hinted handoff replays every write to every node before any read is allowed</button>
+        <p class="fb">Pigeonhole logic: if R+W exceeds the total number of copies N, the two sets can't both avoid overlapping, so at least one queried replica must have the latest write.</p>
+        <p class="hint">Think about set overlap — if you pick more than N replicas total across two groups from N copies, what must happen?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="cassandra-lww-clock-skew-why">
+        <p class="stem">Why is last-write-wins risky specifically when writers run on different machines?</p>
+        <button class="opt">LWW only works on a single machine and fails immediately on any cluster</button>
+        <button class="opt">Wall clocks across machines can drift, so a timestamp that looks later may not reflect the true order of events</button>
+        <button class="opt">Multiple machines can't generate timestamps at all without a central clock server</button>
+        <p class="fb">LWW trusts the timestamp, not true event order. Clock skew between nodes can flip which write "wins," silently dropping the actually-later change.</p>
+        <p class="hint">Reread "the clock problem" paragraph — what specifically can go wrong with wall clocks on separate machines?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 6</p>
+    <h2>When to reach for it, staff signal &amp; the interview</h2>
+    <table>
+      <thead><tr><th>Reach for Cassandra when…</th><th>Avoid it when…</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>Write throughput is huge and sustained — time-series, event logs, IoT, metrics, messaging.<a href="#c1" class="cite">[1]</a></td>
+          <td>You need ad-hoc queries, joins, or flexible <code>WHERE</code> across non-key columns.<a href="#c1" class="cite">[1]</a></td>
+        </tr>
+        <tr>
+          <td>Access patterns are known up front and can be modeled query-first.<a href="#c1" class="cite">[1]</a></td>
+          <td>You need multi-row ACID transactions or strong cross-entity invariants (use <a href="0089-mysql.html">MySQL</a>).</td>
+        </tr>
+        <tr>
+          <td>You need horizontal, multi-region, always-on availability with no single leader.<a href="#c1" class="cite">[1]</a></td>
+          <td>Data is small or moderate — a single relational node would do; don't import the operational cost.</td>
+        </tr>
+        <tr>
+          <td>You can accept tunable / eventual consistency and design for it.<a href="#c1" class="cite">[1]</a></td>
+          <td>Workload is read-heavy with frequent in-place updates to the same cells (LWW + clocks bite).</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>On CAP, Cassandra sits firmly on the AP side — it favors availability and partition tolerance, exposing consistency as a per-query dial rather than a fixed guarantee, which is exactly the trade discussed in <a href="0006-replication-and-cap.html">Replication &amp; CAP (Lesson 6)</a>.<a href="#c1" class="cite">[1]</a></p>
+
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Senior candidates say "Cassandra scales writes." Staff candidates explain <em>the mechanism and its cost in the same breath</em>: "Writes are an append to the commit log plus a memtable insert, so there's no read-modify-write — that's the speed. The bill comes due at read time and in compaction, and Bloom filters keep reads from scanning every SSTable."<a href="#c2" class="cite">[2]</a> Then they pre-empt the trap: "Because it's leaderless with last-write-wins, I won't put a counter or a contended balance here — clock skew makes concurrent same-cell updates unsafe; that belongs in <a href="0089-mysql.html">MySQL</a> or a Lightweight-Transaction path." Naming the failure mode <em>before</em> the interviewer probes it is the whole game.<a href="#c1" class="cite">[1]</a>
+    </div>
+
+    <h3>In the interview</h3>
+    <p>When Cassandra is the right call, deliver it in this order: (1) <b>justify the pick</b> from the requirement — "write-heavy, predictable access, needs multi-region scale, can tolerate eventual consistency." (2) <b>Show the data model</b> — name the partition key and clustering columns and state the query each table serves. (3) <b>Go one level deep on the engine</b> — the LSM write path and why writes are cheap. (4) <b>Tune consistency out loud</b> — pick <code>QUORUM</code>/<code>QUORUM</code> for read-your-writes on critical keys, or <code>ONE</code> for max availability, citing <code>R+W&gt;N</code>. (5) <b>Name a boundary</b> — hot partitions, tombstone buildup from heavy deletes, or LWW conflicts — and how you'd avoid it. That arc is breadth-then-depth done right: a fast justification, then 60% depth on the mechanism that matters.<a href="#c1" class="cite">[1]</a></p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="d" data-concept="cassandra-worst-fit-workload">
+        <p class="stem">Which workload is the worst fit for Cassandra?</p>
+        <button class="opt">High-volume time-series events keyed by device and time</button>
+        <button class="opt">Append-mostly message history paged per conversation</button>
+        <button class="opt">Multi-region write ingest that tolerates eventual reads</button>
+        <button class="opt">Contended bank balances needing cross-row transactions</button>
+        <p class="fb">Leaderless last-write-wins plus no multi-row ACID makes contended, transactional updates a poor fit.</p>
+        <p class="hint">Reread the "avoid it when" column — which row names transactions and cross-entity invariants?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="cassandra-interview-order-why">
+        <p class="stem">Why does the recommended interview order put the data model before the LSM engine, and the engine before tuning consistency?</p>
+        <button class="opt">Each step depends on the previous one: you can't discuss reads/writes without a schema, and you can't tune consistency levels without knowing how replicas store data</button>
+        <button class="opt">Interviewers always ask questions in exactly that fixed order</button>
+        <button class="opt">The order is arbitrary and any order scores the same</button>
+        <p class="fb">The arc mirrors dependency: justify the pick, then the nouns (data model), then how they're stored (engine), then how storage's replication trade-offs get tuned (consistency).</p>
+        <p class="hint">Ask: could you meaningfully explain R+W&gt;N to someone who doesn't yet know what a replica or partition is?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">6 of 6 — comprehensive check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also
+      seeds the spaced-review schedule — you'll see these again on future session starts
+      per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="cassandra-lsm-write-fast-final">
+        <p class="stem">Why are Cassandra writes so fast, in one mechanism?</p>
+        <button class="opt">They update the matching row in place after a quick seek</button>
+        <button class="opt">They append to a commit log and an in-memory memtable</button>
+        <button class="opt">They wait for every replica to confirm before returning</button>
+        <p class="fb">A write is a sequential log append plus a memtable insert — no seek, no read-modify-write.</p>
+        <p class="hint">Same idea as the gate in chunk 2 — what two operations does a write actually perform?</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="cassandra-partition-key-final">
+        <p class="stem">What must every Cassandra query name in order to find a row at all?</p>
+        <button class="opt">The partition key</button>
+        <button class="opt">A foreign key to another table</button>
+        <button class="opt">A secondary index on any column</button>
+        <p class="fb">With no joins and no generic WHERE, the partition key is the only lookup path into the data.</p>
+        <p class="hint">Reread chunk 1's schema-knobs box — which key part is described as "every query must name it"?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="cassandra-quorum-final-why">
+        <p class="stem">Why does choosing QUORUM/QUORUM at N=3 give read-your-writes, while ONE/ONE does not?</p>
+        <button class="opt">QUORUM always contacts every single replica in the cluster</button>
+        <button class="opt">ONE/ONE is actually slower because it waits for more nodes</button>
+        <button class="opt">2+2 exceeds 3, forcing read and write replica sets to overlap; 1+1 does not exceed 3, so they can miss each other</button>
+        <p class="fb">The quorum rule is arithmetic: R+W&gt;N forces overlap and freshness; smaller sums leave a gap where a read can miss the latest write.</p>
+        <p class="hint">Do the arithmetic for both cases against N=3 — which sum exceeds N and which doesn't?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="cassandra-tombstone-hotpartition-tradeoff">
+        <p class="stem">Why do hot partitions and tombstone buildup both trace back to the same design choice — hashing to a partition key and never overwriting in place?</p>
+        <button class="opt">They don't share a cause; they're unrelated bugs in different subsystems</button>
+        <button class="opt">Both are side effects of Cassandra's core trade-offs: uneven key access concentrates load on one node, and append-only writes accumulate deletion markers until compaction clears them</button>
+        <button class="opt">Both only happen when replication factor is set to one</button>
+        <p class="fb">Hot partitions come from the partitioning scheme's dependence on even key access; tombstones come from the LSM engine's append-only nature. Different mechanisms, same architectural root: trade-offs made for write speed and horizontal scale.</p>
+        <p class="hint">Trace each problem back to a chunk: hot partitions to chunk 1's schema knobs, tombstones to chunk 2's compaction section.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Walk me through exactly what happens, step by step, when I write then immediately read at ONE/ONE." · "Design the Cassandra tables for a chat app and justify every partition and clustering key." · "When would you pick DynamoDB over Cassandra, and when the reverse?"
@@ -234,21 +395,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

@@ -61,22 +61,33 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -97,104 +108,175 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
-  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
-  <div class="asks">
-    <p class="lbl">Ask before you design</p>
-    <ul><li><b>“What durability target — 11 nines?”</b> — Durability drives erasure coding and failure-domain placement.</li><li><b>“Do we need strong read-after-write consistency, including listings?”</b> — Strongly consistent listing needs a consensus-backed metadata index.</li><li><b>“What object size range?”</b> — Multi-GB objects need multipart uploads; tiny objects stress metadata.</li></ul>
-  </div>
-  <h2>Functional Requirements</h2>
-  <p>An object store is a flat key→bytes map grouped into buckets. Scope to the operations that shape the architecture.</p>
-  <table>
-    <tr><th>#</th><th>Users should be able to…</th></tr>
-    <tr><td>1</td><td><b>PUT / GET / DELETE an object</b> by <code>(bucket, key)</code> — the bytes plus user metadata.</td></tr>
-    <tr><td>2</td><td><b>List</b> objects in a bucket, optionally by key prefix (<code>photos/2026/</code>).</td></tr>
-    <tr><td>3</td><td><b>Multipart upload</b> large objects in parallel parts, then complete them into one object.<a href="#c1" class="cite">[1]</a></td></tr>
-    <tr><td>4</td><td><b>Version</b> objects — overwrites and deletes keep prior versions rather than destroying them.<a href="#c1" class="cite">[1]</a></td></tr>
-  </table>
-  <p><b>Out of scope</b> (name it to show judgement): a POSIX filesystem with in-place random writes, cross-region replication, and query-in-place. Objects are <em>immutable</em> once written — there is no "append to byte 4." That immutability is a gift; it makes durability and caching far simpler.</p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 7</p>
+    <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+    <div class="asks">
+      <p class="lbl">Ask before you design</p>
+      <ul><li><b>"What durability target — 11 nines?"</b> — Durability drives erasure coding and failure-domain placement.</li><li><b>"Do we need strong read-after-write consistency, including listings?"</b> — Strongly consistent listing needs a consensus-backed metadata index.</li><li><b>"What object size range?"</b> — Multi-GB objects need multipart uploads; tiny objects stress metadata.</li></ul>
+    </div>
+    <h2>Functional Requirements</h2>
+    <p>An object store is a flat key→bytes map grouped into buckets. Scope to the operations that shape the architecture.</p>
+    <table>
+      <tr><th>#</th><th>Users should be able to…</th></tr>
+      <tr><td>1</td><td><b>PUT / GET / DELETE an object</b> by <code>(bucket, key)</code> — the bytes plus user metadata.</td></tr>
+      <tr><td>2</td><td><b>List</b> objects in a bucket, optionally by key prefix (<code>photos/2026/</code>).</td></tr>
+      <tr><td>3</td><td><b>Multipart upload</b> large objects in parallel parts, then complete them into one object.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>4</td><td><b>Version</b> objects — overwrites and deletes keep prior versions rather than destroying them.<a href="#c1" class="cite">[1]</a></td></tr>
+    </table>
+    <p><b>Out of scope</b> (name it to show judgement): a POSIX filesystem with in-place random writes, cross-region replication, and query-in-place. Objects are <em>immutable</em> once written — there is no "append to byte 4." That immutability is a gift; it makes durability and caching far simpler.</p>
 
-  <h2>Non-Functional Requirements</h2>
-  <table>
-    <tr><th>NFR</th><th>Target / priority</th></tr>
-    <tr><td><b>Durability (the cardinal NFR)</b></td><td><b>11 nines</b> — 99.999999999% of objects survive a given year. Losing data is the one unforgivable failure; AWS markets S3 at exactly this level.<a href="#c1" class="cite">[1]</a></td></tr>
-    <tr><td><b>Availability</b></td><td>~4 nines for the request path. Lower than durability: a brief inability to <em>read</em> is recoverable; losing the bytes is not.</td></tr>
-    <tr><td><b>Scalability</b></td><td>Exabytes of data and <b>trillions</b> of objects, with no global bottleneck. Capacity grows by adding nodes.</td></tr>
-    <tr><td><b>Throughput</b></td><td>Saturate client and disk bandwidth on large objects; tens of thousands of small ops/sec per bucket prefix.</td></tr>
-    <tr><td><b>Cost</b></td><td>Storage efficiency is a first-class NFR at this scale — every 1× of overhead is exabytes of disk. Drives the EC choice.</td></tr>
-  </table>
+    <h2>Non-Functional Requirements</h2>
+    <table>
+      <tr><th>NFR</th><th>Target / priority</th></tr>
+      <tr><td><b>Durability (the cardinal NFR)</b></td><td><b>11 nines</b> — 99.999999999% of objects survive a given year. Losing data is the one unforgivable failure; AWS markets S3 at exactly this level.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><b>Availability</b></td><td>~4 nines for the request path. Lower than durability: a brief inability to <em>read</em> is recoverable; losing the bytes is not.</td></tr>
+      <tr><td><b>Scalability</b></td><td>Exabytes of data and <b>trillions</b> of objects, with no global bottleneck. Capacity grows by adding nodes.</td></tr>
+      <tr><td><b>Throughput</b></td><td>Saturate client and disk bandwidth on large objects; tens of thousands of small ops/sec per bucket prefix.</td></tr>
+      <tr><td><b>Cost</b></td><td>Storage efficiency is a first-class NFR at this scale — every 1× of overhead is exabytes of disk. Drives the EC choice.</td></tr>
+    </table>
 
-  <p class="transition"><span class="lbl">Say to move on →</span> “Durability is the cardinal NFR; availability comes second. Let me size data and object counts.”</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Durability is the cardinal NFR; availability comes second. Let me size data and object counts."</p>
 
-  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
-  <h2>Capacity Estimation</h2>
-  <p>Only the numbers that <em>change a decision</em>. Here three numbers each force a specific structural choice.</p>
-  <div class="box">
-    <ul>
-      <li><b>Total size → erasure coding, not replication.</b> At ~1 EB of <em>usable</em> data, 3× replication means buying <b>3 EB</b> of raw disk. A <b>10+4</b> erasure code gives comparable durability at <b>1.4×</b> overhead — ~1.4 EB. <b>Implication:</b> the savings (~1.6 EB of disk) make EC mandatory, not optional.<a href="#c2" class="cite">[2]</a></li>
-      <li><b>Object count → shard the metadata.</b> Trillions of objects × ~1&nbsp;KB of metadata each ≈ <b>petabytes of index</b> that no single database holds. <b>Implication:</b> the object index is a horizontally sharded, separate service from where bytes live.</li>
-      <li><b>Object size range (bytes → terabytes).</b> One API must serve a 2&nbsp;KB JSON and a 5&nbsp;TB video. <b>Implication:</b> multipart upload for large objects, and small objects get <em>packed</em> together so per-object overhead doesn't dominate.</li>
-      <li><b>Throughput → bytes bypass the control plane.</b> If every GET/PUT streamed through the metadata tier you'd size it for exabyte bandwidth. <b>Implication:</b> presigned URLs / a thin data plane move bytes directly to storage nodes.<a href="#c1" class="cite">[1]</a></li>
-    </ul>
-  </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="blob-store-durability-cardinal">
+        <p class="stem">Why is durability (11 nines) the cardinal NFR, more important than availability?</p>
+        <button class="opt">Losing data is unforgivable; brief read unavailability is recoverable</button>
+        <button class="opt">Availability is always more important than durability in any system</button>
+        <button class="opt">11 nines and 4 nines have the same real-world impact</button>
+        <p class="fb">A one-hour outage doesn't destroy data; one lost object is a permanent failure.</p>
+        <p class="hint">If your storage goes down for 1 hour vs. loses 0.001% of objects, which is worse?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="blob-store-immutability-gift">
+        <p class="stem">Why does immutability (no in-place writes) make durability and caching "far simpler"?</p>
+        <button class="opt">Immutable objects can be cached without invalidation; no coherence problem</button>
+        <button class="opt">Immutability forces you to store fewer copies of each object</button>
+        <button class="opt">In-place writes are actually more durable than immutable appends</button>
+        <p class="fb">An immutable object never changes, so a cache entry is valid forever. A write-in-place object goes stale instantly.</p>
+        <p class="hint">If I cache an object and it's immutable, when does the cache need to refresh?</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why not just replicate everything 3 times?”</p>
-    <p><b>Staff answer:</b> At exabyte scale 3× replication means buying 3 EB of disk. A 10+4 erasure code gives comparable durability at 1.4×, saving over an exabyte.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Exabytes of data and trillions of objects force erasure coding and a sharded metadata index. Let me define the entities.”</p>
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 7</p>
+    <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
+    <h2>Capacity Estimation</h2>
+    <p>Only the numbers that <em>change a decision</em>. Here three numbers each force a specific structural choice.</p>
+    <div class="box">
+      <ul>
+        <li><b>Total size → erasure coding, not replication.</b> At ~1 EB of <em>usable</em> data, 3× replication means buying <b>3 EB</b> of raw disk. A <b>10+4</b> erasure code gives comparable durability at <b>1.4×</b> overhead — ~1.4 EB. <b>Implication:</b> the savings (~1.6 EB of disk) make EC mandatory, not optional.<a href="#c2" class="cite">[2]</a></li>
+        <li><b>Object count → shard the metadata.</b> Trillions of objects × ~1&nbsp;KB of metadata each ≈ <b>petabytes of index</b> that no single database holds. <b>Implication:</b> the object index is a horizontally sharded, separate service from where bytes live.</li>
+        <li><b>Object size range (bytes → terabytes).</b> One API must serve a 2&nbsp;KB JSON and a 5&nbsp;TB video. <b>Implication:</b> multipart upload for large objects, and small objects get <em>packed</em> together so per-object overhead doesn't dominate.</li>
+        <li><b>Throughput → bytes bypass the control plane.</b> If every GET/PUT streamed through the metadata tier you'd size it for exabyte bandwidth. <b>Implication:</b> presigned URLs / a thin data plane move bytes directly to storage nodes.<a href="#c1" class="cite">[1]</a></li>
+      </ul>
+    </div>
 
-  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
-  <h2>Core Entities &amp; API</h2>
-  <p>Three entities. The load-bearing idea is that <code>Object</code> bytes and <code>ObjectMetadata</code> live in <em>different systems</em> — the data plane and the metadata (index) service.</p>
-  <table>
-    <tr><th>Entity</th><th>Holds</th></tr>
-    <tr><td><code>Bucket</code></td><td>Namespace + owner, region, versioning flag, lifecycle policy, default storage class.</td></tr>
-    <tr><td><code>Object</code></td><td>The immutable bytes, written once to storage nodes and addressed by an internal blob id.</td></tr>
-    <tr><td><code>ObjectMetadata</code></td><td>key, versionId, size, content hash/ETag, storage class, and the placement map (which nodes/shards hold the bytes). Lives in the index.</td></tr>
-  </table>
-  <p>The caller is derived from the auth token / request signature, never the body. Endpoints map almost 1:1 to S3.<a href="#c1" class="cite">[1]</a></p>
-  <table>
-    <tr><th>Endpoint</th><th>Purpose</th></tr>
-    <tr><td><code>PUT /v1/{bucket}/{key}</code></td><td>Write an object (single shot, for small objects). Returns an <code>ETag</code> + <code>versionId</code>.</td></tr>
-    <tr><td><code>GET /v1/{bucket}/{key}</code></td><td>Read latest version (or <code>?versionId=</code>); supports HTTP <code>Range</code> for partial reads.</td></tr>
-    <tr><td><code>DELETE /v1/{bucket}/{key}</code></td><td>With versioning on, writes a <em>delete marker</em> rather than erasing bytes.<a href="#c1" class="cite">[1]</a></td></tr>
-    <tr><td><code>POST /v1/{bucket}/{key}?uploads</code></td><td>Begin multipart: returns an <code>uploadId</code>; then <code>PUT&nbsp;part</code> N, then <code>POST&nbsp;complete</code>.<a href="#c1" class="cite">[1]</a></td></tr>
-    <tr><td><code>GET /v1/{bucket}?prefix=&amp;marker=</code></td><td>Paginated list of keys under a prefix.</td></tr>
-    <tr><td><code>POST /v1/{bucket}/{key}?presign</code></td><td>Mint a time-limited signed URL so the client transfers bytes directly.<a href="#c1" class="cite">[1]</a></td></tr>
-  </table>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"Why not just replicate everything 3 times?"</p>
+      <p><b>Staff answer:</b> At exabyte scale 3× replication means buying 3 EB of disk. A 10+4 erasure code gives comparable durability at 1.4×, saving over an exabyte.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Exabytes of data and trillions of objects force erasure coding and a sharded metadata index. Let me define the entities."</p>
 
-  <h2>Data Model</h2>
-  <p>Metadata and bytes are separate systems with separate keys. The object index is a <b>range-sharded, consensus-replicated sorted map</b> on <code>(bucket, key, version DESC)</code> — sorted so LIST by prefix is a range scan, replicated so a commit is immediately visible. Bytes are addressed only by an internal <code>blob_id</code> whose stripe placement lives in the placement service, so data can be repaired or moved without touching the object index.</p>
-  <table>
-    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
-    <tr><td><b>buckets</b> (name, owner_account, region, versioning, lifecycle_rules, default_class, policy)</td><td>Global metadata store (small, strongly consistent)</td><td>PK <code>name</code> (globally unique)</td><td>Lookup per request (cached)</td></tr>
-    <tr><td><b>object_versions</b> (bucket, key, version_id, size, etag, storage_class, blob_id, delete_marker, user_metadata, created_at)</td><td>Range-sharded KV with a Raft group per range</td><td>PK <code>(bucket, key, version_id DESC)</code></td><td>GET latest = first row for (bucket, key); LIST = range scan on key prefix; ranges split on hot prefixes</td></tr>
-    <tr><td><b>multipart_uploads</b> (bucket, key, upload_id, initiated_at) + <b>parts</b> (upload_id, part_no, etag, size, blob_id)</td><td>Same index</td><td>PK <code>(bucket, key, upload_id)</code> / <code>(upload_id, part_no)</code></td><td>Complete verifies ETags; lifecycle aborts stale uploads</td></tr>
-    <tr><td><b>blobs</b> (blob_id, scheme [rep3 | ec10+4], stripe → [(node, disk, shard_idx, checksum)])</td><td>Placement service (sharded KV)</td><td>PK <code>blob_id</code></td><td>Read path gathers any k shards; repair rewrites entries</td></tr>
-    <tr><td><b>Shard data</b></td><td>Storage node disks (append-only volume files packing many shards)</td><td>(volume_id, offset)</td><td>Small objects packed together to avoid per-file overhead</td></tr>
-    <tr><td><b>disks / nodes</b> (id, failure_domain, capacity, used, health)</td><td>Cluster manager</td><td>PK id</td><td>Placement decisions; failure-triggered repair</td></tr>
-    <tr><td><b>GC / lifecycle queue</b> (blob_id, action, due_at)</td><td>Durable queue</td><td>—</td><td>Deleted versions, tier transitions, aborted uploads</td></tr>
-  </table>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="blob-store-ec-vs-replication">
+        <p class="stem">Why is EC (10+4) mandatory at 1 EB, not just a nice optimization?</p>
+        <button class="opt">EC is always better than replication in every scenario</button>
+        <button class="opt">3× replication costs 3 EB; EC 10+4 costs 1.4 EB; the 1.6 EB savings is operationally critical</button>
+        <button class="opt">Replication cannot provide 11 nines of durability</button>
+        <p class="fb">At exabyte scale, overhead isn't abstract. One extra exabyte of disk is real capital and power you don't need.</p>
+        <p class="hint">If raw disk costs $2/TB and you save 1.6 EB, what's the monthly savings?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="blob-store-sharded-metadata">
+        <p class="stem">Why must metadata be sharded separately, not co-located with bytes?</p>
+        <button class="opt">Metadata is tiny; bytes are huge. They scale on different axes and need different hardware.</button>
+        <button class="opt">Sharding prevents bytes from ever being durably stored</button>
+        <button class="opt">Metadata and bytes must always be on the same nodes for consistency</button>
+        <p class="fb">Metadata scales with object count and request rate. Bytes scale with capacity. Conflating them bottlenecks both.</p>
+        <p class="hint">If I have 1 trillion objects at 1KB metadata each, how much metadata storage? If I have 1 EB at 1 PB per drive, how many drives?</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why separate metadata from bytes?”</p>
-    <p><b>Staff answer:</b> Metadata is small, queried constantly and needs strong consistency; bytes are huge and immutable. They scale on completely different hardware and systems.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Object bytes and metadata live in separate systems. Now the data plane and metadata plane.”</p>
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 7</p>
+    <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
+    <h2>Core Entities &amp; API</h2>
+    <p>Three entities. The load-bearing idea is that <code>Object</code> bytes and <code>ObjectMetadata</code> live in <em>different systems</em> — the data plane and the metadata (index) service.</p>
+    <table>
+      <tr><th>Entity</th><th>Holds</th></tr>
+      <tr><td><code>Bucket</code></td><td>Namespace + owner, region, versioning flag, lifecycle policy, default storage class.</td></tr>
+      <tr><td><code>Object</code></td><td>The immutable bytes, written once to storage nodes and addressed by an internal blob id.</td></tr>
+      <tr><td><code>ObjectMetadata</code></td><td>key, versionId, size, content hash/ETag, storage class, and the placement map (which nodes/shards hold the bytes). Lives in the index.</td></tr>
+    </table>
+    <p>The caller is derived from the auth token / request signature, never the body. Endpoints map almost 1:1 to S3.<a href="#c1" class="cite">[1]</a></p>
+    <table>
+      <tr><th>Endpoint</th><th>Purpose</th></tr>
+      <tr><td><code>PUT /v1/{bucket}/{key}</code></td><td>Write an object (single shot, for small objects). Returns an <code>ETag</code> + <code>versionId</code>.</td></tr>
+      <tr><td><code>GET /v1/{bucket}/{key}</code></td><td>Read latest version (or <code>?versionId=</code>); supports HTTP <code>Range</code> for partial reads.</td></tr>
+      <tr><td><code>DELETE /v1/{bucket}/{key}</code></td><td>With versioning on, writes a <em>delete marker</em> rather than erasing bytes.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><code>POST /v1/{bucket}/{key}?uploads</code></td><td>Begin multipart: returns an <code>uploadId</code>; then <code>PUT&nbsp;part</code> N, then <code>POST&nbsp;complete</code>.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td><code>GET /v1/{bucket}?prefix=&amp;marker=</code></td><td>Paginated list of keys under a prefix.</td></tr>
+      <tr><td><code>POST /v1/{bucket}/{key}?presign</code></td><td>Mint a time-limited signed URL so the client transfers bytes directly.<a href="#c1" class="cite">[1]</a></td></tr>
+    </table>
 
-  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
-  <h2>Data Flow</h2>
-  <p>A PUT is where the whole design shows itself — control plane decides <em>where</em>, data plane writes the bytes, durability is earned on the way down:</p>
-  <ol style="font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;">
-    <li>Client calls the API; the request is authenticated and routed to the <b>metadata service</b> for that bucket.</li>
-    <li>Metadata service allocates a blob id and a <b>placement</b> (which storage nodes / failure domains will hold the shards), and returns a presigned target.<a href="#c1" class="cite">[1]</a></li>
-    <li>Client streams bytes to the <b>data plane</b>, which splits the object into <b>k data + m parity shards</b> (erasure coding) and writes each shard to a different failure domain.<a href="#c2" class="cite">[2]</a></li>
-    <li>Once a write quorum of shards is durable, the data plane acks; the metadata service commits the version and ETag. Only now is the object <em>visible</em>.</li>
-  </ol>
+    <h2>Data Model</h2>
+    <p>Metadata and bytes are separate systems with separate keys. The object index is a <b>range-sharded, consensus-replicated sorted map</b> on <code>(bucket, key, version DESC)</code> — sorted so LIST by prefix is a range scan, replicated so a commit is immediately visible. Bytes are addressed only by an internal <code>blob_id</code> whose stripe placement lives in the placement service, so data can be repaired or moved without touching the object index.</p>
+    <table>
+      <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+      <tr><td><b>buckets</b> (name, owner_account, region, versioning, lifecycle_rules, default_class, policy)</td><td>Global metadata store (small, strongly consistent)</td><td>PK <code>name</code> (globally unique)</td><td>Lookup per request (cached)</td></tr>
+      <tr><td><b>object_versions</b> (bucket, key, version_id, size, etag, storage_class, blob_id, delete_marker, user_metadata, created_at)</td><td>Range-sharded KV with a Raft group per range</td><td>PK <code>(bucket, key, version_id DESC)</code></td><td>GET latest = first row for (bucket, key); LIST = range scan on key prefix; ranges split on hot prefixes</td></tr>
+      <tr><td><b>multipart_uploads</b> (bucket, key, upload_id, initiated_at) + <b>parts</b> (upload_id, part_no, etag, size, blob_id)</td><td>Same index</td><td>PK <code>(bucket, key, upload_id)</code> / <code>(upload_id, part_no)</code></td><td>Complete verifies ETags; lifecycle aborts stale uploads</td></tr>
+      <tr><td><b>blobs</b> (blob_id, scheme [rep3 | ec10+4], stripe → [(node, disk, shard_idx, checksum)])</td><td>Placement service (sharded KV)</td><td>PK <code>blob_id</code></td><td>Read path gathers any k shards; repair rewrites entries</td></tr>
+      <tr><td><b>Shard data</b></td><td>Storage node disks (append-only volume files packing many shards)</td><td>(volume_id, offset)</td><td>Small objects packed together to avoid per-file overhead</td></tr>
+      <tr><td><b>disks / nodes</b> (id, failure_domain, capacity, used, health)</td><td>Cluster manager</td><td>PK id</td><td>Placement decisions; failure-triggered repair</td></tr>
+      <tr><td><b>GC / lifecycle queue</b> (blob_id, action, due_at)</td><td>Durable queue</td><td>—</td><td>Deleted versions, tier transitions, aborted uploads</td></tr>
+    </table>
 
-  <h2>Component Diagram</h2>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"Why separate metadata from bytes?"</p>
+      <p><b>Staff answer:</b> Metadata is small, queried constantly and needs strong consistency; bytes are huge and immutable. They scale on completely different hardware and systems.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Object bytes and metadata live in separate systems. Now the data plane and metadata plane."</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="blob-store-separate-systems">
+        <p class="stem">What is the key insight behind separating metadata from bytes?</p>
+        <button class="opt">Different scale drivers: metadata scales with object count/rate; bytes scale with capacity</button>
+        <button class="opt">Separation prevents metadata from ever being lost</button>
+        <button class="opt">Metadata and bytes cannot be stored separately without losing consistency</button>
+        <p class="fb">Metadata needs consensus and index structures. Bytes need disk density and EC. Different problems, different solutions.</p>
+        <p class="hint">If metadata and bytes lived on the same nodes, what would happen to search performance or disk utilization?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="blob-store-presigned-urls">
+        <p class="stem">Why do presigned URLs bypass the metadata service for data transfer?</p>
+        <button class="opt">The metadata service cannot handle both metadata queries and byte transfers</button>
+        <button class="opt">Signing a short-lived URL lets bytes flow directly to storage nodes, not through the control plane</button>
+        <button class="opt">Presigned URLs prevent unauthorized access to any data</button>
+        <p class="fb">If every GB of data flowed through the metadata tier, you'd have to scale it for exabyte bandwidth, not query rate.</p>
+        <p class="hint">If you store 1 EB and every GET routed through a central metadata service, how much network would you need?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 7</p>
+    <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+    <h2>Data Flow</h2>
+    <p>A PUT is where the whole design shows itself — control plane decides <em>where</em>, data plane writes the bytes, durability is earned on the way down:</p>
+    <ol style="font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;">
+      <li>Client calls the API; the request is authenticated and routed to the <b>metadata service</b> for that bucket.</li>
+      <li>Metadata service allocates a blob id and a <b>placement</b> (which storage nodes / failure domains will hold the shards), and returns a presigned target.<a href="#c1" class="cite">[1]</a></li>
+      <li>Client streams bytes to the <b>data plane</b>, which splits the object into <b>k data + m parity shards</b> (erasure coding) and writes each shard to a different failure domain.<a href="#c2" class="cite">[2]</a></li>
+      <li>Once a write quorum of shards is durable, the data plane acks; the metadata service commits the version and ETag. Only now is the object <em>visible</em>.</li>
+    </ol>
+
+    <h2>Component Diagram</h2>
 <pre class="diagram">
  [Client SDK / apps (signed requests)]
     | 1. PUT / presign        | 3. bytes (direct)
@@ -207,217 +289,290 @@
           | placement, lifecycle        | repair, scrub
  [Placement coordinator + GC / lifecycle / scrubber workers]
 </pre>
-  <p style="font-size:.85rem; color:var(--muted);">The control plane (front door, metadata, placement) decides where bytes go; the data plane stores erasure-coded shards across independent failure domains. After a write quorum of shards is durable, the data plane commits the version in the metadata service — only then is the object visible. Background workers scrub, repair, tier and garbage-collect.</p>
+    <p style="font-size:.85rem; color:var(--muted);">The control plane (front door, metadata, placement) decides where bytes go; the data plane stores erasure-coded shards across independent failure domains. After a write quorum of shards is durable, the data plane commits the version in the metadata service — only then is the object visible. Background workers scrub, repair, tier and garbage-collect.</p>
 
-  <h2>High-Level Design</h2>
-  <p>The architecture is one decision repeated everywhere: <b>split the control/metadata plane from the data plane.</b> Metadata (small, queried constantly, needs strong consistency) is sharded across an index. Bytes (huge, immutable, write-once) live on dumb, dense storage nodes and are protected by erasure coding.</p>
-  <table>
-    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
-    <tr><td>API / front door</td><td>Auth, request signing, rate limits, routes by bucket to the right shard.</td><td>Stateless fleet</td></tr>
-    <tr><td>Metadata service (index)</td><td>Maps <code>(bucket,key,version) → placement</code>; serves LIST; enforces consistency. Sharded by bucket+key.</td><td>Sharded KV / NewSQL</td></tr>
-    <tr><td>Data plane (storage nodes)</td><td>Stores erasure-coded shards on disk; handles streaming reads/writes and repair.</td><td>Dense JBOD nodes</td></tr>
-    <tr><td>Placement / coordinator</td><td>Chooses failure domains for new writes; drives re-replication when a disk dies.</td><td>—</td></tr>
-    <tr><td>Background / GC</td><td>Lifecycle transitions (hot→cold→archive), compaction, deleted-version cleanup, scrubbing.</td><td>Workers + queue</td></tr>
-  </table>
-  <p><b>Read path:</b> metadata lookup → placement map → data plane reads <code>k</code> of <code>k+m</code> shards (any k suffice) → reconstructs and streams the object. <b>Write path:</b> as in Data Flow above. Notice the metadata service is never in the byte path for the bulk transfer — it hands out a target and steps aside.<a href="#c1" class="cite">[1]</a></p>
+    <h2>High-Level Design</h2>
+    <p>The architecture is one decision repeated everywhere: <b>split the control/metadata plane from the data plane.</b> Metadata (small, queried constantly, needs strong consistency) is sharded across an index. Bytes (huge, immutable, write-once) live on dumb, dense storage nodes and are protected by erasure coding.</p>
+    <table>
+      <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+      <tr><td>API / front door</td><td>Auth, request signing, rate limits, routes by bucket to the right shard.</td><td>Stateless fleet</td></tr>
+      <tr><td>Metadata service (index)</td><td>Maps <code>(bucket,key,version) → placement</code>; serves LIST; enforces consistency. Sharded by bucket+key.</td><td>Sharded KV / NewSQL</td></tr>
+      <tr><td>Data plane (storage nodes)</td><td>Stores erasure-coded shards on disk; handles streaming reads/writes and repair.</td><td>Dense JBOD nodes</td></tr>
+      <tr><td>Placement / coordinator</td><td>Chooses failure domains for new writes; drives re-replication when a disk dies.</td><td>—</td></tr>
+      <tr><td>Background / GC</td><td>Lifecycle transitions (hot→cold→archive), compaction, deleted-version cleanup, scrubbing.</td><td>Workers + queue</td></tr>
+    </table>
+    <p><b>Read path:</b> metadata lookup → placement map → data plane reads <code>k</code> of <code>k+m</code> shards (any k suffice) → reconstructs and streams the object. <b>Write path:</b> as in Data Flow above. Notice the metadata service is never in the byte path for the bulk transfer — it hands out a target and steps aside.<a href="#c1" class="cite">[1]</a></p>
 
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    A senior candidate stores three full copies and moves on. A staff candidate says: "Three copies costs 3× — at an exabyte that's two extra exabytes of disk I don't need. I'll erasure-code: a 10+4 Reed–Solomon stripe tolerates any 4 simultaneous failures at 1.4× overhead, same durability class as 3-way replication for far less disk."<a href="#c2" class="cite">[2]</a> The deeper move is naming the <em>cost</em> of EC — reads/repairs must touch <em>k</em> nodes instead of one, so it pays for cold, large objects and hurts tiny, latency-critical ones. Knowing <em>when not to</em> erasure-code (small/hot objects → keep replicated) is the real signal. The same instinct shows in refusing to stream bytes through the metadata tier.
-  </div>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why dumb storage nodes?”</p>
-    <p><b>Staff answer:</b> Keeping storage nodes simple (store and verify chunks) lets them be dense and cheap; placement, consistency and repair logic live in the metadata and repair services.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: erasure coding, metadata sharding, multipart uploads and placement.”</p>
-
-  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
-  <h2>Deep Dives</h2>
-
-  <h3>1. Durability: erasure coding vs replication</h3>
-  <p>Both survive disk loss; they trade <b>storage overhead</b> against <b>access cost</b>.</p>
-  <table>
-    <tr><th>Scheme</th><th>Overhead</th><th>Tolerates</th><th>Cost / best for</th></tr>
-    <tr><td>3× replication</td><td><b>3.0×</b></td><td>2 lost copies</td><td>Cheap, fast single-node reads; pays for small/hot objects.</td></tr>
-    <tr><td>EC 10+4 (Reed–Solomon)</td><td><b>1.4×</b></td><td>Any 4 of 14</td><td>Reads/repair gather k shards; pays for large/cold objects.<a href="#c2" class="cite">[2]</a></td></tr>
-    <tr><td>EC 6+3</td><td><b>1.5×</b></td><td>Any 3 of 9</td><td>Smaller stripe → cheaper repair, slightly more overhead.</td></tr>
-  </table>
-  <p>The mechanism: split the object into <code>k</code> data shards, compute <code>m</code> parity shards so that <em>any</em> <code>k</code> of the <code>k+m</code> can rebuild the original. Spread the 14 shards across 14 independent <b>failure domains</b> (different racks/hosts/power) so no single failure takes two shards.<a href="#c2" class="cite">[2]</a> Durability is then a function of how fast you <em>repair</em> a lost shard before others die — so a background <b>scrubber</b> continuously reads, verifies checksums, and rebuilds. The catch staff candidates name: a single small read now fans out to <code>k</code> nodes, and repairing one lost shard reads <code>k</code> shards' worth of data ("repair amplification"). That's why hot/tiny objects often stay replicated and only large/warm data is coded. (See <a href="0006-replication-and-cap.html">replication &amp; CAP</a> for the copy-based baseline.)</p>
-
-  <h3>2. Metadata service vs data plane — and sharding the index</h3>
-  <p>The object index is the brain; the storage nodes are dumb muscle. Keeping them separate lets each scale on its own axis: bytes scale with <em>capacity</em>, the index with <em>request rate and object count</em>.</p>
-  <ul>
-    <li><b>Why separate:</b> if metadata lived next to bytes you couldn't LIST a bucket without scanning storage nodes, and you'd couple index hotspots to disk capacity. The index is a sorted map <code>(bucket,key,version) → placement</code>.</li>
-    <li><b>Sharding key:</b> shard by a hash of <code>bucket+key</code> so load spreads evenly. But LIST-by-prefix wants keys <em>sorted</em> — so within a shard keep keys range-ordered, and route prefix scans to the owning shard(s).</li>
-    <li><b>The hot-bucket / hot-prefix problem:</b> sequential keys (<code>log-0001</code>, <code>log-0002</code>) all hash near each other or land on one range shard, creating a hotspot. Mitigation: hash-prefix the key or split ranges adaptively — the same lesson S3 teaches with key naming.<a href="#c1" class="cite">[1]</a></li>
-    <li><b>Consistency:</b> the metadata commit is the linearization point. Use a consensus-backed shard (Raft/Paxos group per range) so a committed PUT is immediately visible — this is what makes modern S3 <em>strongly consistent</em> for read-after-write.<a href="#c1" class="cite">[1]</a></li>
-  </ul>
-
-  <h3>3. Multipart upload + presigned URLs — offloading the data plane</h3>
-  <p>A 5&nbsp;TB object cannot ride one request, and you never want bytes flowing through the control plane.<a href="#c1" class="cite">[1]</a> Multipart solves both:</p>
-  <div class="box">
-    <code>POST ?uploads → uploadId; PUT part 1..N (parallel); POST complete[ {n,ETag} ] → object</code>
-  </div>
-  <ul>
-    <li><b>Parallel + resumable.</b> Parts (e.g., 8–64&nbsp;MB) upload concurrently; a failed part retries alone. The client lists uploaded parts to resume after a crash.<a href="#c1" class="cite">[1]</a></li>
-    <li><b>Server verifies, never trusts.</b> Complete supplies each part's ETag; the service checks them before stitching — a buggy client can't fake a part.</li>
-    <li><b>Presigned URLs offload bytes.</b> The control plane signs a short-lived URL granting exactly one operation on one key; the client then transfers <em>directly</em> to the data plane.<a href="#c1" class="cite">[1]</a> Same move as <a href="0012-dropbox.html">Dropbox</a> — keep the multi-GB stream off your application tier so throughput scales with storage nodes, not API servers.</li>
-    <li><b>Garbage:</b> abandoned multipart uploads leak storage; a lifecycle rule aborts incomplete uploads after N days.<a href="#c1" class="cite">[1]</a></li>
-  </ul>
-
-  <h3>4. Placement, storage tiers &amp; listing consistency</h3>
-  <p><b>Placement across nodes.</b> The coordinator picks failure domains for each stripe to balance free space and spread risk; it tracks disk health and, on failure, schedules repair of just the affected shards. Writes target the emptiest healthy domains so capacity fills evenly — avoiding the classic "one rack full, rest idle" trap.</p>
-  <p><b>Storage tiers / lifecycle.</b> Most bytes go cold fast, so let the bucket policy migrate objects <b>hot → cold → archive</b> automatically.<a href="#c1" class="cite">[1]</a></p>
-  <table>
-    <tr><th>Tier</th><th>Profile</th><th>Trade</th></tr>
-    <tr><td>Hot (Standard)</td><td>Frequent reads, ms latency</td><td>Most $/GB; often replicated for tiny objects.</td></tr>
-    <tr><td>Cold (Infrequent)</td><td>Rare reads, still online</td><td>Cheaper/GB, small retrieval fee; wider EC stripe.</td></tr>
-    <tr><td>Archive (Glacier-like)</td><td>Backups, minutes–hours to restore</td><td>Cheapest/GB; offline-ish media, retrieval latency.</td></tr>
-  </table>
-  <p><b>Listing consistency — strong vs eventual.</b> Read-after-write on a single key is strongly consistent because the metadata commit is the source of truth.<a href="#c1" class="cite">[1]</a> But a bucket <em>LIST</em> spans many shards; offering a globally strong, point-in-time snapshot across a trillion-key bucket is brutally expensive. The pragmatic answer (and the interview-worthy nuance): keep per-object reads strong, but allow LIST to be <b>eventually consistent</b> — a just-written key may take a moment to appear in a prefix scan. State the trade explicitly and tie it to <a href="0006-replication-and-cap.html">CAP</a>: you're choosing bounded staleness on the aggregate query to keep listing scalable, while individual GETs stay correct.</p>
-
-  <h2>Alternative Approaches &amp; Tradeoffs</h2>
-  <table>
-    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
-    <tr><td><b>A. Sharded consensus metadata index + erasure-coded dumb storage nodes</b> (chosen; S3/Azure/Colossus lineage)</td><td>As drawn</td><td>1.4× overhead at 11 nines; index and capacity scale independently; strong read-after-write</td><td>Two complex distributed systems; EC repair amplification</td><td>Exabyte-scale multi-tenant object storage</td></tr>
-    <tr><td><b>B. Decentralized placement by hashing</b> (Ceph CRUSH / consistent hashing, no central placement lookup)</td><td>Clients compute object placement from a cluster map; storage daemons replicate/EC among themselves</td><td>No metadata lookup for placement; scales without a placement DB</td><td>Rebalancing on map changes moves lots of data; LIST and versioning need an extra index anyway</td><td>Self-hosted clusters (on-prem) where operational independence matters</td></tr>
-    <tr><td><b>C. Replicated large-file store with a single master</b> (GFS/HDFS style: chunks of 64–128 MB, 3× replicas)</td><td>Master holds namespace and chunk map in memory; chunkservers store replicated chunks</td><td>Simple, fast sequential throughput for analytics</td><td>Master memory limits object count (bad for trillions of small objects); 3× storage cost</td><td>Big-data batch storage with fewer, larger files</td></tr>
-  </table>
-  <p><b>Pick A:</b> trillions of objects and exabytes of bytes demand both a sharded index and erasure coding; B and C each fail one of those two constraints.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“How does erasure coding survive a whole rack or AZ failing?”</p>
-    <p><b>Staff answer:</b> Place the 14 fragments across failure domains so no rack holds more than a few; lose up to 4 fragments and still reconstruct, while background repair rebuilds missing fragments quickly.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness next.”</p>
-
-  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
-  <h2>Observability</h2>
-  <table>
-    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
-    <tr><td>Durability</td><td>Stripes with fewer than k+m healthy shards (by how many missing), repair queue depth and time-to-repair, scrub coverage (% of bytes verified per cycle), checksum mismatches</td><td>Durability = repair speed vs failure rate</td></tr>
-    <tr><td>Request path (RED)</td><td>PUT/GET/LIST/DELETE rate, p50/p99 time-to-first-byte, 5xx and 503 SlowDown per bucket/prefix</td><td>Availability NFR and hot prefixes</td></tr>
-    <tr><td>Metadata</td><td>Raft commit latency per range, range splits, hot ranges, leader elections</td><td>The linearization point's health</td></tr>
-    <tr><td>Capacity</td><td>Free space per failure domain, fill rate, disk failure rate (AFR) by model and batch</td><td>Placement balance and procurement</td></tr>
-    <tr><td>Customer-facing</td><td>Per-bucket request metrics, access logs (optional), storage by class</td><td>Customers' own debugging and cost analysis</td></tr>
-  </table>
-
-  <h2>Monitoring</h2>
-  <table>
-    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
-    <tr><td>Durability 11 nines</td><td>Any stripe at k+1 or fewer healthy shards; repair backlog time exceeding modeled safe window; scrub coverage falling behind schedule</td><td>Page (at k+1: highest priority)</td></tr>
-    <tr><td>Request availability 99.99%</td><td>Burn rate over 5 min / 1 h per region</td><td>Page</td></tr>
-    <tr><td>GET time-to-first-byte p99 &lt; 100 ms (hot tier)</td><td>Above target for 15 min</td><td>Page</td></tr>
-    <tr><td>Capacity headroom &gt; 15% per region</td><td>Projected full within procurement lead time</td><td>Ticket</td></tr>
-  </table>
-  <p><b>Synthetic probes:</b> canary objects of several sizes written, read (full and ranged), listed, versioned and deleted in every region every minute; a chaos exercise regularly takes failure domains offline and measures repair time. <b>Dashboards:</b> durability heat map (stripe health), repair throughput, request SLOs, capacity forecast.</p>
-
-  <h2>Authentication &amp; Authorization</h2>
-  <table>
-    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
-    <tr><td>Clients → API</td><td>Signed requests (HMAC SigV4-style) with account keys or short-lived role credentials</td><td>Identity policies + bucket policies + ACLs evaluated with explicit-deny-wins; "block public access" guardrails at account level</td></tr>
-    <tr><td>Presigned URLs</td><td>Signature over method, bucket, key, expiry</td><td>Exactly one operation on one key until expiry</td></tr>
-    <tr><td>Cross-account access</td><td>Assumed roles</td><td>Resource policies naming the external principal</td></tr>
-    <tr><td>Data plane ↔ metadata ↔ storage nodes</td><td>mTLS with node certificates</td><td>Storage nodes accept writes only for placements issued by the coordinator</td></tr>
-    <tr><td>Operators</td><td>SSO + hardware MFA, just-in-time access</td><td>No customer data access without break-glass; all actions audited</td></tr>
-  </table>
-
-  <h2>Security</h2>
-  <table>
-    <tr><th>Threat</th><th>Mitigation</th></tr>
-    <tr><td>Accidental public buckets (the most common real-world breach)</td><td>Block-public-access defaults, policy analyzers, alerts on public grants</td></tr>
-    <tr><td>Ransomware / malicious deletion</td><td>Versioning, MFA-delete, object lock, delayed permanent deletion</td></tr>
-    <tr><td>Silent data corruption (bit rot, bad disks, firmware bugs)</td><td>End-to-end checksums on every shard, continuous scrubbing, repair from parity</td></tr>
-    <tr><td>Leaked credentials / presigned URL abuse</td><td>Short expiries, scoped roles, VPC endpoint policies, anomaly detection on egress volume</td></tr>
-    <tr><td>Hot-prefix DoS affecting neighbors</td><td>Per-prefix request throttling (503 SlowDown), adaptive range splitting</td></tr>
-    <tr><td>Physical theft of disks</td><td>Encrypted shards; a single disk holds only one shard of each stripe</td></tr>
-    <tr><td>Baseline</td><td>TLS, KMS/HSM, secure boot on storage nodes, audit trails</td></tr>
-  </table>
-
-  <h2>Privacy</h2>
-  <p>The store holds arbitrary customer data it cannot inspect. <b>Encryption at rest by default</b> with envelope encryption (per-object data keys wrapped by KMS keys, optionally customer-managed) — which also enables <b>crypto-shredding</b>: destroying the key makes all replicas, shards and backups unreadable, the practical way to honor deletion across erasure-coded storage. <b>Deletion semantics:</b> with versioning, deletes create markers; true erasure requires deleting all versions, after which GC reclaims shards. <b>Residency:</b> buckets are pinned to a region and shards never leave it. <b>Compliance:</b> object lock (WORM) retention modes for regulated data. <b>Access logs</b> contain requester identity and IPs and are delivered only to the bucket owner.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“How do you prevent accidental public exposure of buckets?”</p>
-    <p><b>Staff answer:</b> Block public access by default, policy analyzers that flag public grants, presigned URLs with short expiry, and object lock for immutability.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
-
-  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
-  <h2>Scaling 10× Without Changing the Architecture</h2>
-  <p>10× = ~10 EB usable, ~10 trillion objects, 10× request rate.</p>
-  <table>
-    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
-    <tr><td>Storage nodes</td><td>~1.4 EB raw</td><td>~14 EB raw</td><td>Add dense nodes and failure domains; placement fills new capacity first</td></tr>
-    <tr><td>Metadata index</td><td>~1 PB of index across N Raft ranges</td><td>~10 PB, 10N ranges</td><td>Automatic range splits and rebalancing</td></tr>
-    <tr><td>Front door / data gateways</td><td>Stateless fleets</td><td>10×</td><td>Scale out</td></tr>
-    <tr><td>Repair throughput</td><td>Scales with nodes</td><td>More disks failing per day</td><td>Parallel repair; locally repairable codes to cut repair reads</td></tr>
-    <tr><td>Cold data</td><td>EC 10+4</td><td>Wider stripes for archive (e.g. 17+3)</td><td>Tier policy</td></tr>
-  </table>
-  <p><b>First bottleneck:</b> repair and rebalancing network traffic as absolute disk failures per day grow. <b>What forces a redesign:</b> POSIX-like semantics (appends, renames of prefixes, random writes), which need a filesystem layer rather than immutable objects.</p>
-
-  <h2>Cost of Running</h2>
-  <p>Assumptions: 1 EB usable on owned dense HDD nodes at ~$2 per raw TB-month all-in (hardware amortized over 5 years, power, space, network) — cloud list prices don't apply when you <em>are</em> the cloud; ~1 trillion objects; metadata on NVMe with 3 replicas.</p>
-  <table>
-    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
-    <tr><td>Raw storage for data shards</td><td>1.4 EB (EC 10+4) × $2/TB</td><td>$2,800,000</td></tr>
-    <tr><td>Metadata index</td><td>~1 PB × 3 replicas on NVMe servers + compute</td><td>$1,000,000</td></tr>
-    <tr><td>Front door, data gateways, placement, background workers</td><td></td><td>$500,000</td></tr>
-    <tr><td>Inter-rack/DC network for repair and rebalancing</td><td></td><td>$200,000</td></tr>
-    <tr><td><b>Total</b></td><td></td><td><b>≈ $4.5M</b></td></tr>
-  </table>
-  <p><b>Unit cost:</b> ≈ $4.50 per usable TB-month, against a retail price around $23/TB for standard storage. <b>Dominant driver:</b> raw disk — and the counterfactual shows why EC is the headline decision: 3× replication would need 3 EB, adding ~$3.2M/month. <b>Levers:</b> wider stripes for cold tiers, packing small objects, denser drives, and keeping only genuinely hot small objects replicated.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“What dominates cost?”</p>
-    <p><b>Staff answer:</b> Raw disk. Erasure coding ratios, dense HDD nodes and tiering cold data to cheaper storage classes are the levers.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Recap:”</p>
-
-  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
-  <h2>Closing Summary (60 seconds)</h2>
-  <div class="summary"><p>An object store splits a strongly consistent metadata plane from an erasure-coded data plane. Object bytes are cut into chunks, erasure-coded 10+4 and placed across racks and AZs on dense, simple storage nodes, reaching 11 nines at 1.4× overhead. A sharded, consensus-replicated index maps bucket and key to object versions and chunk locations, which gives read-after-write consistency and ordered listings. Multipart uploads and presigned URLs keep large transfers efficient. At 10× we add storage nodes and index ranges.</p></div>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why prefer erasure coding over 3× replication at exabyte scale?</p>
-      <button class="opt">Erasure coding lets a single node serve any read with no extra fan-out cost</button>
-      <button class="opt">It reaches the same durability class at far lower raw storage overhead cost</button>
-      <button class="opt">Replication is the only scheme that can survive losing four disks at one time</button>
-      <p class="fb">A 10+4 code is ~1.4× overhead vs 3.0× — exabytes of disk saved at similar durability.</p>
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      A senior candidate stores three full copies and moves on. A staff candidate says: "Three copies costs 3× — at an exabyte that's two extra exabytes of disk I don't need. I'll erasure-code: a 10+4 Reed–Solomon stripe tolerates any 4 simultaneous failures at 1.4× overhead, same durability class as 3-way replication for far less disk."<a href="#c2" class="cite">[2]</a> The deeper move is naming the <em>cost</em> of EC — reads/repairs must touch <em>k</em> nodes instead of one, so it pays for cold, large objects and hurts tiny, latency-critical ones. Knowing <em>when not to</em> erasure-code (small/hot objects → keep replicated) is the real signal. The same instinct shows in refusing to stream bytes through the metadata tier.
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. Why split the metadata index from the data plane?</p>
-      <button class="opt">It lets storage nodes run the consensus protocol that orders every single write</button>
-      <button class="opt">It makes the LIST operation scan raw disks faster than an index lookup would</button>
-      <button class="opt">Each scales on its own axis — bytes by capacity, the index by request count</button>
-      <button class="opt">It removes the need to ever erasure-code objects that are large or very cold</button>
-      <p class="fb">Bytes scale with capacity; the index scales with object count and request rate.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"Why dumb storage nodes?"</p>
+      <p><b>Staff answer:</b> Keeping storage nodes simple (store and verify chunks) lets them be dense and cheap; placement, consistency and repair logic live in the metadata and repair services.</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What does a presigned URL buy a multipart upload design?</p>
-      <button class="opt">Bytes flow straight to the data plane, off the control tier, so throughput scales</button>
-      <button class="opt">Parts upload strictly one after another so the server can verify ordering first</button>
-      <button class="opt">Objects become mutable so a client can rewrite a single byte inside the stream</button>
-      <button class="opt">Listing a bucket becomes strongly consistent across every shard in the cluster</button>
-      <p class="fb">Signing one short-lived op moves the multi-GB stream off your application tier.</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Deep dives: erasure coding, metadata sharding, multipart uploads and placement."</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="blob-store-data-flow-order">
+        <p class="stem">In the PUT data flow, why is metadata commit the final step, not the first?</p>
+        <button class="opt">Until bytes hit the data plane and reach durability, the object doesn't truly exist</button>
+        <button class="opt">The metadata service must be written to first for consistency</button>
+        <button class="opt">The order doesn't matter; reads will find the object either way</button>
+        <p class="fb">A committed metadata entry without durable bytes is a disaster. Write quorum first, then commit.</p>
+        <p class="hint">If metadata says the object exists but the bytes were lost, what went wrong?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="blob-store-control-vs-data">
+        <p class="stem">Why does separating control and data planes let this design scale to exabytes?</p>
+        <button class="opt">It prevents the control plane from ever making mistakes about data placement</button>
+        <button class="opt">Metadata scales independently (request rate); bytes scale independently (capacity); no coupling</button>
+        <button class="opt">Control and data planes always have to be tightly coupled in any system</button>
+        <p class="fb">You can add storage nodes without rewriting the metadata service. You can upgrade the index without touching disks.</p>
+        <p class="hint">If metadata and bytes were on the same nodes, how would you upgrade the index separately?</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. Why allow bucket LIST to be only eventually consistent?</p>
-      <button class="opt">Single-key GETs are weak too, so the LIST result can simply match those reads</button>
-      <button class="opt">A strong point-in-time scan across a trillion-key sharded bucket is too costly</button>
-      <button class="opt">Erasure coding forbids any index from returning keys in a fully sorted order</button>
-      <button class="opt">Delete markers cannot be written unless the listing path stays eventual always</button>
-      <p class="fb">Per-key reads stay strong; only the cross-shard aggregate trades staleness for scale.</p>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 7</p>
+    <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
+    <h2>Deep Dives</h2>
+
+    <h3>1. Durability: erasure coding vs replication</h3>
+    <p>Both survive disk loss; they trade <b>storage overhead</b> against <b>access cost</b>.</p>
+    <table>
+      <tr><th>Scheme</th><th>Overhead</th><th>Tolerates</th><th>Cost / best for</th></tr>
+      <tr><td>3× replication</td><td><b>3.0×</b></td><td>2 lost copies</td><td>Cheap, fast single-node reads; pays for small/hot objects.</td></tr>
+      <tr><td>EC 10+4 (Reed–Solomon)</td><td><b>1.4×</b></td><td>Any 4 of 14</td><td>Reads/repair gather k shards; pays for large/cold objects.<a href="#c2" class="cite">[2]</a></td></tr>
+      <tr><td>EC 6+3</td><td><b>1.5×</b></td><td>Any 3 of 9</td><td>Smaller stripe → cheaper repair, slightly more overhead.</td></tr>
+    </table>
+    <p>The mechanism: split the object into <code>k</code> data shards, compute <code>m</code> parity shards so that <em>any</em> <code>k</code> of the <code>k+m</code> can rebuild the original. Spread the 14 shards across 14 independent <b>failure domains</b> (different racks/hosts/power) so no single failure takes two shards.<a href="#c2" class="cite">[2]</a> Durability is then a function of how fast you <em>repair</em> a lost shard before others die — so a background <b>scrubber</b> continuously reads, verifies checksums, and rebuilds. The catch staff candidates name: a single small read now fans out to <code>k</code> nodes, and repairing one lost shard reads <code>k</code> shards' worth of data ("repair amplification"). That's why hot/tiny objects often stay replicated and only large/warm data is coded. (See <a href="0006-replication-and-cap.html">replication &amp; CAP</a> for the copy-based baseline.)</p>
+
+    <h3>2. Metadata service vs data plane — and sharding the index</h3>
+    <p>The object index is the brain; the storage nodes are dumb muscle. Keeping them separate lets each scale on its own axis: bytes scale with <em>capacity</em>, the index with <em>request rate and object count</em>.</p>
+    <ul>
+      <li><b>Why separate:</b> if metadata lived next to bytes you couldn't LIST a bucket without scanning storage nodes, and you'd couple index hotspots to disk capacity. The index is a sorted map <code>(bucket,key,version) → placement</code>.</li>
+      <li><b>Sharding key:</b> shard by a hash of <code>bucket+key</code> so load spreads evenly. But LIST-by-prefix wants keys <em>sorted</em> — so within a shard keep keys range-ordered, and route prefix scans to the owning shard(s).</li>
+      <li><b>The hot-bucket / hot-prefix problem:</b> sequential keys (<code>log-0001</code>, <code>log-0002</code>) all hash near each other or land on one range shard, creating a hotspot. Mitigation: hash-prefix the key or split ranges adaptively — the same lesson S3 teaches with key naming.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Consistency:</b> the metadata commit is the linearization point. Use a consensus-backed shard (Raft/Paxos group per range) so a committed PUT is immediately visible — this is what makes modern S3 <em>strongly consistent</em> for read-after-write.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+
+    <h3>3. Multipart upload + presigned URLs — offloading the data plane</h3>
+    <p>A 5&nbsp;TB object cannot ride one request, and you never want bytes flowing through the control plane.<a href="#c1" class="cite">[1]</a> Multipart solves both:</p>
+    <div class="box">
+      <code>POST ?uploads → uploadId; PUT part 1..N (parallel); POST complete[ {n,ETag} ] → object</code>
     </div>
-  </div>
+    <ul>
+      <li><b>Parallel + resumable.</b> Parts (e.g., 8–64&nbsp;MB) upload concurrently; a failed part retries alone. The client lists uploaded parts to resume after a crash.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Server verifies, never trusts.</b> Complete supplies each part's ETag; the service checks them before stitching — a buggy client can't fake a part.</li>
+      <li><b>Presigned URLs offload bytes.</b> The control plane signs a short-lived URL granting exactly one operation on one key; the client then transfers <em>directly</em> to the data plane.<a href="#c1" class="cite">[1]</a> Same move as <a href="0012-dropbox.html">Dropbox</a> — keep the multi-GB stream off your application tier so throughput scales with storage nodes, not API servers.</li>
+      <li><b>Garbage:</b> abandoned multipart uploads leak storage; a lifecycle rule aborts incomplete uploads after N days.<a href="#c1" class="cite">[1]</a></li>
+    </ul>
+
+    <h3>4. Placement, storage tiers &amp; listing consistency</h3>
+    <p><b>Placement across nodes.</b> The coordinator picks failure domains for each stripe to balance free space and spread risk; it tracks disk health and, on failure, schedules repair of just the affected shards. Writes target the emptiest healthy domains so capacity fills evenly — avoiding the classic "one rack full, rest idle" trap.</p>
+    <p><b>Storage tiers / lifecycle.</b> Most bytes go cold fast, so let the bucket policy migrate objects <b>hot → cold → archive</b> automatically.<a href="#c1" class="cite">[1]</a></p>
+    <table>
+      <tr><th>Tier</th><th>Profile</th><th>Trade</th></tr>
+      <tr><td>Hot (Standard)</td><td>Frequent reads, ms latency</td><td>Most $/GB; often replicated for tiny objects.</td></tr>
+      <tr><td>Cold (Infrequent)</td><td>Rare reads, still online</td><td>Cheaper/GB, small retrieval fee; wider EC stripe.</td></tr>
+      <tr><td>Archive (Glacier-like)</td><td>Backups, minutes–hours to restore</td><td>Cheapest/GB; offline-ish media, retrieval latency.</td></tr>
+    </table>
+    <p><b>Listing consistency — strong vs eventual.</b> Read-after-write on a single key is strongly consistent because the metadata commit is the source of truth.<a href="#c1" class="cite">[1]</a> But a bucket <em>LIST</em> spans many shards; offering a globally strong, point-in-time snapshot across a trillion-key bucket is brutally expensive. The pragmatic answer (and the interview-worthy nuance): keep per-object reads strong, but allow LIST to be <b>eventually consistent</b> — a just-written key may take a moment to appear in a prefix scan. State the trade explicitly and tie it to <a href="0006-replication-and-cap.html">CAP</a>: you're choosing bounded staleness on the aggregate query to keep listing scalable, while individual GETs stay correct.</p>
+
+    <h2>Alternative Approaches &amp; Tradeoffs</h2>
+    <table>
+      <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+      <tr><td><b>A. Sharded consensus metadata index + erasure-coded dumb storage nodes</b> (chosen; S3/Azure/Colossus lineage)</td><td>As drawn</td><td>1.4× overhead at 11 nines; index and capacity scale independently; strong read-after-write</td><td>Two complex distributed systems; EC repair amplification</td><td>Exabyte-scale multi-tenant object storage</td></tr>
+      <tr><td><b>B. Decentralized placement by hashing</b> (Ceph CRUSH / consistent hashing, no central placement lookup)</td><td>Clients compute object placement from a cluster map; storage daemons replicate/EC among themselves</td><td>No metadata lookup for placement; scales without a placement DB</td><td>Rebalancing on map changes moves lots of data; LIST and versioning need an extra index anyway</td><td>Self-hosted clusters (on-prem) where operational independence matters</td></tr>
+      <tr><td><b>C. Replicated large-file store with a single master</b> (GFS/HDFS style: chunks of 64–128 MB, 3× replicas)</td><td>Master holds namespace and chunk map in memory; chunkservers store replicated chunks</td><td>Simple, fast sequential throughput for analytics</td><td>Master memory limits object count (bad for trillions of small objects); 3× storage cost</td><td>Big-data batch storage with fewer, larger files</td></tr>
+    </table>
+    <p><b>Pick A:</b> trillions of objects and exabytes of bytes demand both a sharded index and erasure coding; B and C each fail one of those two constraints.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"How does erasure coding survive a whole rack or AZ failing?"</p>
+      <p><b>Staff answer:</b> Place the 14 fragments across failure domains so no rack holds more than a few; lose up to 4 fragments and still reconstruct, while background repair rebuilds missing fragments quickly.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Production readiness next."</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="blob-store-ec-read-cost">
+        <p class="stem">The honest cost of erasure coding (10+4) vs replication is that:</p>
+        <button class="opt">Reads are equally fast in both schemes</button>
+        <button class="opt">Replication is always slower than EC</button>
+        <button class="opt">EC reads fan out to k nodes; repairs amplify reads further; not ideal for tiny/hot objects</button>
+        <p class="fb">EC saves storage but costs read latency. That's why hot/small objects often stay replicated.</p>
+        <p class="hint">If a read needs any k of 14 shards, how many nodes must you contact vs 1 copy?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="blob-store-multipart-presign">
+        <p class="stem">Why do multipart uploads and presigned URLs work together to enable large-file uploads?</p>
+        <button class="opt">Multipart allows parallel uploads; presigned URLs bypass the control plane, so throughput isn't capped</button>
+        <button class="opt">Presigned URLs are only useful for single-part uploads</button>
+        <button class="opt">Multipart uploads cannot use presigned URLs at all</button>
+        <p class="fb">Each part gets its own presigned URL, so a 5 TB object doesn't choke a single metadata connection.</p>
+        <p class="hint">If every byte of a 5 TB upload went through the metadata service, what would happen?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 7</p>
+    <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+    <h2>Observability</h2>
+    <table>
+      <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+      <tr><td>Durability</td><td>Stripes with fewer than k+m healthy shards (by how many missing), repair queue depth and time-to-repair, scrub coverage (% of bytes verified per cycle), checksum mismatches</td><td>Durability = repair speed vs failure rate</td></tr>
+      <tr><td>Request path (RED)</td><td>PUT/GET/LIST/DELETE rate, p50/p99 time-to-first-byte, 5xx and 503 SlowDown per bucket/prefix</td><td>Availability NFR and hot prefixes</td></tr>
+      <tr><td>Metadata</td><td>Raft commit latency per range, range splits, hot ranges, leader elections</td><td>The linearization point's health</td></tr>
+      <tr><td>Capacity</td><td>Free space per failure domain, fill rate, disk failure rate (AFR) by model and batch</td><td>Placement balance and procurement</td></tr>
+      <tr><td>Customer-facing</td><td>Per-bucket request metrics, access logs (optional), storage by class</td><td>Customers' own debugging and cost analysis</td></tr>
+    </table>
+
+    <h2>Monitoring</h2>
+    <table>
+      <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+      <tr><td>Durability 11 nines</td><td>Any stripe at k+1 or fewer healthy shards; repair backlog time exceeding modeled safe window; scrub coverage falling behind schedule</td><td>Page (at k+1: highest priority)</td></tr>
+      <tr><td>Request availability 99.99%</td><td>Burn rate over 5 min / 1 h per region</td><td>Page</td></tr>
+      <tr><td>GET time-to-first-byte p99 &lt; 100 ms (hot tier)</td><td>Above target for 15 min</td><td>Page</td></tr>
+      <tr><td>Capacity headroom &gt; 15% per region</td><td>Projected full within procurement lead time</td><td>Ticket</td></tr>
+    </table>
+    <p><b>Synthetic probes:</b> canary objects of several sizes written, read (full and ranged), listed, versioned and deleted in every region every minute; a chaos exercise regularly takes failure domains offline and measures repair time. <b>Dashboards:</b> durability heat map (stripe health), repair throughput, request SLOs, capacity forecast.</p>
+
+    <h2>Authentication &amp; Authorization</h2>
+    <table>
+      <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+      <tr><td>Clients → API</td><td>Signed requests (HMAC SigV4-style) with account keys or short-lived role credentials</td><td>Identity policies + bucket policies + ACLs evaluated with explicit-deny-wins; "block public access" guardrails at account level</td></tr>
+      <tr><td>Presigned URLs</td><td>Signature over method, bucket, key, expiry</td><td>Exactly one operation on one key until expiry</td></tr>
+      <tr><td>Cross-account access</td><td>Assumed roles</td><td>Resource policies naming the external principal</td></tr>
+      <tr><td>Data plane ↔ metadata ↔ storage nodes</td><td>mTLS with node certificates</td><td>Storage nodes accept writes only for placements issued by the coordinator</td></tr>
+      <tr><td>Operators</td><td>SSO + hardware MFA, just-in-time access</td><td>No customer data access without break-glass; all actions audited</td></tr>
+    </table>
+
+    <h2>Security</h2>
+    <table>
+      <tr><th>Threat</th><th>Mitigation</th></tr>
+      <tr><td>Accidental public buckets (the most common real-world breach)</td><td>Block-public-access defaults, policy analyzers, alerts on public grants</td></tr>
+      <tr><td>Ransomware / malicious deletion</td><td>Versioning, MFA-delete, object lock, delayed permanent deletion</td></tr>
+      <tr><td>Silent data corruption (bit rot, bad disks, firmware bugs)</td><td>End-to-end checksums on every shard, continuous scrubbing, repair from parity</td></tr>
+      <tr><td>Leaked credentials / presigned URL abuse</td><td>Short expiries, scoped roles, VPC endpoint policies, anomaly detection on egress volume</td></tr>
+      <tr><td>Hot-prefix DoS affecting neighbors</td><td>Per-prefix request throttling (503 SlowDown), adaptive range splitting</td></tr>
+      <tr><td>Physical theft of disks</td><td>Encrypted shards; a single disk holds only one shard of each stripe</td></tr>
+      <tr><td>Baseline</td><td>TLS, KMS/HSM, secure boot on storage nodes, audit trails</td></tr>
+    </table>
+
+    <h2>Privacy</h2>
+    <p>The store holds arbitrary customer data it cannot inspect. <b>Encryption at rest by default</b> with envelope encryption (per-object data keys wrapped by KMS keys, optionally customer-managed) — which also enables <b>crypto-shredding</b>: destroying the key makes all replicas, shards and backups unreadable, the practical way to honor deletion across erasure-coded storage. <b>Deletion semantics:</b> with versioning, deletes create markers; true erasure requires deleting all versions, after which GC reclaims shards. <b>Residency:</b> buckets are pinned to a region and shards never leave it. <b>Compliance:</b> object lock (WORM) retention modes for regulated data. <b>Access logs</b> contain requester identity and IPs and are delivered only to the bucket owner.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"How do you prevent accidental public exposure of buckets?"</p>
+      <p><b>Staff answer:</b> Block public access by default, policy analyzers that flag public grants, presigned URLs with short expiry, and object lock for immutability.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Then 10× and cost."</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="blob-store-cardinal-slo">
+        <p class="stem">The cardinal SLO that drives durability investment is:</p>
+        <button class="opt">GET availability 99.9%; brief downtime is OK</button>
+        <button class="opt">Durability 11 nines; losing data is unforgivable</button>
+        <button class="opt">LIST consistency across all shards; must be immediate</button>
+        <p class="fb">Durability is the non-negotiable. Everything else is secondary to "never lose a byte."</p>
+        <p class="hint">If your storage lost 0.001% of objects but had 99.99% availability, would that be better or worse?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="blob-store-repair-monitoring">
+        <p class="stem">Why is repair queue depth and time-to-repair the most critical durability metric?</p>
+        <button class="opt">If repair is slow relative to the failure rate, more shards fail before repair completes</button>
+        <button class="opt">Repair speed doesn't affect durability; only replication level matters</button>
+        <button class="opt">Time-to-repair is only important for availability, not durability</button>
+        <p class="fb">With EC, durability = repair speed vs disk failure rate. If the queue grows faster than repair finishes, you're not durable.</p>
+        <p class="hint">If a disk fails every hour but repair takes 2 hours, what happens to the stripe?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 7 — comprehensive check</p>
+    <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+    <h2>Scaling 10× Without Changing the Architecture</h2>
+    <p>10× = ~10 EB usable, ~10 trillion objects, 10× request rate.</p>
+    <table>
+      <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+      <tr><td>Storage nodes</td><td>~1.4 EB raw</td><td>~14 EB raw</td><td>Add dense nodes and failure domains; placement fills new capacity first</td></tr>
+      <tr><td>Metadata index</td><td>~1 PB of index across N Raft ranges</td><td>~10 PB, 10N ranges</td><td>Automatic range splits and rebalancing</td></tr>
+      <tr><td>Front door / data gateways</td><td>Stateless fleets</td><td>10×</td><td>Scale out</td></tr>
+      <tr><td>Repair throughput</td><td>Scales with nodes</td><td>More disks failing per day</td><td>Parallel repair; locally repairable codes to cut repair reads</td></tr>
+      <tr><td>Cold data</td><td>EC 10+4</td><td>Wider stripes for archive (e.g. 17+3)</td><td>Tier policy</td></tr>
+    </table>
+    <p><b>First bottleneck:</b> repair and rebalancing network traffic as absolute disk failures per day grow. <b>What forces a redesign:</b> POSIX-like semantics (appends, renames of prefixes, random writes), which need a filesystem layer rather than immutable objects.</p>
+
+    <h2>Cost of Running</h2>
+    <p>Assumptions: 1 EB usable on owned dense HDD nodes at ~$2 per raw TB-month all-in (hardware amortized over 5 years, power, space, network) — cloud list prices don't apply when you <em>are</em> the cloud; ~1 trillion objects; metadata on NVMe with 3 replicas.</p>
+    <table>
+      <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+      <tr><td>Raw storage for data shards</td><td>1.4 EB (EC 10+4) × $2/TB</td><td>$2,800,000</td></tr>
+      <tr><td>Metadata index</td><td>~1 PB × 3 replicas on NVMe servers + compute</td><td>$1,000,000</td></tr>
+      <tr><td>Front door, data gateways, placement, background workers</td><td></td><td>$500,000</td></tr>
+      <tr><td>Inter-rack/DC network for repair and rebalancing</td><td></td><td>$200,000</td></tr>
+      <tr><td><b>Total</b></td><td></td><td><b>≈ $4.5M</b></td></tr>
+    </table>
+    <p><b>Unit cost:</b> ≈ $4.50 per usable TB-month, against a retail price around $23/TB for standard storage. <b>Dominant driver:</b> raw disk — and the counterfactual shows why EC is the headline decision: 3× replication would need 3 EB, adding ~$3.2M/month. <b>Levers:</b> wider stripes for cold tiers, packing small objects, denser drives, and keeping only genuinely hot small objects replicated.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">"What dominates cost?"</p>
+      <p><b>Staff answer:</b> Raw disk. Erasure coding ratios, dense HDD nodes and tiering cold data to cheaper storage classes are the levers.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> "Recap:"</p>
+
+    <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+    <h2>Closing Summary (60 seconds)</h2>
+    <div class="summary"><p>An object store splits a strongly consistent metadata plane from an erasure-coded data plane. Object bytes are cut into chunks, erasure-coded 10+4 and placed across racks and AZs on dense, simple storage nodes, reaching 11 nines at 1.4× overhead. A sharded, consensus-replicated index maps bucket and key to object versions and chunk locations, which gives read-after-write consistency and ordered listings. Multipart uploads and presigned URLs keep large transfers efficient. At 10× we add storage nodes and index ranges.</p></div>
+
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed spaced review.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="blob-store-core-move">
+        <p class="stem">The core L6 move on object store design is:</p>
+        <button class="opt">Picking the fastest disk technology for storage nodes</button>
+        <button class="opt">Separating metadata from bytes, then using EC to cut overhead at massive scale</button>
+        <button class="opt">Storing three full copies of every object</button>
+        <p class="fb">Separation unlocks independent scaling. EC cuts storage cost by half. Both together are the signal.</p>
+        <p class="hint">What would happen if metadata and bytes were on the same nodes?</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="blob-store-ec-durability">
+        <p class="stem">How does 10+4 EC achieve comparable durability to 3× replication at 1.4× overhead?</p>
+        <button class="opt">Place 14 shards across failure domains; any 4 losses still allow reconstruction; background repair rebuilds lost shards</button>
+        <button class="opt">EC cannot match 3× replication durability at any overhead</button>
+        <button class="opt">1.4× overhead with EC is actually more overhead than 3.0× replication</button>
+        <p class="fb">Write quorum + repair speed together deliver the durability. EC is the math; repair is the SLA.</p>
+        <p class="hint">If I have 14 shards and lose 4, can I still read the original object?</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="blob-store-metadata-sharding">
+        <p class="stem">Why shard metadata by hash(bucket+key) but keep ranges sorted within each shard?</p>
+        <button class="opt">To prevent any shard from being queried twice</button>
+        <button class="opt">Hash spreads load evenly; sorted ranges let LIST by prefix be a range scan within a shard</button>
+        <button class="opt">Sorting would prevent hashing from working at all</button>
+        <p class="fb">You get both even distribution (hash) and efficient prefix scans (sort). The best of both.</p>
+        <p class="hint">If keys were sorted globally, how many shards would a LIST scan have to touch?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="blob-store-eventual-list">
+        <p class="stem">Why is it OK for LIST to be eventually consistent while individual GETs are strong?</p>
+        <button class="opt">Strong point-in-time LIST across trillions of keys on many shards is too expensive; per-key reads stay strong</button>
+        <button class="opt">LIST must be eventual because reads and writes race</button>
+        <button class="opt">GET and LIST cannot have different consistency at all; they must match</button>
+        <p class="fb">You choose per-query cost vs consistency. LIST trades latency for scale; GET stays correct immediately.</p>
+        <p class="hint">If LIST had to snapshot all shards at the same instant, what would that require?</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this design — push on it. Try: <em>"Walk me through the exact durability math: why does 10+4 give roughly the same nines as 3× replication?"</em> · <em>"My bucket has a billion sequential <code>log-NNNN</code> keys and one shard is melting — how do I fix the hotspot without breaking prefix LIST?"</em> · <em>"When would you keep an object 3×-replicated instead of erasure-coding it, and how do you decide the cutover?"</em>
@@ -439,21 +594,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

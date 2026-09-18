@@ -43,22 +43,35 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,112 +86,208 @@
     <strong>Why this lesson, for your mission:</strong> Consensus is the engine inside every coordination service, replicated database, and leader-elected system you'll put on the whiteboard. At L6/L7 the interviewer rarely asks you to <em>implement</em> Raft — they want to see that you understand <em>what consensus guarantees</em> (one agreed log despite failures), <em>why a quorum is the unit of safety</em> ((N/2)+1), and <em>where the boundaries are</em> (2PC is not consensus; consensus can't be both safe and live under a fully async network). Reaching for the right algorithm and naming its cost in one breath is the staff move.<a href="#c1" class="cite">[1]</a>
   </div>
 
-  <h2>The problem — agreeing despite failure</h2>
-  <p>Consensus is the problem of getting <b>N machines to agree on a single value</b> — and, by extension, on the <b>order of a log of values</b> — even when some of those machines crash, restart, or get cut off by a network partition.<a href="#c2" class="cite">[2]</a> Once you can agree on an ordered log, you can build almost anything on top: a replicated state machine where every node applies the same commands in the same order ends up in the same state. That is how a "single" database survives the loss of a node.<a href="#c2" class="cite">[2]</a></p>
-  <p>The safety trick is the <b>quorum</b>: require any decision to be acknowledged by a <b>majority</b>, <code>(N/2)+1</code> nodes, before it counts as committed. Any two majorities of the same cluster must <b>overlap in at least one node</b>, and that shared node refuses to accept two conflicting decisions — so the cluster can never commit two different values for the same slot.<a href="#c2" class="cite">[2]</a> Majority overlap is the entire reason consensus is safe, and the reason clusters are sized <b>odd</b>: 3 nodes tolerate 1 failure, 5 tolerate 2.</p>
-  <div class="box">
-    <b>FLP impossibility — the one-line version</b>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 5</p>
+    <h2>The problem — agreeing despite failure</h2>
+    <p>Consensus is the problem of getting <b>N machines to agree on a single value</b> — and, by extension, on the <b>order of a log of values</b> — even when some of those machines crash, restart, or get cut off by a network partition.<a href="#c2" class="cite">[2]</a> Once you can agree on an ordered log, you can build almost anything on top: a replicated state machine where every node applies the same commands in the same order ends up in the same state. That is how a "single" database survives the loss of a node.<a href="#c2" class="cite">[2]</a></p>
+    <p>The safety trick is the <b>quorum</b>: require any decision to be acknowledged by a <b>majority</b>, <code>(N/2)+1</code> nodes, before it counts as committed. Any two majorities of the same cluster must <b>overlap in at least one node</b>, and that shared node refuses to accept two conflicting decisions — so the cluster can never commit two different values for the same slot.<a href="#c2" class="cite">[2]</a> Majority overlap is the entire reason consensus is safe, and the reason clusters are sized <b>odd</b>: 3 nodes tolerate 1 failure, 5 tolerate 2.</p>
+    <div class="box">
+      <b>FLP impossibility — the one-line version</b>
+      <ul>
+        <li>In a fully asynchronous network (no bound on message delay), no deterministic consensus protocol can guarantee it will <em>always</em> reach a decision if even one node may crash — you cannot tell a dead node from a slow one.<a href="#c4" class="cite">[4]</a></li>
+        <li><b>The escape hatch:</b> real protocols keep <em>safety</em> unconditionally (they never decide two values) and only rely on timeouts/randomness for <em>liveness</em> (eventually electing a leader once the network behaves). Raft and Paxos both live in this gap.<a href="#c2" class="cite">[2]</a></li>
+      </ul>
+    </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="raft-quorum-why-odd">
+        <p class="stem">Why is majority quorum the safe unit of consensus, and why are cluster sizes always odd?</p>
+        <button class="opt">Odd sizes use less memory than even sizes, so they're cheaper to run</button>
+        <button class="opt">Any two majorities must overlap in at least one node, and odd sizes maximize fault tolerance relative to node count</button>
+        <button class="opt">Raft and Paxos require mathematically odd numbers to elect a leader</button>
+        <p class="fb">Majority overlap prevents two conflicting decisions on the same slot. With odd sizes, 3 nodes tolerate 1 failure, 5 tolerate 2 — the best tradeoff.</p>
+        <p class="hint">What property must hold about any two majorities, and why does that make consensus safe?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="raft-flp-safety-vs-liveness">
+        <p class="stem">FLP says a fully async network can't always reach consensus. Why is that not a fatal problem for Raft and Paxos in practice?</p>
+        <button class="opt">These protocols sacrifice liveness (may pause) but keep safety (never decide two values), and rely on randomness/timeouts to eventually decide when the network is well-behaved</button>
+        <button class="opt">They completely ignore FLP and guarantee both safety and liveness in all conditions</button>
+        <button class="opt">They use a special protocol that only works on synchronous networks, so they sidestep FLP entirely</button>
+        <p class="fb">The escape hatch: keep safety unconditionally, use randomness/timeouts for liveness. When the network is good, they proceed quickly; during bad periods, they may pause but never violate safety.</p>
+        <p class="hint">Reread the FLP box and how Raft/Paxos live in the gap between safety and liveness.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 5</p>
+    <h2>Raft — leader election and log replication</h2>
+    <p>Raft was designed for one explicit goal: <b>understandability</b>. It decomposes consensus into three sub-problems you can reason about separately — leader election, log replication, and safety — and at any time each node is a <b>follower</b>, <b>candidate</b>, or <b>leader</b>.<a href="#c2" class="cite">[2]</a></p>
+
+    <h3>Leader election (terms, votes, randomized timeouts)</h3>
+    <p>Time is divided into <b>terms</b>, each a monotonically increasing number that acts as a logical clock.<a href="#c2" class="cite">[2]</a> A follower that hears nothing from a leader before its <b>election timeout</b> becomes a candidate, increments the term, votes for itself, and requests votes from everyone else. A node grants its vote to at most one candidate per term, so a candidate that collects a <b>majority</b> of votes becomes leader for that term.<a href="#c2" class="cite">[2]</a> The clever part: election timeouts are <b>randomized</b> (e.g. 150–300 ms), so nodes rarely time out at once — split votes are rare and self-correct on the next random timeout, which is how Raft avoids livelock.<a href="#c2" class="cite">[2]</a></p>
+
+    <h3>Log replication (append, replicate, commit on majority)</h3>
+    <p>Once elected, the leader serves all client writes. Each write becomes a <b>log entry</b> tagged with its term and index; the leader appends it locally, then sends <code>AppendEntries</code> RPCs to replicate it to followers.<a href="#c2" class="cite">[2]</a> An entry is <b>committed once the leader has stored it on a majority of nodes</b> — at that point it is durable and the leader applies it to its state machine and replies to the client. The leader tells followers the commit index on subsequent RPCs so they apply the same entries in the same order.<a href="#c2" class="cite">[2]</a> The same <code>AppendEntries</code> RPC, sent empty, doubles as the leader's <b>heartbeat</b> to suppress new elections.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="raft-commit-point">
+        <p class="stem">In Raft, when exactly is a log entry considered committed?</p>
+        <button class="opt">As soon as the leader has written the entry to its own local log</button>
+        <button class="opt">Once every single follower in the cluster has acknowledged the entry</button>
+        <button class="opt">Once a majority quorum of nodes has stored the entry durably</button>
+        <p class="fb">Commit point: a majority has the entry. Majority overlap guarantees it survives any minority of failures, so the leader can safely apply and reply to the client.</p>
+        <p class="hint">Reread the "append, replicate, commit" sentence: at what point does the leader apply and reply?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="raft-why-randomized-timeout">
+        <p class="stem">Why does Raft use randomized election timeouts across nodes rather than having all nodes time out at the same fixed time?</p>
+        <button class="opt">Because synchronizing timeouts across machines is impossible in a distributed system</button>
+        <button class="opt">Because randomized timeouts mean nodes rarely time out together, so split votes are rare and one candidate usually wins quickly</button>
+        <button class="opt">Because the leader needs time to destroy old candidates before allowing new elections</button>
+        <p class="fb">Staggered timeouts = one candidate usually gets a majority before the next timeout fires. Without randomness, split votes would cause repeated election rounds.</p>
+        <p class="hint">What happens in an election if two nodes become candidates at the same instant and split the votes?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 5</p>
+    <h2>Safety and membership changes</h2>
+    <h3>Safety (commit rules and log matching)</h3>
+    <p>What stops a stale node from becoming leader and clobbering committed data? Two rules:</p>
     <ul>
-      <li>In a fully asynchronous network (no bound on message delay), no deterministic consensus protocol can guarantee it will <em>always</em> reach a decision if even one node may crash — you cannot tell a dead node from a slow one.<a href="#c4" class="cite">[4]</a></li>
-      <li><b>The escape hatch:</b> real protocols keep <em>safety</em> unconditionally (they never decide two values) and only rely on timeouts/randomness for <em>liveness</em> (eventually electing a leader once the network behaves). Raft and Paxos both live in this gap.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Election restriction:</b> a node only grants its vote to a candidate whose log is <b>at least as up-to-date</b> as its own. This guarantees the winner already holds every committed entry, so no commit is ever lost.<a href="#c2" class="cite">[2]</a></li>
+      <li><b>Log Matching Property:</b> if two logs contain an entry with the same index <em>and</em> term, then the logs are identical in all preceding entries. Consistency checks in <code>AppendEntries</code> force followers to converge to the leader's log, overwriting any conflicting uncommitted tail.<a href="#c2" class="cite">[2]</a></li>
     </ul>
-  </div>
+    <p>A subtle rule Raft is explicit about: a leader only commits entries by counting replicas for an entry <b>from its own current term</b>; older-term entries become committed only indirectly, once a current-term entry above them commits. This closes a window where a committed entry could otherwise be overwritten.<a href="#c2" class="cite">[2]</a></p>
 
-  <h2>Raft — leader, log, safety</h2>
-  <p>Raft was designed for one explicit goal: <b>understandability</b>. It decomposes consensus into three sub-problems you can reason about separately — leader election, log replication, and safety — and at any time each node is a <b>follower</b>, <b>candidate</b>, or <b>leader</b>.<a href="#c2" class="cite">[2]</a></p>
+    <h3>Membership changes</h3>
+    <p>You can't just swap the node set atomically — for a moment two different majorities could form and elect two leaders. Raft uses <b>joint consensus</b>: a transitional configuration requiring majorities from <em>both</em> the old and new sets, so there is never a moment when two disjoint majorities exist.<a href="#c2" class="cite">[2]</a> Naming this safe-reconfiguration step is a strong signal that you understand the failure modes, not just the happy path.</p>
 
-  <h3>Leader election (terms, votes, randomized timeouts)</h3>
-  <p>Time is divided into <b>terms</b>, each a monotonically increasing number that acts as a logical clock.<a href="#c2" class="cite">[2]</a> A follower that hears nothing from a leader before its <b>election timeout</b> becomes a candidate, increments the term, votes for itself, and requests votes from everyone else. A node grants its vote to at most one candidate per term, so a candidate that collects a <b>majority</b> of votes becomes leader for that term.<a href="#c2" class="cite">[2]</a> The clever part: election timeouts are <b>randomized</b> (e.g. 150–300 ms), so nodes rarely time out at once — split votes are rare and self-correct on the next random timeout, which is how Raft avoids livelock.<a href="#c2" class="cite">[2]</a></p>
-
-  <h3>Log replication (append, replicate, commit on majority)</h3>
-  <p>Once elected, the leader serves all client writes. Each write becomes a <b>log entry</b> tagged with its term and index; the leader appends it locally, then sends <code>AppendEntries</code> RPCs to replicate it to followers.<a href="#c2" class="cite">[2]</a> An entry is <b>committed once the leader has stored it on a majority of nodes</b> — at that point it is durable and the leader applies it to its state machine and replies to the client. The leader tells followers the commit index on subsequent RPCs so they apply the same entries in the same order.<a href="#c2" class="cite">[2]</a> The same <code>AppendEntries</code> RPC, sent empty, doubles as the leader's <b>heartbeat</b> to suppress new elections.</p>
-
-  <h3>Safety (commit rules and log matching)</h3>
-  <p>What stops a stale node from becoming leader and clobbering committed data? Two rules:</p>
-  <ul>
-    <li><b>Election restriction:</b> a node only grants its vote to a candidate whose log is <b>at least as up-to-date</b> as its own. This guarantees the winner already holds every committed entry, so no commit is ever lost.<a href="#c2" class="cite">[2]</a></li>
-    <li><b>Log Matching Property:</b> if two logs contain an entry with the same index <em>and</em> term, then the logs are identical in all preceding entries. Consistency checks in <code>AppendEntries</code> force followers to converge to the leader's log, overwriting any conflicting uncommitted tail.<a href="#c2" class="cite">[2]</a></li>
-  </ul>
-  <p>A subtle rule Raft is explicit about: a leader only commits entries by counting replicas for an entry <b>from its own current term</b>; older-term entries become committed only indirectly, once a current-term entry above them commits. This closes a window where a committed entry could otherwise be overwritten.<a href="#c2" class="cite">[2]</a></p>
-
-  <h3>Membership changes</h3>
-  <p>You can't just swap the node set atomically — for a moment two different majorities could form and elect two leaders. Raft uses <b>joint consensus</b>: a transitional configuration requiring majorities from <em>both</em> the old and new sets, so there is never a moment when two disjoint majorities exist.<a href="#c2" class="cite">[2]</a> Naming this safe-reconfiguration step is a strong signal that you understand the failure modes, not just the happy path.</p>
-
-  <h2>Paxos &amp; Multi-Paxos</h2>
-  <p>Paxos solves the same problem and came first; it's the theoretical bedrock but is famously hard to follow.<a href="#c3" class="cite">[3]</a> Three roles cooperate (a single process usually plays all three): <b>proposers</b> suggest values, <b>acceptors</b> vote, and <b>learners</b> observe the chosen value.<a href="#c3" class="cite">[3]</a> Basic ("single-decree") Paxos chooses <em>one</em> value via two phases:</p>
-  <table>
-    <thead><tr><th>Phase</th><th>What happens</th></tr></thead>
-    <tbody>
-      <tr><td><b>1 · Prepare</b></td><td>A proposer picks a unique ballot number <code>n</code> and asks a majority of acceptors to promise not to accept anything numbered below <code>n</code>; they reply with any value they've already accepted.<a href="#c3" class="cite">[3]</a></td></tr>
-      <tr><td><b>2 · Accept</b></td><td>If a majority promised, the proposer sends <code>accept(n, v)</code> — where <code>v</code> is the highest-numbered already-accepted value, or its own if none. A majority accepting it makes <code>v</code> chosen.<a href="#c3" class="cite">[3]</a></td></tr>
-    </tbody>
-  </table>
-  <p>Running two round-trips per decision is wasteful for a long log. <b>Multi-Paxos</b> amortizes it: elect a stable leader, run Phase 1 <em>once</em>, and then stream a Phase-2-only message per log entry — so the steady state is a single round-trip, just like Raft's <code>AppendEntries</code>.<a href="#c3" class="cite">[3]</a> At that point Raft and Multi-Paxos look strikingly similar; Raft's contribution was packaging the leader-based design into something teachable.<a href="#c2" class="cite">[2]</a></p>
-
-  <div class="box">
-    <b>2PC is NOT consensus</b>
-    <ul>
-      <li>Two-Phase Commit gets participants to agree on commit-vs-abort of a transaction, but it has a <b>single coordinator with no failover</b>. If the coordinator crashes after participants vote "yes," they are stuck holding locks, unable to decide — it <b>blocks</b>.<a href="#c1" class="cite">[1]</a></li>
-      <li>Consensus protocols are exactly the fix: there is no single point of failure because a <b>new leader is elected</b> and the committed log survives any minority of failures. When an interviewer conflates the two, correcting it crisply is high-signal.</li>
-    </ul>
-  </div>
-
-  <h2>Where it shows up</h2>
-  <table>
-    <thead><tr><th>System</th><th>How it uses consensus</th></tr></thead>
-    <tbody>
-      <tr><td><b>etcd</b></td><td>Raft replicates its key/value log; backs every Kubernetes object — see <a href="0106-zookeeper-etcd.html">Lesson 106</a>.<a href="#c2" class="cite">[2]</a></td></tr>
-      <tr><td><b>ZooKeeper</b></td><td>ZAB (a leader-based atomic broadcast, Paxos-family) for the same linearizable writes.<a href="#c1" class="cite">[1]</a></td></tr>
-      <tr><td><b>Spanner / CockroachDB</b></td><td>Each shard ("range") is a Raft/Paxos group replicating its own log — see <a href="0096-distributed-sql-spanner.html">Lesson 96</a>.<a href="#c5" class="cite">[5]</a></td></tr>
-      <tr><td><b>Leader election</b></td><td>"Who is primary?" is just consensus on one value; the elected leader then serializes writes.<a href="#c2" class="cite">[2]</a></td></tr>
-    </tbody>
-  </table>
-  <p>Consensus is the strong-consistency end of the spectrum from <a href="0006-replication-and-cap.html">Lesson 06 (Replication &amp; CAP)</a>: these systems are <b>CP</b> — under a partition the minority side loses its quorum and stops accepting writes rather than diverge.<a href="#c5" class="cite">[5]</a></p>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Seniors say "I'll use Raft for replication." Staff candidates frame the <em>guarantee and its cost</em> in one breath: "I'll replicate this shard's log with Raft — one leader sequences writes, an entry commits once a quorum of <code>(N/2)+1</code> has it, so reads are linearizable. That costs me one round-trip of latency per write and means the minority side stops serving writes during a partition, which is the correct CP tradeoff here." And they volunteer the boundaries unprompted: "I'm <b>not</b> hand-rolling consensus — I'll lean on etcd/a Raft library; 2PC wouldn't do because it blocks on coordinator failure; and FLP means I accept it may pause during a bad partition but it will never decide two values."<a href="#c1" class="cite">[1]</a> Picking the proven protocol, sizing the quorum, and naming the safety-vs-liveness line is the simple-by-default judgement the bar rewards — without delivering an unasked Raft lecture.
-  </div>
-
-  <h2>In the interview</h2>
-  <p>You almost never implement consensus on the whiteboard — you <b>invoke</b> it. When your design needs a replicated log, leader election, or a linearizable store, say "this is a consensus group; I'll use Raft (or etcd as a managed one)" and justify it in a line: <em>one leader, quorum commit, linearizable.</em><a href="#c2" class="cite">[2]</a> Be ready for the predictable follow-ups: <em>"Why an odd number of nodes?"</em> (majority overlap; 3 tolerates 1, 5 tolerates 2), <em>"What happens during a partition?"</em> (minority loses quorum, stops writing — CP), and <em>"Why not 2PC?"</em> (it blocks on coordinator failure; consensus elects a new leader). The staff move is depth <em>on demand</em>: name the guarantee and the cost, then move on unless pushed.</p>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. In Raft, when is a log entry considered committed?</p>
-      <button class="opt">As soon as the leader has written the new entry to its own local log</button>
-      <button class="opt">Once every single follower in the cluster has acknowledged the entry</button>
-      <button class="opt">Once a majority quorum of the nodes has stored the entry in the log</button>
-      <button class="opt">After a fixed timer elapses with no follower rejecting the new entry</button>
-      <p class="fb">An entry commits once the leader has replicated it to a majority; majority overlap guarantees it survives any minority of failures.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="raft-election-restriction">
+        <p class="stem">Why does Raft require that a candidate's log be "at least as up-to-date as its own" before granting a vote?</p>
+        <button class="opt">To guarantee the elected leader already holds every committed entry, so no commit is lost</button>
+        <button class="opt">To ensure that stale candidates get elected faster than up-to-date ones</button>
+        <button class="opt">To allow the leader to delete old entries that are too far behind</button>
+        <p class="fb">Election restriction ensures every elected leader is the most up-to-date node, so no committed entry is ever lost to a stale leader.</p>
+        <p class="hint">What does the election restriction guarantee about the winner's log?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="raft-why-joint-consensus-safe">
+        <p class="stem">In Raft, why does the joint consensus process for membership changes require a majority from both the old and new node sets?</p>
+        <button class="opt">It doesn't; Raft can add a node instantly with no intermediate step</button>
+        <button class="opt">Because during the transition, requiring both majorities means two disjoint majorities can never form and elect conflicting leaders</button>
+        <button class="opt">Because adding or removing a node automatically doubles the cluster's fault tolerance</button>
+        <p class="fb">The overlap guarantee: any decision during joint consensus must be approved by both the old and new majority, so no split-brain is possible.</p>
+        <p class="hint">Reread the membership changes section: what could go wrong if you swapped the node set atomically?</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. Why does Raft use randomized election timeouts across the nodes?</p>
-      <button class="opt">To make every node elect itself as the leader at the same exact moment</button>
-      <button class="opt">To reduce split votes so one candidate usually wins the term quickly</button>
-      <button class="opt">To keep the term number from ever incrementing past the cluster size</button>
-      <button class="opt">To let two leaders coexist safely whenever the network is partitioned</button>
-      <p class="fb">Randomized timeouts mean nodes rarely time out together, so split votes are uncommon and resolve on the next round — avoiding livelock.</p>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 5</p>
+    <h2>Paxos, Multi-Paxos, and why 2PC is not consensus</h2>
+    <h3>Paxos basics</h3>
+    <p>Paxos solves the same problem and came first; it's the theoretical bedrock but is famously hard to follow.<a href="#c3" class="cite">[3]</a> Three roles cooperate (a single process usually plays all three): <b>proposers</b> suggest values, <b>acceptors</b> vote, and <b>learners</b> observe the chosen value.<a href="#c3" class="cite">[3]</a> Basic ("single-decree") Paxos chooses <em>one</em> value via two phases:</p>
+    <table>
+      <thead><tr><th>Phase</th><th>What happens</th></tr></thead>
+      <tbody>
+        <tr><td><b>1 · Prepare</b></td><td>A proposer picks a unique ballot number <code>n</code> and asks a majority of acceptors to promise not to accept anything numbered below <code>n</code>; they reply with any value they've already accepted.<a href="#c3" class="cite">[3]</a></td></tr>
+        <tr><td><b>2 · Accept</b></td><td>If a majority promised, the proposer sends <code>accept(n, v)</code> — where <code>v</code> is the highest-numbered already-accepted value, or its own if none. A majority accepting it makes <code>v</code> chosen.<a href="#c3" class="cite">[3]</a></td></tr>
+      </tbody>
+    </table>
+    <p>Running two round-trips per decision is wasteful for a long log. <b>Multi-Paxos</b> amortizes it: elect a stable leader, run Phase 1 <em>once</em>, and then stream a Phase-2-only message per log entry — so the steady state is a single round-trip, just like Raft's <code>AppendEntries</code>.<a href="#c3" class="cite">[3]</a> At that point Raft and Multi-Paxos look strikingly similar; Raft's contribution was packaging the leader-based design into something teachable.<a href="#c2" class="cite">[2]</a></p>
+
+    <div class="box">
+      <b>2PC is NOT consensus</b>
+      <ul>
+        <li>Two-Phase Commit gets participants to agree on commit-vs-abort of a transaction, but it has a <b>single coordinator with no failover</b>. If the coordinator crashes after participants vote "yes," they are stuck holding locks, unable to decide — it <b>blocks</b>.<a href="#c1" class="cite">[1]</a></li>
+        <li>Consensus protocols are exactly the fix: there is no single point of failure because a <b>new leader is elected</b> and the committed log survives any minority of failures. When an interviewer conflates the two, correcting it crisply is high-signal.</li>
+      </ul>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What does Multi-Paxos optimize compared with basic single-decree Paxos?</p>
-      <button class="opt">It elects a stable leader so steady state needs only the accept round</button>
-      <button class="opt">It removes the acceptors entirely so proposers can decide on their own</button>
-      <button class="opt">It drops the majority rule so a single node can commit a value alone</button>
-      <button class="opt">It gives up linearizable order to gain far higher overall write speed</button>
-      <p class="fb">A stable leader runs Phase 1 once, then streams Phase-2-only messages per entry, cutting the steady state to one round-trip.</p>
+
+    <h2>Where it shows up</h2>
+    <table>
+      <thead><tr><th>System</th><th>How it uses consensus</th></tr></thead>
+      <tbody>
+        <tr><td><b>etcd</b></td><td>Raft replicates its key/value log; backs every Kubernetes object — see <a href="0106-zookeeper-etcd.html">Lesson 106</a>.<a href="#c2" class="cite">[2]</a></td></tr>
+        <tr><td><b>ZooKeeper</b></td><td>ZAB (a leader-based atomic broadcast, Paxos-family) for the same linearizable writes.<a href="#c1" class="cite">[1]</a></td></tr>
+        <tr><td><b>Spanner / CockroachDB</b></td><td>Each shard ("range") is a Raft/Paxos group replicating its own log — see <a href="0096-distributed-sql-spanner.html">Lesson 96</a>.<a href="#c5" class="cite">[5]</a></td></tr>
+        <tr><td><b>Leader election</b></td><td>"Who is primary?" is just consensus on one value; the elected leader then serializes writes.<a href="#c2" class="cite">[2]</a></td></tr>
+      </tbody>
+    </table>
+    <p>Consensus is the strong-consistency end of the spectrum from <a href="0006-replication-and-cap.html">Lesson 06 (Replication &amp; CAP)</a>: these systems are <b>CP</b> — under a partition the minority side loses its quorum and stops accepting writes rather than diverge.<a href="#c5" class="cite">[5]</a></p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="raft-multipaxos-amortization">
+        <p class="stem">What does Multi-Paxos optimize compared with basic single-decree Paxos?</p>
+        <button class="opt">A stable leader runs Phase 1 once, then streams only Phase-2 per entry, cutting steady-state to one round-trip</button>
+        <button class="opt">It removes acceptors entirely so proposers can decide independently</button>
+        <button class="opt">It drops the majority rule so a single node can commit alone</button>
+        <p class="fb">Leader-based optimization: Phase 1 (prepare) runs once per leader, not per entry. Steady state becomes single round-trip Phase 2, same as Raft.</p>
+        <p class="hint">Reread the Multi-Paxos section: how does having a stable leader reduce round-trips?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="raft-why-2pc-blocks">
+        <p class="stem">Why does 2PC block if a single coordinator crashes, while Raft consensus does not?</p>
+        <button class="opt">2PC has no timeout mechanism, so stuck participants wait forever</button>
+        <button class="opt">Raft creates backups of every node, so it always has a spare coordinator</button>
+        <button class="opt">2PC has a single coordinator with no failover; Raft elects a new leader and the committed log survives any minority failures</button>
+        <p class="fb">2PC's single point of failure: if the coordinator dies after "phase 1 yes" votes, participants are locked forever. Raft solves this by electing new leaders and replicating to a quorum.</p>
+        <p class="hint">What's the fundamental difference between 2PC's single coordinator design and Raft's leader election?</p>
+      </div>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. Why is classic Two-Phase Commit (2PC) not a consensus protocol?</p>
-      <button class="opt">It cannot order writes because there is no leader sequencing the entries</button>
-      <button class="opt">It requires an even number of nodes so no clear majority can ever form</button>
-      <button class="opt">It allows two values to be chosen whenever the network gets partitioned</button>
-      <button class="opt">It blocks when the single coordinator crashes, with no leader failover</button>
-      <p class="fb">2PC has one coordinator and no failover, so a coordinator crash leaves participants stuck; consensus elects a new leader and survives.</p>
+  </section>
+
+  <section class="chunk" id="chunk-final">
+    <p class="chunk-label">5 of 5 — comprehensive check</p>
+    <h2>In the interview and interview scenarios</h2>
+    <p>You almost never implement consensus on the whiteboard — you <b>invoke</b> it. When your design needs a replicated log, leader election, or a linearizable store, say "this is a consensus group; I'll use Raft (or etcd as a managed one)" and justify it in a line: <em>one leader, quorum commit, linearizable.</em><a href="#c2" class="cite">[2]</a> Be ready for the predictable follow-ups: <em>"Why an odd number of nodes?"</em> (majority overlap; 3 tolerates 1, 5 tolerates 2), <em>"What happens during a partition?"</em> (minority loses quorum, stops writing — CP), and <em>"Why not 2PC?"</em> (it blocks on coordinator failure; consensus elects a new leader). The staff move is depth <em>on demand</em>: name the guarantee and the cost, then move on unless pushed.</p>
+
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Seniors say "I'll use Raft for replication." Staff candidates frame the <em>guarantee and its cost</em> in one breath: "I'll replicate this shard's log with Raft — one leader sequences writes, an entry commits once a quorum of <code>(N/2)+1</code> has it, so reads are linearizable. That costs me one round-trip of latency per write and means the minority side stops serving writes during a partition, which is the correct CP tradeoff here." And they volunteer the boundaries unprompted: "I'm <b>not</b> hand-rolling consensus — I'll lean on etcd/a Raft library; 2PC wouldn't do because it blocks on coordinator failure; and FLP means I accept it may pause during a bad partition but it will never decide two values."<a href="#c1" class="cite">[1]</a> Picking the proven protocol, sizing the quorum, and naming the safety-vs-liveness line is the simple-by-default judgement the bar rewards — without delivering an unasked Raft lecture.
     </div>
-  </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="raft-why-consensus-needed-final">
+        <p class="stem">Why is consensus (not 2PC, not leases) the right tool when you need a replicated log across multiple data centers?</p>
+        <button class="opt">Because consensus runs faster than 2PC by skipping safety checks</button>
+        <button class="opt">Because a new leader is elected if the current one crashes, whereas 2PC would block with a dead coordinator</button>
+        <button class="opt">Because leases are stored in memory and would be lost if every node crashed</button>
+        <p class="fb">Consensus survives single points of failure: a new leader is elected, committed entries survive any minority of node crashes, and the log remains durable.</p>
+        <p class="hint">What does consensus guarantee that 2PC or a simple lease doesn't?</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="raft-partition-behavior-final">
+        <p class="stem">Under a network partition, what does the minority side of a Raft cluster do, and why?</p>
+        <button class="opt">It stops accepting writes because it cannot reach a quorum, choosing consistency over availability</button>
+        <button class="opt">It keeps accepting writes to preserve availability and merges changes with the majority when the partition heals</button>
+        <button class="opt">It elects its own competing leader and diverges from the majority side</button>
+        <p class="fb">CP choice: the minority loses its quorum and stops serving writes rather than risk diverging from the majority. This is the correct tradeoff for consensus-backed systems.</p>
+        <p class="hint">Reread the "strong-consistency end of the spectrum" and CAP section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="raft-why-not-all-committed-final">
+        <p class="stem">Why does Raft require that a leader only commit entries from its own current term, not older entries, even if they're on a quorum?</p>
+        <button class="opt">Older entries take longer to process and would slow down the cluster</button>
+        <button class="opt">The protocol would be more efficient if we committed entries from any term</button>
+        <button class="opt">It closes a window where a stale leader could overwrite an already-committed entry from a previous term</button>
+        <p class="fb">Subtle safety rule: an older-term entry might not be on all quorum members. Committing it directly could allow a stale leader in a future term to overwrite it. Raft avoids this by only directly committing current-term entries.</p>
+        <p class="hint">What could go wrong if you committed an entry from an old term without waiting for a current-term entry to commit above it?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="raft-quorum-overlap-why-safe-final">
+        <p class="stem">Why does the majority-overlap property of quorums make consensus safe, fundamentally?</p>
+        <button class="opt">Any two majorities must overlap in at least one node, which refuses to accept two different values for the same slot</button>
+        <button class="opt">Majority overlap lets the leader send fewer messages and commit faster</button>
+        <button class="opt">It ensures that every cluster has at least one node that never crashes</button>
+        <p class="fb">The core insight: any two majorities of the same N must share at least one node. That shared node enforces consistency, preventing two conflicting values from ever being committed.</p>
+        <p class="hint">Reread the quorum section: what is the mathematical guarantee about two majorities?</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Walk me through a Raft leader election step by step, including a split vote." · "Quiz me on why majority overlap makes commits safe and what FLP actually rules out." · "Give me a FAANG prompt and push me on when I'd invoke a consensus group versus a simpler leader lease."
@@ -203,21 +312,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

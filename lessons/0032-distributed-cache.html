@@ -61,22 +61,33 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -91,92 +102,165 @@
     <strong>Why this lesson, for your mission:</strong> A cache is the system every other system leans on, so this question really probes whether you understand <em>partitioning</em> and <em>replication</em> as first principles. The staff signal is owning the three pillars — consistent hashing to spread keys, an O(1) eviction structure inside a node, and an explicit consistency/availability tradeoff — without being told to.
   </div>
 
-  <div class="agenda">
-    <p class="lbl">Interview walkthrough · 60 minutes</p>
-    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
-    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
-  </div>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 8 — Phase 1 · Clarify the problem</p>
 
-  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
-  <div class="asks">
-    <p class="lbl">Ask before you design</p>
-    <ul><li><b>“How much data and what request rate?”</b> — Data size and QPS decide node count and replication.</li><li><b>“Is losing cached data on node failure acceptable?”</b> — A cache can lose data; that decides whether replication is synchronous.</li><li><b>“Which eviction policy — LRU, LFU, TTL only?”</b> — Eviction determines per-node data structures.</li></ul>
-  </div>
-  <h2>Functional Requirements</h2>
-  <p>This is a building-block question: you are designing the cache itself, not using one. Keep the surface tiny and get to the hard parts fast.<a href="#c1" class="cite">[1]</a></p>
-  <table>
-    <tr><th>#</th><th>Requirement</th></tr>
-    <tr><td>1</td><td><code>GET(key)</code> returns the value, or a miss if absent or expired.</td></tr>
-    <tr><td>2</td><td><code>PUT(key, value, ttl)</code> stores a value with an optional time-to-live.</td></tr>
-    <tr><td>3</td><td>The cache spans many nodes — data is <b>partitioned</b> across the cluster, not held on one machine.</td></tr>
-    <tr><td>4</td><td>Entries are <b>evicted</b> when their TTL expires or the node hits its memory limit.</td></tr>
-  </table>
-  <p><b>Out of scope</b> (say so explicitly): durability to disk, strong consistency, secondary indexes / querying, and transactions.<a href="#c1" class="cite">[1]</a> Naming these is itself a signal — you know what a cache deliberately gives up.</p>
+    <div class="agenda">
+      <p class="lbl">Interview walkthrough · 60 minutes</p>
+      <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
+      <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
+    </div>
 
-  <h2>Non-Functional Requirements</h2>
-  <p>The "-ilities" are where a cache earns its keep. State a target for each.</p>
-  <table>
-    <tr><th>NFR</th><th>Target & implication</th></tr>
-    <tr><td>Low latency</td><td><code>&lt;10ms</code> p99 for GET and PUT.<a href="#c1" class="cite">[1]</a> Forces in-memory storage and at most one network hop to the right node.</td></tr>
-    <tr><td>High throughput</td><td>~100k+ requests/sec.<a href="#c1" class="cite">[1]</a> No single coordinator on the hot path; clients reach nodes directly.</td></tr>
-    <tr><td>Horizontal scalability</td><td>Grow to 1TB+ by adding nodes.<a href="#c1" class="cite">[1]</a> Adding a node must reshuffle only a small slice of keys.</td></tr>
-    <tr><td>Availability</td><td>A node loss must not take down the cache. Pushes us toward replication and eventual consistency.<a href="#c1" class="cite">[1]</a></td></tr>
-    <tr><td>Tunable consistency</td><td>Staleness is tolerable — a cache is a copy of truth. We can pick eventual consistency to buy latency and availability.<a href="#c1" class="cite">[1]</a></td></tr>
-  </table>
+    <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+    <div class="asks">
+      <p class="lbl">Ask before you design</p>
+      <ul><li><b>“How much data and what request rate?”</b> — Data size and QPS decide node count and replication.</li><li><b>“Is losing cached data on node failure acceptable?”</b> — A cache can lose data; that decides whether replication is synchronous.</li><li><b>“Which eviction policy — LRU, LFU, TTL only?”</b> — Eviction determines per-node data structures.</li></ul>
+    </div>
+    <h2>Functional Requirements</h2>
+    <p>This is a building-block question: you are designing the cache itself, not using one. Keep the surface tiny and get to the hard parts fast.<a href="#c1" class="cite">[1]</a></p>
+    <table>
+      <tr><th>#</th><th>Requirement</th></tr>
+      <tr><td>1</td><td><code>GET(key)</code> returns the value, or a miss if absent or expired.</td></tr>
+      <tr><td>2</td><td><code>PUT(key, value, ttl)</code> stores a value with an optional time-to-live.</td></tr>
+      <tr><td>3</td><td>The cache spans many nodes — data is <b>partitioned</b> across the cluster, not held on one machine.</td></tr>
+      <tr><td>4</td><td>Entries are <b>evicted</b> when their TTL expires or the node hits its memory limit.</td></tr>
+    </table>
+    <p><b>Out of scope</b> (say so explicitly): durability to disk, strong consistency, secondary indexes / querying, and transactions.<a href="#c1" class="cite">[1]</a> Naming these is itself a signal — you know what a cache deliberately gives up.</p>
 
-  <p class="transition"><span class="lbl">Say to move on →</span> “Sub-10 ms reads and writes with high throughput. Let me size nodes and per-node load.”</p>
+    <h2>Non-Functional Requirements</h2>
+    <p>The "-ilities" are where a cache earns its keep. State a target for each.</p>
+    <table>
+      <tr><th>NFR</th><th>Target &amp; implication</th></tr>
+      <tr><td>Low latency</td><td><code>&lt;10ms</code> p99 for GET and PUT.<a href="#c1" class="cite">[1]</a> Forces in-memory storage and at most one network hop to the right node.</td></tr>
+      <tr><td>High throughput</td><td>~100k+ requests/sec.<a href="#c1" class="cite">[1]</a> No single coordinator on the hot path; clients reach nodes directly.</td></tr>
+      <tr><td>Horizontal scalability</td><td>Grow to 1TB+ by adding nodes.<a href="#c1" class="cite">[1]</a> Adding a node must reshuffle only a small slice of keys.</td></tr>
+      <tr><td>Availability</td><td>A node loss must not take down the cache. Pushes us toward replication and eventual consistency.<a href="#c1" class="cite">[1]</a></td></tr>
+      <tr><td>Tunable consistency</td><td>Staleness is tolerable — a cache is a copy of truth. We can pick eventual consistency to buy latency and availability.<a href="#c1" class="cite">[1]</a></td></tr>
+    </table>
 
-  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
-  <h2>Capacity Estimation</h2>
-  <p>Estimate only the numbers that shape the design.</p>
-  <div class="box">
-    <ul>
-      <li><b>Data:</b> ~1TB total.<a href="#c1" class="cite">[1]</a> Average entry ~1KB (key + value + metadata) → ~1 billion keys.</li>
-      <li><b>Memory per node:</b> a commodity box holds ~64GB usable for cache. 1TB / 64GB ≈ <b>16 nodes</b> for data; round up for headroom and replicas.</li>
-      <li><b>QPS:</b> 100k rps / 16 ≈ <b>~6k rps per node</b> — trivial for an in-memory store (Redis does 100k+ on one core), so RAM size, not CPU, is the binding constraint.</li>
-      <li><b>Bandwidth:</b> 100k × 1KB ≈ <b>100MB/s</b> across the fleet — comfortable. Replication multiplies write traffic by the replica factor N.</li>
-    </ul>
-  </div>
-  <p>The takeaway that drives the design: we need <b>many nodes</b>, so the entire problem becomes "how do we split keys across them and survive one dying?"</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Sub-10 ms reads and writes with high throughput. Let me size nodes and per-node load.”</p>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why not one giant cache server?”</p>
-    <p><b>Staff answer:</b> 1 TB of RAM and 100k rps on one box is a single point of failure with slow restarts. Sharding across ~16 nodes spreads memory, load and blast radius.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “~1 TB over ~16 nodes at ~6k rps each. Let me define the tiny API.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="distcache-out-of-scope">
+        <p class="stem">Which of these is explicitly out of scope for this cache design?</p>
+        <button class="opt">Eviction when a node hits its memory limit</button>
+        <button class="opt">Partitioning data across many nodes</button>
+        <button class="opt">Strong consistency and durability to disk</button>
+        <p class="fb">A cache deliberately trades durability and strong consistency for speed and availability — naming that tradeoff up front is a signal.</p>
+        <p class="hint">Reread "Out of scope" right after the functional requirements table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="distcache-staleness-tolerable-why">
+        <p class="stem">Why can this design accept eventual consistency as an NFR, when many systems can't?</p>
+        <button class="opt">A cache is a copy of an authoritative store elsewhere, so staleness there doesn't corrupt the real source of truth</button>
+        <button class="opt">Cache nodes physically cannot support strong consistency protocols at all</button>
+        <button class="opt">Eventual consistency is required by law for any in-memory data store</button>
+        <p class="fb">Because the origin database remains authoritative, a stale cache read is recoverable and bounded by TTL — unlike losing the only copy of data.</p>
+        <p class="hint">Reread the "Tunable consistency" row's justification.</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
-  <h2>Core Entities & API</h2>
-  <p>One entity — the <b>Entry</b> (<code>key</code>, <code>value</code>, <code>expiresAt</code>, <code>lastAccessed</code>) — and a tiny API. A cache speaks a binary protocol in practice, but the shape is REST-like:</p>
-  <table>
-    <tr><th>Endpoint</th><th>Purpose</th></tr>
-    <tr><td><code>GET /v1/cache/:key</code></td><td>Return value or 404/miss.</td></tr>
-    <tr><td><code>PUT /v1/cache/:key</code></td><td>Body <code>{value, ttl}</code>. Upsert with expiry.</td></tr>
-    <tr><td><code>DELETE /v1/cache/:key</code></td><td>Remove a key immediately.</td></tr>
-  </table>
-  <p>No auth/user derivation here — a cache is an internal infra component called by trusted services, so we skip the token dance and spend the budget on the deep dives.</p>
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 8 — Phase 2 · Estimate what matters</p>
+    <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
+    <h2>Capacity Estimation</h2>
+    <p>Estimate only the numbers that shape the design.</p>
+    <div class="box">
+      <ul>
+        <li><b>Data:</b> ~1TB total.<a href="#c1" class="cite">[1]</a> Average entry ~1KB (key + value + metadata) → ~1 billion keys.</li>
+        <li><b>Memory per node:</b> a commodity box holds ~64GB usable for cache. 1TB / 64GB ≈ <b>16 nodes</b> for data; round up for headroom and replicas.</li>
+        <li><b>QPS:</b> 100k rps / 16 ≈ <b>~6k rps per node</b> — trivial for an in-memory store (Redis does 100k+ on one core), so RAM size, not CPU, is the binding constraint.</li>
+        <li><b>Bandwidth:</b> 100k × 1KB ≈ <b>100MB/s</b> across the fleet — comfortable. Replication multiplies write traffic by the replica factor N.</li>
+      </ul>
+    </div>
+    <p>The takeaway that drives the design: we need <b>many nodes</b>, so the entire problem becomes "how do we split keys across them and survive one dying?"</p>
 
-  <h2>Data Model</h2>
-  <p>Two levels of data. <b>Per node:</b> an in-memory hashmap whose entries are also threaded through a doubly linked list (LRU order), stored in slab-allocated memory to avoid fragmentation. <b>Cluster metadata:</b> the ring — which virtual-node tokens belong to which physical node — versioned in a coordination store and cached by every client. The ring version is the load-bearing field: clients and nodes compare versions so a request routed with a stale ring is redirected instead of silently missing.</p>
-  <table>
-    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
-    <tr><td><b>Entry</b> (key, value, expires_at, size, lru_prev, lru_next)</td><td>Node RAM (slab allocator)</td><td>Hashmap on <code>key</code></td><td>O(1) get/put; move-to-head on access; evict from tail</td></tr>
-    <tr><td><b>Ring</b> (version, tokens → node_id)</td><td>etcd / ZooKeeper (tiny)</td><td><code>/ring/version</code>, <code>/ring/tokens</code></td><td>Clients watch for changes; lookup = binary search over sorted tokens</td></tr>
-    <tr><td><b>Node</b> (node_id, address, az, weight, vnode_count, state)</td><td>etcd with session lease</td><td><code>/nodes/{nodeId}</code></td><td>Lease expiry = failure detection; replicas placed on next N−1 distinct nodes in different AZs</td></tr>
-    <tr><td><b>Hot-key registry</b> (key, sampled rate, extra replicas)</td><td>etcd / pushed to clients</td><td><code>/hot/{key}</code></td><td>Clients fan reads for listed keys across replicas</td></tr>
-    <tr><td><b>Client ring cache</b></td><td>Client process memory</td><td>ring version</td><td>One-hop routing; refreshed on watch event or MOVED reply</td></tr>
-  </table>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“Why not one giant cache server?”</p>
+      <p><b>Staff answer:</b> 1 TB of RAM and 100k rps on one box is a single point of failure with slow restarts. Sharding across ~16 nodes spreads memory, load and blast radius.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “~1 TB over ~16 nodes at ~6k rps each. Let me define the tiny API.”</p>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why expose TTL on PUT?”</p>
-    <p><b>Staff answer:</b> Expiry is the main way cached data stays bounded and eventually fresh, and it lets eviction reclaim memory without explicit deletes.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “GET, PUT with TTL, DELETE. Now the client router, nodes and membership.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="distcache-binding-constraint">
+        <p class="stem">At ~6k rps per node, what is the binding constraint on node count?</p>
+        <button class="opt">Network bandwidth, since 100MB/s across the fleet is already saturating</button>
+        <button class="opt">RAM size, since CPU handles 6k rps trivially compared to Redis's single-core throughput</button>
+        <button class="opt">The number of available IP addresses in the data center</button>
+        <p class="fb">CPU is nowhere near its limit at 6k rps per node; the ~16-node count comes from fitting 1TB of data into ~64GB-per-node memory budgets.</p>
+        <p class="hint">Reread the QPS bullet's closing clause.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="distcache-why-not-one-server">
+        <p class="stem">Beyond just fitting 1TB of RAM, why is a single giant cache server a bad idea even if such hardware existed?</p>
+        <button class="opt">A single server cannot run an LRU eviction policy correctly</button>
+        <button class="opt">Single servers are always slower per-request than a cluster of smaller machines</button>
+        <button class="opt">It becomes a single point of failure, so any restart or crash takes the entire cache offline at once</button>
+        <p class="fb">Sharding isn't only about capacity — it bounds the blast radius so one node's failure or restart only affects a fraction of keys.</p>
+        <p class="hint">Reread the pushback's staff answer — it names two problems, not just size.</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
-  <h2>Component Diagram</h2>
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 8 — Phase 3 · API &amp; data model</p>
+    <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
+    <h2>Core Entities &amp; API</h2>
+    <p>One entity — the <b>Entry</b> (<code>key</code>, <code>value</code>, <code>expiresAt</code>, <code>lastAccessed</code>) — and a tiny API. A cache speaks a binary protocol in practice, but the shape is REST-like:</p>
+    <table>
+      <tr><th>Endpoint</th><th>Purpose</th></tr>
+      <tr><td><code>GET /v1/cache/:key</code></td><td>Return value or 404/miss.</td></tr>
+      <tr><td><code>PUT /v1/cache/:key</code></td><td>Body <code>{value, ttl}</code>. Upsert with expiry.</td></tr>
+      <tr><td><code>DELETE /v1/cache/:key</code></td><td>Remove a key immediately.</td></tr>
+    </table>
+    <p>No auth/user derivation here — a cache is an internal infra component called by trusted services, so we skip the token dance and spend the budget on the deep dives.</p>
+
+    <h2>Data Model</h2>
+    <p>Two levels of data. <b>Per node:</b> an in-memory hashmap whose entries are also threaded through a doubly linked list (LRU order), stored in slab-allocated memory to avoid fragmentation. <b>Cluster metadata:</b> the ring — which virtual-node tokens belong to which physical node — versioned in a coordination store and cached by every client. The ring version is the load-bearing field: clients and nodes compare versions so a request routed with a stale ring is redirected instead of silently missing.</p>
+    <table>
+      <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+      <tr><td><b>Entry</b> (key, value, expires_at, size, lru_prev, lru_next)</td><td>Node RAM (slab allocator)</td><td>Hashmap on <code>key</code></td><td>O(1) get/put; move-to-head on access; evict from tail</td></tr>
+      <tr><td><b>Ring</b> (version, tokens → node_id)</td><td>etcd / ZooKeeper (tiny)</td><td><code>/ring/version</code>, <code>/ring/tokens</code></td><td>Clients watch for changes; lookup = binary search over sorted tokens</td></tr>
+      <tr><td><b>Node</b> (node_id, address, az, weight, vnode_count, state)</td><td>etcd with session lease</td><td><code>/nodes/{nodeId}</code></td><td>Lease expiry = failure detection; replicas placed on next N−1 distinct nodes in different AZs</td></tr>
+      <tr><td><b>Hot-key registry</b> (key, sampled rate, extra replicas)</td><td>etcd / pushed to clients</td><td><code>/hot/{key}</code></td><td>Clients fan reads for listed keys across replicas</td></tr>
+      <tr><td><b>Client ring cache</b></td><td>Client process memory</td><td>ring version</td><td>One-hop routing; refreshed on watch event or MOVED reply</td></tr>
+    </table>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“Why expose TTL on PUT?”</p>
+      <p><b>Staff answer:</b> Expiry is the main way cached data stays bounded and eventually fresh, and it lets eviction reclaim memory without explicit deletes.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “GET, PUT with TTL, DELETE. Now the client router, nodes and membership.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="distcache-ring-version-purpose">
+        <p class="stem">Why is the ring version described as the "load-bearing field" in cluster metadata?</p>
+        <button class="opt">It tracks how many total keys currently exist in the cluster</button>
+        <button class="opt">It lets a client and node detect a stale routing decision and redirect instead of silently missing</button>
+        <button class="opt">It stores the TTL default applied to all new PUT requests</button>
+        <p class="fb">Comparing ring versions is what catches a client routing on outdated membership info before it silently fails.</p>
+        <p class="hint">Reread the sentence right before the entity table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="distcache-ttl-purpose-why">
+        <p class="stem">Why does exposing TTL on PUT matter beyond just "expiring old data"?</p>
+        <button class="opt">It lets the system reclaim memory automatically via eviction, without requiring every caller to remember to explicitly delete keys</button>
+        <button class="opt">TTL is required so the hashmap can compute a valid hash for the key</button>
+        <button class="opt">It replaces the need for a doubly linked list in LRU eviction entirely</button>
+        <button class="opt">It is only used for billing purposes in managed cache offerings</button>
+        <p class="fb">TTL turns memory reclamation into a passive, automatic process rather than relying on every caller to issue explicit deletes.</p>
+        <p class="hint">Reread the pushback's staff answer on why TTL exists.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 8 — Phase 4 · High-level design</p>
+    <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+    <h2>Component Diagram</h2>
 <pre class="diagram">
  [App service + smart client: ring cache v42, local hot-key cache]
       ^                 |                                 |
@@ -186,225 +270,358 @@
       ^                   |                               |
       +--- heartbeats ----+-------------------------------+
 </pre>
-  <p style="font-size:.85rem; color:var(--muted);">One hop from client to owner. Each node is a hashmap plus an LRU list; writes replicate asynchronously to the next nodes on the ring (in other AZs). Nodes hold leases in etcd; a lost lease removes the node from the ring and clients pick up the new version.</p>
+    <p style="font-size:.85rem; color:var(--muted);">One hop from client to owner. Each node is a hashmap plus an LRU list; writes replicate asynchronously to the next nodes on the ring (in other AZs). Nodes hold leases in etcd; a lost lease removes the node from the ring and clients pick up the new version.</p>
 
-  <h2>High-Level Design</h2>
-  <p>Three logical pieces: the <b>client/router</b> that decides which node owns a key, a fleet of <b>cache nodes</b> each holding a partition in RAM, and a lightweight <b>membership/coordination</b> service tracking which nodes are alive.</p>
-  <table>
-    <tr><th>Component</th><th>Role</th></tr>
-    <tr><td>Smart client (or proxy)</td><td>Hashes the key, looks up the owning node from the ring, sends the request directly — one hop.</td></tr>
-    <tr><td>Cache node</td><td>In-memory hashmap + eviction structure; serves GET/PUT/DELETE for its key range; replicates writes to followers.</td></tr>
-    <tr><td>Coordination service</td><td>e.g. ZooKeeper/etcd or a gossip protocol — holds the authoritative ring and membership, detects node failures via heartbeats.</td></tr>
-  </table>
-  <p><b>Request flow:</b> client hashes <code>key</code> → resolves owner node from the ring → node reads/writes its local map → on a PUT, the owner asynchronously copies to N−1 replicas → returns. The whole path is one network hop plus a memory lookup, which is how we keep p99 under 10ms.</p>
+    <h2>High-Level Design</h2>
+    <p>Three logical pieces: the <b>client/router</b> that decides which node owns a key, a fleet of <b>cache nodes</b> each holding a partition in RAM, and a lightweight <b>membership/coordination</b> service tracking which nodes are alive.</p>
+    <table>
+      <tr><th>Component</th><th>Role</th></tr>
+      <tr><td>Smart client (or proxy)</td><td>Hashes the key, looks up the owning node from the ring, sends the request directly — one hop.</td></tr>
+      <tr><td>Cache node</td><td>In-memory hashmap + eviction structure; serves GET/PUT/DELETE for its key range; replicates writes to followers.</td></tr>
+      <tr><td>Coordination service</td><td>e.g. ZooKeeper/etcd or a gossip protocol — holds the authoritative ring and membership, detects node failures via heartbeats.</td></tr>
+    </table>
+    <p><b>Request flow:</b> client hashes <code>key</code> → resolves owner node from the ring → node reads/writes its local map → on a PUT, the owner asynchronously copies to N−1 replicas → returns. The whole path is one network hop plus a memory lookup, which is how we keep p99 under 10ms.</p>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why smart clients instead of a proxy tier?”</p>
-    <p><b>Staff answer:</b> A client that hashes keys to nodes saves a network hop on every request. A proxy is simpler for many languages but adds latency and another fleet.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: consistent hashing, O(1) LRU, replication and hot keys.”</p>
-
-  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
-  <h2>Deep Dives</h2>
-
-  <h3>1 · Partitioning keys with consistent hashing</h3>
-  <p>The naive approach is <code>node = hash(key) % N</code>. It works until N changes. Add or remove one node and <b>nearly every key</b> remaps to a different node, because the modulus shifts — the cache effectively flushes itself, and the cold cache stampedes the origin database. Unacceptable when nodes join and leave routinely.</p>
-  <p><b>Consistent hashing</b> fixes this (see Lesson 05). Map both keys and nodes onto a circular hash ring (0…2³²−1). A key is owned by the first node clockwise from its position. When a node leaves, only the keys between it and its predecessor move — to a single neighbor — so on average just <code>1/N</code> of keys reshuffle, not all of them.</p>
-  <div class="box">
-    <b>Why virtual nodes (vnodes)?</b>
-    <ul>
-      <li>With one ring position per node, the ring is lumpy — a few nodes own huge arcs and become hot, and removing a node dumps its <em>entire</em> load on one neighbor.</li>
-      <li>Give each physical node <b>100–200 virtual positions</b> scattered around the ring. Load smooths out toward uniform, and a departing node's keys spread across <em>many</em> neighbors instead of crushing one.</li>
-      <li>Vnodes also let you weight heterogeneous hardware — a bigger box simply gets more vnodes.</li>
-    </ul>
-  </div>
-
-  <h3>2 · Eviction within a node — O(1) LRU</h3>
-  <p>Each node has finite RAM, so when it fills up it must evict. The default policy is <b>Least Recently Used</b>.<a href="#c1" class="cite">[1]</a> The interview test is implementing LRU at <b>O(1)</b> for both lookup and recency update — naively scanning for the oldest entry would be O(n) and blow the latency budget (see Lesson 04).</p>
-  <div class="box">
-    <b>The classic structure: hashmap + doubly linked list.</b>
-    <ul>
-      <li><b>HashMap</b> <code>key → node</code> gives O(1) lookup.</li>
-      <li><b>Doubly linked list</b> orders entries by recency: most-recently-used at the head, least at the tail.</li>
-      <li><b>On GET/PUT:</b> unlink the node and move it to the head — O(1) because the map hands you the node directly, no traversal.</li>
-      <li><b>On evict:</b> drop the tail node and delete its key from the map — O(1).</li>
-    </ul>
-  </div>
-  <table>
-    <tr><th>Policy</th><th>When to prefer it</th></tr>
-    <tr><td>LRU</td><td>Default. Good for recency-skewed access (recent items likely re-read).</td></tr>
-    <tr><td>LFU</td><td>Keep <em>frequently</em> used items even if not recent; better for stable popular keys. Costs a frequency counter per entry, often with a small min-heap or counter buckets.</td></tr>
-    <tr><td>TTL expiry</td><td>Orthogonal to both. <b>Lazy</b> (check <code>expiresAt</code> on read) plus a <b>background sweeper</b> sampling random keys avoids scanning the whole keyspace.</td></tr>
-  </table>
-
-  <h3>3 · Replication & availability</h3>
-  <p>If a node dies, its slice of the cache is gone — every key it owned now misses and hammers the origin. To survive a node loss, replicate each key to <b>N nodes</b> (commonly N=2 or 3): the owner plus the next N−1 nodes clockwise on the ring. When the owner fails, membership detects it via heartbeat and the next replica takes over reads.<a href="#c1" class="cite">[1]</a></p>
-  <div class="box">
-    <b>The async-replication staleness tradeoff.</b>
-    <ul>
-      <li><b>Synchronous replication</b> (write acked only after all replicas confirm) gives stronger consistency but adds a round trip — straight against our &lt;10ms target.</li>
-      <li><b>Asynchronous replication</b> acks the write immediately and copies to replicas in the background. Fast and available, but a reader hitting a lagging replica can see a stale value.</li>
-      <li>For a cache, <b>async wins</b> — staleness is acceptable<a href="#c1" class="cite">[1]</a> because the cache is just a copy of an authoritative store, and TTLs bound how long any staleness can last. This is the CAP/PACELC choice made concrete: we pick availability + low latency over strong consistency.</li>
-    </ul>
-  </div>
-
-  <h3>4 · The hot-key problem & locating the node</h3>
-  <p>Consistent hashing spreads keys evenly, but it can't help one <em>single</em> wildly popular key (a celebrity's profile, a flash-sale item). All traffic for that key lands on one node and melts it, regardless of how balanced the ring is.</p>
-  <table>
-    <tr><th>Mitigation</th><th>How it helps</th></tr>
-    <tr><td>Replicate hot keys</td><td>Detect high-traffic keys and copy them to extra nodes; clients fan reads across replicas, splitting the load.</td></tr>
-    <tr><td>Client-side caching</td><td>Cache the hottest keys in the requesting service's local memory for a few seconds, so most reads never hit the cluster at all.</td></tr>
-    <tr><td>Key splitting</td><td>For a hot <em>write</em> counter, shard it as <code>key#1…key#K</code> across nodes and sum on read, removing the single contended owner.</td></tr>
-  </table>
-  <p><b>How does a client find the right node?</b> Two architectures:</p>
-  <div class="box">
-    <ul>
-      <li><b>Client-side hashing (smart client):</b> the client library holds the ring and routes directly — zero extra hops, lowest latency. Cost: every client must learn ring changes (via the coordination service), and the logic lives in many languages.</li>
-      <li><b>Routing/proxy layer:</b> a thin proxy (e.g. Twemproxy, Envoy) owns the ring; clients are dumb and just call the proxy. Simpler clients and centralized ring management, at the cost of one extra network hop and a component to scale. Memcached leans client-side; many managed Redis fleets put a proxy in front.</li>
-    </ul>
-  </div>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Lead with <b>consistent hashing + virtual nodes</b> as the partitioning backbone and explain why plain modulo causes a full flush — that single insight separates senior from staff. Then show you can write the <b>O(1) LRU</b> (hashmap + doubly linked list) on the whiteboard, and name the <b>async-replication staleness tradeoff</b> as a deliberate CAP choice you're allowed to make <em>because a cache tolerates staleness</em>. Don't burn time re-explaining what a cache is — model the judgement, not the basics.
-  </div>
-
-  <h2>Alternative Approaches &amp; Tradeoffs</h2>
-  <table>
-    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
-    <tr><td><b>A. Consistent-hash ring, smart clients, async leader→replica, etcd membership</b> (chosen)</td><td>As drawn</td><td>One hop; ~1/N keys move on membership change; survives node loss</td><td>Ring logic in every client language; stale reads after failover</td><td>Latency-critical internal cache</td></tr>
-    <tr><td><b>B. Fixed hash slots + cluster bus</b> (Redis Cluster style)</td><td>16,384 slots assigned to primaries; nodes gossip slot maps; clients get MOVED/ASK redirects; replicas per primary with automatic failover</td><td>Explicit, operable slot migration; no external coordinator; mature tooling</td><td>Gossip convergence limits cluster size (~1,000 nodes); resharding moves whole slots</td><td>You want off-the-shelf Redis semantics</td></tr>
-    <tr><td><b>C. Proxy tier in front of simple nodes</b> (Twemproxy / mcrouter / Envoy)</td><td>Clients speak plain protocol to a proxy that owns routing, replication fan-out and failover</td><td>Dumb, polyglot clients; central control of routing, pools, shadow traffic</td><td>Extra hop and a proxy fleet to scale; proxy is a hot path failure domain</td><td>Many languages/teams sharing one cache fleet (Facebook's mcrouter model)</td></tr>
-  </table>
-  <p><b>Pick A</b> for raw latency when you control the client libraries; C wins organizationally once dozens of services in different languages share the fleet.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why not hash(key) mod N?”</p>
-    <p><b>Staff answer:</b> Adding or removing a node remaps almost every key and flushes the cache. Consistent hashing with virtual nodes moves only ~1/N of keys.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness next.”</p>
-
-  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
-  <h2>Observability</h2>
-  <table>
-    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
-    <tr><td>RED per node</td><td>GET/PUT rate, p50/p99 latency, errors, hit/miss ratio per keyspace prefix</td><td>Hit ratio is the cache's actual product</td></tr>
-    <tr><td>USE per node</td><td>Memory used vs limit, evictions/s, expired keys/s, CPU, connection count, network bytes</td><td>Evictions rising = undersized fleet</td></tr>
-    <tr><td>Distribution</td><td>Keys and QPS per node (load skew), top-K hot keys (sampled count-min sketch)</td><td>Detect hot keys before a node melts</td></tr>
-    <tr><td>Replication &amp; membership</td><td>Replica lag (ops behind), ring version per client, MOVED redirects/s, lease expiries</td><td>Stale ring or lag causes wrong reads</td></tr>
-    <tr><td>Client-side</td><td>Client-observed latency and timeouts, local-cache hit rate</td><td>Network issues show up only here</td></tr>
-  </table>
-
-  <h2>Monitoring</h2>
-  <table>
-    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
-    <tr><td>p99 &lt; 10 ms client-observed</td><td>p99 &gt; 10 ms for 5 min on any client pool</td><td>Page</td></tr>
-    <tr><td>Availability 99.99% of requests served (hit or miss) without error</td><td>Burn rate over 1 h / 6 h</td><td>Page</td></tr>
-    <tr><td>Hit ratio above per-keyspace baseline</td><td>Drop &gt; 10 points in 10 min (flush, ring change, deploy bug) — origin stampede risk</td><td>Page</td></tr>
-    <tr><td>Capacity</td><td>Node memory &gt; 85%; eviction rate sustained above baseline; load skew &gt; 2× mean</td><td>Ticket</td></tr>
-  </table>
-  <p><b>Synthetic probes:</b> a canary key per node written and read every 10 s from each AZ. <b>Dashboards:</b> per-node heat map (memory, QPS), hit ratio by keyspace, replication lag, membership changes timeline.</p>
-
-  <h2>Authentication &amp; Authorization</h2>
-  <table>
-    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
-    <tr><td>Service → cache node</td><td>mTLS with service identity certs (or Redis-style ACL user + password from secrets manager)</td><td>Per-service key-prefix ACLs (<code>checkout:*</code> only for checkout); no <code>FLUSHALL</code>/<code>KEYS</code> for app roles</td></tr>
-    <tr><td>Node → node (replication)</td><td>mTLS node certificates</td><td>Only cluster members may replicate</td></tr>
-    <tr><td>Nodes/clients → etcd</td><td>mTLS</td><td>Nodes may write their own lease key; only the control plane rewrites the ring</td></tr>
-    <tr><td>Operators</td><td>SSO + MFA to admin tooling</td><td>Rebalance, flush and resize operations audited; break-glass for data inspection</td></tr>
-  </table>
-
-  <h2>Security</h2>
-  <table>
-    <tr><th>Threat</th><th>Mitigation</th></tr>
-    <tr><td>Unauthenticated access to an exposed cache port (a classic breach vector)</td><td>Private subnets only, security groups, mandatory auth/mTLS, protected mode</td></tr>
-    <tr><td>Cache poisoning (attacker-controlled values served to others)</td><td>Write ACLs per service; cache keys include tenant/user scope; validate on read for security-relevant data</td></tr>
-    <tr><td>Hash-flooding / hot-key DoS</td><td>Keyed hash for ring placement, per-client rate limits, hot-key replication</td></tr>
-    <tr><td>Dangerous commands (flush, config)</td><td>Rename/disable in app roles</td></tr>
-    <tr><td>Memory exhaustion by huge values</td><td>Max value size, per-tenant memory quotas</td></tr>
-    <tr><td>Baseline</td><td>TLS, encrypted snapshots, patching, secrets rotation</td></tr>
-  </table>
-
-  <h2>Privacy</h2>
-  <p>A cache holds <b>copies of other systems' data</b> — sessions, profiles, tokens — so it inherits their sensitivity without their controls. <b>Rules:</b> owning services must set TTLs on personal data; deletion workflows must explicitly <code>DEL</code> cached copies (or use short TTLs so erasure completes within the SLA); avoid caching secrets or full payment data. <b>Encryption:</b> in transit (TLS) and for memory snapshots/replication streams; if persistence dumps exist, encrypt them. <b>Isolation:</b> key-prefix ACLs keep one team from reading another's cached PII. <b>No content logging:</b> debug tooling shows key metadata and sizes, not values.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“What prevents a cache poisoning or unauthorized access?”</p>
-    <p><b>Staff answer:</b> The cache sits in a private network with TLS and auth tokens per client; namespaces isolate tenants, and dangerous admin commands are disabled.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
-
-  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
-  <h2>Scaling 10× Without Changing the Architecture</h2>
-  <p>10× = ~10 TB cached, ~1M requests/s.</p>
-  <table>
-    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
-    <tr><td>Cache nodes</td><td>~32 (with replicas)</td><td>~320</td><td>Add nodes — each takes ~1/N of keys via vnodes; warm them by streaming ranges from neighbors before taking traffic</td></tr>
-    <tr><td>Per-node CPU</td><td>~6k rps</td><td>~6k rps</td><td>Nothing — load per node stays flat</td></tr>
-    <tr><td>Ring metadata</td><td>~6k vnode tokens</td><td>~60k tokens</td><td>Still small; clients binary-search</td></tr>
-    <tr><td>etcd</td><td>3 nodes</td><td>5 nodes</td><td>Fewer watches via versioned ring snapshots</td></tr>
-    <tr><td>Hot keys</td><td>Replicated / client-cached</td><td>More of them</td><td>Lower detection threshold; client-side cache TTL tuning</td></tr>
-  </table>
-  <p><b>First bottleneck:</b> rebalancing cost — moving terabytes when adding many nodes at once, and cold-cache stampedes on the origin. <b>What forces a redesign:</b> requirements for durability or strong consistency (it stops being a cache and becomes a replicated KV store with consensus).</p>
-
-  <h2>Cost of Running</h2>
-  <p>Assumptions: 1 TB of data, replication factor 2, 64 GB usable per node, 100k requests/s (~20% writes), 3 AZs, self-managed on memory-optimized instances; list prices from the course price sheet.</p>
-  <table>
-    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
-    <tr><td>Cache nodes</td><td>~32 × 64 GB memory-optimized (managed service would be ~2 TB × $8/GB ≈ $16k)</td><td>$10,000</td></tr>
-    <tr><td>Cross-AZ traffic</td><td>Replication (~50 TB) + non-AZ-local reads (~200 TB)</td><td>$4,500</td></tr>
-    <tr><td>etcd + control plane</td><td>3 small nodes</td><td>$300</td></tr>
-    <tr><td>Monitoring and hot-key analytics</td><td></td><td>$1,000</td></tr>
-    <tr><td><b>Total</b></td><td></td><td><b>≈ $16,000</b> (≈ $22,000 managed)</td></tr>
-  </table>
-  <p><b>Unit cost:</b> ≈ $16 per GB cached per month, ≈ $0.06 per million requests. <b>Dominant driver:</b> RAM. <b>Levers:</b> tighter TTLs and value compression to shrink the working set, AZ-local read routing to cut cross-AZ bytes, and justifying each keyspace by the origin cost it saves (a cache that doesn't raise hit ratio is pure spend).</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“What happens with a viral hot key?”</p>
-    <p><b>Staff answer:</b> Detect hot keys and replicate them to several nodes with random suffixes or keep a local in-process cache, so no single node melts.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “To recap:”</p>
-
-  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
-  <h2>Closing Summary (60 seconds)</h2>
-  <div class="summary"><p>A distributed cache is in-memory partitioning plus eviction. Smart clients hash keys onto a consistent-hash ring with virtual nodes, so a membership change moves only ~1/N of keys and each request is one hop. Each node stores entries in a hashmap plus a doubly linked list for O(1) LRU with TTL expiry. Leaders replicate asynchronously to replicas in other AZs, and membership comes from etcd. Hot keys are replicated or locally cached. At 10× we add nodes and per-node load stays constant.</p></div>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why is <code>hash(key) % N</code> a poor way to partition keys across cache nodes?</p>
-      <button class="opt">It cannot hash string keys, only fixed integer keys properly</button>
-      <button class="opt">Changing N remaps almost every key, flushing the entire cache</button>
-      <button class="opt">It always sends every request through one central proxy node</button>
-      <p class="fb">A changed modulus shifts nearly all keys to new nodes, causing a mass miss and origin stampede. Consistent hashing moves only ~1/N.</p>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“Why smart clients instead of a proxy tier?”</p>
+      <p><b>Staff answer:</b> A client that hashes keys to nodes saves a network hop on every request. A proxy is simpler for many languages but adds latency and another fleet.</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. What data structures give an O(1) LRU eviction inside a node?</p>
-      <button class="opt">A balanced binary search tree keyed strictly on the last-access timestamp</button>
-      <button class="opt">A single sorted array of entries re-sorted by recency on each access</button>
-      <button class="opt">A hashmap for lookup plus a doubly linked list ordered by recency</button>
-      <p class="fb">The map gives O(1) lookup; the linked list lets you move-to-head and drop-the-tail in O(1) without any scan.</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: consistent hashing, O(1) LRU, replication and hot keys.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="distcache-onehop-latency">
+        <p class="stem">What does the request flow describe as the reason p99 latency stays under 10ms?</p>
+        <button class="opt">One network hop plus an in-memory lookup, with no intermediate coordinator on the read/write path</button>
+        <button class="opt">Every request is served from a synchronous quorum of all replicas</button>
+        <button class="opt">Requests are batched and processed once per second across the fleet</button>
+        <p class="fb">Avoiding extra hops (like a proxy) and keeping the owner lookup a memory operation is what makes the sub-10ms budget achievable.</p>
+        <p class="hint">Reread the last sentence of the "Request flow" paragraph.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="distcache-smartclient-vs-proxy-why">
+        <p class="stem">Why does a smart client save latency compared to a proxy tier, and what does it cost in exchange?</p>
+        <button class="opt">Smart clients replace the need for a coordination service entirely, at no cost</button>
+        <button class="opt">It removes an extra network hop by routing directly to the owner, at the cost of every client language needing to implement ring-hashing logic</button>
+        <button class="opt">It makes replication synchronous instead of asynchronous, at the cost of higher write latency</button>
+        <p class="fb">The proxy's simplicity for polyglot clients comes at the price of a hop; going direct removes that hop but pushes ring logic into every client.</p>
+        <p class="hint">Reread the pushback's staff answer and the tradeoff row for Approach A later in the lesson.</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Why do virtual nodes improve a consistent-hashing ring?</p>
-      <button class="opt">They smooth load and spread a failed node's keys across many neighbors</button>
-      <button class="opt">They remove the need to replicate any key to more than one node</button>
-      <button class="opt">They let the cache store values on disk instead of only within memory</button>
-      <p class="fb">Many ring positions per physical node even out arc sizes and stop one neighbor from absorbing all of a departed node's load.</p>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 8 — Phase 5 · Deep dive: partitioning &amp; eviction</p>
+    <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
+    <h2>Deep Dives</h2>
+
+    <h3>1 · Partitioning keys with consistent hashing</h3>
+    <p>The naive approach is <code>node = hash(key) % N</code>. It works until N changes. Add or remove one node and <b>nearly every key</b> remaps to a different node, because the modulus shifts — the cache effectively flushes itself, and the cold cache stampedes the origin database. Unacceptable when nodes join and leave routinely.</p>
+    <p><b>Consistent hashing</b> fixes this (see Lesson 05). Map both keys and nodes onto a circular hash ring (0…2³²−1). A key is owned by the first node clockwise from its position. When a node leaves, only the keys between it and its predecessor move — to a single neighbor — so on average just <code>1/N</code> of keys reshuffle, not all of them.</p>
+    <div class="box">
+      <b>Why virtual nodes (vnodes)?</b>
+      <ul>
+        <li>With one ring position per node, the ring is lumpy — a few nodes own huge arcs and become hot, and removing a node dumps its <em>entire</em> load on one neighbor.</li>
+        <li>Give each physical node <b>100–200 virtual positions</b> scattered around the ring. Load smooths out toward uniform, and a departing node's keys spread across <em>many</em> neighbors instead of crushing one.</li>
+        <li>Vnodes also let you weight heterogeneous hardware — a bigger box simply gets more vnodes.</li>
+      </ul>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. Why is asynchronous replication an acceptable choice for a cache?</p>
-      <button class="opt">It guarantees every replica returns the exact same value at all times</button>
-      <button class="opt">Staleness is tolerable since the cache is a bounded copy of the truth</button>
-      <button class="opt">It removes the need for any membership or failure-detection mechanism</button>
-      <p class="fb">A cache mirrors an authoritative store and TTLs bound staleness, so we trade strong consistency for the latency and availability async buys.</p>
+
+    <h3>2 · Eviction within a node — O(1) LRU</h3>
+    <p>Each node has finite RAM, so when it fills up it must evict. The default policy is <b>Least Recently Used</b>.<a href="#c1" class="cite">[1]</a> The interview test is implementing LRU at <b>O(1)</b> for both lookup and recency update — naively scanning for the oldest entry would be O(n) and blow the latency budget (see Lesson 04).</p>
+    <div class="box">
+      <b>The classic structure: hashmap + doubly linked list.</b>
+      <ul>
+        <li><b>HashMap</b> <code>key → node</code> gives O(1) lookup.</li>
+        <li><b>Doubly linked list</b> orders entries by recency: most-recently-used at the head, least at the tail.</li>
+        <li><b>On GET/PUT:</b> unlink the node and move it to the head — O(1) because the map hands you the node directly, no traversal.</li>
+        <li><b>On evict:</b> drop the tail node and delete its key from the map — O(1).</li>
+      </ul>
     </div>
-  </div>
+    <table>
+      <tr><th>Policy</th><th>When to prefer it</th></tr>
+      <tr><td>LRU</td><td>Default. Good for recency-skewed access (recent items likely re-read).</td></tr>
+      <tr><td>LFU</td><td>Keep <em>frequently</em> used items even if not recent; better for stable popular keys. Costs a frequency counter per entry, often with a small min-heap or counter buckets.</td></tr>
+      <tr><td>TTL expiry</td><td>Orthogonal to both. <b>Lazy</b> (check <code>expiresAt</code> on read) plus a <b>background sweeper</b> sampling random keys avoids scanning the whole keyspace.</td></tr>
+    </table>
+
+    <p class="transition"><span class="lbl">Say to move on →</span> “Now that partitioning and eviction are covered, what happens when a node dies.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="distcache-consistent-hashing-fraction-moved">
+        <p class="stem">When a node leaves a consistent-hash ring, roughly what fraction of keys need to move?</p>
+        <button class="opt">All of them, the same as with modulo hashing</button>
+        <button class="opt">None — consistent hashing never requires any key movement</button>
+        <button class="opt">Roughly 1/N, moving only to the departed node's neighbor(s)</button>
+        <p class="fb">Only the keys between the departing node and its predecessor need to relocate, which is a small fraction of the total.</p>
+        <p class="hint">Reread the consistent hashing paragraph's final sentence.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="distcache-vnodes-why">
+        <p class="stem">Why does one ring position per physical node create a hot-spot problem that virtual nodes solve?</p>
+        <button class="opt">A single position per node makes arc sizes uneven, so a lucky node can own a huge slice and a departing node dumps its entire load onto one neighbor</button>
+        <button class="opt">One ring position per node makes the hash function itself compute incorrectly</button>
+        <button class="opt">Single positions prevent the ring from ever being rebalanced under any circumstances</button>
+        <p class="fb">Randomly-placed single positions produce lumpy arc sizes by chance; scattering 100-200 positions per node averages that out and spreads a departure's impact across many neighbors.</p>
+        <p class="hint">Reread the "Why virtual nodes" box's first two bullets.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 8 — Phase 5 · Deep dive: replication, hot keys &amp; alternatives</p>
+    <h3>3 · Replication &amp; availability</h3>
+    <p>If a node dies, its slice of the cache is gone — every key it owned now misses and hammers the origin. To survive a node loss, replicate each key to <b>N nodes</b> (commonly N=2 or 3): the owner plus the next N−1 nodes clockwise on the ring. When the owner fails, membership detects it via heartbeat and the next replica takes over reads.<a href="#c1" class="cite">[1]</a></p>
+    <div class="box">
+      <b>The async-replication staleness tradeoff.</b>
+      <ul>
+        <li><b>Synchronous replication</b> (write acked only after all replicas confirm) gives stronger consistency but adds a round trip — straight against our &lt;10ms target.</li>
+        <li><b>Asynchronous replication</b> acks the write immediately and copies to replicas in the background. Fast and available, but a reader hitting a lagging replica can see a stale value.</li>
+        <li>For a cache, <b>async wins</b> — staleness is acceptable<a href="#c1" class="cite">[1]</a> because the cache is just a copy of an authoritative store, and TTLs bound how long any staleness can last. This is the CAP/PACELC choice made concrete: we pick availability + low latency over strong consistency.</li>
+      </ul>
+    </div>
+
+    <h3>4 · The hot-key problem &amp; locating the node</h3>
+    <p>Consistent hashing spreads keys evenly, but it can't help one <em>single</em> wildly popular key (a celebrity's profile, a flash-sale item). All traffic for that key lands on one node and melts it, regardless of how balanced the ring is.</p>
+    <table>
+      <tr><th>Mitigation</th><th>How it helps</th></tr>
+      <tr><td>Replicate hot keys</td><td>Detect high-traffic keys and copy them to extra nodes; clients fan reads across replicas, splitting the load.</td></tr>
+      <tr><td>Client-side caching</td><td>Cache the hottest keys in the requesting service's local memory for a few seconds, so most reads never hit the cluster at all.</td></tr>
+      <tr><td>Key splitting</td><td>For a hot <em>write</em> counter, shard it as <code>key#1…key#K</code> across nodes and sum on read, removing the single contended owner.</td></tr>
+    </table>
+    <p><b>How does a client find the right node?</b> Two architectures:</p>
+    <div class="box">
+      <ul>
+        <li><b>Client-side hashing (smart client):</b> the client library holds the ring and routes directly — zero extra hops, lowest latency. Cost: every client must learn ring changes (via the coordination service), and the logic lives in many languages.</li>
+        <li><b>Routing/proxy layer:</b> a thin proxy (e.g. Twemproxy, Envoy) owns the ring; clients are dumb and just call the proxy. Simpler clients and centralized ring management, at the cost of one extra network hop and a component to scale. Memcached leans client-side; many managed Redis fleets put a proxy in front.</li>
+      </ul>
+    </div>
+
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Lead with <b>consistent hashing + virtual nodes</b> as the partitioning backbone and explain why plain modulo causes a full flush — that single insight separates senior from staff. Then show you can write the <b>O(1) LRU</b> (hashmap + doubly linked list) on the whiteboard, and name the <b>async-replication staleness tradeoff</b> as a deliberate CAP choice you're allowed to make <em>because a cache tolerates staleness</em>. Don't burn time re-explaining what a cache is — model the judgement, not the basics.
+    </div>
+
+    <h2>Alternative Approaches &amp; Tradeoffs</h2>
+    <table>
+      <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+      <tr><td><b>A. Consistent-hash ring, smart clients, async leader→replica, etcd membership</b> (chosen)</td><td>As drawn</td><td>One hop; ~1/N keys move on membership change; survives node loss</td><td>Ring logic in every client language; stale reads after failover</td><td>Latency-critical internal cache</td></tr>
+      <tr><td><b>B. Fixed hash slots + cluster bus</b> (Redis Cluster style)</td><td>16,384 slots assigned to primaries; nodes gossip slot maps; clients get MOVED/ASK redirects; replicas per primary with automatic failover</td><td>Explicit, operable slot migration; no external coordinator; mature tooling</td><td>Gossip convergence limits cluster size (~1,000 nodes); resharding moves whole slots</td><td>You want off-the-shelf Redis semantics</td></tr>
+      <tr><td><b>C. Proxy tier in front of simple nodes</b> (Twemproxy / mcrouter / Envoy)</td><td>Clients speak plain protocol to a proxy that owns routing, replication fan-out and failover</td><td>Dumb, polyglot clients; central control of routing, pools, shadow traffic</td><td>Extra hop and a proxy fleet to scale; proxy is a hot path failure domain</td><td>Many languages/teams sharing one cache fleet (Facebook's mcrouter model)</td></tr>
+    </table>
+    <p><b>Pick A</b> for raw latency when you control the client libraries; C wins organizationally once dozens of services in different languages share the fleet.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“Why not hash(key) mod N?”</p>
+      <p><b>Staff answer:</b> Adding or removing a node remaps almost every key and flushes the cache. Consistent hashing with virtual nodes moves only ~1/N of keys.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness next.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="distcache-async-replication-pick">
+        <p class="stem">Why does the design pick asynchronous replication over synchronous for a cache?</p>
+        <button class="opt">Synchronous replication is impossible to implement across availability zones</button>
+        <button class="opt">Sync adds a round trip against the &lt;10ms target, and staleness is tolerable since the cache mirrors an authoritative store</button>
+        <button class="opt">Asynchronous replication is required whenever TTLs are used on entries</button>
+        <p class="fb">This is a deliberate CAP/PACELC tradeoff: give up strict freshness to keep latency and availability high, since the cache isn't the source of truth.</p>
+        <p class="hint">Reread the "async-replication staleness tradeoff" box.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="distcache-hotkey-why-hashing-fails">
+        <p class="stem">Why can't consistent hashing alone solve the hot-key problem?</p>
+        <button class="opt">Consistent hashing only works for keys smaller than 1KB</button>
+        <button class="opt">Hot keys are always caused by a misconfigured virtual node count</button>
+        <button class="opt">Hashing spreads distinct keys across nodes evenly, but a single wildly popular key still always hashes to the same one node regardless of load</button>
+        <p class="fb">Consistent hashing balances the keyspace, not per-key traffic; one key's popularity concentrates all its requests on whichever single node owns it.</p>
+        <p class="hint">Reread the opening sentence of "The hot-key problem."</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 8 — Phase 6 · Production readiness</p>
+    <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+    <h2>Observability</h2>
+    <table>
+      <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+      <tr><td>RED per node</td><td>GET/PUT rate, p50/p99 latency, errors, hit/miss ratio per keyspace prefix</td><td>Hit ratio is the cache's actual product</td></tr>
+      <tr><td>USE per node</td><td>Memory used vs limit, evictions/s, expired keys/s, CPU, connection count, network bytes</td><td>Evictions rising = undersized fleet</td></tr>
+      <tr><td>Distribution</td><td>Keys and QPS per node (load skew), top-K hot keys (sampled count-min sketch)</td><td>Detect hot keys before a node melts</td></tr>
+      <tr><td>Replication &amp; membership</td><td>Replica lag (ops behind), ring version per client, MOVED redirects/s, lease expiries</td><td>Stale ring or lag causes wrong reads</td></tr>
+      <tr><td>Client-side</td><td>Client-observed latency and timeouts, local-cache hit rate</td><td>Network issues show up only here</td></tr>
+    </table>
+
+    <h2>Monitoring</h2>
+    <table>
+      <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+      <tr><td>p99 &lt; 10 ms client-observed</td><td>p99 &gt; 10 ms for 5 min on any client pool</td><td>Page</td></tr>
+      <tr><td>Availability 99.99% of requests served (hit or miss) without error</td><td>Burn rate over 1 h / 6 h</td><td>Page</td></tr>
+      <tr><td>Hit ratio above per-keyspace baseline</td><td>Drop &gt; 10 points in 10 min (flush, ring change, deploy bug) — origin stampede risk</td><td>Page</td></tr>
+      <tr><td>Capacity</td><td>Node memory &gt; 85%; eviction rate sustained above baseline; load skew &gt; 2× mean</td><td>Ticket</td></tr>
+    </table>
+    <p><b>Synthetic probes:</b> a canary key per node written and read every 10 s from each AZ. <b>Dashboards:</b> per-node heat map (memory, QPS), hit ratio by keyspace, replication lag, membership changes timeline.</p>
+
+    <h2>Authentication &amp; Authorization</h2>
+    <table>
+      <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+      <tr><td>Service → cache node</td><td>mTLS with service identity certs (or Redis-style ACL user + password from secrets manager)</td><td>Per-service key-prefix ACLs (<code>checkout:*</code> only for checkout); no <code>FLUSHALL</code>/<code>KEYS</code> for app roles</td></tr>
+      <tr><td>Node → node (replication)</td><td>mTLS node certificates</td><td>Only cluster members may replicate</td></tr>
+      <tr><td>Nodes/clients → etcd</td><td>mTLS</td><td>Nodes may write their own lease key; only the control plane rewrites the ring</td></tr>
+      <tr><td>Operators</td><td>SSO + MFA to admin tooling</td><td>Rebalance, flush and resize operations audited; break-glass for data inspection</td></tr>
+    </table>
+
+    <h2>Security</h2>
+    <table>
+      <tr><th>Threat</th><th>Mitigation</th></tr>
+      <tr><td>Unauthenticated access to an exposed cache port (a classic breach vector)</td><td>Private subnets only, security groups, mandatory auth/mTLS, protected mode</td></tr>
+      <tr><td>Cache poisoning (attacker-controlled values served to others)</td><td>Write ACLs per service; cache keys include tenant/user scope; validate on read for security-relevant data</td></tr>
+      <tr><td>Hash-flooding / hot-key DoS</td><td>Keyed hash for ring placement, per-client rate limits, hot-key replication</td></tr>
+      <tr><td>Dangerous commands (flush, config)</td><td>Rename/disable in app roles</td></tr>
+      <tr><td>Memory exhaustion by huge values</td><td>Max value size, per-tenant memory quotas</td></tr>
+      <tr><td>Baseline</td><td>TLS, encrypted snapshots, patching, secrets rotation</td></tr>
+    </table>
+
+    <h2>Privacy</h2>
+    <p>A cache holds <b>copies of other systems' data</b> — sessions, profiles, tokens — so it inherits their sensitivity without their controls. <b>Rules:</b> owning services must set TTLs on personal data; deletion workflows must explicitly <code>DEL</code> cached copies (or use short TTLs so erasure completes within the SLA); avoid caching secrets or full payment data. <b>Encryption:</b> in transit (TLS) and for memory snapshots/replication streams; if persistence dumps exist, encrypt them. <b>Isolation:</b> key-prefix ACLs keep one team from reading another's cached PII. <b>No content logging:</b> debug tooling shows key metadata and sizes, not values.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“What prevents a cache poisoning or unauthorized access?”</p>
+      <p><b>Staff answer:</b> The cache sits in a private network with TLS and auth tokens per client; namespaces isolate tenants, and dangerous admin commands are disabled.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="distcache-hitratio-alert-purpose">
+        <p class="stem">Why does a sudden drop in hit ratio page instead of just ticket?</p>
+        <button class="opt">Hit ratio drops always indicate a security breach in progress</button>
+        <button class="opt">It is purely a cosmetic dashboard metric with no operational impact</button>
+        <button class="opt">A sharp drop risks an origin database stampede as misses spike, which can cascade into an outage</button>
+        <p class="fb">The Monitoring table calls this out directly: a flush, ring change, or deploy bug can crash the hit ratio and slam the origin, which is urgent enough to page.</p>
+        <p class="hint">Reread the "Hit ratio above per-keyspace baseline" row's alert rationale.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="distcache-nolog-values-why">
+        <p class="stem">Why does debug tooling show key metadata and sizes but never actual cached values?</p>
+        <button class="opt">Because the cache holds copies of other systems' sensitive data (sessions, tokens, PII) and inherits their sensitivity without their access controls</button>
+        <button class="opt">Because cached values are always too large to display in a log line</button>
+        <button class="opt">Because values are stored in a binary format that cannot be decoded</button>
+        <p class="fb">Since a cache mirrors sensitive upstream data without necessarily mirroring its access controls, logging values would leak PII outside the owning service's protections.</p>
+        <p class="hint">Reread the Privacy section's opening sentence and "No content logging" rule.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-8" hidden>
+    <p class="chunk-label">8 of 8 — Phase 7 · Scale &amp; cost</p>
+    <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+    <h2>Scaling 10× Without Changing the Architecture</h2>
+    <p>10× = ~10 TB cached, ~1M requests/s.</p>
+    <table>
+      <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+      <tr><td>Cache nodes</td><td>~32 (with replicas)</td><td>~320</td><td>Add nodes — each takes ~1/N of keys via vnodes; warm them by streaming ranges from neighbors before taking traffic</td></tr>
+      <tr><td>Per-node CPU</td><td>~6k rps</td><td>~6k rps</td><td>Nothing — load per node stays flat</td></tr>
+      <tr><td>Ring metadata</td><td>~6k vnode tokens</td><td>~60k tokens</td><td>Still small; clients binary-search</td></tr>
+      <tr><td>etcd</td><td>3 nodes</td><td>5 nodes</td><td>Fewer watches via versioned ring snapshots</td></tr>
+      <tr><td>Hot keys</td><td>Replicated / client-cached</td><td>More of them</td><td>Lower detection threshold; client-side cache TTL tuning</td></tr>
+    </table>
+    <p><b>First bottleneck:</b> rebalancing cost — moving terabytes when adding many nodes at once, and cold-cache stampedes on the origin. <b>What forces a redesign:</b> requirements for durability or strong consistency (it stops being a cache and becomes a replicated KV store with consensus).</p>
+
+    <h2>Cost of Running</h2>
+    <p>Assumptions: 1 TB of data, replication factor 2, 64 GB usable per node, 100k requests/s (~20% writes), 3 AZs, self-managed on memory-optimized instances; list prices from the course price sheet.</p>
+    <table>
+      <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+      <tr><td>Cache nodes</td><td>~32 × 64 GB memory-optimized (managed service would be ~2 TB × $8/GB ≈ $16k)</td><td>$10,000</td></tr>
+      <tr><td>Cross-AZ traffic</td><td>Replication (~50 TB) + non-AZ-local reads (~200 TB)</td><td>$4,500</td></tr>
+      <tr><td>etcd + control plane</td><td>3 small nodes</td><td>$300</td></tr>
+      <tr><td>Monitoring and hot-key analytics</td><td></td><td>$1,000</td></tr>
+      <tr><td><b>Total</b></td><td></td><td><b>≈ $16,000</b> (≈ $22,000 managed)</td></tr>
+    </table>
+    <p><b>Unit cost:</b> ≈ $16 per GB cached per month, ≈ $0.06 per million requests. <b>Dominant driver:</b> RAM. <b>Levers:</b> tighter TTLs and value compression to shrink the working set, AZ-local read routing to cut cross-AZ bytes, and justifying each keyspace by the origin cost it saves (a cache that doesn't raise hit ratio is pure spend).</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“What happens with a viral hot key?”</p>
+      <p><b>Staff answer:</b> Detect hot keys and replicate them to several nodes with random suffixes or keep a local in-process cache, so no single node melts.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “To recap:”</p>
+
+    <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+    <h2>Closing Summary (60 seconds)</h2>
+    <div class="summary"><p>A distributed cache is in-memory partitioning plus eviction. Smart clients hash keys onto a consistent-hash ring with virtual nodes, so a membership change moves only ~1/N of keys and each request is one hop. Each node stores entries in a hashmap plus a doubly linked list for O(1) LRU with TTL expiry. Leaders replicate asynchronously to replicas in other AZs, and membership comes from etcd. Hot keys are replicated or locally cached. At 10× we add nodes and per-node load stays constant.</p></div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="distcache-10x-first-bottleneck">
+        <p class="stem">What is named as the first bottleneck at 10× scale?</p>
+        <button class="opt">Rebalancing cost of moving terabytes when adding many nodes, plus cold-cache stampedes on the origin</button>
+        <button class="opt">The hashmap data structure running out of valid key slots</button>
+        <button class="opt">The doubly linked list becoming too long to traverse in O(1)</button>
+        <p class="fb">Data movement during large rebalances and the resulting origin load are the practical bottleneck, not per-node compute (which stays flat).</p>
+        <p class="hint">Reread the "First bottleneck" sentence under Scaling 10×.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="distcache-10x-flat-cpu-why">
+        <p class="stem">Why does per-node CPU stay flat at 10× while node count grows 10×?</p>
+        <button class="opt">CPU usage is capped by a rate limiter regardless of traffic</button>
+        <button class="opt">Adding nodes via vnodes redistributes the growing key/request volume proportionally, so each individual node's share of load doesn't increase</button>
+        <button class="opt">At 10x scale the system switches from RAM to disk-based storage</button>
+        <button class="opt">Requests are cached client-side so servers see no additional traffic</button>
+        <p class="fb">Horizontal scaling by adding proportionally more nodes keeps per-node share of the workload constant — that's the whole point of scaling out instead of up.</p>
+        <p class="hint">Compare the "Cache nodes" and "Per-node CPU" rows in the scaling table.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check — comprehensive</p>
+    <h2>Everything from this case study</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up. This block also seeds spaced review.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="distcache-final-modulo-problem">
+        <p class="stem">Why is <code>hash(key) % N</code> a poor way to partition keys across cache nodes?</p>
+        <button class="opt">It cannot hash string keys, only fixed integer keys properly</button>
+        <button class="opt">Changing N remaps almost every key, flushing the entire cache</button>
+        <button class="opt">It always sends every request through one central proxy node</button>
+        <p class="fb">A changed modulus shifts nearly all keys to new nodes, causing a mass miss and origin stampede. Consistent hashing moves only ~1/N.</p>
+        <p class="hint">Reread the opening paragraph of Deep Dive 1.</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="distcache-final-lru-structure">
+        <p class="stem">What data structures give an O(1) LRU eviction inside a node?</p>
+        <button class="opt">A balanced binary search tree keyed strictly on the last-access timestamp</button>
+        <button class="opt">A single sorted array of entries re-sorted by recency on each access</button>
+        <button class="opt">A hashmap for lookup plus a doubly linked list ordered by recency</button>
+        <p class="fb">The map gives O(1) lookup; the linked list lets you move-to-head and drop-the-tail in O(1) without any scan.</p>
+        <p class="hint">Reread "The classic structure: hashmap + doubly linked list."</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="distcache-final-vnode-benefit">
+        <p class="stem">Why do virtual nodes improve a consistent-hashing ring?</p>
+        <button class="opt">They smooth load and spread a failed node's keys across many neighbors</button>
+        <button class="opt">They remove the need to replicate any key to more than one node</button>
+        <button class="opt">They let the cache store values on disk instead of only within memory</button>
+        <p class="fb">Many ring positions per physical node even out arc sizes and stop one neighbor from absorbing all of a departed node's load.</p>
+        <p class="hint">Reread the "Why virtual nodes" box.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="distcache-final-async-repl-reason">
+        <p class="stem">Why is asynchronous replication an acceptable choice for a cache?</p>
+        <button class="opt">It guarantees every replica returns the exact same value at all times</button>
+        <button class="opt">Staleness is tolerable since the cache is a bounded copy of the truth</button>
+        <button class="opt">It removes the need for any membership or failure-detection mechanism</button>
+        <p class="fb">A cache mirrors an authoritative store and TTLs bound staleness, so we trade strong consistency for the latency and availability async buys.</p>
+        <p class="hint">Reread "The async-replication staleness tradeoff" box.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="distcache-final-what-forces-redesign">
+        <p class="stem">Given everything in this design, what single new requirement would force abandoning this architecture entirely (not just scaling it)?</p>
+        <button class="opt">Growing from 1TB to 10TB of cached data</button>
+        <button class="opt">Adding a new eviction policy like LFU alongside LRU</button>
+        <button class="opt">Increasing the replication factor from 2 to 3</button>
+        <button class="opt">A hard requirement for durability or strong consistency</button>
+        <p class="fb">Durability and strong consistency contradict the core design choices (in-memory storage, async replication) — meeting them turns this into a different system: a replicated KV store with consensus, not a cache.</p>
+        <p class="hint">Reread "What forces a redesign" under Scaling 10x.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic — push on it:
@@ -420,7 +637,7 @@
 
   <footer>
     <p><strong>Citations</strong></p>
-    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/distributed-cache">Hello Interview — Distributed Cache breakdown</a> (functional/non-functional requirements, &lt;10ms latency and 1TB/100k-rps targets, LRU eviction policy, eventual-consistency/availability stance, and the hot-key & partitioning deep-dive framing).</p>
+    <p id="c1">[1] <a href="https://www.hellointerview.com/learn/system-design/problem-breakdowns/distributed-cache">Hello Interview — Distributed Cache breakdown</a> (functional/non-functional requirements, &lt;10ms latency and 1TB/100k-rps targets, LRU eviction policy, eventual-consistency/availability stance, and the hot-key &amp; partitioning deep-dive framing).</p>
     <div class="nav">
       <a href="../index.html">🏠 Course home</a>
       <a href="0031-google-docs.html">← Lesson 31</a>
@@ -430,21 +647,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

@@ -43,22 +43,35 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,10 +86,35 @@
     <strong>Why this lesson, for your mission:</strong> At L6/L7 it is not enough to say "I'll use Postgres." The interviewer wants to know that you understand <em>why</em> it stays correct under concurrency (MVCC), what that costs you (bloat, VACUUM), how you read fast (the right index), how you survive a crash (the WAL), and exactly where the single-primary write path runs out of road. Naming that ceiling <em>before</em> you're cornered is the move that reads as staff.<a href="#c1" class="cite">[1]</a>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 5</p>
   <h2>What it is &amp; the data model</h2>
   <p>PostgreSQL is an open-source object-relational database: data lives in tables of typed rows, you query it with SQL, and it gives you the full relational toolkit — joins, foreign keys, constraints, and transactions.<a href="#c1" class="cite">[1]</a> Its defining promise is <b>ACID</b>: every transaction is Atomic (all-or-nothing), Consistent (constraints always hold), Isolated (concurrent transactions don't corrupt each other), and Durable (a committed write survives a crash).<a href="#c2" class="cite">[2]</a> That is why it is the safe default for anything where correctness matters — orders, payments, balances, inventory.</p>
   <p>What lifts it above a plain SQL store is the richness of its type system and extensibility. Beyond numbers and text it ships native <code>JSONB</code> (binary, indexable JSON), arrays, ranges, full-text search vectors, and first-class geospatial types via PostGIS.<a href="#c3" class="cite">[3]</a> So the lazy "I need flexible documents, so NoSQL" reflex is often wrong — <code>JSONB</code> lets one engine hold both your relational core and a semi-structured blob, indexed and transactional. See <a href="../lessons/0003-databases-and-indexing.html">Lesson 03</a> for the relational-vs-document framing this builds on.</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="postgres-acid-recall">
+      <p class="stem">What does the "I" in ACID guarantee?</p>
+      <button class="opt">A committed write always survives a server crash</button>
+      <button class="opt">Concurrent transactions don't corrupt each other's view</button>
+      <button class="opt">Every transaction commits fully or not at all</button>
+      <p class="fb">Isolated means concurrent transactions don't see or cause corruption from each other's in-flight changes.</p>
+      <p class="hint">Reread the ACID definition sentence in this chunk.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="postgres-jsonb-why-not-nosql">
+      <p class="stem">Why does JSONB support undercut the reflex "I need flexible documents, so I need NoSQL"?</p>
+      <button class="opt">One engine can hold the relational core and semi-structured data together, indexed and transactional</button>
+      <button class="opt">JSONB columns are always faster to query than any NoSQL document store</button>
+      <button class="opt">NoSQL databases cannot store nested objects or arrays at all</button>
+      <p class="fb">JSONB gives you document flexibility without giving up joins, constraints, or transactions — so you don't need a second system just for semi-structured data.</p>
+      <p class="hint">Reread the sentence right after the JSONB mention.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 5</p>
   <h2>Internals — the part that earns depth</h2>
 
   <h3>MVCC: how concurrency stays correct</h3>
@@ -96,6 +134,29 @@
   </table>
   <p>The reflex to show: a <b>partial index</b> on a hot subset (e.g. unshipped orders) is smaller, fits in cache, and is faster than indexing the whole table — a cheap, high-signal optimization.<a href="#c6" class="cite">[6]</a></p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="postgres-mvcc-bloat-recall">
+      <p class="stem">Why does a heavily-updated Postgres table accumulate bloat?</p>
+      <button class="opt">B-tree indexes duplicate every column value across the table</button>
+      <button class="opt">The write-ahead log keeps a copy of all committed records</button>
+      <button class="opt">Dead row versions linger until VACUUM reclaims that space</button>
+      <p class="fb">MVCC leaves dead tuples behind; if churn outpaces autovacuum, table and index bloat grows.</p>
+      <p class="hint">Reread "The consequence you must name" paragraph on MVCC.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="postgres-mvcc-vacuum-why">
+      <p class="stem">If autovacuum were disabled entirely on a busy table, what would you expect to happen over time?</p>
+      <button class="opt">Dead tuples accumulate unbounded, bloating tables/indexes and slowing scans, eventually risking transaction-ID wraparound pressure</button>
+      <button class="opt">Nothing changes, because MVCC never actually creates old row versions in the first place</button>
+      <button class="opt">Queries would immediately start returning stale data from before the table existed</button>
+      <p class="fb">MVCC's readers-never-block-writers property is paid for by dead tuples that only VACUUM reclaims. Remove VACUUM and that cost compounds indefinitely.</p>
+      <p class="hint">Trace what MVCC leaves behind on every UPDATE and who is responsible for cleaning it up.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 5</p>
   <h3>The WAL: durability and crash recovery</h3>
   <p>Before any change touches the actual data files, Postgres first appends a record describing it to the <b>Write-Ahead Log</b> and flushes that to disk.<a href="#c8" class="cite">[8]</a> The rule is simple: <em>log first, then apply</em>. If the server crashes mid-write, recovery replays the WAL to bring the data files back to a consistent committed state — that is the "D" in ACID made concrete.<a href="#c8" class="cite">[8]</a> The same WAL stream is what feeds replication (below), so one mechanism delivers both crash safety and replicas.</p>
 
@@ -111,6 +172,29 @@
   </table>
   <p>Staff signal: know that Serializable doesn't lock everything — it detects conflicts and asks the loser to retry, so your app must handle serialization-failure retries.<a href="#c9" class="cite">[9]</a></p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="postgres-wal-recall">
+      <p class="stem">Under Postgres's write-ahead logging, what happens before a change touches the actual data files?</p>
+      <button class="opt">A record describing the change is appended to the WAL and flushed to disk</button>
+      <button class="opt">The change is applied directly to disk, then logged afterward for audit</button>
+      <button class="opt">The change is held only in a replica's memory until the next checkpoint</button>
+      <p class="fb">Log first, then apply. On crash, Postgres replays the WAL to reach a consistent committed state.</p>
+      <p class="hint">Reread the WAL section's opening sentence.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="postgres-isolation-serializable-why">
+      <p class="stem">Why must an application be ready to retry under Serializable isolation, unlike Read Committed?</p>
+      <button class="opt">Serializable disables indexes, so queries silently return incomplete results</button>
+      <button class="opt">Serializable detects conflicts between concurrent transactions and aborts the loser rather than locking everything upfront</button>
+      <button class="opt">Serializable transactions always take twice as long to execute as Read Committed ones</button>
+      <p class="fb">Postgres implements Serializable via conflict detection, not universal locking — a transaction can be aborted with a serialization error and must be retried by the app.</p>
+      <p class="hint">Reread the staff-signal line right after the isolation table.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 5</p>
   <h2>Scaling &amp; replication</h2>
   <p>Postgres replicates by shipping its WAL. Two flavours matter:</p>
   <ul>
@@ -140,6 +224,29 @@
     </tbody>
   </table>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="postgres-write-ceiling-recall">
+      <p class="stem">What is the single-primary write ceiling of vanilla Postgres?</p>
+      <button class="opt">Only one primary takes writes; replicas scale reads alone</button>
+      <button class="opt">Only one client may connect to the primary at any moment</button>
+      <button class="opt">Only one index per table is allowed on the write primary</button>
+      <p class="fb">Read replicas fan out reads but not writes; past one primary's write capacity you partition or shard.</p>
+      <p class="hint">Reread the "write-scaling ceiling" box.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="postgres-read-replica-lag-why">
+      <p class="stem">Why can a user who just wrote data see stale results when reading from a Postgres read replica?</p>
+      <button class="opt">Read replicas only serve cached results from before the replica was created</button>
+      <button class="opt">Streaming replication rejects any read that arrives within one second of a write</button>
+      <button class="opt">Replication is asynchronous by default, so the replica hasn't applied the write's WAL yet</button>
+      <p class="fb">Async replication means replicas lag the primary by some delay. A read-after-write can land on a replica before that write's WAL record is replayed there.</p>
+      <p class="hint">Reread the read-replicas paragraph in the scaling section.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">5 of 5 — comprehensive check</p>
   <div class="staff">
     <span class="tag">★ Staff-level signal</span>
     Seniors say "use Postgres." Staff candidates reason about the <em>internals and their costs</em> in one breath: "MVCC lets the analytics read run without blocking checkout, but it generates dead tuples, so I'd watch autovacuum and add a partial index on the hot subset." And they <b>name the ceiling proactively</b>: "this stays on a single primary; reads fan out to replicas, and the day sustained write QPS outgrows one box I'd partition first and shard only if forced — I wouldn't shard on day one."<a href="#c1" class="cite">[1]</a> Reaching for Postgres by default, knowing precisely why and when it breaks, and refusing to over-engineer is the simple-by-default judgement the bar looks for.
@@ -148,42 +255,54 @@
   <h2>In the interview</h2>
   <p>When you put a relational box on the whiteboard, justify it in one line ("ACID across the payment and inventory writes"), then be ready for the two predictable follow-ups: <em>"How does it stay consistent under load?"</em> (MVCC + isolation level) and <em>"How does this scale?"</em> (replicas for reads, partitioning, then the single-primary write ceiling and your sharding plan).<a href="#c1" class="cite">[1]</a> Mentioning a partial or GIN index, or that you stream the WAL to replicas, signals hands-on depth without you over-explaining the basics. Don't volunteer a SQL-vs-NoSQL essay — pick the tool for the requirement and move on.</p>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Under MVCC, what happens when a transaction updates a row?</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="b" data-concept="postgres-mvcc-update-final">
+      <p class="stem">Under MVCC, what happens when a transaction updates a row?</p>
       <button class="opt">The row is overwritten in place and old data is gone now</button>
       <button class="opt">A new row version is written and old versions are retained</button>
       <button class="opt">The whole table is locked until the writing commit lands</button>
       <button class="opt">The change is applied only inside the read replica copies</button>
       <p class="fb">MVCC writes a new version and keeps old ones for older snapshots — so readers never block writers.</p>
+      <p class="hint">Reread the MVCC section's opening paragraph.</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. Why does a heavily-updated Postgres table accumulate bloat?</p>
+    <div class="q" data-correct="c" data-concept="postgres-bloat-final">
+      <p class="stem">Why does a heavily-updated Postgres table accumulate bloat?</p>
       <button class="opt">B-tree indexes duplicate every column value across the table</button>
       <button class="opt">The write-ahead log keeps a copy of all committed records</button>
       <button class="opt">Dead row versions linger until VACUUM reclaims that space</button>
       <button class="opt">Streaming replicas push their changes back onto the primary</button>
       <p class="fb">MVCC leaves dead tuples behind; if churn outpaces autovacuum, table and index bloat grows.</p>
+      <p class="hint">Reread "The consequence you must name" in the MVCC chunk.</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What is the single-primary write ceiling of vanilla Postgres?</p>
+    <div class="q" data-correct="a" data-concept="postgres-write-ceiling-final">
+      <p class="stem">What is the single-primary write ceiling of vanilla Postgres?</p>
       <button class="opt">Only one primary takes writes; replicas scale reads alone</button>
       <button class="opt">Only one client may connect to the primary at any moment</button>
       <button class="opt">Only one index per table is allowed on the write primary</button>
       <button class="opt">Only one region can run a primary across the whole fleet</button>
       <p class="fb">Read replicas fan out reads but not writes; past one primary's write capacity you partition or shard.</p>
+      <p class="hint">Reread the write-scaling ceiling box.</p>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. Which index type best fits querying inside a JSONB column?</p>
+    <div class="q" data-correct="d" data-concept="postgres-gin-index-final">
+      <p class="stem">Which index type best fits querying inside a JSONB column?</p>
       <button class="opt">A B-tree index across the whole serialized JSONB value</button>
       <button class="opt">A GiST index built for geometric nearest-neighbour scans</button>
       <button class="opt">A partial index limited to the active subset of the rows</button>
       <button class="opt">A GIN index built for values that contain many elements</button>
       <p class="fb">GIN indexes target composite values — JSONB, arrays, full-text — making containment lookups fast.</p>
+      <p class="hint">Reread the index types table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="postgres-whole-lesson-why">
+      <p class="stem">If Postgres removed MVCC and used simple row locking instead, what would you expect to change for a long analytics read running alongside checkout writes?</p>
+      <button class="opt">The analytics read would now block or be blocked by concurrent writes, instead of running against a private snapshot</button>
+      <button class="opt">Nothing would change, since locking and MVCC produce identical concurrency behavior</button>
+      <button class="opt">The WAL would stop being written, since it exists only to support MVCC snapshots</button>
+      <p class="fb">MVCC's entire value proposition is that snapshot isolation lets readers and writers proceed without blocking each other. Locking-based concurrency would reintroduce that contention.</p>
+      <p class="hint">Reread the opening claim of the MVCC section about readers never blocking writers.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Quiz me on what MVCC costs and how VACUUM and autovacuum fix it." · "Walk me through exactly when I'd choose logical over streaming replication." · "Give me a FAANG prompt and push me on when Postgres stops being the right default."
@@ -215,21 +334,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

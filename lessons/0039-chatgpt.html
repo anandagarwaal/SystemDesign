@@ -61,22 +61,34 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -97,96 +109,167 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
-  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
-  <div class="asks">
-    <p class="lbl">Ask before you design</p>
-    <ul><li><b>“Do we host our own models or call a model provider?”</b> — Self-hosting makes GPU scheduling the central problem.</li><li><b>“How long is conversation context, and do we need long-term memory?”</b> — Context length drives prompt tokens, KV cache and cost.</li><li><b>“Are there free and paid tiers with different priorities?”</b> — Tiers become admission and queue priorities on the GPU fleet.</li></ul>
-  </div>
-  <h2>Functional Requirements</h2>
-  <p>The interviewer wants two core flows; everything else (editing/branching, images/audio, sharing, custom GPTs, tool calling, web browsing, full-text search) is explicitly out of scope <a href="#c1" class="cite">[1]</a> — say so early to control breadth.</p>
-  <table>
-    <thead><tr><th>#</th><th>Requirement</th></tr></thead>
-    <tbody>
-      <tr><td>1</td><td>A user can send a chat message and receive an AI-generated response, <b>streamed token by token</b> as it is generated.</td></tr>
-      <tr><td>2</td><td>Conversations are <b>multi-turn</b>: prior turns are retained and the chat's context is carried into each new prompt <a href="#c1" class="cite">[1]</a>.</td></tr>
-      <tr><td>3</td><td>The system serves <b>many concurrent users</b>, each with their own independent session.</td></tr>
-    </tbody>
-  </table>
-  <p>Scope note: we treat the LLM as a black box we <em>call</em> — not something we train or whose internals we run <a href="#c1" class="cite">[1]</a>. The interesting system is the <em>serving</em> layer, not the model.</p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 8</p>
+    <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+    <div class="asks">
+      <p class="lbl">Ask before you design</p>
+      <ul><li><b>“Do we host our own models or call a model provider?”</b> — Self-hosting makes GPU scheduling the central problem.</li><li><b>“How long is conversation context, and do we need long-term memory?”</b> — Context length drives prompt tokens, KV cache and cost.</li><li><b>“Are there free and paid tiers with different priorities?”</b> — Tiers become admission and queue priorities on the GPU fleet.</li></ul>
+    </div>
+    <h2>Functional Requirements</h2>
+    <p>The interviewer wants two core flows; everything else (editing/branching, images/audio, sharing, custom GPTs, tool calling, web browsing, full-text search) is explicitly out of scope <a href="#c1" class="cite">[1]</a> — say so early to control breadth.</p>
+    <table>
+      <thead><tr><th>#</th><th>Requirement</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>A user can send a chat message and receive an AI-generated response, <b>streamed token by token</b> as it is generated.</td></tr>
+        <tr><td>2</td><td>Conversations are <b>multi-turn</b>: prior turns are retained and the chat's context is carried into each new prompt <a href="#c1" class="cite">[1]</a>.</td></tr>
+        <tr><td>3</td><td>The system serves <b>many concurrent users</b>, each with their own independent session.</td></tr>
+      </tbody>
+    </table>
+    <p>Scope note: we treat the LLM as a black box we <em>call</em> — not something we train or whose internals we run <a href="#c1" class="cite">[1]</a>. The interesting system is the <em>serving</em> layer, not the model.</p>
 
-  <h2>Non-Functional Requirements</h2>
-  <table>
-    <thead><tr><th>NFR</th><th>Target / priority</th></tr></thead>
-    <tbody>
-      <tr><td>Low <b>time-to-first-token</b> (TTFT)</td><td>Latency to the first token matters more than total completion time — a blank screen feels broken even if the full answer is fast <a href="#c1" class="cite">[1]</a>.</td></tr>
-      <tr><td><b>GPU efficiency</b></td><td>GPUs are the scarce, expensive resource and need deliberate scheduling <a href="#c1" class="cite">[1]</a>. Idle GPU = burned money.</td></tr>
-      <tr><td><b>Scale</b></td><td>Target ~200M daily active users <a href="#c1" class="cite">[1]</a>, many concurrent open sessions.</td></tr>
-      <tr><td><b>High availability</b></td><td>Stateless front tier; a failed generation should be retryable. Availability over strict consistency for chat history.</td></tr>
-      <tr><td>Handle <b>long generation</b></td><td>A single response can stream for tens of seconds; the connection and the GPU slot are held the whole time.</td></tr>
-    </tbody>
-  </table>
+    <h2>Non-Functional Requirements</h2>
+    <table>
+      <thead><tr><th>NFR</th><th>Target / priority</th></tr></thead>
+      <tbody>
+        <tr><td>Low <b>time-to-first-token</b> (TTFT)</td><td>Latency to the first token matters more than total completion time — a blank screen feels broken even if the full answer is fast <a href="#c1" class="cite">[1]</a>.</td></tr>
+        <tr><td><b>GPU efficiency</b></td><td>GPUs are the scarce, expensive resource and need deliberate scheduling <a href="#c1" class="cite">[1]</a>. Idle GPU = burned money.</td></tr>
+        <tr><td><b>Scale</b></td><td>Target ~200M daily active users <a href="#c1" class="cite">[1]</a>, many concurrent open sessions.</td></tr>
+        <tr><td><b>High availability</b></td><td>Stateless front tier; a failed generation should be retryable. Availability over strict consistency for chat history.</td></tr>
+        <tr><td>Handle <b>long generation</b></td><td>A single response can stream for tens of seconds; the connection and the GPU slot are held the whole time.</td></tr>
+      </tbody>
+    </table>
 
-  <p class="transition"><span class="lbl">Say to move on →</span> “Time to first token and GPU efficiency drive the design. Let me size concurrency in GPU terms.”</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Time to first token and GPU efficiency drive the design. Let me size concurrency in GPU terms.”</p>
 
-  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
-  <h2>Capacity Estimation</h2>
-  <p>Only estimate the numbers that change the design. Here, every number points back at the GPU.</p>
-  <div class="box">
-    <b>Concurrency.</b> 200M DAU, say each sends 10 messages/day → 2B messages/day ≈ <b>~23k messages/sec</b> average, multiples higher at peak. A response can take 10–30s to stream, so an open message holds a GPU slot far longer than a normal HTTP request — <b>concurrent in-flight generations</b>, not QPS, is the load metric that matters.<br><br>
-    <b>GPU throughput is the ceiling.</b> One GPU generates on the order of tens of tokens/sec per stream. With continuous batching it can serve many streams at once, but throughput is finite. If average concurrency is, say, 1M in-flight generations and one GPU handles ~10–20 concurrent streams, you need tens of thousands of GPUs. <b>Implication:</b> the design is a capacity-management problem — queue, batch, prioritize.<br><br>
-    <b>Context/history storage is cheap by comparison.</b> A conversation is text: a few KB per turn. Even billions of turns is terabytes, not the bottleneck. <b>Implication:</b> store history in a boring, cheap, horizontally-sharded store; spend your design budget on the GPU fleet.
-  </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="chatgpt-scope-boundary">
+        <p class="stem">Which of these is explicitly out of scope for this lesson's design?</p>
+        <button class="opt">Streaming an AI response token by token to a user</button>
+        <button class="opt">Tool calling, web browsing, and full-text search features</button>
+        <button class="opt">Carrying multi-turn conversation context into new prompts</button>
+        <p class="fb">Editing/branching, images/audio, sharing, custom GPTs, tool calling, browsing and search are all named out of scope, keeping focus on the serving layer.</p>
+        <p class="hint">Reread the sentence right before the FR table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="chatgpt-ttft-vs-total-latency">
+        <p class="stem">Why does the design prioritize time-to-first-token over total completion time?</p>
+        <button class="opt">A blank screen feels broken to the user even if the full response finishes quickly overall</button>
+        <button class="opt">Total completion time is impossible to measure accurately on streaming responses</button>
+        <button class="opt">GPUs physically cannot report progress until generation fully completes</button>
+        <p class="fb">Perceived responsiveness is driven by how fast something visibly starts happening, not by the total wall-clock time to finish.</p>
+        <p class="hint">Reread the "Low time-to-first-token" row's explanation.</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“23k messages per second doesn't sound like much. Why so many GPUs?”</p>
-    <p><b>Staff answer:</b> Each response streams for 10–30 seconds, so average concurrency is ~1M open generations. With ~20 streams per GPU under continuous batching, that's roughly 50k GPUs.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “~1M concurrent generations need tens of thousands of GPUs. Let me define the API, which must stream.”</p>
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 8</p>
+    <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
+    <h2>Capacity Estimation</h2>
+    <p>Only estimate the numbers that change the design. Here, every number points back at the GPU.</p>
+    <div class="box">
+      <b>Concurrency.</b> 200M DAU, say each sends 10 messages/day → 2B messages/day ≈ <b>~23k messages/sec</b> average, multiples higher at peak. A response can take 10–30s to stream, so an open message holds a GPU slot far longer than a normal HTTP request — <b>concurrent in-flight generations</b>, not QPS, is the load metric that matters.<br><br>
+      <b>GPU throughput is the ceiling.</b> One GPU generates on the order of tens of tokens/sec per stream. With continuous batching it can serve many streams at once, but throughput is finite. If average concurrency is, say, 1M in-flight generations and one GPU handles ~10–20 concurrent streams, you need tens of thousands of GPUs. <b>Implication:</b> the design is a capacity-management problem — queue, batch, prioritize.<br><br>
+      <b>Context/history storage is cheap by comparison.</b> A conversation is text: a few KB per turn. Even billions of turns is terabytes, not the bottleneck. <b>Implication:</b> store history in a boring, cheap, horizontally-sharded store; spend your design budget on the GPU fleet.
+    </div>
 
-  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
-  <h2>Core Entities &amp; API</h2>
-  <p><b>Entities:</b> <code>User</code> · <code>Conversation</code> (ordered list of messages, owned by a user) · <code>Message</code> (<code>role</code> = user/assistant, <code>content</code>, <code>tokens</code>, <code>createdAt</code>). User identity is derived from the auth token, never sent in the body.</p>
-  <table>
-    <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
-    <tbody>
-      <tr><td><code>POST /v1/chat/completions</code></td><td>Send a message in a conversation; response is an <b>SSE stream</b> of tokens (<code>Content-Type: text/event-stream</code>), terminated by a <code>[DONE]</code> event.</td></tr>
-      <tr><td><code>GET /v1/conversations</code></td><td>List the caller's conversations (paginated, most-recent first).</td></tr>
-      <tr><td><code>GET /v1/conversations/{id}</code></td><td>Fetch full message history for one conversation (to render / resume) <a href="#c1" class="cite">[1]</a>.</td></tr>
-      <tr><td><code>POST /v1/conversations</code></td><td>Create a new conversation.</td></tr>
-    </tbody>
-  </table>
-  <div class="box">
-    <b>Request shape for the streaming call:</b>
-    <ul>
-      <li><code>conversation_id</code> — which thread (server loads prior context from it).</li>
-      <li><code>message</code> — the new user turn.</li>
-      <li>Server replies with SSE: each event carries a token/chunk; the client appends as they arrive.</li>
-    </ul>
-  </div>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“23k messages per second doesn't sound like much. Why so many GPUs?”</p>
+      <p><b>Staff answer:</b> Each response streams for 10–30 seconds, so average concurrency is ~1M open generations. With ~20 streams per GPU under continuous batching, that's roughly 50k GPUs.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “~1M concurrent generations need tens of thousands of GPUs. Let me define the API, which must stream.”</p>
 
-  <h2>Data Model</h2>
-  <p>History is plain text in a wide-column store, partitioned so the two reads — "my conversations, newest first" and "all messages of this conversation, in order" — are single-partition scans. Each conversation stores a <b>rolling summary plus the sequence number it covers</b>, so prompt assembly reads summary + recent turns rather than the whole thread. The ephemeral side (in-flight generations, usage counters) lives in Redis.</p>
-  <table>
-    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
-    <tr><td><b>conversations_by_user</b> (user_id, updated_at, conversation_id, title)</td><td>Cassandra</td><td>Partition <code>user_id</code> · clustering <code>updated_at DESC</code></td><td>Sidebar list, paginated</td></tr>
-    <tr><td><b>conversations</b> (conversation_id, user_id, model, summary, summary_upto_seq, created_at)</td><td>Cassandra</td><td>PK <code>conversation_id</code></td><td>Ownership check + summary for context assembly</td></tr>
-    <tr><td><b>messages</b> (conversation_id, seq, role, content, token_count, status, created_at)</td><td>Cassandra</td><td>Partition <code>conversation_id</code> · clustering <code>seq</code></td><td>Render history; read turns with <code>seq &gt; summary_upto_seq</code>; assistant row written as <code>streaming</code> then <code>complete</code></td></tr>
-    <tr><td><b>Generation job</b> (request_id, conversation_id, tier, prompt_tokens, max_tokens, enqueued_at)</td><td>Priority queues per tier (Redis Streams / Kafka)</td><td>request_id</td><td>Workers pull highest-priority work first</td></tr>
-    <tr><td><b>In-flight registry</b></td><td>Redis, TTL</td><td><code>gen:{requestId}</code> → worker_id, api_node, tokens_emitted</td><td>Cancellation on client disconnect; resume/reattach</td></tr>
-    <tr><td><b>Usage counters</b></td><td>Redis</td><td><code>usage:{userId}:{window}</code> (messages, tokens)</td><td>Rate limits and tier quotas</td></tr>
-    <tr><td><b>KV / prefix cache</b></td><td>GPU memory on workers (+ host RAM spill)</td><td>hash of prompt prefix</td><td>Affinity routing reuses cached system prompt / earlier turns</td></tr>
-  </table>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="chatgpt-load-metric">
+        <p class="stem">What is the load metric that actually matters for capacity here?</p>
+        <button class="opt">Requests per second, measured the same way as a normal REST API</button>
+        <button class="opt">Total bytes transferred per day across all users combined</button>
+        <button class="opt">Concurrent in-flight generations, since each holds a GPU slot for seconds</button>
+        <p class="fb">Because a response streams for 10–30 seconds, an open message occupies a GPU far longer than an ordinary request, so concurrency (not QPS) drives sizing.</p>
+        <p class="hint">Reread the bolded phrase in the "Concurrency" bullet.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="chatgpt-qps-vs-gpu-count">
+        <p class="stem">Why does a modest 23k messages/sec average translate into tens of thousands of GPUs?</p>
+        <button class="opt">Each message holds a GPU slot for 10-30 seconds, so many messages are in flight simultaneously even at modest arrival rate</button>
+        <button class="opt">GPUs are ten times less powerful than the estimate assumes, inflating the fleet size</button>
+        <button class="opt">23k messages/sec was actually an underestimate of the true arrival rate</button>
+        <p class="fb">Arrival rate times the seconds each request occupies a GPU gives concurrency; long-lived streams multiply a modest QPS into roughly 1M simultaneous generations.</p>
+        <p class="hint">Reread the interviewer pushback box's staff answer.</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why stream tokens instead of returning the full response?”</p>
-    <p><b>Staff answer:</b> Generation takes seconds; streaming makes first-token latency what the user feels. SSE is one-way, works over plain HTTP, and reconnects easily.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Chat completions stream via SSE, and history is a simple read. Now the generate path.”</p>
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 8</p>
+    <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
+    <h2>Core Entities &amp; API</h2>
+    <p><b>Entities:</b> <code>User</code> · <code>Conversation</code> (ordered list of messages, owned by a user) · <code>Message</code> (<code>role</code> = user/assistant, <code>content</code>, <code>tokens</code>, <code>createdAt</code>). User identity is derived from the auth token, never sent in the body.</p>
+    <table>
+      <thead><tr><th>Endpoint</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td><code>POST /v1/chat/completions</code></td><td>Send a message in a conversation; response is an <b>SSE stream</b> of tokens (<code>Content-Type: text/event-stream</code>), terminated by a <code>[DONE]</code> event.</td></tr>
+        <tr><td><code>GET /v1/conversations</code></td><td>List the caller's conversations (paginated, most-recent first).</td></tr>
+        <tr><td><code>GET /v1/conversations/{id}</code></td><td>Fetch full message history for one conversation (to render / resume) <a href="#c1" class="cite">[1]</a>.</td></tr>
+        <tr><td><code>POST /v1/conversations</code></td><td>Create a new conversation.</td></tr>
+      </tbody>
+    </table>
+    <div class="box">
+      <b>Request shape for the streaming call:</b>
+      <ul>
+        <li><code>conversation_id</code> — which thread (server loads prior context from it).</li>
+        <li><code>message</code> — the new user turn.</li>
+        <li>Server replies with SSE: each event carries a token/chunk; the client appends as they arrive.</li>
+      </ul>
+    </div>
 
-  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
-  <h2>Component Diagram</h2>
+    <h2>Data Model</h2>
+    <p>History is plain text in a wide-column store, partitioned so the two reads — "my conversations, newest first" and "all messages of this conversation, in order" — are single-partition scans. Each conversation stores a <b>rolling summary plus the sequence number it covers</b>, so prompt assembly reads summary + recent turns rather than the whole thread. The ephemeral side (in-flight generations, usage counters) lives in Redis.</p>
+    <table>
+      <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+      <tr><td><b>conversations_by_user</b> (user_id, updated_at, conversation_id, title)</td><td>Cassandra</td><td>Partition <code>user_id</code> · clustering <code>updated_at DESC</code></td><td>Sidebar list, paginated</td></tr>
+      <tr><td><b>conversations</b> (conversation_id, user_id, model, summary, summary_upto_seq, created_at)</td><td>Cassandra</td><td>PK <code>conversation_id</code></td><td>Ownership check + summary for context assembly</td></tr>
+      <tr><td><b>messages</b> (conversation_id, seq, role, content, token_count, status, created_at)</td><td>Cassandra</td><td>Partition <code>conversation_id</code> · clustering <code>seq</code></td><td>Render history; read turns with <code>seq &gt; summary_upto_seq</code>; assistant row written as <code>streaming</code> then <code>complete</code></td></tr>
+      <tr><td><b>Generation job</b> (request_id, conversation_id, tier, prompt_tokens, max_tokens, enqueued_at)</td><td>Priority queues per tier (Redis Streams / Kafka)</td><td>request_id</td><td>Workers pull highest-priority work first</td></tr>
+      <tr><td><b>In-flight registry</b></td><td>Redis, TTL</td><td><code>gen:{requestId}</code> → worker_id, api_node, tokens_emitted</td><td>Cancellation on client disconnect; resume/reattach</td></tr>
+      <tr><td><b>Usage counters</b></td><td>Redis</td><td><code>usage:{userId}:{window}</code> (messages, tokens)</td><td>Rate limits and tier quotas</td></tr>
+      <tr><td><b>KV / prefix cache</b></td><td>GPU memory on workers (+ host RAM spill)</td><td>hash of prompt prefix</td><td>Affinity routing reuses cached system prompt / earlier turns</td></tr>
+    </table>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“Why stream tokens instead of returning the full response?”</p>
+      <p><b>Staff answer:</b> Generation takes seconds; streaming makes first-token latency what the user feels. SSE is one-way, works over plain HTTP, and reconnects easily.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Chat completions stream via SSE, and history is a simple read. Now the generate path.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="chatgpt-rolling-summary-purpose">
+        <p class="stem">Why does each conversation store a rolling summary plus the sequence number it covers?</p>
+        <button class="opt">So prompt assembly reads summary plus recent turns instead of the entire thread</button>
+        <button class="opt">So the client can render conversations without ever calling the API</button>
+        <button class="opt">So Cassandra can skip writing new messages once a summary exists</button>
+        <p class="fb">The summary plus its covered sequence number lets context assembly stay bounded rather than replaying the full history every turn.</p>
+        <p class="hint">Reread the sentence right before the data model table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="chatgpt-kv-prefix-cache-purpose">
+        <p class="stem">What is the KV/prefix cache in GPU memory for, and why key it by prompt-prefix hash?</p>
+        <button class="opt">It stores the final assistant message so Cassandra writes are batched later</button>
+        <button class="opt">It replaces the history store entirely, removing the need for Cassandra</button>
+        <button class="opt">It lets a worker reuse already-computed attention state for a repeated prompt prefix, avoiding recomputation on affinity-routed requests</button>
+        <p class="fb">Keying by prompt-prefix hash lets requests sharing a system prompt or earlier turns route to a worker that already computed that prefix's KV state, saving GPU work.</p>
+        <p class="hint">Reread the "KV / prefix cache" row's access pattern column.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 8</p>
+    <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+    <h2>Component Diagram</h2>
 <pre class="diagram">
  [Browser / mobile app (renders token stream)]
     | POST /v1/chat/completions     ^ SSE tokens
@@ -203,224 +286,353 @@
                               v pull    |
                       [GPU fleet: continuous batching, KV cache, autoscaled]
 </pre>
-  <p style="font-size:.85rem; color:var(--muted);">The request path is cheap and stateless except for held SSE connections. Generation requests wait in tiered queues; GPU workers pull and batch them continuously and stream tokens back to the API server holding the user's connection, which persists the final assistant message.</p>
+    <p style="font-size:.85rem; color:var(--muted);">The request path is cheap and stateless except for held SSE connections. Generation requests wait in tiered queues; GPU workers pull and batch them continuously and stream tokens back to the API server holding the user's connection, which persists the final assistant message.</p>
 
-  <h2>High-Level Design</h2>
-  <p>Trace one message through the boxes. Two flows: <b>generate</b> (the hard path) and <b>read history</b> (the easy path).</p>
-  <table>
-    <thead><tr><th>Component</th><th>Role on a <code>POST /v1/chat/completions</code></th></tr></thead>
-    <tbody>
-      <tr><td>API gateway / LB</td><td>Auth, rate-limit, terminate TLS. Routes to a stateless API server.</td></tr>
-      <tr><td>Chat API server</td><td>Loads conversation history from the store, assembles the prompt (history + new message), and submits a generation job to the inference queue. Holds the SSE connection open and relays tokens to the client.</td></tr>
-      <tr><td>History store</td><td>Conversation + Message rows, sharded by <code>user_id</code> (or conversation_id). Cheap, durable, horizontally scalable (e.g. Cassandra/DynamoDB).</td></tr>
-      <tr><td><b>Inference queue</b></td><td>Buffers generation requests in front of the GPU fleet so workers are never starved and bursts don't drop. The control point for prioritization.</td></tr>
-      <tr><td><b>GPU inference fleet</b></td><td>Pool of GPU workers running the model. Pull jobs, batch them, stream tokens back. Autoscaled. The scarce resource.</td></tr>
-    </tbody>
-  </table>
-  <p>Read path is trivial: <code>GET /v1/conversations/{id}</code> hits the history store directly — no GPU involved. After a generation completes, the API server persists the assistant message so the next turn can replay it.</p>
+    <h2>High-Level Design</h2>
+    <p>Trace one message through the boxes. Two flows: <b>generate</b> (the hard path) and <b>read history</b> (the easy path).</p>
+    <table>
+      <thead><tr><th>Component</th><th>Role on a <code>POST /v1/chat/completions</code></th></tr></thead>
+      <tbody>
+        <tr><td>API gateway / LB</td><td>Auth, rate-limit, terminate TLS. Routes to a stateless API server.</td></tr>
+        <tr><td>Chat API server</td><td>Loads conversation history from the store, assembles the prompt (history + new message), and submits a generation job to the inference queue. Holds the SSE connection open and relays tokens to the client.</td></tr>
+        <tr><td>History store</td><td>Conversation + Message rows, sharded by <code>user_id</code> (or conversation_id). Cheap, durable, horizontally scalable (e.g. Cassandra/DynamoDB).</td></tr>
+        <tr><td><b>Inference queue</b></td><td>Buffers generation requests in front of the GPU fleet so workers are never starved and bursts don't drop. The control point for prioritization.</td></tr>
+        <tr><td><b>GPU inference fleet</b></td><td>Pool of GPU workers running the model. Pull jobs, batch them, stream tokens back. Autoscaled. The scarce resource.</td></tr>
+      </tbody>
+    </table>
+    <p>Read path is trivial: <code>GET /v1/conversations/{id}</code> hits the history store directly — no GPU involved. After a generation completes, the API server persists the assistant message so the next turn can replay it.</p>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why is the chat API server separate from the GPU workers?”</p>
-    <p><b>Staff answer:</b> The API tier is stateless and cheap; GPUs are scarce. A queue between them allows batching, prioritization and backpressure, so traffic spikes don't hit GPUs directly.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: streaming, the GPU inference fleet, context and memory, cost control.”</p>
-
-  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
-  <h2>Deep Dives</h2>
-  <p>This is the 60%. Four hard parts, each mapped to an NFR.</p>
-
-  <h3>1 · Streaming responses — why SSE</h3>
-  <p>The model produces tokens one at a time over many seconds. We want the user to see them <em>as they appear</em> (low TTFT), so we cannot wait for the full response. We need a server-push channel — and the choice between <b>SSE</b> and <b>WebSocket</b> is a classic staff discrimination (see <a href="0002-networking-and-apis.html">Lesson 02</a> and <a href="0002-networking-and-apis.html">Lesson 02</a>).</p>
-  <table>
-    <thead><tr><th>Need</th><th>SSE</th><th>WebSocket</th></tr></thead>
-    <tbody>
-      <tr><td>Direction</td><td><b>One-way</b> server→client — exactly our token stream</td><td>Full-duplex — more than we need here</td></tr>
-      <tr><td>Transport</td><td>Plain HTTP; auto-reconnect built in</td><td>Separate protocol upgrade; manage reconnect yourself</td></tr>
-      <tr><td>Infra fit</td><td>Works through HTTP proxies/CDNs easily</td><td>Often needs special proxy config</td></tr>
-    </tbody>
-  </table>
-  <div class="box">
-    <b>Pick SSE.</b> The token stream is one-directional, the new prompt arrives in a normal <code>POST</code> body, and SSE rides ordinary HTTP with built-in reconnection. WebSocket's full-duplex channel is capability we don't use — paying its complexity tax would be over-engineering. The cost: the <b>request is held open for the whole generation</b>, so the front tier must handle many long-lived connections (lots of idle sockets, little CPU) — size for connection count, not request rate.
-  </div>
-
-  <h3>2 · Serving the model — the GPU inference fleet</h3>
-  <p>The mistake juniors make: treat the model server like a stateless API behind a round-robin LB. It isn't. A generation runs for tens of seconds, pins a GPU, and GPUs are too expensive to leave idle. Model it as a <b>queue in front of a pool of GPU workers</b> — the same producer/consumer shape as an async job system (<a href="0007-messaging-and-async.html">Lesson 07</a>) and an autoscaling fleet (<a href="0010-common-patterns.html">Lesson 10</a>).</p>
-  <div class="box">
-    <b>Batching is the whole game.</b> A GPU is most efficient processing many sequences in parallel. <b>Continuous (in-flight) batching</b> lets the worker add new requests to the running batch and evict finished ones token-by-token, instead of waiting for a fixed batch to complete. This keeps the GPU saturated and raises tokens/sec/GPU dramatically.<br><br>
-    <b>The queue</b> decouples bursty arrivals from finite workers: requests wait briefly rather than being dropped or starving a worker. It's also where you enforce priority (deep dive 4).<br><br>
-    <b>Autoscaling</b> the GPU fleet tracks queue depth / TTFT, but GPUs are slow and costly to spin up — scale on sustained signals, keep warm headroom, and accept some queueing rather than over-provisioning the most expensive box in the building.<br><br>
-    <b>Long generation</b> means a worker is committed for the duration; track per-stream progress, support cancellation when the client disconnects (free the slot immediately), and cap max output length.
-  </div>
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Say the words: <em>"The GPU fleet is not a stateless service — it's a queued, continuously-batched, autoscaled pool of the scarcest resource in the system."</em> Routing across GPU workers and scheduling generations is the central challenge <a href="#c1" class="cite">[1]</a>. A senior describes an LB in front of model servers; a staff candidate describes batching economics, queue-depth-driven autoscaling, and slot reclamation on disconnect — and ties each back to "idle GPU is burned money."
-  </div>
-
-  <h3>3 · Conversation context &amp; memory</h3>
-  <p>Multi-turn means each prompt carries prior turns so the model "remembers." But the model has a fixed <b>context window</b> (a token limit), and resending the whole history every turn both risks overflow and grows inference cost linearly with conversation length.</p>
-  <table>
-    <thead><tr><th>Strategy</th><th>What it does</th><th>Tradeoff</th></tr></thead>
-    <tbody>
-      <tr><td>Send full history</td><td>Replay every turn into the prompt</td><td>Simple; overflows the window and gets expensive as it grows</td></tr>
-      <tr><td><b>Truncation</b> (sliding window)</td><td>Keep the most recent N turns / tokens</td><td>Bounded cost; silently forgets older context</td></tr>
-      <tr><td><b>Summarization</b></td><td>Compress old turns into a running summary, keep recent turns verbatim</td><td>Preserves gist cheaply; summary can lose detail, costs an extra LLM call</td></tr>
-    </tbody>
-  </table>
-  <div class="box">
-    <b>Pick: hybrid.</b> Keep recent turns verbatim for fidelity, summarize the older tail to stay within the window and control cost — without making the assistant "feel forgetful" <a href="#c1" class="cite">[1]</a>. Persist messages in the history store and assemble the context server-side on each turn, so the client only sends the new message.
-  </div>
-
-  <h3>4 · Cost &amp; capacity management</h3>
-  <p>Because the GPU is the bottleneck, demand <em>will</em> exceed supply at peak. You manage it at the queue, not by buying infinite GPUs.</p>
-  <div class="box">
-    <ul>
-      <li><b>Rate limiting</b> per user — stops a heavy user from monopolizing GPUs <a href="#c1" class="cite">[1]</a> (token-bucket at the gateway).</li>
-      <li><b>Prioritization / tiers</b> — paid tiers get a better experience: separate or higher-priority queues so their jobs are scheduled first <a href="#c1" class="cite">[1]</a>.</li>
-      <li><b>Queue + backpressure</b> — under overload, queue (raising TTFT gracefully) rather than dropping; shed or slow lowest-priority free traffic first.</li>
-      <li><b>Cap output length &amp; context</b> — bounds the worst-case GPU time per request, making capacity predictable.</li>
-    </ul>
-  </div>
-  <p>The throughline: storage is cheap, the GPU is precious, so every lever — batching, queueing, truncation, rate limits, tiers — exists to extract more useful tokens per GPU-second.</p>
-
-  <h2>Alternative Approaches &amp; Tradeoffs</h2>
-  <table>
-    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
-    <tr><td><b>A. Queued, continuously batched self-hosted GPU fleet behind stateless chat API</b> (chosen)</td><td>As drawn</td><td>Maximum tokens per GPU-second; explicit prioritization and backpressure; full control of models</td><td>Operating tens of thousands of GPUs; capacity planning is a core competency</td><td>You are the model provider at massive scale</td></tr>
-    <tr><td><b>B. Direct routing to model servers with load-aware LB</b> (no central queue; LB picks the least-loaded replica by KV-cache usage)</td><td>Gateway routes each request straight to a model replica using live load and prefix-cache affinity; replicas batch locally</td><td>Lower latency (no queue hop); prefix-cache hit rates improve with affinity</td><td>Weaker global prioritization; overload shows up as rejections rather than fair queueing; routing state is complex</td><td>Latency-sensitive deployments with ample headroom</td></tr>
-    <tr><td><b>C. Build on a hosted LLM API</b></td><td>Chat product calls a model provider's API with streaming; we own history, prompt assembly, rate limits</td><td>No GPUs to run; instant access to frontier models; pay per token</td><td>Per-token cost at 200M DAU is enormous; provider rate limits and outages; less control over latency</td><td>Applications that use an LLM rather than serve one</td></tr>
-  </table>
-  <p><b>Pick A</b> for ChatGPT itself; many production stacks blend A and B (queue for fairness, cache-aware routing within a pool), and every non-provider company should start with C.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“How do you get more out of each GPU?”</p>
-    <p><b>Staff answer:</b> Continuous batching of requests at the token level, KV cache reuse for shared prompt prefixes, quantization, speculative decoding, and routing requests to warm replicas of the right model.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, including abuse and safety.”</p>
-
-  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
-  <h2>Observability</h2>
-  <table>
-    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
-    <tr><td>User-perceived latency</td><td>TTFT p50/p95/p99 by tier and model, inter-token latency, total generation time, stream interruption rate</td><td>TTFT is the headline NFR</td></tr>
-    <tr><td>GPU efficiency</td><td>GPU utilization, batch size, tokens/s per GPU, KV-cache memory usage, prefix-cache hit rate, preemptions</td><td>"Idle GPU is burned money"</td></tr>
-    <tr><td>Queues</td><td>Depth and wait time per tier, rejects/sheds, cancellations on disconnect</td><td>Where TTFT goes under load</td></tr>
-    <tr><td>Business / quality</td><td>Messages and tokens per user, thumbs-up/down rate, refusal and error rates per model version</td><td>Detect a bad model rollout quickly</td></tr>
-    <tr><td>Logs &amp; traces</td><td>request_id through gateway → API → queue → worker; traces with spans for context assembly, queue wait, prefill, decode; prompt content excluded from operational logs</td><td>Attribute latency to queueing vs prefill vs decode</td></tr>
-  </table>
-
-  <h2>Monitoring</h2>
-  <table>
-    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
-    <tr><td>TTFT p95 &lt; 1 s (paid), &lt; 3 s (free)</td><td>Above target for 10 min per tier/model</td><td>Page</td></tr>
-    <tr><td>Generation success 99.9% (excluding user cancels)</td><td>Stream error rate &gt; 0.5% for 5 min</td><td>Page</td></tr>
-    <tr><td>History availability 99.95%</td><td>Burn rate over 1 h / 6 h</td><td>Page</td></tr>
-    <tr><td>Capacity headroom</td><td>Queue wait p95 rising for 15 min; GPU pool utilization &gt; 90% sustained; shed rate &gt; 0</td><td>Page (capacity on-call)</td></tr>
-    <tr><td>Model rollout health</td><td>Error, refusal or negative-feedback rate regression on canary model version</td><td>Page / auto-rollback</td></tr>
-  </table>
-  <p><b>Synthetic probes:</b> scripted conversations per model and region every minute measuring TTFT and full-stream completion, including a disconnect-and-cancel case. <b>Dashboards:</b> TTFT by tier, GPU fleet utilization and batch sizes, queue depth, per-model quality signals.</p>
-
-  <h2>Authentication &amp; Authorization</h2>
-  <table>
-    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
-    <tr><td>User → chat APIs</td><td>OIDC login (email, Google, Apple, SSO for enterprise) → short-lived session token</td><td>Conversation ownership checked on every read/write; tier and model entitlements from subscription</td></tr>
-    <tr><td>Developers → API product</td><td>API keys (hashed at rest), per-project scopes</td><td>Per-key rate limits and spend limits</td></tr>
-    <tr><td>Enterprise workspaces</td><td>SAML/OIDC SSO + SCIM provisioning</td><td>Workspace RBAC; admins control sharing, retention and model access</td></tr>
-    <tr><td>API servers → GPU workers, stores</td><td>mTLS service identities</td><td>Workers can't read history directly — they only receive assembled prompts</td></tr>
-  </table>
-
-  <h2>Security</h2>
-  <table>
-    <tr><th>Threat</th><th>Mitigation</th></tr>
-    <tr><td>GPU-draining abuse (scripted free accounts, long prompts)</td><td>Token-bucket limits on messages and tokens, max context/output caps, bot detection, lower priority for free traffic</td></tr>
-    <tr><td>Harmful content generation / jailbreaks</td><td>Input and output safety classifiers, policy models, abuse monitoring and account enforcement</td></tr>
-    <tr><td>Prompt injection via pasted/retrieved content</td><td>Treat user/external content as data, isolate tool permissions (tools out of scope here)</td></tr>
-    <tr><td>Cross-user data leakage (cache or routing bugs)</td><td>Ownership checks on every conversation read; prefix cache keyed by tenant for private prompts; tests for response-to-wrong-connection bugs</td></tr>
-    <tr><td>Stolen API keys / account takeover</td><td>Key scoping, anomaly detection on spend, MFA, session revocation</td></tr>
-    <tr><td>Model weights theft</td><td>Weights encrypted, restricted inference hosts, no egress from GPU nodes except to API tier</td></tr>
-    <tr><td>Baseline</td><td>TLS, encryption at rest, secrets manager, WAF/DDoS protection</td></tr>
-  </table>
-
-  <h2>Privacy</h2>
-  <p>Chat content is some of the most sensitive data users produce (health, legal, work secrets). <b>Controls:</b> encryption at rest for history; opt-out of training on conversations; "temporary chats" not stored in history; enterprise tiers with no training use and configurable retention. <b>Deletion:</b> user-deleted conversations removed from history and derived summaries, then purged from backups within a stated window. <b>Access:</b> human review of conversations (abuse investigation, safety) is policy-restricted and audited. <b>Minimization:</b> operational logs and traces never contain prompts or completions; abuse classifiers operate on content in-memory. <b>Residency:</b> regional data storage for enterprise customers.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“How do you handle prompt injection and abuse?”</p>
-    <p><b>Staff answer:</b> Input and output safety classifiers, per-user rate and token limits, abuse detection on accounts, and treating tool outputs as untrusted content.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
-
-  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
-  <h2>Scaling 10× Without Changing the Architecture</h2>
-  <p>10× = ~2B DAU-equivalent demand, ~10M concurrent generations.</p>
-  <table>
-    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
-    <tr><td>GPU fleet</td><td>~50k GPUs</td><td>~500k GPUs (less with efficiency gains)</td><td>More GPUs across regions; quantization, speculative decoding and larger batches raise tokens/GPU</td></tr>
-    <tr><td>Queues</td><td>Per-tier queues</td><td>10× jobs</td><td>More partitions; regional queues with cross-region spillover</td></tr>
-    <tr><td>Chat API / SSE fleet</td><td>~200 nodes</td><td>~2,000</td><td>Stateless scale-out (sized for open connections)</td></tr>
-    <tr><td>History store</td><td>~1.5 PB/yr</td><td>~15 PB/yr</td><td>Add nodes; compress; tier old conversations to object storage</td></tr>
-    <tr><td>Context cost</td><td>Summary + recent turns</td><td>Same</td><td>Tighter recent-turn window; more aggressive prefix caching</td></tr>
-  </table>
-  <p><b>First bottleneck:</b> GPU supply and datacenter power, not software. <b>What forces a redesign:</b> agentic workloads (tool calls, long-running tasks) that turn a single request/stream into a durable multi-step workflow.</p>
-
-  <h2>Cost of Running</h2>
-  <p>Assumptions: 200M DAU × 10 messages/day (~60B messages/month), ~1M concurrent generations at average load, ~20 concurrent streams per H100-class GPU with continuous batching (~50k GPUs), ~2 KB stored per message, list prices from the course price sheet. Real operators pay reserved/owned-capacity prices well below list.</p>
-  <table>
-    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
-    <tr><td>GPU inference fleet</td><td>~50k GPUs × ~$3k/GPU-month</td><td>$150,000,000</td></tr>
-    <tr><td>History store (Cassandra)</td><td>~1.5 PB/yr growth × RF 3</td><td>$500,000</td></tr>
-    <tr><td>Token stream egress</td><td>~1.5 PB/month</td><td>$75,000</td></tr>
-    <tr><td>Chat API / SSE fleet</td><td>~200 × 8 vCPU</td><td>$50,000</td></tr>
-    <tr><td>Queues, Redis, gateway, observability</td><td></td><td>$100,000</td></tr>
-    <tr><td><b>Total</b></td><td></td><td><b>≈ $151M</b></td></tr>
-  </table>
-  <p><b>Unit cost:</b> ≈ $0.0025 per message, ≈ $0.75 per DAU per month. <b>Dominant driver:</b> GPUs — over 99% of spend; everything else rounds to zero. <b>Levers (in order of impact):</b> route easy prompts to smaller/distilled models, prefix/KV-cache reuse for system prompts and prior turns, quantization and speculative decoding, tighter context windows via summarization, and capping free-tier output length.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“What dominates cost?”</p>
-    <p><b>Staff answer:</b> GPUs, around 90%. Levers: batching efficiency, smaller models for easy requests, prefix caching, and reserved capacity.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
-
-  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
-  <h2>Closing Summary (60 seconds)</h2>
-  <div class="summary"><p>ChatGPT is a GPU-scheduling problem behind a simple chat API. Stateless API servers authenticate users, load conversation history, trim it to the context budget and enqueue generation requests by priority tier. A fleet of inference workers uses continuous batching and KV caching to maximize tokens per GPU and streams tokens back over SSE, so first-token latency stays low. Completed messages persist to a conversation store. Rate limits, queues and model tiering protect the scarce GPUs. At 10× we add GPUs and efficiency techniques.</p></div>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why is SSE preferred over WebSocket for streaming the model's tokens?</p>
-      <button class="opt">WebSocket cannot carry text payloads across an ordinary proxy</button>
-      <button class="opt">The token stream is one-way, and SSE rides plain HTTP simply</button>
-      <button class="opt">SSE encrypts each token while WebSocket leaves them in plaintext</button>
-      <p class="fb">Tokens flow server→client only; SSE is purpose-built one-way push over HTTP with reconnect, so WebSocket's duplex is unused complexity.</p>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“Why is the chat API server separate from the GPU workers?”</p>
+      <p><b>Staff answer:</b> The API tier is stateless and cheap; GPUs are scarce. A queue between them allows batching, prioritization and backpressure, so traffic spikes don't hit GPUs directly.</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. What makes the GPU fleet different from a normal stateless web tier?</p>
-      <button class="opt">It must keep every user's full session pinned to one chosen worker</button>
-      <button class="opt">It cannot be replicated, so only one worker may ever run a model</button>
-      <button class="opt">It is a scarce resource served via a queued, batched, autoscaled pool</button>
-      <p class="fb">GPUs are expensive and finite; long generations pin them, so you queue, continuously batch, and autoscale rather than round-robin like web servers.</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: streaming, the GPU inference fleet, context and memory, cost control.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="chatgpt-inference-queue-role">
+        <p class="stem">What is the inference queue's role between the chat API server and the GPU fleet?</p>
+        <button class="opt">It permanently stores every completed assistant message for later reads</button>
+        <button class="opt">It buffers generation jobs so workers stay fed and bursts don't drop</button>
+        <button class="opt">It renders the token stream directly to the browser without an API server</button>
+        <p class="fb">The queue is the control point: it absorbs bursty arrivals, prevents worker starvation, and is where prioritization is enforced.</p>
+        <p class="hint">Reread the "Inference queue" row of the HLD table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="chatgpt-api-gpu-separation-why">
+        <p class="stem">Why does routing traffic straight from the API tier to GPU workers, with no queue, hurt this system specifically?</p>
+        <button class="opt">A traffic spike would hit the scarce, expensive GPUs directly, with no buffer to batch, prioritize, or apply backpressure</button>
+        <button class="opt">The API tier cannot technically make outbound calls to any backend without going through a queue</button>
+        <button class="opt">SSE connections require a queue in order to be held open at all</button>
+        <p class="fb">The queue exists precisely so bursts don't hit the expensive, finite GPU fleet directly — removing it makes the priciest resource in the system absorb load spikes raw.</p>
+        <p class="hint">Reread the pushback box on why the chat API server is separate from GPU workers.</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. How do you keep multi-turn context within the model's window as it grows?</p>
-      <button class="opt">Summarize older turns and keep recent turns verbatim in context</button>
-      <button class="opt">Resend the entire conversation history on every single new turn</button>
-      <button class="opt">Discard the conversation and start fresh whenever it gets long</button>
-      <p class="fb">A hybrid keeps fidelity on recent turns while compressing the old tail, bounding both window overflow and per-turn inference cost.</p>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 8</p>
+    <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
+    <h2>Deep Dives</h2>
+    <p>This is the 60%. Four hard parts, each mapped to an NFR.</p>
+
+    <h3>1 · Streaming responses — why SSE</h3>
+    <p>The model produces tokens one at a time over many seconds. We want the user to see them <em>as they appear</em> (low TTFT), so we cannot wait for the full response. We need a server-push channel — and the choice between <b>SSE</b> and <b>WebSocket</b> is a classic staff discrimination (see <a href="0002-networking-and-apis.html">Lesson 02</a> and <a href="0002-networking-and-apis.html">Lesson 02</a>).</p>
+    <table>
+      <thead><tr><th>Need</th><th>SSE</th><th>WebSocket</th></tr></thead>
+      <tbody>
+        <tr><td>Direction</td><td><b>One-way</b> server→client — exactly our token stream</td><td>Full-duplex — more than we need here</td></tr>
+        <tr><td>Transport</td><td>Plain HTTP; auto-reconnect built in</td><td>Separate protocol upgrade; manage reconnect yourself</td></tr>
+        <tr><td>Infra fit</td><td>Works through HTTP proxies/CDNs easily</td><td>Often needs special proxy config</td></tr>
+      </tbody>
+    </table>
+    <div class="box">
+      <b>Pick SSE.</b> The token stream is one-directional, the new prompt arrives in a normal <code>POST</code> body, and SSE rides ordinary HTTP with built-in reconnection. WebSocket's full-duplex channel is capability we don't use — paying its complexity tax would be over-engineering. The cost: the <b>request is held open for the whole generation</b>, so the front tier must handle many long-lived connections (lots of idle sockets, little CPU) — size for connection count, not request rate.
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. Where do you stop one heavy user from monopolizing scarce GPUs?</p>
-      <button class="opt">By sharding the conversation history store across many more nodes</button>
-      <button class="opt">By rate limiting per user and prioritizing tiers at the queue</button>
-      <button class="opt">By caching past assistant responses inside a read-through layer</button>
-      <p class="fb">Capacity is managed at the queue: per-user rate limits plus tier-based priority decide whose generation a finite GPU runs next.</p>
+
+    <h3>2 · Serving the model — the GPU inference fleet</h3>
+    <p>The mistake juniors make: treat the model server like a stateless API behind a round-robin LB. It isn't. A generation runs for tens of seconds, pins a GPU, and GPUs are too expensive to leave idle. Model it as a <b>queue in front of a pool of GPU workers</b> — the same producer/consumer shape as an async job system (<a href="0007-messaging-and-async.html">Lesson 07</a>) and an autoscaling fleet (<a href="0010-common-patterns.html">Lesson 10</a>).</p>
+    <div class="box">
+      <b>Batching is the whole game.</b> A GPU is most efficient processing many sequences in parallel. <b>Continuous (in-flight) batching</b> lets the worker add new requests to the running batch and evict finished ones token-by-token, instead of waiting for a fixed batch to complete. This keeps the GPU saturated and raises tokens/sec/GPU dramatically.<br><br>
+      <b>The queue</b> decouples bursty arrivals from finite workers: requests wait briefly rather than being dropped or starving a worker. It's also where you enforce priority (deep dive 4).<br><br>
+      <b>Autoscaling</b> the GPU fleet tracks queue depth / TTFT, but GPUs are slow and costly to spin up — scale on sustained signals, keep warm headroom, and accept some queueing rather than over-provisioning the most expensive box in the building.<br><br>
+      <b>Long generation</b> means a worker is committed for the duration; track per-stream progress, support cancellation when the client disconnects (free the slot immediately), and cap max output length.
     </div>
-  </div>
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Say the words: <em>"The GPU fleet is not a stateless service — it's a queued, continuously-batched, autoscaled pool of the scarcest resource in the system."</em> Routing across GPU workers and scheduling generations is the central challenge <a href="#c1" class="cite">[1]</a>. A senior describes an LB in front of model servers; a staff candidate describes batching economics, queue-depth-driven autoscaling, and slot reclamation on disconnect — and ties each back to "idle GPU is burned money."
+    </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="chatgpt-sse-vs-websocket-pick">
+        <p class="stem">Why does this design pick SSE over WebSocket for the token stream?</p>
+        <button class="opt">WebSocket cannot be served over ordinary HTTP infrastructure at all</button>
+        <button class="opt">SSE supports full-duplex communication, which WebSocket does not support</button>
+        <button class="opt">The stream is one-directional and SSE rides plain HTTP with built-in reconnect</button>
+        <p class="fb">Since tokens only flow server to client, SSE's one-way model over ordinary HTTP fits exactly, while WebSocket's duplex channel would be unused complexity.</p>
+        <p class="hint">Reread the "Pick SSE" box.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="chatgpt-continuous-batching-mechanism">
+        <p class="stem">Why does continuous batching raise tokens/sec/GPU compared to fixed-batch processing?</p>
+        <button class="opt">New requests join the running batch and finished ones are evicted per token, so the GPU rarely sits idle waiting for a batch to complete</button>
+        <button class="opt">Continuous batching runs each request on a dedicated GPU, avoiding any sharing overhead</button>
+        <button class="opt">It reduces the total number of tokens the model needs to generate per response</button>
+        <p class="fb">Fixed batching wastes GPU cycles waiting for the slowest sequence in a batch to finish; continuous batching keeps the GPU saturated by streaming requests in and out token-by-token.</p>
+        <p class="hint">Reread the "Batching is the whole game" box, first paragraph.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 8</p>
+    <h3>3 · Conversation context &amp; memory</h3>
+    <p>Multi-turn means each prompt carries prior turns so the model "remembers." But the model has a fixed <b>context window</b> (a token limit), and resending the whole history every turn both risks overflow and grows inference cost linearly with conversation length.</p>
+    <table>
+      <thead><tr><th>Strategy</th><th>What it does</th><th>Tradeoff</th></tr></thead>
+      <tbody>
+        <tr><td>Send full history</td><td>Replay every turn into the prompt</td><td>Simple; overflows the window and gets expensive as it grows</td></tr>
+        <tr><td><b>Truncation</b> (sliding window)</td><td>Keep the most recent N turns / tokens</td><td>Bounded cost; silently forgets older context</td></tr>
+        <tr><td><b>Summarization</b></td><td>Compress old turns into a running summary, keep recent turns verbatim</td><td>Preserves gist cheaply; summary can lose detail, costs an extra LLM call</td></tr>
+      </tbody>
+    </table>
+    <div class="box">
+      <b>Pick: hybrid.</b> Keep recent turns verbatim for fidelity, summarize the older tail to stay within the window and control cost — without making the assistant "feel forgetful" <a href="#c1" class="cite">[1]</a>. Persist messages in the history store and assemble the context server-side on each turn, so the client only sends the new message.
+    </div>
+
+    <h3>4 · Cost &amp; capacity management</h3>
+    <p>Because the GPU is the bottleneck, demand <em>will</em> exceed supply at peak. You manage it at the queue, not by buying infinite GPUs.</p>
+    <div class="box">
+      <ul>
+        <li><b>Rate limiting</b> per user — stops a heavy user from monopolizing GPUs <a href="#c1" class="cite">[1]</a> (token-bucket at the gateway).</li>
+        <li><b>Prioritization / tiers</b> — paid tiers get a better experience: separate or higher-priority queues so their jobs are scheduled first <a href="#c1" class="cite">[1]</a>.</li>
+        <li><b>Queue + backpressure</b> — under overload, queue (raising TTFT gracefully) rather than dropping; shed or slow lowest-priority free traffic first.</li>
+        <li><b>Cap output length &amp; context</b> — bounds the worst-case GPU time per request, making capacity predictable.</li>
+      </ul>
+    </div>
+    <p>The throughline: storage is cheap, the GPU is precious, so every lever — batching, queueing, truncation, rate limits, tiers — exists to extract more useful tokens per GPU-second.</p>
+
+    <h2>Alternative Approaches &amp; Tradeoffs</h2>
+    <table>
+      <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+      <tr><td><b>A. Queued, continuously batched self-hosted GPU fleet behind stateless chat API</b> (chosen)</td><td>As drawn</td><td>Maximum tokens per GPU-second; explicit prioritization and backpressure; full control of models</td><td>Operating tens of thousands of GPUs; capacity planning is a core competency</td><td>You are the model provider at massive scale</td></tr>
+      <tr><td><b>B. Direct routing to model servers with load-aware LB</b> (no central queue; LB picks the least-loaded replica by KV-cache usage)</td><td>Gateway routes each request straight to a model replica using live load and prefix-cache affinity; replicas batch locally</td><td>Lower latency (no queue hop); prefix-cache hit rates improve with affinity</td><td>Weaker global prioritization; overload shows up as rejections rather than fair queueing; routing state is complex</td><td>Latency-sensitive deployments with ample headroom</td></tr>
+      <tr><td><b>C. Build on a hosted LLM API</b></td><td>Chat product calls a model provider's API with streaming; we own history, prompt assembly, rate limits</td><td>No GPUs to run; instant access to frontier models; pay per token</td><td>Per-token cost at 200M DAU is enormous; provider rate limits and outages; less control over latency</td><td>Applications that use an LLM rather than serve one</td></tr>
+    </table>
+    <p><b>Pick A</b> for ChatGPT itself; many production stacks blend A and B (queue for fairness, cache-aware routing within a pool), and every non-provider company should start with C.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“How do you get more out of each GPU?”</p>
+      <p><b>Staff answer:</b> Continuous batching of requests at the token level, KV cache reuse for shared prompt prefixes, quantization, speculative decoding, and routing requests to warm replicas of the right model.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, including abuse and safety.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="chatgpt-context-hybrid-strategy">
+        <p class="stem">What strategy does the lesson pick for managing growing conversation context?</p>
+        <button class="opt">Always resend the complete verbatim history on every single new turn</button>
+        <button class="opt">Keep recent turns verbatim and summarize the older tail of the conversation</button>
+        <button class="opt">Discard all prior context and treat every message as a fresh conversation</button>
+        <p class="fb">The hybrid approach preserves fidelity on recent turns while compressing older ones, controlling both window overflow and per-turn cost.</p>
+        <p class="hint">Reread the "Pick: hybrid" box.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="chatgpt-why-manage-at-queue">
+        <p class="stem">Why does the design manage overload at the queue rather than by provisioning more GPUs to meet peak demand?</p>
+        <button class="opt">Queues are technically required by the SSE protocol regardless of cost</button>
+        <button class="opt">GPUs cannot be added to a running fleet without a full system restart</button>
+        <button class="opt">GPUs are the most expensive resource, so over-provisioning for rare peaks wastes far more money than graceful queueing does</button>
+        <p class="fb">Since idle GPU time is the most expensive kind of waste in this system, absorbing peak demand with queueing and backpressure is cheaper than always having enough GPUs to never queue.</p>
+        <p class="hint">Reread the opening line of "Cost &amp; capacity management."</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 8</p>
+    <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+    <h2>Observability</h2>
+    <table>
+      <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+      <tr><td>User-perceived latency</td><td>TTFT p50/p95/p99 by tier and model, inter-token latency, total generation time, stream interruption rate</td><td>TTFT is the headline NFR</td></tr>
+      <tr><td>GPU efficiency</td><td>GPU utilization, batch size, tokens/s per GPU, KV-cache memory usage, prefix-cache hit rate, preemptions</td><td>"Idle GPU is burned money"</td></tr>
+      <tr><td>Queues</td><td>Depth and wait time per tier, rejects/sheds, cancellations on disconnect</td><td>Where TTFT goes under load</td></tr>
+      <tr><td>Business / quality</td><td>Messages and tokens per user, thumbs-up/down rate, refusal and error rates per model version</td><td>Detect a bad model rollout quickly</td></tr>
+      <tr><td>Logs &amp; traces</td><td>request_id through gateway → API → queue → worker; traces with spans for context assembly, queue wait, prefill, decode; prompt content excluded from operational logs</td><td>Attribute latency to queueing vs prefill vs decode</td></tr>
+    </table>
+
+    <h2>Monitoring</h2>
+    <table>
+      <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+      <tr><td>TTFT p95 &lt; 1 s (paid), &lt; 3 s (free)</td><td>Above target for 10 min per tier/model</td><td>Page</td></tr>
+      <tr><td>Generation success 99.9% (excluding user cancels)</td><td>Stream error rate &gt; 0.5% for 5 min</td><td>Page</td></tr>
+      <tr><td>History availability 99.95%</td><td>Burn rate over 1 h / 6 h</td><td>Page</td></tr>
+      <tr><td>Capacity headroom</td><td>Queue wait p95 rising for 15 min; GPU pool utilization &gt; 90% sustained; shed rate &gt; 0</td><td>Page (capacity on-call)</td></tr>
+      <tr><td>Model rollout health</td><td>Error, refusal or negative-feedback rate regression on canary model version</td><td>Page / auto-rollback</td></tr>
+    </table>
+    <p><b>Synthetic probes:</b> scripted conversations per model and region every minute measuring TTFT and full-stream completion, including a disconnect-and-cancel case. <b>Dashboards:</b> TTFT by tier, GPU fleet utilization and batch sizes, queue depth, per-model quality signals.</p>
+
+    <h2>Authentication &amp; Authorization</h2>
+    <table>
+      <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+      <tr><td>User → chat APIs</td><td>OIDC login (email, Google, Apple, SSO for enterprise) → short-lived session token</td><td>Conversation ownership checked on every read/write; tier and model entitlements from subscription</td></tr>
+      <tr><td>Developers → API product</td><td>API keys (hashed at rest), per-project scopes</td><td>Per-key rate limits and spend limits</td></tr>
+      <tr><td>Enterprise workspaces</td><td>SAML/OIDC SSO + SCIM provisioning</td><td>Workspace RBAC; admins control sharing, retention and model access</td></tr>
+      <tr><td>API servers → GPU workers, stores</td><td>mTLS service identities</td><td>Workers can't read history directly — they only receive assembled prompts</td></tr>
+    </table>
+
+    <h2>Security</h2>
+    <table>
+      <tr><th>Threat</th><th>Mitigation</th></tr>
+      <tr><td>GPU-draining abuse (scripted free accounts, long prompts)</td><td>Token-bucket limits on messages and tokens, max context/output caps, bot detection, lower priority for free traffic</td></tr>
+      <tr><td>Harmful content generation / jailbreaks</td><td>Input and output safety classifiers, policy models, abuse monitoring and account enforcement</td></tr>
+      <tr><td>Prompt injection via pasted/retrieved content</td><td>Treat user/external content as data, isolate tool permissions (tools out of scope here)</td></tr>
+      <tr><td>Cross-user data leakage (cache or routing bugs)</td><td>Ownership checks on every conversation read; prefix cache keyed by tenant for private prompts; tests for response-to-wrong-connection bugs</td></tr>
+      <tr><td>Stolen API keys / account takeover</td><td>Key scoping, anomaly detection on spend, MFA, session revocation</td></tr>
+      <tr><td>Model weights theft</td><td>Weights encrypted, restricted inference hosts, no egress from GPU nodes except to API tier</td></tr>
+      <tr><td>Baseline</td><td>TLS, encryption at rest, secrets manager, WAF/DDoS protection</td></tr>
+    </table>
+
+    <h2>Privacy</h2>
+    <p>Chat content is some of the most sensitive data users produce (health, legal, work secrets). <b>Controls:</b> encryption at rest for history; opt-out of training on conversations; "temporary chats" not stored in history; enterprise tiers with no training use and configurable retention. <b>Deletion:</b> user-deleted conversations removed from history and derived summaries, then purged from backups within a stated window. <b>Access:</b> human review of conversations (abuse investigation, safety) is policy-restricted and audited. <b>Minimization:</b> operational logs and traces never contain prompts or completions; abuse classifiers operate on content in-memory. <b>Residency:</b> regional data storage for enterprise customers.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“How do you handle prompt injection and abuse?”</p>
+      <p><b>Staff answer:</b> Input and output safety classifiers, per-user rate and token limits, abuse detection on accounts, and treating tool outputs as untrusted content.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="chatgpt-observability-logs-exclude-prompts">
+        <p class="stem">Why do operational logs and traces exclude prompt and completion content?</p>
+        <button class="opt">Log storage is billed per byte and prompts are considered too large to store</button>
+        <button class="opt">Chat content is highly sensitive, so minimizing what lands in operational logs limits exposure</button>
+        <button class="opt">The tracing system cannot technically capture streamed text content</button>
+        <p class="fb">Privacy minimization keeps prompts and completions out of logs and traces, since chat content can carry health, legal, or other sensitive information.</p>
+        <p class="hint">Reread the Observability table's "Logs &amp; traces" row alongside the Privacy section's "Minimization" point.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="chatgpt-cross-user-leakage-risk">
+        <p class="stem">Why is the KV/prefix cache specifically called out as a cross-user data leakage risk?</p>
+        <button class="opt">If cache entries aren't scoped per tenant, a routing bug could reuse another user's cached private prompt context</button>
+        <button class="opt">The prefix cache is stored unencrypted on public object storage by default</button>
+        <button class="opt">Prefix caching only works when all users share literally the same account</button>
+        <p class="fb">Because the cache is keyed by prompt-prefix hash and shared across the fleet for efficiency, without per-tenant scoping a routing bug could serve one user's cached context to another.</p>
+        <p class="hint">Reread the Security table's "Cross-user data leakage" row.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-8" hidden>
+    <p class="chunk-label">8 of 8</p>
+    <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+    <h2>Scaling 10× Without Changing the Architecture</h2>
+    <p>10× = ~2B DAU-equivalent demand, ~10M concurrent generations.</p>
+    <table>
+      <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+      <tr><td>GPU fleet</td><td>~50k GPUs</td><td>~500k GPUs (less with efficiency gains)</td><td>More GPUs across regions; quantization, speculative decoding and larger batches raise tokens/GPU</td></tr>
+      <tr><td>Queues</td><td>Per-tier queues</td><td>10× jobs</td><td>More partitions; regional queues with cross-region spillover</td></tr>
+      <tr><td>Chat API / SSE fleet</td><td>~200 nodes</td><td>~2,000</td><td>Stateless scale-out (sized for open connections)</td></tr>
+      <tr><td>History store</td><td>~1.5 PB/yr</td><td>~15 PB/yr</td><td>Add nodes; compress; tier old conversations to object storage</td></tr>
+      <tr><td>Context cost</td><td>Summary + recent turns</td><td>Same</td><td>Tighter recent-turn window; more aggressive prefix caching</td></tr>
+    </table>
+    <p><b>First bottleneck:</b> GPU supply and datacenter power, not software. <b>What forces a redesign:</b> agentic workloads (tool calls, long-running tasks) that turn a single request/stream into a durable multi-step workflow.</p>
+
+    <h2>Cost of Running</h2>
+    <p>Assumptions: 200M DAU × 10 messages/day (~60B messages/month), ~1M concurrent generations at average load, ~20 concurrent streams per H100-class GPU with continuous batching (~50k GPUs), ~2 KB stored per message, list prices from the course price sheet. Real operators pay reserved/owned-capacity prices well below list.</p>
+    <table>
+      <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+      <tr><td>GPU inference fleet</td><td>~50k GPUs × ~$3k/GPU-month</td><td>$150,000,000</td></tr>
+      <tr><td>History store (Cassandra)</td><td>~1.5 PB/yr growth × RF 3</td><td>$500,000</td></tr>
+      <tr><td>Token stream egress</td><td>~1.5 PB/month</td><td>$75,000</td></tr>
+      <tr><td>Chat API / SSE fleet</td><td>~200 × 8 vCPU</td><td>$50,000</td></tr>
+      <tr><td>Queues, Redis, gateway, observability</td><td></td><td>$100,000</td></tr>
+      <tr><td><b>Total</b></td><td></td><td><b>≈ $151M</b></td></tr>
+    </table>
+    <p><b>Unit cost:</b> ≈ $0.0025 per message, ≈ $0.75 per DAU per month. <b>Dominant driver:</b> GPUs — over 99% of spend; everything else rounds to zero. <b>Levers (in order of impact):</b> route easy prompts to smaller/distilled models, prefix/KV-cache reuse for system prompts and prior turns, quantization and speculative decoding, tighter context windows via summarization, and capping free-tier output length.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“What dominates cost?”</p>
+      <p><b>Staff answer:</b> GPUs, around 90%. Levers: batching efficiency, smaller models for easy requests, prefix caching, and reserved capacity.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
+
+    <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+    <h2>Closing Summary (60 seconds)</h2>
+    <div class="summary"><p>ChatGPT is a GPU-scheduling problem behind a simple chat API. Stateless API servers authenticate users, load conversation history, trim it to the context budget and enqueue generation requests by priority tier. A fleet of inference workers uses continuous batching and KV caching to maximize tokens per GPU and streams tokens back over SSE, so first-token latency stays low. Completed messages persist to a conversation store. Rate limits, queues and model tiering protect the scarce GPUs. At 10× we add GPUs and efficiency techniques.</p></div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="chatgpt-10x-first-bottleneck">
+        <p class="stem">What is the first bottleneck expected when scaling this system 10×?</p>
+        <button class="opt">The chat API tier running out of stateless server capacity</button>
+        <button class="opt">The Cassandra history store exceeding its total row-count limit</button>
+        <button class="opt">GPU supply and datacenter power, not any software component</button>
+        <p class="fb">The lesson names GPU supply and power as the true ceiling; software scales by adding more of the same shape.</p>
+        <p class="hint">Reread "First bottleneck" in the scaling section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="chatgpt-dominant-cost-driver">
+        <p class="stem">Why do GPUs account for over 99% of monthly spend rather than storage or networking?</p>
+        <button class="opt">Storage and networking are provided free by cloud vendors for AI workloads</button>
+        <button class="opt">Each GPU is expensive and must run continuously to serve long streaming generations, while conversation text is small and cheap to store</button>
+        <button class="opt">The cost table intentionally omits real storage and networking costs</button>
+        <p class="fb">Text history is a few KB per turn, trivially cheap at scale, while tens of thousands of GPUs running continuously dwarf every other line item.</p>
+        <p class="hint">Reread "Dominant driver" in Cost of Running and the capacity estimation box's note on storage being cheap.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also seeds the spaced-review schedule — you'll see these again on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="chatgpt-sse-final">
+        <p class="stem">Why is SSE preferred over WebSocket for streaming the model's tokens?</p>
+        <button class="opt">WebSocket cannot carry text payloads across an ordinary proxy</button>
+        <button class="opt">The token stream is one-way, and SSE rides plain HTTP simply</button>
+        <button class="opt">SSE encrypts each token while WebSocket leaves them in plaintext</button>
+        <p class="fb">Tokens flow server→client only; SSE is purpose-built one-way push over HTTP with reconnect, so WebSocket's duplex is unused complexity.</p>
+        <p class="hint">Reread deep dive 1 on streaming responses.</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="chatgpt-gpu-fleet-shape-final">
+        <p class="stem">What makes the GPU fleet different from a normal stateless web tier?</p>
+        <button class="opt">It must keep every user's full session pinned to one chosen worker</button>
+        <button class="opt">It cannot be replicated, so only one worker may ever run a model</button>
+        <button class="opt">It is a scarce resource served via a queued, batched, autoscaled pool</button>
+        <p class="fb">GPUs are expensive and finite; long generations pin them, so you queue, continuously batch, and autoscale rather than round-robin like web servers.</p>
+        <p class="hint">Reread deep dive 2 and the staff-signal box.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="chatgpt-context-strategy-final">
+        <p class="stem">How do you keep multi-turn context within the model's window as it grows?</p>
+        <button class="opt">Summarize older turns and keep recent turns verbatim in context</button>
+        <button class="opt">Resend the entire conversation history on every single new turn</button>
+        <button class="opt">Discard the conversation and start fresh whenever it gets long</button>
+        <p class="fb">A hybrid keeps fidelity on recent turns while compressing the old tail, bounding both window overflow and per-turn inference cost.</p>
+        <p class="hint">Reread deep dive 3 on conversation context and memory.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="chatgpt-capacity-management-final">
+        <p class="stem">Where do you stop one heavy user from monopolizing scarce GPUs?</p>
+        <button class="opt">By sharding the conversation history store across many more nodes</button>
+        <button class="opt">By rate limiting per user and prioritizing tiers at the queue</button>
+        <button class="opt">By caching past assistant responses inside a read-through layer</button>
+        <p class="fb">Capacity is managed at the queue: per-user rate limits plus tier-based priority decide whose generation a finite GPU runs next.</p>
+        <p class="hint">Reread deep dive 4 on cost and capacity management.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="chatgpt-what-if-no-batching">
+        <p class="stem">What would you expect if the GPU fleet dropped continuous batching and processed one request per GPU at a time?</p>
+        <button class="opt">Effective throughput per GPU would collapse, since idle cycles waiting on one sequence could no longer be filled by other in-flight requests</button>
+        <button class="opt">Nothing would change materially, since batching is a minor efficiency tweak</button>
+        <button class="opt">Time-to-first-token would improve because there is no batch to wait for</button>
+        <p class="fb">Batching exists precisely to keep GPUs saturated across many concurrent streams; without it, the fleet would need many more GPUs to serve the same concurrency, and TTFT under load would worsen, not improve.</p>
+        <p class="hint">Reread "Batching is the whole game" and the capacity estimation's GPU throughput math.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher — push on the hard parts. Try:
@@ -446,21 +658,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

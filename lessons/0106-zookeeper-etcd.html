@@ -43,22 +43,35 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,127 +86,219 @@
     <strong>Why this lesson, for your mission:</strong> Distributed systems constantly need to agree on <em>one</em> fact: who is the leader, what is the current config, which nodes are alive, who holds the lock. At L6/L7 the interviewer wants to see that you reach for a purpose-built coordination service instead of hand-rolling consensus, that you understand <em>why</em> its writes are linearizable, and — critically — that you know to keep it tiny and never treat it as a database. Naming that boundary before you're asked is the staff move.<a href="#c1" class="cite">[1]</a>
   </div>
 
-  <h2>What it is — the agreement layer</h2>
-  <p>ZooKeeper and etcd are <b>strongly-consistent, replicated key/value stores built for coordination</b>, not bulk storage. They exist to be the one place a distributed system can write a fact and have every node read the same answer, even while machines crash and networks hiccup.<a href="#c2" class="cite">[2]</a> Where a normal database optimizes for throughput and large datasets, these optimize for <b>correctness of small, hot metadata under contention</b>: a few megabytes of state that <em>must</em> be right.</p>
-  <p>They turn a hard distributed-systems problem into a small API. Instead of every team re-implementing consensus, they expose simple primitives — read, write, watch, ephemeral nodes — and solve the genuinely hard part (agreement) underneath.<a href="#c3" class="cite">[3]</a> The canonical problems they solve:</p>
-  <table>
-    <thead><tr><th>Problem</th><th>What you actually need</th></tr></thead>
-    <tbody>
-      <tr><td><b>Leader election</b></td><td>Exactly one node becomes primary; the rest agree and fail over cleanly<a href="#c3" class="cite">[3]</a></td></tr>
-      <tr><td><b>Configuration</b></td><td>One source of truth for settings that every node sees consistently<a href="#c2" class="cite">[2]</a></td></tr>
-      <tr><td><b>Service discovery</b></td><td>A live registry of "who is up and at what address"<a href="#c2" class="cite">[2]</a></td></tr>
-      <tr><td><b>Distributed locks</b></td><td>Mutual exclusion across machines, with the lock released on crash<a href="#c3" class="cite">[3]</a></td></tr>
-      <tr><td><b>Membership</b></td><td>Which nodes are currently alive in the cluster right now<a href="#c2" class="cite">[2]</a></td></tr>
-    </tbody>
-  </table>
-  <p>ZooKeeper is the older Java-based service born at Yahoo!, inspired by Google's Chubby lock service.<a href="#c4" class="cite">[4]</a> etcd is the newer Go service from CoreOS, best known as the backing store for Kubernetes.<a href="#c5" class="cite">[5]</a> Different lineages, near-identical job.</p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 5</p>
+    <h2>What it is — the agreement layer</h2>
+    <p>ZooKeeper and etcd are <b>strongly-consistent, replicated key/value stores built for coordination</b>, not bulk storage. They exist to be the one place a distributed system can write a fact and have every node read the same answer, even while machines crash and networks hiccup.<a href="#c2" class="cite">[2]</a> Where a normal database optimizes for throughput and large datasets, these optimize for <b>correctness of small, hot metadata under contention</b>: a few megabytes of state that <em>must</em> be right.</p>
+    <p>They turn a hard distributed-systems problem into a small API. Instead of every team re-implementing consensus, they expose simple primitives — read, write, watch, ephemeral nodes — and solve the genuinely hard part (agreement) underneath.<a href="#c3" class="cite">[3]</a> The canonical problems they solve:</p>
+    <table>
+      <thead><tr><th>Problem</th><th>What you actually need</th></tr></thead>
+      <tbody>
+        <tr><td><b>Leader election</b></td><td>Exactly one node becomes primary; the rest agree and fail over cleanly<a href="#c3" class="cite">[3]</a></td></tr>
+        <tr><td><b>Configuration</b></td><td>One source of truth for settings that every node sees consistently<a href="#c2" class="cite">[2]</a></td></tr>
+        <tr><td><b>Service discovery</b></td><td>A live registry of "who is up and at what address"<a href="#c2" class="cite">[2]</a></td></tr>
+        <tr><td><b>Distributed locks</b></td><td>Mutual exclusion across machines, with the lock released on crash<a href="#c3" class="cite">[3]</a></td></tr>
+        <tr><td><b>Membership</b></td><td>Which nodes are currently alive in the cluster right now<a href="#c2" class="cite">[2]</a></td></tr>
+      </tbody>
+    </table>
+    <p>ZooKeeper is the older Java-based service born at Yahoo!, inspired by Google's Chubby lock service.<a href="#c4" class="cite">[4]</a> etcd is the newer Go service from CoreOS, best known as the backing store for Kubernetes.<a href="#c5" class="cite">[5]</a> Different lineages, near-identical job.</p>
 
-  <h2>Internals — where the depth lives</h2>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="zk-what-it-optimizes-for">
+        <p class="stem">What do ZooKeeper and etcd optimize for, compared to a normal database?</p>
+        <button class="opt">Maximum write throughput on large user-facing datasets</button>
+        <button class="opt">Correctness of small, hot metadata under contention</button>
+        <button class="opt">Cheap storage of large blobs across many regions</button>
+        <p class="fb">These are coordination kernels: a few megabytes of metadata that must be correct, not bulk stores optimized for throughput or size.</p>
+        <p class="hint">Reread what these services are built for versus a normal database.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="zk-why-purpose-built-not-hand-rolled">
+        <p class="stem">Why do teams reach for ZooKeeper/etcd instead of hand-rolling leader election themselves?</p>
+        <button class="opt">Because agreement under crashes and partitions is a genuinely hard problem, and these services solve it once behind a simple API</button>
+        <button class="opt">Because hand-rolled leader election is always faster, but illegal to ship in production</button>
+        <button class="opt">Because ZooKeeper and etcd remove the need for a network entirely</button>
+        <p class="fb">The hard part is agreement under failure. These services solve it once and expose simple primitives (read, write, watch, ephemeral nodes) so no team has to re-derive consensus.</p>
+        <p class="hint">What is the "genuinely hard part" the lesson says these services solve underneath the simple API?</p>
+      </div>
+    </div>
+  </section>
 
-  <h3>The data model: a tiny hierarchical key space</h3>
-  <p>Both expose data as a <b>filesystem-like tree of keys</b>. In ZooKeeper each node is a <b>znode</b> addressed by a path like <code>/services/api/leader</code>, and a znode holds a small blob of data <em>and</em> can have children — it is both file and directory.<a href="#c3" class="cite">[3]</a> etcd's model is a flat, lexically-ordered keyspace, but range queries over a prefix like <code>/services/api/</code> give you the same hierarchical feel.<a href="#c6" class="cite">[6]</a> The data is meant to be small: configuration, pointers, registration entries — kilobytes, not gigabytes.</p>
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 5</p>
+    <h2>Internals — the data model and its two special node types</h2>
+    <h3>The data model: a tiny hierarchical key space</h3>
+    <p>Both expose data as a <b>filesystem-like tree of keys</b>. In ZooKeeper each node is a <b>znode</b> addressed by a path like <code>/services/api/leader</code>, and a znode holds a small blob of data <em>and</em> can have children — it is both file and directory.<a href="#c3" class="cite">[3]</a> etcd's model is a flat, lexically-ordered keyspace, but range queries over a prefix like <code>/services/api/</code> give you the same hierarchical feel.<a href="#c6" class="cite">[6]</a> The data is meant to be small: configuration, pointers, registration entries — kilobytes, not gigabytes.</p>
 
-  <h3>Ephemeral and sequential nodes — the secret sauce</h3>
-  <p>The primitives that make coordination <em>recipes</em> possible are two special node types:</p>
-  <ul>
-    <li><b>Ephemeral nodes</b> exist only as long as the session that created them is alive. When that client's session expires (it crashed or partitioned away), the service <b>automatically deletes the node</b>.<a href="#c3" class="cite">[3]</a> This is the magic behind liveness: a registration that disappears the instant a node dies, no garbage collector needed. etcd achieves the same with a <b>lease</b> attached to a key — when the lease expires, the key is removed.<a href="#c7" class="cite">[7]</a></li>
-    <li><b>Sequential nodes</b> get a monotonically increasing counter appended by the server, so creating <code>/lock/n-</code> repeatedly yields <code>/lock/n-0000000001</code>, <code>...0002</code>, and so on — a globally agreed order, assigned by the cluster, not the client.<a href="#c3" class="cite">[3]</a></li>
-  </ul>
-
-  <h3>Watches: notification instead of polling</h3>
-  <p>A client can set a <b>watch</b> on a key; the server pushes a one-time notification when that key changes.<a href="#c3" class="cite">[3]</a> This is what makes config and membership reactive: instead of every node polling "did the leader change?" a thousand times a second, they each register a watch and get told the instant it does.<a href="#c2" class="cite">[2]</a> etcd generalizes this into a streaming <b>watch over a key range</b> from a given revision, so a client never misses an event between reconnects.<a href="#c6" class="cite">[6]</a></p>
-
-  <h3>Consensus underneath: linearizable writes via quorum</h3>
-  <p>The reason the answer is always consistent is that <b>every write goes through a consensus protocol that a majority (quorum) of nodes must agree on before it commits</b>.<a href="#c8" class="cite">[8]</a> One elected leader sequences all writes; followers replicate them; once a quorum has the write durably logged, it is committed and visible. This delivers <b>linearizability</b>: once a write returns, every subsequent read sees it — there is a single, real-time order of operations.<a href="#c6" class="cite">[6]</a></p>
-  <ul>
-    <li><b>ZooKeeper</b> uses <b>ZAB</b> (ZooKeeper Atomic Broadcast) — a leader-based total-order broadcast protocol purpose-built for it.<a href="#c8" class="cite">[8]</a></li>
-    <li><b>etcd</b> uses <b>Raft</b>, the understandable-by-design consensus algorithm, for the same guarantee.<a href="#c6" class="cite">[6]</a></li>
-  </ul>
-  <p>You'll go a layer deeper on these in <a href="../lessons/0107-consensus-raft-paxos.html">Lesson 107 (Consensus — Raft &amp; Paxos)</a>. The key takeaway here: a quorum of <code>(N/2)+1</code> is required, which is exactly why cluster sizes are odd.</p>
-
-  <h3>Sessions &amp; heartbeats</h3>
-  <p>A client holds a <b>session</b> with the cluster, kept alive by periodic <b>heartbeats</b>. If heartbeats stop for longer than the session timeout, the cluster declares the session dead and reaps its ephemeral nodes / expires its lease.<a href="#c3" class="cite">[3]</a> This timeout is the tuning knob behind every failover: too short and a slow GC pause looks like a death (false failover); too long and real failures take ages to detect. Naming that tradeoff is high-signal.</p>
-
-  <div class="box">
-    <b>Why these clusters stay small (3 or 5 nodes) — and are NOT a database</b>
+    <h3>Ephemeral and sequential nodes — the secret sauce</h3>
+    <p>The primitives that make coordination <em>recipes</em> possible are two special node types:</p>
     <ul>
-      <li><b>Every write needs a quorum to agree</b>, so adding nodes makes writes <em>slower</em>, not faster — you're paying more round-trips for the same commit.<a href="#c8" class="cite">[8]</a> 3 nodes tolerate 1 failure; 5 tolerate 2. Beyond that you add latency, not safety.</li>
-      <li>Reads can fan out to followers, but the whole dataset is held <b>in memory and meant to be small</b>.<a href="#c3" class="cite">[3]</a> It is a coordination kernel, not a store for user data, blobs, or high-volume events.</li>
-      <li><b>The anti-pattern to call out:</b> using ZooKeeper/etcd as a general key/value database. High write volume or large values will saturate the quorum write path and destabilize the very thing your whole system depends on for liveness.<a href="#c1" class="cite">[1]</a></li>
+      <li><b>Ephemeral nodes</b> exist only as long as the session that created them is alive. When that client's session expires (it crashed or partitioned away), the service <b>automatically deletes the node</b>.<a href="#c3" class="cite">[3]</a> This is the magic behind liveness: a registration that disappears the instant a node dies, no garbage collector needed. etcd achieves the same with a <b>lease</b> attached to a key — when the lease expires, the key is removed.<a href="#c7" class="cite">[7]</a></li>
+      <li><b>Sequential nodes</b> get a monotonically increasing counter appended by the server, so creating <code>/lock/n-</code> repeatedly yields <code>/lock/n-0000000001</code>, <code>...0002</code>, and so on — a globally agreed order, assigned by the cluster, not the client.<a href="#c3" class="cite">[3]</a></li>
     </ul>
-  </div>
 
-  <h2>Common recipes</h2>
-  <p>The primitives compose into a handful of patterns you should be able to sketch on a whiteboard.</p>
-
-  <h3>Leader election</h3>
-  <p>Every candidate creates an <b>ephemeral sequential</b> node under <code>/election/</code>. The one with the <em>lowest</em> sequence number is the leader; each other node watches only the node just below it. When the leader's session dies, its ephemeral node vanishes, the next-lowest node's watch fires, and it becomes leader — a clean, herd-free failover.<a href="#c3" class="cite">[3]</a></p>
-
-  <h3>Distributed lock (ephemeral + sequential)</h3>
-  <p>Same shape: each client creates an ephemeral sequential node under <code>/lock/</code>; the lowest sequence number <b>holds the lock</b>; others wait on the node ahead of them. Because the node is <b>ephemeral</b>, if the lock holder crashes the lock is released automatically — no orphaned lock can freeze the system.<a href="#c3" class="cite">[3]</a> That crash-safety is the whole reason you use a coordination service for locking instead of a row in a database.</p>
-
-  <h3>Service registry / discovery</h3>
-  <p>Each service instance registers itself by writing an <b>ephemeral node</b> (or an etcd key with a <b>lease</b>) at <code>/services/&lt;name&gt;/&lt;instance&gt;</code> with its address. Clients <b>watch the prefix</b> to get a live, self-healing list of healthy instances; a dead instance's entry disappears the moment its session/lease expires.<a href="#c2" class="cite">[2]</a><a href="#c7" class="cite">[7]</a></p>
-
-  <h3>etcd as the Kubernetes backing store</h3>
-  <p>The flagship real-world use: <b>etcd is the single source of truth for a Kubernetes cluster</b>. Every object — pods, deployments, configmaps, secrets — is persisted in etcd, and the API server is the only component that talks to it.<a href="#c5" class="cite">[5]</a> Controllers use etcd <b>watches</b> to react to desired-vs-actual state changes; the linearizable store is what makes "the cluster's declared state" coherent. You'll see this from the K8s side in <a href="../lessons/0104-kubernetes.html">Lesson 104 (Kubernetes)</a>.</p>
-
-  <h2>When NOT to use</h2>
-  <table>
-    <thead><tr><th>Reach for a coordination service when…</th><th>Reach elsewhere when…</th></tr></thead>
-    <tbody>
-      <tr><td>You need leader election or failover<a href="#c3" class="cite">[3]</a></td><td>You need a general database → Postgres / Cassandra</td></tr>
-      <tr><td>You need cluster-wide config &amp; membership<a href="#c2" class="cite">[2]</a></td><td>High write volume or large values → a real store</td></tr>
-      <tr><td>You need crash-safe distributed locks<a href="#c3" class="cite">[3]</a></td><td>Best-effort caching / counters → Redis</td></tr>
-      <tr><td>Small metadata that must be linearizable<a href="#c6" class="cite">[6]</a></td><td>Massive horizontal scale-out is the goal → no</td></tr>
-    </tbody>
-  </table>
-  <p>Adding a coordination service is real operational weight — another quorum cluster to run, monitor, and back up. If a single managed database or a Redis lock with a sane TTL meets the requirement, don't reach for ZooKeeper. The consistency model here is the strong end of the spectrum from <a href="../lessons/0006-replication-and-cap.html">Lesson 06 (Replication &amp; CAP)</a>: under a partition these systems choose consistency over availability — the minority side stops serving writes rather than diverge.<a href="#c8" class="cite">[8]</a></p>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Seniors say "I'll use ZooKeeper for leader election." Staff candidates frame the <em>boundary</em> in one breath: "I'll put a 3-node etcd cluster on the coordination path — leader election and config — because writes are linearizable through Raft quorum. I'll keep it tiny and out of the request hot path; it is <b>not</b> my database, so user data and high-volume events go to Postgres and Kafka." And they name the failure mode proactively: "the session timeout tunes failover — too short risks false failover on a GC pause, too long delays detection — and under a network partition the minority loses its quorum and stops accepting writes, which is the correct CP choice for coordination."<a href="#c1" class="cite">[1]</a> Choosing the purpose-built tool, keeping it small, and refusing to overload it is the simple-by-default judgement the bar rewards.
-  </div>
-
-  <h2>In the interview</h2>
-  <p>When your design needs a leader, a config store, or service discovery, put a small coordination cluster on the board and justify it in one line ("3-node etcd for leader election; writes are linearizable via Raft quorum").<a href="#c6" class="cite">[6]</a> Be ready for the predictable follow-ups: <em>"How does it stay consistent?"</em> (one leader sequences writes; a quorum must agree; that gives linearizability) and <em>"How does the lock release if the holder crashes?"</em> (ephemeral node / lease tied to a heartbeated session). The moment that reads as staff is volunteering the limit: "I'm keeping this off the request path and small — it coordinates, it doesn't store." Don't deliver a Raft lecture unasked; pick the tool, name the boundary, move on.</p>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why does a distributed lock built on an ephemeral node release on crash?</p>
-      <button class="opt">A background sweeper job scans for stale locks on a fixed timer</button>
-      <button class="opt">The client must explicitly delete its own lock node before it exits</button>
-      <button class="opt">The session ends on crash, so the cluster deletes the ephemeral node</button>
-      <button class="opt">The leader node detects the failure and rewrites the lock by hand</button>
-      <p class="fb">Ephemeral nodes are tied to a session; when heartbeats stop, the session expires and the node is auto-deleted, freeing the lock.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="zk-ephemeral-node-lifecycle">
+        <p class="stem">What causes an ephemeral node to be deleted?</p>
+        <button class="opt">A scheduled cleanup job that scans the whole tree once an hour</button>
+        <button class="opt">The client sending an explicit delete request before disconnecting</button>
+        <button class="opt">The session that created it ending, whether by crash or timeout</button>
+        <p class="fb">Ephemeral nodes are tied to a session's lifetime. When the session ends, the cluster auto-deletes the node, no manual cleanup needed.</p>
+        <p class="hint">What is an ephemeral node's lifetime tied to?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="zk-why-ephemeral-enables-liveness">
+        <p class="stem">Why does the ephemeral node design remove the need for a separate garbage collector to clean up dead nodes' registrations?</p>
+        <button class="opt">Because ZooKeeper stores all data purely in memory, so nothing ever needs cleanup</button>
+        <button class="opt">Because deletion is tied directly to session death, so a crash automatically and immediately removes the stale entry</button>
+        <button class="opt">Because clients are required to poll every registration once per second to confirm liveness</button>
+        <p class="fb">Ephemeral nodes bind data lifetime to session lifetime. The cluster deletes the node the instant the session is declared dead, which is liveness detection and cleanup in one mechanism.</p>
+        <p class="hint">What does the lesson call this behavior, and what problem does it replace?</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. Why are ZooKeeper and etcd clusters kept to 3 or 5 nodes?</p>
-      <button class="opt">More nodes always raise the write throughput of the whole cluster</button>
-      <button class="opt">Every write needs a quorum, so more nodes mean slower commit writes</button>
-      <button class="opt">The Java and Go runtimes both cap the cluster at five members</button>
-      <button class="opt">Reads cannot be served unless the node count stays an odd value</button>
-      <p class="fb">Writes commit only after a majority agrees, so adding nodes adds round-trips and latency, not write capacity; odd sizes maximize fault tolerance per node.</p>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 5</p>
+    <h2>Watches, consensus, and sessions</h2>
+    <h3>Watches: notification instead of polling</h3>
+    <p>A client can set a <b>watch</b> on a key; the server pushes a one-time notification when that key changes.<a href="#c3" class="cite">[3]</a> This is what makes config and membership reactive: instead of every node polling "did the leader change?" a thousand times a second, they each register a watch and get told the instant it does.<a href="#c2" class="cite">[2]</a> etcd generalizes this into a streaming <b>watch over a key range</b> from a given revision, so a client never misses an event between reconnects.<a href="#c6" class="cite">[6]</a></p>
+
+    <h3>Consensus underneath: linearizable writes via quorum</h3>
+    <p>The reason the answer is always consistent is that <b>every write goes through a consensus protocol that a majority (quorum) of nodes must agree on before it commits</b>.<a href="#c8" class="cite">[8]</a> One elected leader sequences all writes; followers replicate them; once a quorum has the write durably logged, it is committed and visible. This delivers <b>linearizability</b>: once a write returns, every subsequent read sees it — there is a single, real-time order of operations.<a href="#c6" class="cite">[6]</a></p>
+    <ul>
+      <li><b>ZooKeeper</b> uses <b>ZAB</b> (ZooKeeper Atomic Broadcast) — a leader-based total-order broadcast protocol purpose-built for it.<a href="#c8" class="cite">[8]</a></li>
+      <li><b>etcd</b> uses <b>Raft</b>, the understandable-by-design consensus algorithm, for the same guarantee.<a href="#c6" class="cite">[6]</a></li>
+    </ul>
+    <p>You'll go a layer deeper on these in <a href="../lessons/0107-consensus-raft-paxos.html">Lesson 107 (Consensus — Raft &amp; Paxos)</a>. The key takeaway here: a quorum of <code>(N/2)+1</code> is required, which is exactly why cluster sizes are odd.</p>
+
+    <h3>Sessions &amp; heartbeats</h3>
+    <p>A client holds a <b>session</b> with the cluster, kept alive by periodic <b>heartbeats</b>. If heartbeats stop for longer than the session timeout, the cluster declares the session dead and reaps its ephemeral nodes / expires its lease.<a href="#c3" class="cite">[3]</a> This timeout is the tuning knob behind every failover: too short and a slow GC pause looks like a death (false failover); too long and real failures take ages to detect. Naming that tradeoff is high-signal.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="zk-linearizable-write-guarantee">
+        <p class="stem">What consistency guarantee do committed writes give you in ZooKeeper/etcd?</p>
+        <button class="opt">Linearizable: once a write returns, every later read observes it</button>
+        <button class="opt">Eventual: replicas converge later, so a read may lag behind</button>
+        <button class="opt">Causal: only writes with a direct link are ordered together</button>
+        <p class="fb">A leader sequences writes and a quorum must agree before commit, giving a single real-time order: linearizability.</p>
+        <p class="hint">Reread what happens once a quorum has durably logged a write.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="zk-session-timeout-tradeoff">
+        <p class="stem">What actually happens if you set the session timeout too short in a production cluster?</p>
+        <button class="opt">Nothing changes, since the timeout only affects read latency, not failover</button>
+        <button class="opt">Real failures take far longer to detect, delaying every failover</button>
+        <button class="opt">A slow GC pause can look like a crash, triggering a false failover</button>
+        <p class="fb">Too short a timeout means a node that's merely paused (e.g. GC) misses heartbeats and gets treated as dead, causing an unnecessary failover.</p>
+        <p class="hint">Reread the tradeoff named for the session timeout knob: what happens on each extreme?</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What consistency guarantee do these services give for committed writes?</p>
-      <button class="opt">Linearizable: once a write returns, all later reads observe its value</button>
-      <button class="opt">Eventual: replicas converge later, so a read may lag for some time</button>
-      <button class="opt">Causal: only writes with a causal link are ordered with each other</button>
-      <button class="opt">Snapshot: each reader sees a frozen copy fixed at its start instant</button>
-      <p class="fb">A single leader sequences writes and a quorum must agree before commit, yielding a single real-time order — linearizability.</p>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 5</p>
+    <h2>Why clusters stay small, and the common recipes</h2>
+    <div class="box">
+      <b>Why these clusters stay small (3 or 5 nodes) — and are NOT a database</b>
+      <ul>
+        <li><b>Every write needs a quorum to agree</b>, so adding nodes makes writes <em>slower</em>, not faster — you're paying more round-trips for the same commit.<a href="#c8" class="cite">[8]</a> 3 nodes tolerate 1 failure; 5 tolerate 2. Beyond that you add latency, not safety.</li>
+        <li>Reads can fan out to followers, but the whole dataset is held <b>in memory and meant to be small</b>.<a href="#c3" class="cite">[3]</a> It is a coordination kernel, not a store for user data, blobs, or high-volume events.</li>
+        <li><b>The anti-pattern to call out:</b> using ZooKeeper/etcd as a general key/value database. High write volume or large values will saturate the quorum write path and destabilize the very thing your whole system depends on for liveness.<a href="#c1" class="cite">[1]</a></li>
+      </ul>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. Which use is the clearest anti-pattern for ZooKeeper or etcd?</p>
-      <button class="opt">Electing a single leader among many candidate worker nodes today</button>
-      <button class="opt">Holding cluster configuration that every node must read the same</button>
-      <button class="opt">Tracking which service instances are currently alive and reachable</button>
-      <button class="opt">Serving high-volume user data as a general key/value app database</button>
-      <p class="fb">High write volume and large values saturate the quorum write path; coordination services hold small metadata, not bulk user data.</p>
+
+    <h3>Leader election</h3>
+    <p>Every candidate creates an <b>ephemeral sequential</b> node under <code>/election/</code>. The one with the <em>lowest</em> sequence number is the leader; each other node watches only the node just below it. When the leader's session dies, its ephemeral node vanishes, the next-lowest node's watch fires, and it becomes leader — a clean, herd-free failover.<a href="#c3" class="cite">[3]</a></p>
+
+    <h3>Distributed lock (ephemeral + sequential)</h3>
+    <p>Same shape: each client creates an ephemeral sequential node under <code>/lock/</code>; the lowest sequence number <b>holds the lock</b>; others wait on the node ahead of them. Because the node is <b>ephemeral</b>, if the lock holder crashes the lock is released automatically — no orphaned lock can freeze the system.<a href="#c3" class="cite">[3]</a> That crash-safety is the whole reason you use a coordination service for locking instead of a row in a database.</p>
+
+    <h3>Service registry / discovery</h3>
+    <p>Each service instance registers itself by writing an <b>ephemeral node</b> (or an etcd key with a <b>lease</b>) at <code>/services/&lt;name&gt;/&lt;instance&gt;</code> with its address. Clients <b>watch the prefix</b> to get a live, self-healing list of healthy instances; a dead instance's entry disappears the moment its session/lease expires.<a href="#c2" class="cite">[2]</a><a href="#c7" class="cite">[7]</a></p>
+
+    <h3>etcd as the Kubernetes backing store</h3>
+    <p>The flagship real-world use: <b>etcd is the single source of truth for a Kubernetes cluster</b>. Every object — pods, deployments, configmaps, secrets — is persisted in etcd, and the API server is the only component that talks to it.<a href="#c5" class="cite">[5]</a> Controllers use etcd <b>watches</b> to react to desired-vs-actual state changes; the linearizable store is what makes "the cluster's declared state" coherent. You'll see this from the K8s side in <a href="../lessons/0104-kubernetes.html">Lesson 104 (Kubernetes)</a>.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="zk-why-clusters-stay-small">
+        <p class="stem">Why are ZooKeeper and etcd clusters kept to 3 or 5 nodes instead of scaled out wide?</p>
+        <button class="opt">More nodes always raise the cluster's overall write throughput</button>
+        <button class="opt">Every write needs a quorum, so more nodes mean slower commits, not more capacity</button>
+        <button class="opt">The underlying runtimes hard-cap membership at five nodes</button>
+        <p class="fb">Adding nodes adds more round-trips to reach a quorum on every write, which raises latency without adding write capacity.</p>
+        <p class="hint">What does every write have to wait on, and what happens to that wait as node count grows?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="zk-why-lock-recipe-needs-ephemeral">
+        <p class="stem">In the distributed lock recipe, why must the lock node specifically be ephemeral rather than a plain persistent node?</p>
+        <button class="opt">So the lock is automatically released if the holder crashes, instead of freezing the system with an orphaned lock forever</button>
+        <button class="opt">So the lock node gets a smaller storage footprint on disk than a persistent node would</button>
+        <button class="opt">So multiple clients can hold the exact same lock simultaneously without conflict</button>
+        <p class="fb">A persistent lock node would survive its holder's crash and block everyone forever. Tying it to the holder's session means the lock releases automatically on crash.</p>
+        <p class="hint">What would happen to a lock held by a node that crashed, if the lock node were not tied to a session?</p>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <section class="chunk" id="chunk-final">
+    <p class="chunk-label">5 of 5 — comprehensive check</p>
+    <h2>When NOT to use it, and how this shows up in the interview</h2>
+    <table>
+      <thead><tr><th>Reach for a coordination service when…</th><th>Reach elsewhere when…</th></tr></thead>
+      <tbody>
+        <tr><td>You need leader election or failover<a href="#c3" class="cite">[3]</a></td><td>You need a general database → Postgres / Cassandra</td></tr>
+        <tr><td>You need cluster-wide config &amp; membership<a href="#c2" class="cite">[2]</a></td><td>High write volume or large values → a real store</td></tr>
+        <tr><td>You need crash-safe distributed locks<a href="#c3" class="cite">[3]</a></td><td>Best-effort caching / counters → Redis</td></tr>
+        <tr><td>Small metadata that must be linearizable<a href="#c6" class="cite">[6]</a></td><td>Massive horizontal scale-out is the goal → no</td></tr>
+      </tbody>
+    </table>
+    <p>Adding a coordination service is real operational weight — another quorum cluster to run, monitor, and back up. If a single managed database or a Redis lock with a sane TTL meets the requirement, don't reach for ZooKeeper. The consistency model here is the strong end of the spectrum from <a href="../lessons/0006-replication-and-cap.html">Lesson 06 (Replication &amp; CAP)</a>: under a partition these systems choose consistency over availability — the minority side stops serving writes rather than diverge.<a href="#c8" class="cite">[8]</a></p>
+
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Seniors say "I'll use ZooKeeper for leader election." Staff candidates frame the <em>boundary</em> in one breath: "I'll put a 3-node etcd cluster on the coordination path — leader election and config — because writes are linearizable through Raft quorum. I'll keep it tiny and out of the request hot path; it is <b>not</b> my database, so user data and high-volume events go to Postgres and Kafka." And they name the failure mode proactively: "the session timeout tunes failover — too short risks false failover on a GC pause, too long delays detection — and under a network partition the minority loses its quorum and stops accepting writes, which is the correct CP choice for coordination."<a href="#c1" class="cite">[1]</a> Choosing the purpose-built tool, keeping it small, and refusing to overload it is the simple-by-default judgement the bar rewards.
+    </div>
+
+    <h3>In the interview</h3>
+    <p>When your design needs a leader, a config store, or service discovery, put a small coordination cluster on the board and justify it in one line ("3-node etcd for leader election; writes are linearizable via Raft quorum").<a href="#c6" class="cite">[6]</a> Be ready for the predictable follow-ups: <em>"How does it stay consistent?"</em> (one leader sequences writes; a quorum must agree; that gives linearizability) and <em>"How does the lock release if the holder crashes?"</em> (ephemeral node / lease tied to a heartbeated session). The moment that reads as staff is volunteering the limit: "I'm keeping this off the request path and small — it coordinates, it doesn't store." Don't deliver a Raft lecture unasked; pick the tool, name the boundary, move on.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="c" data-concept="zk-anti-pattern-final">
+        <p class="stem">Which use is the clearest anti-pattern for ZooKeeper or etcd?</p>
+        <button class="opt">Electing a single leader among several candidate worker nodes</button>
+        <button class="opt">Tracking which service instances are currently alive right now</button>
+        <button class="opt">Serving high-volume user data as a general key/value app database</button>
+        <p class="fb">High write volume and large values saturate the quorum write path; coordination services hold small metadata, not bulk user data.</p>
+        <p class="hint">Reread the "When NOT to use" table and the anti-pattern callout.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="zk-cp-under-partition-final">
+        <p class="stem">Under a network partition, what does the minority side of a ZooKeeper/etcd cluster do?</p>
+        <button class="opt">It stops accepting writes, since it cannot reach a quorum</button>
+        <button class="opt">It keeps serving writes independently to preserve availability</button>
+        <button class="opt">It elects its own competing leader and diverges from the majority</button>
+        <p class="fb">These systems are CP: the minority side loses its quorum and stops accepting writes rather than risk diverging from the majority.</p>
+        <p class="hint">Reread the CAP framing near the "When NOT to use" section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="zk-why-not-a-database-final">
+        <p class="stem">A team proposes storing all user session data (millions of rows, frequent writes) in their existing etcd cluster instead of adding Redis. What breaks?</p>
+        <button class="opt">Nothing breaks, etcd scales writes the same way a normal database does</button>
+        <button class="opt">The high write volume saturates the quorum commit path, and the coordination features (leader election, config) that the rest of the system depends on for liveness start failing too</button>
+        <button class="opt">etcd would simply reject the writes with no other effect on the cluster</button>
+        <p class="fb">Coordination clusters are sized and tuned for small, hot metadata. Loading bulk data onto the same quorum write path slows or destabilizes the coordination duties everything else relies on.</p>
+        <p class="hint">Reread the anti-pattern box: what specifically gets saturated, and what else depends on that same path?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="zk-watch-vs-polling-tradeoff-final">
+        <p class="stem">Why do watches scale better than polling for a cluster of a thousand nodes checking "did the leader change"?</p>
+        <button class="opt">Watches use a completely different, non-quorum write path that skips consensus</button>
+        <button class="opt">Watches are stored on the client instead of the server, so the server does no work</button>
+        <button class="opt">Polling means every node repeatedly asks the cluster the same question, while a watch lets the server push one notification only when the value actually changes</button>
+        <p class="fb">Polling costs a request per node per interval regardless of whether anything changed. A watch shifts the cost to a single push, only on an actual change.</p>
+        <p class="hint">Reread what a watch replaces and why constant polling from many nodes is wasteful.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Walk me through the ephemeral-sequential leader election recipe step by step." · "Quiz me on why etcd is CP and what happens to the minority side during a partition." · "Give me a FAANG prompt and push me on when I'd add a coordination service versus a Redis lock."
@@ -221,21 +326,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

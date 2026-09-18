@@ -4,10 +4,38 @@ You are writing ONE self-contained HTML lesson for a System Design course aimed 
 a **beginner preparing for L6/L7 (staff+) FAANG interviews**, in the style of
 hellointerview.com. Read this guide fully, then produce the file.
 
+## Teaching method (Math Academy style — required for every lesson)
+This course follows Justin Skycak's "The Math Academy Way": diagnose before you
+teach, chunk material small, quiz relentlessly (including intuition/"why"
+questions, not just recall), and resurface material later per the forgetting
+curve. Concretely, every lesson MUST:
+1. Break its content into `<section class="chunk" id="chunk-N">` blocks — one
+   sub-idea per chunk, small enough to read in under ~2 minutes.
+2. Gate every chunk except the last behind a `.gate` block with 1-2 recall
+   questions AND at least one `data-type="intuition"` question ("why does this
+   work", "what breaks if you removed X", "picture the mechanism — what
+   happens when..."). Never let a chunk unlock on recall alone.
+3. Give every question a stable, globally-unique `data-concept="kebab-case-id"`
+   — this feeds the spaced-repetition schedule in `reference/mastery.js`.
+   Never reuse an id across lessons unless you are deliberately re-testing the
+   same concept.
+4. Use `hidden` on every chunk after the first; `reference/mastery.js` reveals
+   the next chunk only once every question in the current gate is answered
+   correctly. Wrong answers show `.hint` and re-arm the question — there is no
+   soft-pass. Do not write your own gating JS; include the shared script:
+   `<script src="../reference/mastery.js"></script>`.
+5. End with a comprehensive final chunk (`id="chunk-final"` or similar) whose
+   gate spans every chunk in the lesson, mixing recall and intuition questions.
+6. Never assume an unstated prerequisite. If a lesson depends on a concept not
+   yet taught in the course, either teach it in a chunk first or add a short
+   "you should already know: X, Y" checklist and point to
+   `lessons/0000-prereq-diagnostic.html` or the relevant earlier lesson.
+
 ## Hard rules
-1. **Copy the exact `<style>` block and the `<script>` block from
-   `lessons/_TEMPLATE.html` verbatim.** Do not restyle. Visual consistency across
-   lessons is mandatory. Match the overall structure of the template.
+1. **Copy the exact `<style>` block from `lessons/_TEMPLATE.html` verbatim**
+   (it defines `.chunk`, `.gate`, `.q`, `.opt`, `.hint`, `.fb`, etc.) and use
+   `<script src="../reference/mastery.js"></script>` for the gating/quiz logic
+   — do not restyle or hand-roll quiz JS. Visual consistency is mandatory.
 2. **Ground in the source.** Use the WebFetch tool on the URL(s) given in your brief.
    Extract real content. Add `<a href="#cN" class="cite">[N]</a>` citations inline
    wherever you state a fact from a source, and list the sources in the footer
@@ -22,15 +50,18 @@ hellointerview.com. Read this guide fully, then produce the file.
 5. **`.staff` callout (required):** at least one green "★ Staff-level signal" box
    explaining what moves this topic from senior to staff — e.g. simple-by-default,
    proactive deep dives, judgement on alternatives, not over-explaining basics.
-6. **Quiz (required):** 3–4 retrieval-practice questions using the template's quiz
-   markup. `data-correct` is the letter (a/b/c/d) of the right option.
-   **Every option within a question must be the same length** (aim equal word AND
-   character count) so formatting gives no tells. Include a one-line `.fb` explanation.
+6. **Gated quizzes (required):** per the Teaching method section above — a `.gate`
+   after every chunk, `data-correct` is the letter (a/b/c/d) of the right option,
+   plus `data-concept` id and at least one `data-type="intuition"` question per
+   gate. **Every option within a question must be the same length** (aim equal
+   word AND character count) so formatting gives no tells. Include a `.fb`
+   explanation and a `.hint` for wrong answers.
 7. **`.ask` box (required):** remind the learner the agent is their teacher and give
    2–3 concrete followup prompts tied to this topic.
 8. **Primary source (required):** recommend the single best source to read/watch.
 9. **Footer nav (required):** Course home + previous lesson + glossary + "Next up →".
-10. Output must be a complete, valid, standalone HTML file. No external assets.
+10. Output must be a complete, valid HTML file. The one permitted external
+    asset is `<script src="../reference/mastery.js"></script>` for gating.
 
 ## Section structure by lesson type
 

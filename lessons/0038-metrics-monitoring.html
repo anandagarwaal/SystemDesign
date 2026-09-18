@@ -61,22 +61,34 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -97,96 +109,167 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
-  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
-  <div class="asks">
-    <p class="lbl">Ask before you design</p>
-    <ul><li><b>“How many hosts and metrics, and what scrape interval?”</b> — Hosts × metrics ÷ interval gives the ingest rate.</li><li><b>“How long must we retain data, and at what resolution?”</b> — Retention tiers drive downsampling and storage.</li><li><b>“Push from agents or pull by scraping?”</b> — It affects discovery, firewalls and staleness detection.</li></ul>
-  </div>
-  <h2>Functional Requirements</h2>
-  <p>Scope ruthlessly. Three core capabilities, plus delivery as a satellite concern.<a href="#c1" class="cite">[1]</a></p>
-  <table>
-    <tr><th>#</th><th>Users should be able to…</th></tr>
-    <tr><td>1</td><td><b>Emit metrics.</b> Services and agents push/expose time-series data points: <code>name + tags + value + timestamp</code> (e.g. <code>http.latency{service=checkout,region=us} 142 @t</code>).</td></tr>
-    <tr><td>2</td><td><b>Query &amp; visualize.</b> Users query and plot metrics on dashboards with filters, aggregations, and arbitrary time ranges.</td></tr>
-    <tr><td>3</td><td><b>Alert on thresholds.</b> Users define alert rules that fire when a metric crosses a threshold over a window, with notifications (email/Slack/PagerDuty).</td></tr>
-  </table>
-  <p><b>Out of scope (say it explicitly):</b> log aggregation, distributed tracing, ML anomaly detection.<a href="#c1" class="cite">[1]</a> Naming the boundary is itself a signal.</p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 8</p>
+    <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
+    <div class="asks">
+      <p class="lbl">Ask before you design</p>
+      <ul><li><b>“How many hosts and metrics, and what scrape interval?”</b> — Hosts × metrics ÷ interval gives the ingest rate.</li><li><b>“How long must we retain data, and at what resolution?”</b> — Retention tiers drive downsampling and storage.</li><li><b>“Push from agents or pull by scraping?”</b> — It affects discovery, firewalls and staleness detection.</li></ul>
+    </div>
+    <h2>Functional Requirements</h2>
+    <p>Scope ruthlessly. Three core capabilities, plus delivery as a satellite concern.<a href="#c1" class="cite">[1]</a></p>
+    <table>
+      <tr><th>#</th><th>Users should be able to…</th></tr>
+      <tr><td>1</td><td><b>Emit metrics.</b> Services and agents push/expose time-series data points: <code>name + tags + value + timestamp</code> (e.g. <code>http.latency{service=checkout,region=us} 142 @t</code>).</td></tr>
+      <tr><td>2</td><td><b>Query &amp; visualize.</b> Users query and plot metrics on dashboards with filters, aggregations, and arbitrary time ranges.</td></tr>
+      <tr><td>3</td><td><b>Alert on thresholds.</b> Users define alert rules that fire when a metric crosses a threshold over a window, with notifications (email/Slack/PagerDuty).</td></tr>
+    </table>
+    <p><b>Out of scope (say it explicitly):</b> log aggregation, distributed tracing, ML anomaly detection.<a href="#c1" class="cite">[1]</a> Naming the boundary is itself a signal.</p>
 
-  <h2>Non-Functional Requirements</h2>
-  <table>
-    <tr><th>NFR</th><th>Target</th><th>Why it shapes the design</th></tr>
-    <tr><td>Write throughput</td><td>~5M points/sec, ~1 GB/s<a href="#c1" class="cite">[1]</a></td><td>Write-heavy by orders of magnitude → append-optimized store, not B-trees.</td></tr>
-    <tr><td>Query latency</td><td>seconds, even over days/weeks<a href="#c1" class="cite">[1]</a></td><td>Cannot scan raw points → pre-aggregated rollups.</td></tr>
-    <tr><td>Alert latency</td><td>&lt; 1 min emit → fire<a href="#c1" class="cite">[1]</a></td><td>Continuous incremental evaluation, no full rescans.</td></tr>
-    <tr><td>Retention + cost</td><td>tiered (raw → 1m → 1h)</td><td>Downsampling keeps long-range cheap and fast.</td></tr>
-    <tr><td>Availability</td><td>dashboards eventual; alerting reliable<a href="#c1" class="cite">[1]</a></td><td>A missed alert is a real incident; a stale graph is not.</td></tr>
-  </table>
+    <h2>Non-Functional Requirements</h2>
+    <table>
+      <tr><th>NFR</th><th>Target</th><th>Why it shapes the design</th></tr>
+      <tr><td>Write throughput</td><td>~5M points/sec, ~1 GB/s<a href="#c1" class="cite">[1]</a></td><td>Write-heavy by orders of magnitude → append-optimized store, not B-trees.</td></tr>
+      <tr><td>Query latency</td><td>seconds, even over days/weeks<a href="#c1" class="cite">[1]</a></td><td>Cannot scan raw points → pre-aggregated rollups.</td></tr>
+      <tr><td>Alert latency</td><td>&lt; 1 min emit → fire<a href="#c1" class="cite">[1]</a></td><td>Continuous incremental evaluation, no full rescans.</td></tr>
+      <tr><td>Retention + cost</td><td>tiered (raw → 1m → 1h)</td><td>Downsampling keeps long-range cheap and fast.</td></tr>
+      <tr><td>Availability</td><td>dashboards eventual; alerting reliable<a href="#c1" class="cite">[1]</a></td><td>A missed alert is a real incident; a stale graph is not.</td></tr>
+    </table>
 
-  <p class="transition"><span class="lbl">Say to move on →</span> “Massive write throughput, fast range queries and alerts within a minute. Let me size ingest and cardinality.”</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Massive write throughput, fast range queries and alerts within a minute. Let me size ingest and cardinality.”</p>
 
-  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
-  <h2>Capacity Estimation</h2>
-  <p>Only the numbers that change a decision.</p>
-  <div class="box">
-    <ul>
-      <li><b>Ingest rate:</b> 500k servers × 100 points / 10s ≈ <b>5M points/sec</b>.<a href="#c1" class="cite">[1]</a> At ~100–200 B/point that's <b>~1 GB/s</b> on the wire. → Horizontally sharded ingestion; no single node absorbs this.</li>
-      <li><b>Cardinality (the real number):</b> a unique <em>series</em> = metric name × every tag-value combination. <code>latency{service, host, endpoint, status}</code> with 200 services × 500k hosts × 50 endpoints × 10 statuses is <b>billions</b> of series. Each needs its own index entry and chunk stream.<a href="#c2" class="cite">[2]</a> <b>This — not QPS — is what breaks the system.</b></li>
-      <li><b>Storage:</b> raw at ~1 GB/s ≈ 86 TB/day <em>before</em> compression. TSDB compression (delta-of-delta + XOR) gets ~1.3 bytes/sample<a href="#c3" class="cite">[3]</a> → ~1 order of magnitude smaller. Downsampling drops long-term cost by another order.</li>
-      <li><b>Retention tiers:</b> raw 15d → 1-min 90d → 1-hour 2y. Each tier is a separate, cheaper, smaller dataset.</li>
-    </ul>
-  </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="metrics-monitoring-scope-boundary">
+        <p class="stem">Which capability is explicitly out of scope for this system?</p>
+        <button class="opt">Emitting time-series metric points with tags</button>
+        <button class="opt">Defining threshold alert rules with notifications</button>
+        <button class="opt">Distributed tracing and log aggregation features</button>
+        <p class="fb">The lesson scopes to metrics, dashboards, and alerting — tracing, logs and ML anomaly detection are named out of scope.</p>
+        <p class="hint">Reread the "Out of scope" line right after the FR table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="metrics-monitoring-availability-asymmetry">
+        <p class="stem">Why does the lesson treat alerting availability as more critical than dashboard availability?</p>
+        <button class="opt">A missed alert can hide a real incident, but a stale graph is only an inconvenience</button>
+        <button class="opt">Dashboards use more CPU per request than the alert evaluator does</button>
+        <button class="opt">Alerting is cheaper to run so it deserves stricter guarantees by default</button>
+        <p class="fb">The NFR table states this directly: alerting must be reliable because a missed alert is a real incident, while dashboards can tolerate eventual consistency.</p>
+        <p class="hint">Look at the "Availability" row's rightmost column.</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why not store metrics in Postgres?”</p>
-    <p><b>Staff answer:</b> 5M inserts/s into B-tree indexes won't keep up, and range scans over raw rows are slow. A TSDB appends, compresses by delta-of-delta, partitions by time and downsamples.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “~5M points/s is heavy, but cardinality is the number that breaks systems. Let me define series and APIs.”</p>
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 8</p>
+    <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
+    <h2>Capacity Estimation</h2>
+    <p>Only the numbers that change a decision.</p>
+    <div class="box">
+      <ul>
+        <li><b>Ingest rate:</b> 500k servers × 100 points / 10s ≈ <b>5M points/sec</b>.<a href="#c1" class="cite">[1]</a> At ~100–200 B/point that's <b>~1 GB/s</b> on the wire. → Horizontally sharded ingestion; no single node absorbs this.</li>
+        <li><b>Cardinality (the real number):</b> a unique <em>series</em> = metric name × every tag-value combination. <code>latency{service, host, endpoint, status}</code> with 200 services × 500k hosts × 50 endpoints × 10 statuses is <b>billions</b> of series. Each needs its own index entry and chunk stream.<a href="#c2" class="cite">[2]</a> <b>This — not QPS — is what breaks the system.</b></li>
+        <li><b>Storage:</b> raw at ~1 GB/s ≈ 86 TB/day <em>before</em> compression. TSDB compression (delta-of-delta + XOR) gets ~1.3 bytes/sample<a href="#c3" class="cite">[3]</a> → ~1 order of magnitude smaller. Downsampling drops long-term cost by another order.</li>
+        <li><b>Retention tiers:</b> raw 15d → 1-min 90d → 1-hour 2y. Each tier is a separate, cheaper, smaller dataset.</li>
+      </ul>
+    </div>
 
-  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
-  <h2>Core Entities &amp; API</h2>
-  <p><b>Entities:</b> <code>Series</code> (name + sorted tag set → a unique stream), <code>DataPoint</code> (series_id, timestamp, value), <code>AlertRule</code> (query + threshold + window + notify target).</p>
-  <table>
-    <tr><th>Endpoint</th><th>Purpose</th></tr>
-    <tr><td><code>POST /v1/metrics</code></td><td>Ingest a batch of points <code>[{name, tags, value, ts}]</code>. Hot path — must be cheap.</td></tr>
-    <tr><td><code>GET /v1/query?metric=&amp;tags=&amp;from=&amp;to=&amp;step=</code></td><td>Range query; <code>step</code> picks resolution → routes to the right rollup tier.</td></tr>
-    <tr><td><code>POST /v1/alerts</code></td><td>Register an alert rule (query expr, threshold, <code>for</code> duration, channel).</td></tr>
-    <tr><td><code>GET /v1/alerts</code> · <code>DELETE /v1/alerts/:id</code></td><td>Manage rules.</td></tr>
-  </table>
-  <p>Tenant/user is derived from the auth token, never a body field.</p>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“Why not store metrics in Postgres?”</p>
+      <p><b>Staff answer:</b> 5M inserts/s into B-tree indexes won't keep up, and range scans over raw rows are slow. A TSDB appends, compresses by delta-of-delta, partitions by time and downsamples.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “~5M points/s is heavy, but cardinality is the number that breaks systems. Let me define series and APIs.”</p>
 
-  <h2>Data Model</h2>
-  <p>A series is identified by a <b>fingerprint</b> = hash(metric name + sorted label set); everything else hangs off it. Data is organized into immutable <b>time blocks</b> (e.g. 2 h) that each carry their own inverted label index and compressed chunks, so a query prunes by time first, then by labels, and old blocks can be dropped or downsampled wholesale. Cardinality limits live in tenant configuration because they are the system's real capacity unit.</p>
-  <table>
-    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
-    <tr><td><b>Series</b> (fingerprint, tenant_id, name, labels)</td><td>TSDB head (memory) + per-block index</td><td><code>fingerprint</code></td><td>Inverted index: label=value → postings list of series ids; intersect for selectors</td></tr>
-    <tr><td><b>Chunk</b> (fingerprint, min_t, max_t, compressed samples)</td><td>Head in RAM + WAL on SSD; flushed into 2 h blocks</td><td>(fingerprint, min_t)</td><td>Delta-of-delta timestamps + XOR values (~1.3 B/sample)</td></tr>
-    <tr><td><b>Block</b> (tenant, ulid, resolution [raw|1m|1h], min_t, max_t, index, chunks)</td><td>Object storage (S3)</td><td><code>{tenant}/{resolution}/{ulid}/</code></td><td>Block metadata cached; query planner selects blocks overlapping [from, to] at the right resolution</td></tr>
-    <tr><td><b>Rollup samples</b></td><td>Downsampled blocks</td><td>same as chunks</td><td>Store min, max, sum, count per interval so avg/max/rate stay correct</td></tr>
-    <tr><td><b>alert_rules</b> (rule_id, tenant_id, expr, threshold, for_s, labels, channels, version)</td><td>Postgres</td><td>PK <code>rule_id</code></td><td>Rules sharded to evaluators by hash(rule_id)</td></tr>
-    <tr><td><b>alert_state</b> (rule_id, series_fingerprint, state, active_since, last_eval)</td><td>Evaluator memory, checkpointed to Redis/etcd</td><td>(rule_id, fingerprint)</td><td>Survives evaluator restarts without re-firing</td></tr>
-    <tr><td><b>notifications</b> (dedupe_key, rule_id, channel, sent_at, resolved_at)</td><td>Postgres</td><td>PK <code>dedupe_key</code></td><td>Grouping, silencing, repeat intervals</td></tr>
-    <tr><td><b>tenant_limits</b> (tenant_id, max_active_series, max_labels_per_series, max_samples_per_s)</td><td>Postgres, cached in ingesters</td><td>PK <code>tenant_id</code></td><td>Enforced at ingest</td></tr>
-  </table>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="metrics-monitoring-cardinality-definition">
+        <p class="stem">What defines a unique "series" in this system?</p>
+        <button class="opt">The raw byte size of one data point on the wire</button>
+        <button class="opt">A metric name combined with one specific tag-value combination</button>
+        <button class="opt">The scrape interval configured for a given host</button>
+        <p class="fb">A series is metric name × every tag-value combination; each unique combination needs its own index entry and chunk stream.</p>
+        <p class="hint">Reread the "Cardinality" bullet in the capacity box.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="metrics-monitoring-cardinality-vs-qps">
+        <p class="stem">Why is cardinality "the number that breaks systems," rather than raw ingest QPS?</p>
+        <button class="opt">Each unique tag combination costs its own index entry and chunk, so cardinality growth is unbounded, unlike a fixed points/sec rate</button>
+        <button class="opt">QPS is always lower than cardinality, so cardinality is mathematically bigger by definition</button>
+        <button class="opt">Cardinality only matters for query latency, never for ingest or storage cost</button>
+        <p class="fb">Ingest QPS scales predictably with host count, but one unbounded tag (like a user_id) can multiply series count without limit, exploding index and memory cost.</p>
+        <p class="hint">Think about what happens to the index if one tag has millions of distinct values, versus what happens if you just add more hosts.</p>
+      </div>
+    </div>
+  </section>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why is cardinality more dangerous than volume?”</p>
-    <p><b>Staff answer:</b> Each unique tag combination is a series with its own index entries and memory. A user_id tag can create millions of series and take the TSDB down.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “A series is name plus sorted tags. Now the ingest, storage, query and alerting path.”</p>
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 8</p>
+    <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
+    <h2>Core Entities &amp; API</h2>
+    <p><b>Entities:</b> <code>Series</code> (name + sorted tag set → a unique stream), <code>DataPoint</code> (series_id, timestamp, value), <code>AlertRule</code> (query + threshold + window + notify target).</p>
+    <table>
+      <tr><th>Endpoint</th><th>Purpose</th></tr>
+      <tr><td><code>POST /v1/metrics</code></td><td>Ingest a batch of points <code>[{name, tags, value, ts}]</code>. Hot path — must be cheap.</td></tr>
+      <tr><td><code>GET /v1/query?metric=&amp;tags=&amp;from=&amp;to=&amp;step=</code></td><td>Range query; <code>step</code> picks resolution → routes to the right rollup tier.</td></tr>
+      <tr><td><code>POST /v1/alerts</code></td><td>Register an alert rule (query expr, threshold, <code>for</code> duration, channel).</td></tr>
+      <tr><td><code>GET /v1/alerts</code> · <code>DELETE /v1/alerts/:id</code></td><td>Manage rules.</td></tr>
+    </table>
+    <p>Tenant/user is derived from the auth token, never a body field.</p>
 
-  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
-  <h2>Data Flow — the ingestion pipeline</h2>
-  <p>Trace one point end to end:</p>
-  <ol style="font-family:-apple-system,sans-serif; font-size:.9rem;">
-    <li><b>Collect.</b> Agents on each host either <em>push</em> to a collector or expose a <code>/metrics</code> endpoint that the platform <em>scrapes</em> on a fixed interval (15–30s).<a href="#c4" class="cite">[4]</a></li>
-    <li><b>Ingest &amp; buffer.</b> Stateless ingesters validate, hash the series key, and write to a durable queue (Kafka) partitioned <em>by series</em> — decoupling the firehose from storage and absorbing spikes.</li>
-    <li><b>Store.</b> Consumers append to the <b>time-series store</b>: recent data to an in-memory/WAL hot tier, older blocks compacted and compressed to disk/object storage.</li>
-    <li><b>Fan out.</b> The same stream feeds two readers: the <b>query/dashboard</b> path (range reads against rollups) and the <b>alerting evaluator</b> (continuous rule checks).</li>
-  </ol>
+    <h2>Data Model</h2>
+    <p>A series is identified by a <b>fingerprint</b> = hash(metric name + sorted label set); everything else hangs off it. Data is organized into immutable <b>time blocks</b> (e.g. 2 h) that each carry their own inverted label index and compressed chunks, so a query prunes by time first, then by labels, and old blocks can be dropped or downsampled wholesale. Cardinality limits live in tenant configuration because they are the system's real capacity unit.</p>
+    <table>
+      <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+      <tr><td><b>Series</b> (fingerprint, tenant_id, name, labels)</td><td>TSDB head (memory) + per-block index</td><td><code>fingerprint</code></td><td>Inverted index: label=value → postings list of series ids; intersect for selectors</td></tr>
+      <tr><td><b>Chunk</b> (fingerprint, min_t, max_t, compressed samples)</td><td>Head in RAM + WAL on SSD; flushed into 2 h blocks</td><td>(fingerprint, min_t)</td><td>Delta-of-delta timestamps + XOR values (~1.3 B/sample)</td></tr>
+      <tr><td><b>Block</b> (tenant, ulid, resolution [raw|1m|1h], min_t, max_t, index, chunks)</td><td>Object storage (S3)</td><td><code>{tenant}/{resolution}/{ulid}/</code></td><td>Block metadata cached; query planner selects blocks overlapping [from, to] at the right resolution</td></tr>
+      <tr><td><b>Rollup samples</b></td><td>Downsampled blocks</td><td>same as chunks</td><td>Store min, max, sum, count per interval so avg/max/rate stay correct</td></tr>
+      <tr><td><b>alert_rules</b> (rule_id, tenant_id, expr, threshold, for_s, labels, channels, version)</td><td>Postgres</td><td>PK <code>rule_id</code></td><td>Rules sharded to evaluators by hash(rule_id)</td></tr>
+      <tr><td><b>alert_state</b> (rule_id, series_fingerprint, state, active_since, last_eval)</td><td>Evaluator memory, checkpointed to Redis/etcd</td><td>(rule_id, fingerprint)</td><td>Survives evaluator restarts without re-firing</td></tr>
+      <tr><td><b>notifications</b> (dedupe_key, rule_id, channel, sent_at, resolved_at)</td><td>Postgres</td><td>PK <code>dedupe_key</code></td><td>Grouping, silencing, repeat intervals</td></tr>
+      <tr><td><b>tenant_limits</b> (tenant_id, max_active_series, max_labels_per_series, max_samples_per_s)</td><td>Postgres, cached in ingesters</td><td>PK <code>tenant_id</code></td><td>Enforced at ingest</td></tr>
+    </table>
 
-  <h2>Component Diagram</h2>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“Why is cardinality more dangerous than volume?”</p>
+      <p><b>Staff answer:</b> Each unique tag combination is a series with its own index entries and memory. A user_id tag can create millions of series and take the TSDB down.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “A series is name plus sorted tags. Now the ingest, storage, query and alerting path.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="metrics-monitoring-fingerprint-key">
+        <p class="stem">What identifies a series in the data model?</p>
+        <button class="opt">A fingerprint hash of the metric name plus sorted label set</button>
+        <button class="opt">The raw request timestamp when the first point arrived</button>
+        <button class="opt">An auto-incrementing integer assigned per tenant account</button>
+        <p class="fb">The fingerprint = hash(name + sorted labels); every chunk, block and index entry hangs off this key.</p>
+        <p class="hint">Reread the first sentence under "Data Model."</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="metrics-monitoring-time-block-pruning">
+        <p class="stem">What would break if data were not organized into immutable time blocks with per-block label indexes?</p>
+        <button class="opt">Nothing — time blocks only affect how backups are taken, not queries</button>
+        <button class="opt">A query would have to scan every block regardless of time range, since there'd be no cheap way to prune by time first</button>
+        <button class="opt">Alert rules would stop being able to reference a threshold value</button>
+        <p class="fb">Time blocks let the query planner prune by time range before even touching labels — without them, every query degenerates into a full scan.</p>
+        <p class="hint">Reread how blocks let a query "prune by time first, then by labels."</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 8</p>
+    <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
+    <h2>Data Flow — the ingestion pipeline</h2>
+    <p>Trace one point end to end:</p>
+    <ol style="font-family:-apple-system,sans-serif; font-size:.9rem;">
+      <li><b>Collect.</b> Agents on each host either <em>push</em> to a collector or expose a <code>/metrics</code> endpoint that the platform <em>scrapes</em> on a fixed interval (15–30s).<a href="#c4" class="cite">[4]</a></li>
+      <li><b>Ingest &amp; buffer.</b> Stateless ingesters validate, hash the series key, and write to a durable queue (Kafka) partitioned <em>by series</em> — decoupling the firehose from storage and absorbing spikes.</li>
+      <li><b>Store.</b> Consumers append to the <b>time-series store</b>: recent data to an in-memory/WAL hot tier, older blocks compacted and compressed to disk/object storage.</li>
+      <li><b>Fan out.</b> The same stream feeds two readers: the <b>query/dashboard</b> path (range reads against rollups) and the <b>alerting evaluator</b> (continuous rule checks).</li>
+    </ol>
+
+    <h2>Component Diagram</h2>
 <pre class="diagram">
  [Agents / exporters on 500k hosts]
       | push          ^ scrape
@@ -211,217 +294,342 @@
       v
  [PagerDuty / Slack / email]
 </pre>
-  <p style="font-size:.85rem; color:var(--muted);">Writes: agents → ingesters (cardinality enforced here) → Kafka → TSDB head, flushed to immutable blocks and downsampled by a compactor in object storage. Reads: the query service picks raw, 1-minute or 1-hour blocks by step. Alert evaluators query only the recent window in the hot tier.</p>
+    <p style="font-size:.85rem; color:var(--muted);">Writes: agents → ingesters (cardinality enforced here) → Kafka → TSDB head, flushed to immutable blocks and downsampled by a compactor in object storage. Reads: the query service picks raw, 1-minute or 1-hour blocks by step. Alert evaluators query only the recent window in the hot tier.</p>
 
-  <h2>High-Level Design</h2>
-  <table>
-    <tr><th>Component</th><th>Role</th><th>Store</th></tr>
-    <tr><td>Collectors / scrapers</td><td>Pull or receive points from agents</td><td>—</td></tr>
-    <tr><td>Ingestion tier</td><td>Stateless validate + route, partition by series</td><td>Kafka buffer</td></tr>
-    <tr><td>Time-series store (TSDB)</td><td>Append, compress, compact, downsample</td><td>Hot tier + object store</td></tr>
-    <tr><td>Query service</td><td>Range queries → resolution-appropriate tier</td><td>reads TSDB</td></tr>
-    <tr><td>Alerting evaluator</td><td>Continuously evaluate rules, fire</td><td>rule DB + state</td></tr>
-    <tr><td>Notifier</td><td>Dedupe, route to email/Slack/PagerDuty</td><td>—</td></tr>
-  </table>
-  <p>A write flows <code>agent → ingester → Kafka(by series) → TSDB</code>. A read flows <code>dashboard → query svc → rollup tier</code>. An alert flows <code>evaluator → rule match → notifier</code>.</p>
+    <h2>High-Level Design</h2>
+    <table>
+      <tr><th>Component</th><th>Role</th><th>Store</th></tr>
+      <tr><td>Collectors / scrapers</td><td>Pull or receive points from agents</td><td>—</td></tr>
+      <tr><td>Ingestion tier</td><td>Stateless validate + route, partition by series</td><td>Kafka buffer</td></tr>
+      <tr><td>Time-series store (TSDB)</td><td>Append, compress, compact, downsample</td><td>Hot tier + object store</td></tr>
+      <tr><td>Query service</td><td>Range queries → resolution-appropriate tier</td><td>reads TSDB</td></tr>
+      <tr><td>Alerting evaluator</td><td>Continuously evaluate rules, fire</td><td>rule DB + state</td></tr>
+      <tr><td>Notifier</td><td>Dedupe, route to email/Slack/PagerDuty</td><td>—</td></tr>
+    </table>
+    <p>A write flows <code>agent → ingester → Kafka(by series) → TSDB</code>. A read flows <code>dashboard → query svc → rollup tier</code>. An alert flows <code>evaluator → rule match → notifier</code>.</p>
 
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“Why Kafka between ingestion and the TSDB?”</p>
-    <p><b>Staff answer:</b> It absorbs bursts, protects the store during outages, and allows replay after bad deploys.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: the TSDB engine, the firehose and cardinality, range queries and alerting.”</p>
-
-  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
-  <h2>Deep Dives</h2>
-
-  <h3>1. The time-series storage engine — why a purpose-built TSDB</h3>
-  <p>The interviewer's trap: "store points in Postgres / Cassandra." Walk through why both lose.</p>
-  <table>
-    <tr><th>Option</th><th>Why it fails here</th></tr>
-    <tr><td>RDBMS (B-tree)</td><td>Random-write index updates per point; can't keep up with 5M/s. Row-per-point storage is huge.</td></tr>
-    <tr><td>Generic KV / Cassandra</td><td>Handles writes, but no native time-range scan, compression, or rollups — you rebuild a TSDB poorly on top.</td></tr>
-    <tr><td><b>Purpose-built TSDB</b></td><td><b>Append-only, time-partitioned, columnar, compressed.</b> Exactly this workload.</td></tr>
-  </table>
-  <p>What makes a TSDB fast: (a) data is <b>append-only</b> ordered by time — no random writes; (b) it's <b>partitioned into time blocks</b> so a range query touches only relevant blocks; (c) values are stored <b>columnar</b> per series and compressed with delta-of-delta on timestamps + XOR on floats, hitting ~1.3 bytes/sample.<a href="#c3" class="cite">[3]</a> Columnar + vectorized execution is what lets specialized engines beat a row store 10–25× on these queries.<a href="#c2" class="cite">[2]</a></p>
-  <div class="box">
-    <b>Downsampling + retention tiers.</b> A background <em>compactor</em> rolls raw points into pre-aggregated blocks: <b>raw → 1-min → 1-hour</b>, each a coarser, smaller copy.<a href="#c3" class="cite">[3]</a> Old raw data expires per its tier. Thanos, for example, has the compactor build 5-min and 1-hour downsamples in object storage automatically for fast long-range queries.<a href="#c3" class="cite">[3]</a> This is the LSM/compaction idea from <a href="0003-databases-and-indexing.html">Lesson 03</a> applied to time, and the rollup-then-store pattern echoes the aggregation pipeline in <a href="0042-time-series-databases.html">Lesson 42</a>.
-  </div>
-
-  <h3>2. The ingestion firehose &amp; cardinality explosion</h3>
-  <p>5M points/sec is "just shard it." The hard part is <b>cardinality</b>. A single high-cardinality tag — a <code>user_id</code>, a <code>request_id</code>, a container hash — multiplies series count without bound. Each new series costs an index entry, a posting list, and its own chunk; high cardinality <em>increases write amplification</em>: more index updates on compaction, larger posting lists to merge, less-compressible data.<a href="#c5" class="cite">[5]</a> This is the "cardinality bomb."<a href="#c2" class="cite">[2]</a></p>
-  <div class="box">
-    <b>How to keep cardinality bounded:</b>
-    <ul>
-      <li><b>Partition by series hash,</b> not by metric name — spreads hot series and load evenly across ingesters/storage nodes.</li>
-      <li><b>Reject/limit unbounded tags</b> at ingest (no raw IDs as labels); enforce per-tenant series budgets.</li>
-      <li><b>Co-locate a series' points</b> on one shard so range reads and compaction stay local.</li>
-    </ul>
-    Staff move: state up front that you'd cap cardinality at the door rather than let the storage tier absorb it.
-  </div>
-
-  <h3>3. Querying efficiently over ranges</h3>
-  <p>"Show 2 weeks of p99 latency" naïvely scans billions of raw points — far over the seconds-latency budget. The read path instead <b>matches query <code>step</code> to a rollup tier</b>: a 2-week chart at hourly resolution reads pre-aggregated 1-hour blocks, not raw. Time partitioning prunes blocks outside <code>[from, to]</code>; columnar layout reads only the value column; aggregations push down into the engine. The result: query cost scales with the <em>number of plotted points</em>, not the raw ingest rate.</p>
-
-  <h3>4. The alerting pipeline — push vs pull, evaluating without rescans</h3>
-  <p>An alert "p99 &gt; 500ms for 5 min" must fire within a minute<a href="#c1" class="cite">[1]</a> — you cannot re-scan history every cycle. The evaluator runs each rule on a fixed interval against only the <b>recent window</b> in the hot tier, keeping a small rolling state per rule (the <code>for</code> duration). Sharding rules across evaluators keeps each cycle bounded.</p>
-  <table>
-    <tr><th></th><th>Pull (scrape)</th><th>Push</th></tr>
-    <tr><td>Model</td><td>Platform scrapes <code>/metrics</code> each interval (Prometheus)<a href="#c4" class="cite">[4]</a></td><td>Agents push to collectors (StatsD/Datadog)</td></tr>
-    <tr><td>Pros</td><td>Server controls rate; target health is implicit (scrape fails = down)</td><td>Works behind NAT/short-lived jobs; lower emit latency</td></tr>
-    <tr><td>Cons</td><td>Needs service discovery; awkward for ephemeral jobs</td><td>Clients can overwhelm; no built-in liveness</td></tr>
-  </table>
-  <p>Large platforms run hybrid: scrape for long-lived services, push gateway for batch/ephemeral. Justify the pick from your workload, not dogma.</p>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Three things separate the staff answer: (1) you <b>choose a purpose-built TSDB</b> and can articulate <em>why</em> a row store fails — append-only, time-partitioned, columnar, compressed, with rollup tiers; (2) you name <b>tag cardinality as the central scaling problem</b> and bound it at ingest rather than hoping storage absorbs it; (3) you design an <b>incremental alerting evaluator</b> that works on rolling windows, never rescanning history. Senior candidates scale QPS; staff candidates scale <em>series</em>.
-  </div>
-
-  <h2>Alternative Approaches &amp; Tradeoffs</h2>
-  <table>
-    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
-    <tr><td><b>A. Kafka-buffered, horizontally sharded TSDB with object-storage blocks and downsampling</b> (chosen; Cortex/Mimir/Thanos lineage)</td><td>As drawn</td><td>Scales to billions of samples; cheap long retention; replayable ingest</td><td>Many components; cardinality must be policed</td><td>Multi-tenant platform at 5M points/s</td></tr>
-    <tr><td><b>B. Federated per-cluster Prometheus + global query layer</b></td><td>Each cluster runs its own Prometheus (pull); a global layer (Thanos Query) fans out queries; recording rules pre-aggregate</td><td>Simple, failure-isolated per cluster; alerting stays local and works during global outages</td><td>Cross-cluster queries are scatter-gather; retention per Prometheus limited; HA pairs duplicate data</td><td>Kubernetes-centric orgs with strong cluster boundaries</td></tr>
-    <tr><td><b>C. Columnar OLAP store for metrics</b> (ClickHouse/Druid tables of samples)</td><td>Samples inserted in batches into a columnar table ordered by (metric, labels hash, ts); rollups via materialized views</td><td>SQL, flexible high-cardinality analytics, joins with other data</td><td>Worse compression than Gorilla-style TSDBs; label-selector queries and PromQL semantics must be emulated; alerting integration is DIY</td><td>Product analytics on metrics, or when high cardinality is the product</td></tr>
-  </table>
-  <p><b>Pick A</b> for a central platform; keep B's principle that alerting should still work when the global query path is degraded.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“How do queries over 30 days stay fast?”</p>
-    <p><b>Staff answer:</b> The query service picks the resolution tier: raw for hours, 1-minute rollups for days, 1-hour rollups for months, so a query scans thousands of points, not billions.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Production concerns, including monitoring the monitor.”</p>
-
-  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
-  <h2>Observability</h2>
-  <p>The monitoring system must observe itself — ideally through a <b>separate, minimal meta-monitoring stack</b> so an outage doesn't blind the tool you'd use to debug it.</p>
-  <table>
-    <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
-    <tr><td>Ingest</td><td>Samples/s accepted vs rejected (by reason: cardinality limit, invalid, late), active series per tenant, new series creation rate</td><td>Cardinality bombs show up as series-creation spikes</td></tr>
-    <tr><td>Pipeline</td><td>Kafka lag per partition, WAL fsync latency, head memory, block flush/compaction durations and failures</td><td>Freshness and durability</td></tr>
-    <tr><td>Query</td><td>Query latency by range and tier, samples scanned per query, cache hit rate, expensive-query log</td><td>One dashboard can scan billions of samples</td></tr>
-    <tr><td>Alerting</td><td>Rule evaluation duration vs interval, missed evaluations, notification send failures and latency</td><td>The "&lt; 1 min to fire" NFR</td></tr>
-    <tr><td>Logs &amp; traces</td><td>Tenant id on every request; traces for queries (planner → blocks → merge)</td><td>Debug slow tenant queries</td></tr>
-  </table>
-
-  <h2>Monitoring</h2>
-  <table>
-    <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
-    <tr><td>Alert latency: sample emitted → notification &lt; 1 min (p99)</td><td>Canary alert end-to-end latency &gt; 60 s</td><td>Page</td></tr>
-    <tr><td>Alerting pipeline alive</td><td><b>Dead man's switch</b>: an always-firing "Watchdog" alert must reach an external service every minute — its absence pages via a different channel</td><td>Page</td></tr>
-    <tr><td>Ingest availability 99.9%, no data loss</td><td>Rejected samples (non-limit) &gt; 0.1%; Kafka lag &gt; 2 min</td><td>Page</td></tr>
-    <tr><td>Query p95 &lt; 2 s for 24 h ranges</td><td>Above target for 15 min</td><td>Ticket</td></tr>
-    <tr><td>Compaction healthy</td><td>No successful compaction for 6 h; blocks overlapping</td><td>Ticket</td></tr>
-  </table>
-  <p><b>Synthetic probes:</b> a canary exporter emits a known sine wave; a probe queries it at each tier and a canary rule fires on a scheduled threshold crossing. <b>Meta-monitoring:</b> a small independent Prometheus in another region watches the platform.</p>
-
-  <h2>Authentication &amp; Authorization</h2>
-  <table>
-    <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
-    <tr><td>Agents → ingest</td><td>Per-tenant API keys or mTLS client certs</td><td>Tenant id derived from credential; writes only into that tenant; rate and series quotas</td></tr>
-    <tr><td>Scrapers → targets</td><td>mTLS / bearer tokens to <code>/metrics</code> endpoints</td><td>Targets expose metrics only to the scraper identity</td></tr>
-    <tr><td>Users → dashboards, queries, alert rules</td><td>SSO (OIDC/SAML)</td><td>RBAC per team/folder; tenants isolated by <code>X-Scope-OrgID</code>-style header set by the gateway from the token, never by the client</td></tr>
-    <tr><td>Notifier → PagerDuty/Slack</td><td>Integration keys in secrets manager</td><td>Per-team channels</td></tr>
-  </table>
-
-  <h2>Security</h2>
-  <table>
-    <tr><th>Threat</th><th>Mitigation</th></tr>
-    <tr><td>Cardinality or volume DoS (buggy deploy or malicious tenant)</td><td>Per-tenant series and sample-rate limits at ingesters; shuffle-sharding tenants so one can't take down all</td></tr>
-    <tr><td>Query-of-death (huge range × high-cardinality selector)</td><td>Query limits (samples, series, duration), timeouts, per-tenant query concurrency, result caching</td></tr>
-    <tr><td>Alert suppression by an attacker (silencing, rule deletion)</td><td>RBAC on silences, audit log, alerts on silence creation for critical rules</td></tr>
-    <tr><td>Secrets in exported metrics/labels</td><td>Label scanning and rejection; scrape configs reviewed</td></tr>
-    <tr><td>Cross-tenant data access</td><td>Tenant enforced at gateway from auth token; block-level encryption keys per tenant</td></tr>
-    <tr><td>Baseline</td><td>TLS for scrape/push, encryption at rest (S3, WAL), secrets manager</td></tr>
-  </table>
-
-  <h2>Privacy</h2>
-  <p>Metrics should be operational, not personal — but labels leak. <b>Rule:</b> no user ids, emails, IPs or request ids as label values; ingest-time label allow-lists and PII pattern checks reject or hash offending values (which also defends cardinality). <b>Tenancy:</b> strict isolation; cross-tenant query federation disabled by default. <b>Retention:</b> raw 15 days, rollups longer — raw PII accidentally ingested ages out quickly, and a delete-series API exists for emergencies. <b>Access:</b> business-sensitive metrics (revenue, signups) in restricted folders.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“If the monitoring system goes down, how do you know?”</p>
-    <p><b>Staff answer:</b> Meta-monitoring on an independent small stack, plus a dead man's switch alert that fires when heartbeats stop.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
-
-  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
-  <h2>Scaling 10× Without Changing the Architecture</h2>
-  <p>10× = 50M samples/s, ~1B active series.</p>
-  <table>
-    <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
-    <tr><td>Ingesters</td><td>~40 nodes</td><td>~400</td><td>Stateless scale-out; more hash-ring tokens</td></tr>
-    <tr><td>Kafka</td><td>~15 brokers</td><td>~150</td><td>More partitions keyed by series hash</td></tr>
-    <tr><td>TSDB hot tier</td><td>~30 nodes, ~800 GB RAM</td><td>~300 nodes</td><td>Add nodes; series redistribute via ring; head memory scales with active series</td></tr>
-    <tr><td>Object storage blocks</td><td>~25 TB</td><td>~250 TB</td><td>Nothing structural; more compactor workers</td></tr>
-    <tr><td>Query service</td><td>~20 nodes</td><td>~100 + result cache</td><td>Query sharding by time and series; more aggressive rollup routing</td></tr>
-    <tr><td>Alert evaluators</td><td>~10</td><td>~50</td><td>More rule shards</td></tr>
-  </table>
-  <p><b>First bottleneck:</b> head-tier memory from series churn (short-lived containers create new series constantly) — addressed by churn-aware limits and shorter head blocks. <b>What forces a redesign:</b> requirement to query arbitrary high-cardinality dimensions (per-user metrics), which belongs in an OLAP/event store (alternative C), not a TSDB.</p>
-
-  <h2>Cost of Running</h2>
-  <p>Assumptions: 5M samples/s, ~100M active series, compressed Kafka stream (~300 MB/s) with 24 h retention, retention raw 15 d / 1 m 90 d / 1 h 2 y, list prices from the course price sheet.</p>
-  <table>
-    <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
-    <tr><td>TSDB hot tier</td><td>~30 × 16 vCPU with ~800 GB RAM total + SSD WAL</td><td>$22,000</td></tr>
-    <tr><td>Kafka</td><td>~15 brokers + ~80 TB replicated</td><td>$12,000</td></tr>
-    <tr><td>Ingesters</td><td>~40 × 8 vCPU</td><td>$10,000</td></tr>
-    <tr><td>Query service + caches</td><td>~20 nodes</td><td>$5,000</td></tr>
-    <tr><td>Compactors, alert evaluators, notifier</td><td>~22 nodes</td><td>$5,500</td></tr>
-    <tr><td>Object storage (blocks + requests)</td><td>~25 TB + GET/PUT</td><td>$3,000</td></tr>
-    <tr><td><b>Total</b></td><td></td><td><b>≈ $58,000</b></td></tr>
-  </table>
-  <p><b>Unit cost:</b> ≈ $0.0006 per active series per month, ≈ $0.12 per monitored host per month (commercial SaaS commonly charges $15+ per host). <b>Dominant driver:</b> active series held in the hot tier — cost follows cardinality, not raw sample rate. <b>Levers:</b> cardinality budgets and label allow-lists, dropping unused metrics (usage analysis of queries), and routing long-range queries to rollups.</p>
-
-  <div class="pushback">
-    <p class="lbl">Interviewer pushback</p>
-    <p class="pq">“What's first to break at 10×?”</p>
-    <p><b>Staff answer:</b> Cardinality in the hot tier. Enforce per-tenant series limits and add ingesters and TSDB nodes.</p>
-  </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Recap:”</p>
-
-  <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
-  <h2>Closing Summary (60 seconds)</h2>
-  <div class="summary"><p>A metrics system is a write-optimized time-series store with cardinality as its main scaling risk. Agents send points to stateless ingesters that validate them, enforce series limits and partition by series hash into Kafka. A purpose-built TSDB appends and compresses points in time-partitioned blocks, flushes them to object storage and downsamples into rollup tiers. Queries choose the right resolution. Alert rules evaluate incrementally on recent data. At 10× we add ingesters, partitions and nodes, with tenant cardinality limits.</p></div>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. What is the central scaling problem in a metrics monitoring system?</p>
-      <button class="opt">Network bandwidth between dashboards and the storage tier nodes</button>
-      <button class="opt">Total bytes of raw data persisted onto disk across all regions</button>
-      <button class="opt">Tag cardinality — the number of distinct time series from labels</button>
-      <button class="opt">Number of users concurrently viewing dashboards during incidents</button>
-      <p class="fb">Each unique name+tag combination is a series with its own index and chunk; high-cardinality tags explode this without bound.</p>
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“Why Kafka between ingestion and the TSDB?”</p>
+      <p><b>Staff answer:</b> It absorbs bursts, protects the store during outages, and allows replay after bad deploys.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. Why pick a purpose-built TSDB over a relational database here?</p>
-      <button class="opt">A relational engine cannot store floating-point metric values at all</button>
-      <button class="opt">Append-only, time-partitioned, columnar, compressed fits this workload</button>
-      <button class="opt">Relational databases are unable to express any time-range query filter</button>
-      <button class="opt">A TSDB removes the need to ever shard data across multiple machines</button>
-      <p class="fb">The workload is write-heavy and time-ordered; B-tree random writes can't sustain 5M/s, and a TSDB compresses to ~1.3 B/sample.</p>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: the TSDB engine, the firehose and cardinality, range queries and alerting.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="metrics-monitoring-kafka-role">
+        <p class="stem">What role does Kafka play between ingesters and the TSDB?</p>
+        <button class="opt">It computes rollups and downsamples before storage</button>
+        <button class="opt">It authenticates tenants and enforces per-user quotas</button>
+        <button class="opt">It buffers and absorbs bursts, decoupling firehose from storage</button>
+        <p class="fb">Kafka, partitioned by series, decouples the write firehose from the TSDB, absorbing spikes and enabling replay after bad deploys.</p>
+        <p class="hint">Reread the pushback box on "Why Kafka."</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="metrics-monitoring-partition-by-series">
+        <p class="stem">Why partition Kafka and storage by series rather than by metric name?</p>
+        <button class="opt">Partitioning by series spreads hot series evenly and keeps one series' points co-located for efficient reads and compaction</button>
+        <button class="opt">Metric names are not allowed to appear as partition keys in Kafka's design</button>
+        <button class="opt">Partitioning by series removes the need for any object storage tier</button>
+        <p class="fb">Partitioning by metric name would concentrate all traffic for a popular metric on one partition; hashing by full series spreads load and keeps each series' data together for local compaction and range reads.</p>
+        <p class="hint">Compare "partition by metric name" against "partition by series hash" for a metric with millions of tag combinations.</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. How does the system serve a two-week chart within seconds?</p>
-      <button class="opt">It reads pre-aggregated rollup blocks matched to the query step</button>
-      <button class="opt">It rescans every raw point and caches the result for next time</button>
-      <button class="opt">It keeps all raw data fully resident in memory across the cluster</button>
-      <button class="opt">It pushes the chart render down to each agent on the host fleet</button>
-      <p class="fb">Downsampled tiers (raw→1m→1h) let the read path scan coarse blocks, so cost scales with plotted points, not raw ingest.</p>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 8</p>
+    <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
+    <h2>Deep Dives</h2>
+
+    <h3>1. The time-series storage engine — why a purpose-built TSDB</h3>
+    <p>The interviewer's trap: "store points in Postgres / Cassandra." Walk through why both lose.</p>
+    <table>
+      <tr><th>Option</th><th>Why it fails here</th></tr>
+      <tr><td>RDBMS (B-tree)</td><td>Random-write index updates per point; can't keep up with 5M/s. Row-per-point storage is huge.</td></tr>
+      <tr><td>Generic KV / Cassandra</td><td>Handles writes, but no native time-range scan, compression, or rollups — you rebuild a TSDB poorly on top.</td></tr>
+      <tr><td><b>Purpose-built TSDB</b></td><td><b>Append-only, time-partitioned, columnar, compressed.</b> Exactly this workload.</td></tr>
+    </table>
+    <p>What makes a TSDB fast: (a) data is <b>append-only</b> ordered by time — no random writes; (b) it's <b>partitioned into time blocks</b> so a range query touches only relevant blocks; (c) values are stored <b>columnar</b> per series and compressed with delta-of-delta on timestamps + XOR on floats, hitting ~1.3 bytes/sample.<a href="#c3" class="cite">[3]</a> Columnar + vectorized execution is what lets specialized engines beat a row store 10–25× on these queries.<a href="#c2" class="cite">[2]</a></p>
+    <div class="box">
+      <b>Downsampling + retention tiers.</b> A background <em>compactor</em> rolls raw points into pre-aggregated blocks: <b>raw → 1-min → 1-hour</b>, each a coarser, smaller copy.<a href="#c3" class="cite">[3]</a> Old raw data expires per its tier. Thanos, for example, has the compactor build 5-min and 1-hour downsamples in object storage automatically for fast long-range queries.<a href="#c3" class="cite">[3]</a> This is the LSM/compaction idea from <a href="0003-databases-and-indexing.html">Lesson 03</a> applied to time, and the rollup-then-store pattern echoes the aggregation pipeline in <a href="0042-time-series-databases.html">Lesson 42</a>.
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">4. What lets the alerting evaluator fire within a minute at this scale?</p>
-      <button class="opt">It re-scans the entire history of each series on every cycle</button>
-      <button class="opt">It waits for the dashboard service to finish all pending reads</button>
-      <button class="opt">It evaluates rules on recent windows with small rolling state</button>
-      <button class="opt">It moves all rule evaluation onto a single dedicated big node</button>
-      <p class="fb">Continuous incremental evaluation over the hot-tier window, with rules sharded across evaluators, avoids expensive full rescans.</p>
+
+    <h3>2. The ingestion firehose &amp; cardinality explosion</h3>
+    <p>5M points/sec is "just shard it." The hard part is <b>cardinality</b>. A single high-cardinality tag — a <code>user_id</code>, a <code>request_id</code>, a container hash — multiplies series count without bound. Each new series costs an index entry, a posting list, and its own chunk; high cardinality <em>increases write amplification</em>: more index updates on compaction, larger posting lists to merge, less-compressible data.<a href="#c5" class="cite">[5]</a> This is the "cardinality bomb."<a href="#c2" class="cite">[2]</a></p>
+    <div class="box">
+      <b>How to keep cardinality bounded:</b>
+      <ul>
+        <li><b>Partition by series hash,</b> not by metric name — spreads hot series and load evenly across ingesters/storage nodes.</li>
+        <li><b>Reject/limit unbounded tags</b> at ingest (no raw IDs as labels); enforce per-tenant series budgets.</li>
+        <li><b>Co-locate a series' points</b> on one shard so range reads and compaction stay local.</li>
+      </ul>
+      Staff move: state up front that you'd cap cardinality at the door rather than let the storage tier absorb it.
     </div>
-  </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="metrics-monitoring-tsdb-compression">
+        <p class="stem">What compression technique lets a TSDB hit ~1.3 bytes/sample?</p>
+        <button class="opt">Gzip applied uniformly to entire two-hour time blocks</button>
+        <button class="opt">Delta-of-delta encoding on timestamps plus XOR on float values</button>
+        <button class="opt">Storing only every tenth sample and interpolating the rest</button>
+        <p class="fb">Delta-of-delta on timestamps and XOR on values exploit the fact that consecutive samples change little, driving compression to ~1.3 bytes/sample.</p>
+        <p class="hint">Reread the sentence citing "~1.3 bytes/sample."</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="metrics-monitoring-cardinality-bomb-mechanism">
+        <p class="stem">Why does one high-cardinality tag like user_id specifically increase write amplification, not just storage size?</p>
+        <button class="opt">User IDs are longer strings than other tag values, so they take more disk bytes per sample</button>
+        <button class="opt">The query service must decrypt user_id tags before every read, slowing writes indirectly</button>
+        <button class="opt">Each new series needs its own index entry and posting list, so compaction has more index updates and larger lists to merge</button>
+        <p class="fb">Cardinality explosion multiplies the number of distinct series, and each series carries its own index entry and posting list — compaction work scales with series count, not just byte volume.</p>
+        <p class="hint">Reread the sentence about "write amplification" right after "cardinality bomb."</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 8</p>
+    <h3>3. Querying efficiently over ranges</h3>
+    <p>"Show 2 weeks of p99 latency" naïvely scans billions of raw points — far over the seconds-latency budget. The read path instead <b>matches query <code>step</code> to a rollup tier</b>: a 2-week chart at hourly resolution reads pre-aggregated 1-hour blocks, not raw. Time partitioning prunes blocks outside <code>[from, to]</code>; columnar layout reads only the value column; aggregations push down into the engine. The result: query cost scales with the <em>number of plotted points</em>, not the raw ingest rate.</p>
+
+    <h3>4. The alerting pipeline — push vs pull, evaluating without rescans</h3>
+    <p>An alert "p99 &gt; 500ms for 5 min" must fire within a minute<a href="#c1" class="cite">[1]</a> — you cannot re-scan history every cycle. The evaluator runs each rule on a fixed interval against only the <b>recent window</b> in the hot tier, keeping a small rolling state per rule (the <code>for</code> duration). Sharding rules across evaluators keeps each cycle bounded.</p>
+    <table>
+      <tr><th></th><th>Pull (scrape)</th><th>Push</th></tr>
+      <tr><td>Model</td><td>Platform scrapes <code>/metrics</code> each interval (Prometheus)<a href="#c4" class="cite">[4]</a></td><td>Agents push to collectors (StatsD/Datadog)</td></tr>
+      <tr><td>Pros</td><td>Server controls rate; target health is implicit (scrape fails = down)</td><td>Works behind NAT/short-lived jobs; lower emit latency</td></tr>
+      <tr><td>Cons</td><td>Needs service discovery; awkward for ephemeral jobs</td><td>Clients can overwhelm; no built-in liveness</td></tr>
+    </table>
+    <p>Large platforms run hybrid: scrape for long-lived services, push gateway for batch/ephemeral. Justify the pick from your workload, not dogma.</p>
+
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Three things separate the staff answer: (1) you <b>choose a purpose-built TSDB</b> and can articulate <em>why</em> a row store fails — append-only, time-partitioned, columnar, compressed, with rollup tiers; (2) you name <b>tag cardinality as the central scaling problem</b> and bound it at ingest rather than hoping storage absorbs it; (3) you design an <b>incremental alerting evaluator</b> that works on rolling windows, never rescanning history. Senior candidates scale QPS; staff candidates scale <em>series</em>.
+    </div>
+
+    <h2>Alternative Approaches &amp; Tradeoffs</h2>
+    <table>
+      <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+      <tr><td><b>A. Kafka-buffered, horizontally sharded TSDB with object-storage blocks and downsampling</b> (chosen; Cortex/Mimir/Thanos lineage)</td><td>As drawn</td><td>Scales to billions of samples; cheap long retention; replayable ingest</td><td>Many components; cardinality must be policed</td><td>Multi-tenant platform at 5M points/s</td></tr>
+      <tr><td><b>B. Federated per-cluster Prometheus + global query layer</b></td><td>Each cluster runs its own Prometheus (pull); a global layer (Thanos Query) fans out queries; recording rules pre-aggregate</td><td>Simple, failure-isolated per cluster; alerting stays local and works during global outages</td><td>Cross-cluster queries are scatter-gather; retention per Prometheus limited; HA pairs duplicate data</td><td>Kubernetes-centric orgs with strong cluster boundaries</td></tr>
+      <tr><td><b>C. Columnar OLAP store for metrics</b> (ClickHouse/Druid tables of samples)</td><td>Samples inserted in batches into a columnar table ordered by (metric, labels hash, ts); rollups via materialized views</td><td>SQL, flexible high-cardinality analytics, joins with other data</td><td>Worse compression than Gorilla-style TSDBs; label-selector queries and PromQL semantics must be emulated; alerting integration is DIY</td><td>Product analytics on metrics, or when high cardinality is the product</td></tr>
+    </table>
+    <p><b>Pick A</b> for a central platform; keep B's principle that alerting should still work when the global query path is degraded.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“How do queries over 30 days stay fast?”</p>
+      <p><b>Staff answer:</b> The query service picks the resolution tier: raw for hours, 1-minute rollups for days, 1-hour rollups for months, so a query scans thousands of points, not billions.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Production concerns, including monitoring the monitor.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="metrics-monitoring-alert-window-eval">
+        <p class="stem">How does the alert evaluator meet the under-1-minute fire requirement at scale?</p>
+        <button class="opt">It evaluates each rule against a recent window with small rolling state, sharded across evaluators</button>
+        <button class="opt">It re-scans full series history from object storage on every evaluation cycle</button>
+        <button class="opt">It waits for the query service to finish dashboard reads before checking rules</button>
+        <p class="fb">Rules run on a fixed interval over only the hot-tier recent window, with rolling state per rule, so no cycle needs a full rescan.</p>
+        <p class="hint">Reread the "alerting pipeline" paragraph's second sentence.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="metrics-monitoring-pull-vs-push-tradeoff">
+        <p class="stem">Why might a platform run both push and pull collection instead of picking just one?</p>
+        <button class="opt">Push and pull are functionally identical, so mixing them has no real benefit</button>
+        <button class="opt">Pull suits long-lived services with implicit health checks, while push suits ephemeral jobs that pull can't reach</button>
+        <button class="opt">Running both models is required by the TSDB's on-disk format</button>
+        <p class="fb">Pull needs a stable target to scrape and gives free liveness signal; short-lived batch jobs can't be scraped reliably, so a push gateway covers that gap.</p>
+        <p class="hint">Reread the pull-vs-push table's Cons column for each side.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 8</p>
+    <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
+    <h2>Observability</h2>
+    <p>The monitoring system must observe itself — ideally through a <b>separate, minimal meta-monitoring stack</b> so an outage doesn't blind the tool you'd use to debug it.</p>
+    <table>
+      <tr><th>Signal</th><th>What we emit</th><th>Why</th></tr>
+      <tr><td>Ingest</td><td>Samples/s accepted vs rejected (by reason: cardinality limit, invalid, late), active series per tenant, new series creation rate</td><td>Cardinality bombs show up as series-creation spikes</td></tr>
+      <tr><td>Pipeline</td><td>Kafka lag per partition, WAL fsync latency, head memory, block flush/compaction durations and failures</td><td>Freshness and durability</td></tr>
+      <tr><td>Query</td><td>Query latency by range and tier, samples scanned per query, cache hit rate, expensive-query log</td><td>One dashboard can scan billions of samples</td></tr>
+      <tr><td>Alerting</td><td>Rule evaluation duration vs interval, missed evaluations, notification send failures and latency</td><td>The "&lt; 1 min to fire" NFR</td></tr>
+      <tr><td>Logs &amp; traces</td><td>Tenant id on every request; traces for queries (planner → blocks → merge)</td><td>Debug slow tenant queries</td></tr>
+    </table>
+
+    <h2>Monitoring</h2>
+    <table>
+      <tr><th>SLO (from NFRs)</th><th>Alert</th><th>Severity</th></tr>
+      <tr><td>Alert latency: sample emitted → notification &lt; 1 min (p99)</td><td>Canary alert end-to-end latency &gt; 60 s</td><td>Page</td></tr>
+      <tr><td>Alerting pipeline alive</td><td><b>Dead man's switch</b>: an always-firing "Watchdog" alert must reach an external service every minute — its absence pages via a different channel</td><td>Page</td></tr>
+      <tr><td>Ingest availability 99.9%, no data loss</td><td>Rejected samples (non-limit) &gt; 0.1%; Kafka lag &gt; 2 min</td><td>Page</td></tr>
+      <tr><td>Query p95 &lt; 2 s for 24 h ranges</td><td>Above target for 15 min</td><td>Ticket</td></tr>
+      <tr><td>Compaction healthy</td><td>No successful compaction for 6 h; blocks overlapping</td><td>Ticket</td></tr>
+    </table>
+    <p><b>Synthetic probes:</b> a canary exporter emits a known sine wave; a probe queries it at each tier and a canary rule fires on a scheduled threshold crossing. <b>Meta-monitoring:</b> a small independent Prometheus in another region watches the platform.</p>
+
+    <h2>Authentication &amp; Authorization</h2>
+    <table>
+      <tr><th>Caller → target</th><th>AuthN</th><th>AuthZ</th></tr>
+      <tr><td>Agents → ingest</td><td>Per-tenant API keys or mTLS client certs</td><td>Tenant id derived from credential; writes only into that tenant; rate and series quotas</td></tr>
+      <tr><td>Scrapers → targets</td><td>mTLS / bearer tokens to <code>/metrics</code> endpoints</td><td>Targets expose metrics only to the scraper identity</td></tr>
+      <tr><td>Users → dashboards, queries, alert rules</td><td>SSO (OIDC/SAML)</td><td>RBAC per team/folder; tenants isolated by <code>X-Scope-OrgID</code>-style header set by the gateway from the token, never by the client</td></tr>
+      <tr><td>Notifier → PagerDuty/Slack</td><td>Integration keys in secrets manager</td><td>Per-team channels</td></tr>
+    </table>
+
+    <h2>Security</h2>
+    <table>
+      <tr><th>Threat</th><th>Mitigation</th></tr>
+      <tr><td>Cardinality or volume DoS (buggy deploy or malicious tenant)</td><td>Per-tenant series and sample-rate limits at ingesters; shuffle-sharding tenants so one can't take down all</td></tr>
+      <tr><td>Query-of-death (huge range × high-cardinality selector)</td><td>Query limits (samples, series, duration), timeouts, per-tenant query concurrency, result caching</td></tr>
+      <tr><td>Alert suppression by an attacker (silencing, rule deletion)</td><td>RBAC on silences, audit log, alerts on silence creation for critical rules</td></tr>
+      <tr><td>Secrets in exported metrics/labels</td><td>Label scanning and rejection; scrape configs reviewed</td></tr>
+      <tr><td>Cross-tenant data access</td><td>Tenant enforced at gateway from auth token; block-level encryption keys per tenant</td></tr>
+      <tr><td>Baseline</td><td>TLS for scrape/push, encryption at rest (S3, WAL), secrets manager</td></tr>
+    </table>
+
+    <h2>Privacy</h2>
+    <p>Metrics should be operational, not personal — but labels leak. <b>Rule:</b> no user ids, emails, IPs or request ids as label values; ingest-time label allow-lists and PII pattern checks reject or hash offending values (which also defends cardinality). <b>Tenancy:</b> strict isolation; cross-tenant query federation disabled by default. <b>Retention:</b> raw 15 days, rollups longer — raw PII accidentally ingested ages out quickly, and a delete-series API exists for emergencies. <b>Access:</b> business-sensitive metrics (revenue, signups) in restricted folders.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“If the monitoring system goes down, how do you know?”</p>
+      <p><b>Staff answer:</b> Meta-monitoring on an independent small stack, plus a dead man's switch alert that fires when heartbeats stop.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="metrics-monitoring-dead-mans-switch">
+        <p class="stem">What does the "dead man's switch" alert detect?</p>
+        <button class="opt">A single query that scans too many raw samples</button>
+        <button class="opt">The alerting pipeline itself silently going down or stalling</button>
+        <button class="opt">A tenant exceeding its per-second sample-rate limit</button>
+        <p class="fb">A Watchdog alert must fire continuously; if it stops reaching the external service, that absence itself pages, catching the case where the alerting system can't alert on itself.</p>
+        <p class="hint">Reread the "Alerting pipeline alive" row in the Monitoring table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="metrics-monitoring-cardinality-privacy-link">
+        <p class="stem">Why does banning user IDs as label values serve both privacy and cardinality goals at once?</p>
+        <button class="opt">User IDs compress worse than other strings, hurting only storage cost</button>
+        <button class="opt">Privacy and cardinality are unrelated; the overlap here is coincidental</button>
+        <button class="opt">A user ID is both personally identifying and unbounded, so it is exactly the kind of tag that explodes series count</button>
+        <p class="fb">An unbounded per-user tag is precisely a cardinality bomb and precisely PII, so the same ingest-time label allow-list defends both concerns.</p>
+        <p class="hint">Compare the Privacy section's rule against the earlier cardinality-bomb deep dive — what kind of tag was called out both times?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-8" hidden>
+    <p class="chunk-label">8 of 8</p>
+    <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+    <h2>Scaling 10× Without Changing the Architecture</h2>
+    <p>10× = 50M samples/s, ~1B active series.</p>
+    <table>
+      <tr><th>Component</th><th>Today</th><th>At 10×</th><th>Knob turned</th></tr>
+      <tr><td>Ingesters</td><td>~40 nodes</td><td>~400</td><td>Stateless scale-out; more hash-ring tokens</td></tr>
+      <tr><td>Kafka</td><td>~15 brokers</td><td>~150</td><td>More partitions keyed by series hash</td></tr>
+      <tr><td>TSDB hot tier</td><td>~30 nodes, ~800 GB RAM</td><td>~300 nodes</td><td>Add nodes; series redistribute via ring; head memory scales with active series</td></tr>
+      <tr><td>Object storage blocks</td><td>~25 TB</td><td>~250 TB</td><td>Nothing structural; more compactor workers</td></tr>
+      <tr><td>Query service</td><td>~20 nodes</td><td>~100 + result cache</td><td>Query sharding by time and series; more aggressive rollup routing</td></tr>
+      <tr><td>Alert evaluators</td><td>~10</td><td>~50</td><td>More rule shards</td></tr>
+    </table>
+    <p><b>First bottleneck:</b> head-tier memory from series churn (short-lived containers create new series constantly) — addressed by churn-aware limits and shorter head blocks. <b>What forces a redesign:</b> requirement to query arbitrary high-cardinality dimensions (per-user metrics), which belongs in an OLAP/event store (alternative C), not a TSDB.</p>
+
+    <h2>Cost of Running</h2>
+    <p>Assumptions: 5M samples/s, ~100M active series, compressed Kafka stream (~300 MB/s) with 24 h retention, retention raw 15 d / 1 m 90 d / 1 h 2 y, list prices from the course price sheet.</p>
+    <table>
+      <tr><th>Line item</th><th>Sizing</th><th>~$/month</th></tr>
+      <tr><td>TSDB hot tier</td><td>~30 × 16 vCPU with ~800 GB RAM total + SSD WAL</td><td>$22,000</td></tr>
+      <tr><td>Kafka</td><td>~15 brokers + ~80 TB replicated</td><td>$12,000</td></tr>
+      <tr><td>Ingesters</td><td>~40 × 8 vCPU</td><td>$10,000</td></tr>
+      <tr><td>Query service + caches</td><td>~20 nodes</td><td>$5,000</td></tr>
+      <tr><td>Compactors, alert evaluators, notifier</td><td>~22 nodes</td><td>$5,500</td></tr>
+      <tr><td>Object storage (blocks + requests)</td><td>~25 TB + GET/PUT</td><td>$3,000</td></tr>
+      <tr><td><b>Total</b></td><td></td><td><b>≈ $58,000</b></td></tr>
+    </table>
+    <p><b>Unit cost:</b> ≈ $0.0006 per active series per month, ≈ $0.12 per monitored host per month (commercial SaaS commonly charges $15+ per host). <b>Dominant driver:</b> active series held in the hot tier — cost follows cardinality, not raw sample rate. <b>Levers:</b> cardinality budgets and label allow-lists, dropping unused metrics (usage analysis of queries), and routing long-range queries to rollups.</p>
+
+    <div class="pushback">
+      <p class="lbl">Interviewer pushback</p>
+      <p class="pq">“What's first to break at 10×?”</p>
+      <p><b>Staff answer:</b> Cardinality in the hot tier. Enforce per-tenant series limits and add ingesters and TSDB nodes.</p>
+    </div>
+    <p class="transition"><span class="lbl">Say to move on →</span> “Recap:”</p>
+
+    <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
+    <h2>Closing Summary (60 seconds)</h2>
+    <div class="summary"><p>A metrics system is a write-optimized time-series store with cardinality as its main scaling risk. Agents send points to stateless ingesters that validate them, enforce series limits and partition by series hash into Kafka. A purpose-built TSDB appends and compresses points in time-partitioned blocks, flushes them to object storage and downsamples into rollup tiers. Queries choose the right resolution. Alert rules evaluate incrementally on recent data. At 10× we add ingesters, partitions and nodes, with tenant cardinality limits.</p></div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="metrics-monitoring-10x-first-bottleneck">
+        <p class="stem">What is the first bottleneck expected at 10× scale?</p>
+        <button class="opt">Object storage running out of available address space entirely</button>
+        <button class="opt">The notifier being unable to format Slack messages fast enough</button>
+        <button class="opt">Head-tier memory pressure from series churn on short-lived containers</button>
+        <p class="fb">Ephemeral containers constantly create new series, straining hot-tier memory before other components hit limits.</p>
+        <p class="hint">Reread "First bottleneck" in the scaling section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="metrics-monitoring-dominant-cost-driver">
+        <p class="stem">Why does cost track active series rather than raw sample rate?</p>
+        <button class="opt">Each active series holds memory and index structures in the hot tier regardless of how often it's sampled, so series count drives the dominant cost</button>
+        <button class="opt">Sample rate has no effect on cost because ingest is free at any volume</button>
+        <button class="opt">Object storage charges are billed per sample written, not per series</button>
+        <p class="fb">The hot tier keeps a resident index/chunk per active series; adding samples to existing series is cheap, but new series each add fixed overhead — hence cost follows cardinality.</p>
+        <p class="hint">Reread the "Dominant driver" sentence in Cost of Running.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also seeds the spaced-review schedule — you'll see these again on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="c" data-concept="metrics-monitoring-central-problem-final">
+        <p class="stem">What is the central scaling problem in a metrics monitoring system?</p>
+        <button class="opt">Network bandwidth between dashboards and the storage nodes</button>
+        <button class="opt">Total bytes of raw data persisted onto disk across all regions</button>
+        <button class="opt">Tag cardinality — the number of distinct time series from labels</button>
+        <p class="fb">Each unique name+tag combination is a series with its own index and chunk; high-cardinality tags explode this without bound.</p>
+        <p class="hint">Reread the mission box and the cardinality deep dive.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="metrics-monitoring-tsdb-choice-final">
+        <p class="stem">Why pick a purpose-built TSDB over a relational database here?</p>
+        <button class="opt">A relational engine cannot store floating-point metric values at all</button>
+        <button class="opt">Append-only, time-partitioned, columnar, compressed fits this workload</button>
+        <button class="opt">Relational databases are unable to express any time-range query filter</button>
+        <p class="fb">The workload is write-heavy and time-ordered; B-tree random writes can't sustain 5M/s, and a TSDB compresses to ~1.3 B/sample.</p>
+        <p class="hint">Reread deep dive 1 on the storage engine.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="metrics-monitoring-range-query-final">
+        <p class="stem">How does the system serve a two-week chart within seconds?</p>
+        <button class="opt">It reads pre-aggregated rollup blocks matched to the query step</button>
+        <button class="opt">It rescans every raw point and caches the result for next time</button>
+        <button class="opt">It keeps all raw data fully resident in memory across the cluster</button>
+        <p class="fb">Downsampled tiers (raw→1m→1h) let the read path scan coarse blocks, so cost scales with plotted points, not raw ingest.</p>
+        <p class="hint">Reread deep dive 3 on querying efficiently over ranges.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="metrics-monitoring-remove-kafka-buffer">
+        <p class="stem">What would you expect to happen if the Kafka buffer were removed and ingesters wrote straight to the TSDB?</p>
+        <button class="opt">Nothing would change; Kafka was purely decorative in this design</button>
+        <button class="opt">A burst or a TSDB hiccup would directly drop or block writes, since nothing absorbs the spike or allows replay</button>
+        <button class="opt">Query latency would improve because there are fewer hops to read through</button>
+        <p class="fb">Kafka exists specifically to decouple bursty, unreliable-timing ingest from the storage tier; without it a slow TSDB or a spike propagates straight into write failures.</p>
+        <p class="hint">Reread the Kafka pushback box and the "Fan out" step in the data flow.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="metrics-monitoring-alert-evaluator-design-final">
+        <p class="stem">Why must the alert evaluator use rolling window state instead of recomputing each rule from scratch every cycle?</p>
+        <button class="opt">Rolling state is only needed to save disk space, not for latency</button>
+        <button class="opt">Recomputing from scratch would violate the retention tiering policy</button>
+        <button class="opt">A full recompute against long history each cycle cannot finish inside the sub-minute alert-latency budget at this data volume</button>
+        <p class="fb">With billions of series and a sub-minute fire requirement, only incremental evaluation over a small recent window and rolling state can keep each cycle bounded.</p>
+        <p class="hint">Reread deep dive 4 on the alerting pipeline.</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic. Try: <em>"Walk me through what happens when one tenant emits a runaway high-cardinality tag — where does it hurt first?"</em> · <em>"Compare Prometheus' local TSDB + Thanos against a hosted columnar store like Datadog for this design."</em> · <em>"How would you make alert evaluation exactly-once reliable when an evaluator crashes mid-cycle?"</em>
@@ -446,21 +654,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

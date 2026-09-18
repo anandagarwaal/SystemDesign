@@ -69,13 +69,27 @@
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
   .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
@@ -97,6 +111,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 7</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -130,6 +146,29 @@
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Write-heavy with hot keys and near-real-time reads. Let me size the per-key write rate.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="counter-hot-key-nfr">
+      <p class="stem">Which NFR most directly follows from "a single hot post can take tens of thousands of likes/sec"?</p>
+      <button class="opt">Storage capacity must grow without limit</button>
+      <button class="opt">Writes must avoid a single serialized bottleneck</button>
+      <button class="opt">Every read must always be perfectly fresh</button>
+      <p class="fb">The hot-key write rate is what forces "absorb tens of thousands of writes/sec onto a single post without a serialized bottleneck."</p>
+      <p class="hint">Reread the NFR table's first row.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="counter-eventual-consistency-why">
+      <p class="stem">Why does the lesson call "eventually consistent" an unlock rather than a compromise?</p>
+      <button class="opt">Giving up strict consistency is what lets writes avoid contention and reads stay cheap and cached</button>
+      <button class="opt">Users never notice missing likes so correctness does not matter here</button>
+      <button class="opt">Eventual consistency makes the system simpler to test than a strict one</button>
+      <p class="fb">The tension is contention-free writes vs. cheap cached reads; relaxing strict consistency is what buys both at once.</p>
+      <p class="hint">Look at "The key tension" box — what two things does the design optimize for, and what does it give up to get them?</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 7</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only compute numbers that change a decision. Two matter here: the per-key write rate (does one row melt?) and the read/write skew (do we cache?).</p>
@@ -150,6 +189,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “~100k writes/s globally, and a single viral post can melt one row. Let me define the entities.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="counter-hot-key-vs-aggregate">
+      <p class="stem">Why does the lesson say aggregate write throughput is "not the problem"?</p>
+      <button class="opt">Aggregate throughput is actually the hardest constraint to satisfy</button>
+      <button class="opt">It is easy to shard across many keys; the danger is one key taking all the load</button>
+      <button class="opt">Total writes per day are too small to ever matter at any scale</button>
+      <p class="fb">100k writes/s spread across billions of posts is trivial to shard; the killer is tens of thousands of writes/s hitting one postId.</p>
+      <p class="hint">Reread the "Hot key" bullet in the capacity box.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="counter-read-write-skew-why">
+      <p class="stem">Reads can be 100x-1000x writes. Why does that ratio, not the write rate, dictate the read path design?</p>
+      <button class="opt">It means the counter store never needs to be sharded at all</button>
+      <button class="opt">It means writes can now be made synchronous since reads absorb the cost</button>
+      <button class="opt">Any read hitting a contended write row would multiply the contention problem by that same ratio</button>
+      <p class="fb">If reads went to the same hot row as writes, the read volume would amplify contention hundreds of times over — so reads must be served from a cache instead.</p>
+      <p class="hint">What happens to the hot-key problem if millions of reads per second also touched the live counter row?</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 7</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <h3>Entities</h3>
@@ -190,6 +252,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “LikeEvent with a dedup key and a logically single, physically sharded counter. Now the async write and cached read paths.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="counter-like-idempotency-mechanism">
+      <p class="stem">What makes a repeated "like" request from the same user safe to process twice?</p>
+      <button class="opt">A per-user like record keyed by (postId, userId) that a repeat just matches</button>
+      <button class="opt">A raw "+1" command sent directly to the sharded counter store</button>
+      <button class="opt">A random shard chosen fresh for every incoming like request</button>
+      <p class="fb">The LikeEvent/user_likes record is a state command keyed by user, so a duplicate becomes a no-op instead of a double count.</p>
+      <p class="hint">Reread the "Why store individual LikeEvents" pushback answer.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="counter-shard-count-tradeoff-why">
+      <p class="stem">Why does the counter_meta table store a per-post shard_count instead of a single global constant?</p>
+      <button class="opt">Because every post needs a unique metric name to be queried correctly</button>
+      <button class="opt">Because splitting all posts into many shards would waste summing cost on posts that are never hot</button>
+      <button class="opt">Because Cassandra requires a different table for every distinct shard count</button>
+      <p class="fb">Cold posts stay at shard_count=1 so reads sum one value; only hot posts pay the higher summing cost of many shards.</p>
+      <p class="hint">Think about what a read has to do for a post with a high shard count versus a post with just one shard.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 7</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Data Flow</h2>
   <p>This is a <b>write-aggregation pipeline</b>, the same shape as an <a href="0036-ad-click-aggregator.html">ad click aggregator</a>: high-rate events in, a counter out. The trick is to never apply each event to durable storage synchronously.<a href="#c1" class="cite">[1]</a></p>
@@ -246,6 +331,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: hot keys, the write pipeline, idempotency and read-time consistency.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="counter-read-path-cache-sum">
+      <p class="stem">On a cache miss, how does the read path compute the count?</p>
+      <button class="opt">It waits for the next aggregation window to flush a fresh value</button>
+      <button class="opt">It replays every LikeEvent from Kafka for that post from the beginning</button>
+      <button class="opt">It sums the post's N counter shards and re-caches the total</button>
+      <p class="fb">Reads sum the sharded counters on a miss and cache the result, keeping the hot path off contended rows.</p>
+      <p class="hint">Reread step 4 in "The life of one like."</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="counter-async-vs-sync-why">
+      <p class="stem">Why does batching increments through Kafka+aggregation beat a synchronous +1 on every like?</p>
+      <button class="opt">It turns thousands of tiny increments into one batched delta, so the durable store sees a trickle instead of a flood</button>
+      <button class="opt">It removes the need for any durable storage of counts at all</button>
+      <button class="opt">It guarantees every like is reflected in the count within one millisecond</button>
+      <p class="fb">Synchronous increments couple write throughput to per-row lock/round-trip cost; aggregation collapses many increments into few writes.</p>
+      <p class="hint">Reread the "Why async aggregation, not synchronous +1" box.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 7</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
 
@@ -323,8 +431,45 @@
     <p class="pq">“How do you shard a single hot counter?”</p>
     <p><b>Staff answer:</b> Split it into N sub-counters (postId:shard) chosen randomly on write and summed on read. Keep N=1 for cold posts and increase it adaptively for hot ones.</p>
   </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness next.”</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="counter-hot-key-fix">
+      <p class="stem">Why does a naive single like counter fail for a viral post?</p>
+      <button class="opt">The total stored count grows too large to fit inside a single database row value</button>
+      <button class="opt">Every increment serializes on one row or key, so the hot key becomes a bottleneck</button>
+      <button class="opt">The read query has to scan every user who liked the post before it returns a count</button>
+      <p class="fb">It's a hot-key / single-row contention problem — all increments queue behind one lock. Shard the counter, sum on read.</p>
+      <p class="hint">Reread Deep Dive 1's opening paragraph.</p>
+    </div>
+    <div class="q" data-correct="c" data-concept="counter-redis-incr-risk">
+      <p class="stem">What is the main risk of using Redis INCR with a periodic flush to the durable store?</p>
+      <button class="opt">Redis INCR is not atomic, so concurrent increments race and lose writes</button>
+      <button class="opt">Reads become far slower because every count must be recomputed from event logs</button>
+      <button class="opt">Counts not yet flushed are lost if Redis crashes, since it is memory-first storage</button>
+      <p class="fb">INCR is atomic and fast, but un-flushed in-memory deltas vanish on a crash — the durability gap you mitigate with persistence, replicas, and a log.</p>
+      <p class="hint">Reread Deep Dive 2's paragraph on Redis INCR's durability risk.</p>
+    </div>
+    <div class="q" data-correct="a" data-concept="counter-hll-unique-viewers">
+      <p class="stem">Which structure best estimates unique viewers at billions of views, cheaply?</p>
+      <button class="opt">A HyperLogLog sketch, which estimates distinct cardinality in a few kilobytes</button>
+      <button class="opt">A relational table storing one indexed row per viewer to deduplicate them</button>
+      <button class="opt">A single sharded integer counter incremented once per view that arrives</button>
+      <p class="fb">HyperLogLog gives ~1-2% error in a few KB and merges across shards — exact per-user storage is prohibitive at that scale.</p>
+      <p class="hint">Reread Deep Dive 3's paragraph on distinct counts.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="counter-monotonic-cache-why">
+      <p class="stem">Why must the cached count only ever be replaced by a value greater than or equal to the current one?</p>
+      <button class="opt">Because Redis rejects any write that would lower a numeric key's value</button>
+      <button class="opt">Because a count that visibly drops then rises looks broken to users, even though brief staleness is tolerated</button>
+      <button class="opt">Because HyperLogLog sketches cannot represent decreasing values mathematically</button>
+      <p class="fb">Users tolerate a lagging count but not one that jumps backward — the monotonic guarantee protects perceived correctness, not the underlying number.</p>
+      <p class="hint">Reread the "monotonic guarantee" box in Deep Dive 4.</p>
+    </div>
+  </div>
+  </section>
 
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 7</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -373,8 +518,29 @@
     <p class="pq">“How do you stop like-bots inflating counts?”</p>
     <p><b>Staff answer:</b> Authenticated likes only, per-account and device rate limits, bot detection, and removing fraudulent likes and recomputing counts.</p>
   </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="counter-double-tap-idempotency">
+      <p class="stem">How do you keep like/unlike correct under client retries and at-least-once delivery?</p>
+      <button class="opt">Send a raw plus-one command and trust the network to deliver each event exactly once</button>
+      <button class="opt">Record like state keyed by (postId, userId) so repeats are idempotent no-ops</button>
+      <button class="opt">Lock the post row for the full request so no second like can ever be processed</button>
+      <p class="fb">A state command keyed per user dedups naturally — re-liking is a no-op, unliking removes it — so retries and redeliveries converge.</p>
+      <p class="hint">Same mechanism as the earlier gate on idempotency.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="counter-observability-hot-key-signal">
+      <p class="stem">Why does the observability plan track "top posts by writes/s" and shard_count changes specifically?</p>
+      <button class="opt">To measure how many likes convert into eventual purchases</button>
+      <button class="opt">To bill different posts different storage rates</button>
+      <button class="opt">To verify that adaptive sharding actually kicks in when a post goes hot, not just in theory</button>
+      <p class="fb">The design's core claim is that hot posts get more shards automatically — tracking writes/s and shard_count changes is how you confirm that claim holds in production.</p>
+      <p class="hint">Reread the Observability table's "Hot keys" row.</p>
+    </div>
+  </div>
+  </section>
 
+  <section class="chunk" id="chunk-7" hidden>
+  <p class="chunk-label">7 of 7</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = 10B likes/day, ~1M writes/s at peak, 10M+ count reads/s.</p>
@@ -412,42 +578,67 @@
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A distributed counter separates idempotent recording from aggregation. A like writes a per-user record keyed by (postId, userId), so repeats are no-ops, and emits an event to Kafka. A stream aggregator batches increments into sharded counters, and hot posts get more sub-counters to avoid row contention. Reads come from a cache, summing shards on a miss. The actor sees their like immediately with optimistic UI; everyone else is seconds behind. HyperLogLog handles approximate unique viewers. At 10× we add partitions and adaptive shards.</p></div>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why does a naive single like counter fail for a viral post?</p>
-      <button class="opt">The total stored count grows too large to fit inside a single database row value</button>
-      <button class="opt">Every increment serializes on one row or key, so the hot key becomes a bottleneck</button>
-      <button class="opt">The read query has to scan every user who liked the post before it returns count</button>
-      <button class="opt">The cache cannot store integers and must convert each value into a string per read</button>
-      <p class="fb">It's a hot-key / single-row contention problem — all increments queue behind one lock. Shard the counter, sum on read.</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="counter-first-bottleneck-10x">
+      <p class="stem">At 10x scale, what is named as the first bottleneck?</p>
+      <button class="opt">The durable like relation, since every like is an exact, idempotent write</button>
+      <button class="opt">The HyperLogLog sketches, since they cannot merge past a fixed size</button>
+      <button class="opt">The count cache, since Redis cannot exceed a few gigabytes</button>
+      <p class="fb">The exact, durable user_likes table scales with true write volume; the approximate/cached parts scale far more cheaply.</p>
+      <p class="hint">Reread "First bottleneck" under Scaling 10x.</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. What is the main risk of using Redis <code>INCR</code> with a periodic flush to the durable store?</p>
-      <button class="opt">Redis <code>INCR</code> is not atomic, so concurrent increments race and silently lose writes</button>
-      <button class="opt">Reads become far slower because every count must be recomputed from event logs</button>
-      <button class="opt">Counts not yet flushed are lost if Redis crashes, since it is memory-first storage</button>
-      <button class="opt">The durable store rejects batched deltas and demands one row update per single like</button>
-      <p class="fb"><code>INCR</code> is atomic and fast, but un-flushed in-memory deltas vanish on a crash — the durability gap you mitigate with persistence, replicas, and a log.</p>
-    </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Which structure best estimates unique viewers at billions of views, cheaply?</p>
-      <button class="opt">A HyperLogLog sketch, which estimates distinct cardinality in a few kilobytes</button>
-      <button class="opt">A relational table storing one indexed row per viewer to deduplicate them all</button>
-      <button class="opt">A single sharded integer counter incremented once for every view that arrives</button>
-      <button class="opt">A sorted set keyed by timestamp holding every viewer id for the whole post</button>
-      <p class="fb">HyperLogLog gives ~1–2% error in a few KB and merges across shards — exact per-user storage is prohibitive at that scale.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. How do you keep like/unlike correct under client retries and at-least-once delivery?</p>
-      <button class="opt">Send a raw plus-one command and trust the network to deliver each event exactly once</button>
-      <button class="opt">Record like state keyed by <code>(postId, userId)</code> so repeats are idempotent no-ops</button>
-      <button class="opt">Lock the post row for the full request so no second like can ever be processed at all</button>
-      <button class="opt">Increase the shard count until accidental double likes statistically cancel each other</button>
-      <p class="fb">A state command keyed per user dedups naturally — re-liking is a no-op, unliking removes it — so retries and redeliveries converge.</p>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="counter-cost-driver-why">
+      <p class="stem">Why is storing the exact like relation the dominant cost driver, not the counting itself?</p>
+      <button class="opt">Because Cassandra charges more for counters than for regular rows</button>
+      <button class="opt">Because HyperLogLog sketches are more expensive than raw storage per user</button>
+      <button class="opt">Because counting is a cheap sharded aggregate, while durably storing every who-liked-what row scales with total likes ever made</button>
+      <p class="fb">The counter shards and cache are small and cheap; user_likes must keep one durable row per like for idempotency and unlike support, so it grows without bound.</p>
+      <p class="hint">Compare the cost table's line items — which one is sized in tens of terabytes?</p>
     </div>
   </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">Final check</p>
+  <h2>Everything from this lesson</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is what makes it stick. These questions also seed spaced review — expect variants back in a future session per the forgetting curve.</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="b" data-concept="counter-hot-key-fix-final">
+      <p class="stem">What is the standard fix for a single hot counter row melting under viral load?</p>
+      <button class="opt">Move the counter into a relational database with stronger locking</button>
+      <button class="opt">Split it into N sub-counters, write to a random shard, sum on read</button>
+      <button class="opt">Reject likes once the post passes a fixed popularity threshold</button>
+      <p class="fb">Sharded counters turn one contended row into N independently-writable rows, summed at read time.</p>
+      <p class="hint">This is Deep Dive 1's core pattern.</p>
+    </div>
+    <div class="q" data-correct="a" data-concept="counter-idempotency-final">
+      <p class="stem">Why can't a raw "+1" command be made idempotent on its own?</p>
+      <button class="opt">It carries no identity to compare against, so a retry looks identical to a new like</button>
+      <button class="opt">Databases refuse to execute increment operations more than once per second</button>
+      <button class="opt">Kafka guarantees exactly-once delivery, making the question moot</button>
+      <p class="fb">A raw increment has no key to dedup against; a state command keyed by (postId, userId) does.</p>
+      <p class="hint">Reread Deep Dive 3's opening paragraph.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="counter-consistency-split-final">
+      <p class="stem">Why does the actor who clicked "like" see it update instantly while everyone else sees it seconds later?</p>
+      <button class="opt">The actor's client polls the database directly, bypassing the cache entirely</button>
+      <button class="opt">Every like is actually processed synchronously, contradicting the async design</button>
+      <button class="opt">Read-your-own-write is applied only where a human would notice; strangers get eventual consistency because nobody notices a stranger's lag</button>
+      <p class="fb">Optimistic UI gives the actor an immediate local increment; the shared cached total converges for everyone else without anyone paying for strong consistency they don't need.</p>
+      <p class="hint">Reread the staff signal box after Deep Dive 4.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="counter-metric-tolerance-final">
+      <p class="stem">What determines whether a metric gets exact tracking versus a probabilistic estimate?</p>
+      <button class="opt">Whichever is cheaper to implement regardless of the metric's meaning</button>
+      <button class="opt">Whether users would notice or care about a small error in that specific metric</button>
+      <button class="opt">Whether the metric is a write path or a read path operation</button>
+      <p class="fb">Likes are exact because people notice a missing like; unique viewers are approximate because nobody can tell 1,000,000 from 1,012,000.</p>
+      <p class="hint">Reread the "Exact vs approximate — pick per metric" box.</p>
+    </div>
+  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this one — push on it:
@@ -475,21 +666,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

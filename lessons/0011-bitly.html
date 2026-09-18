@@ -61,22 +61,34 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -97,6 +109,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 6 · Phases 1–2</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -150,6 +164,31 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Writes are ~1/s and reads peak near 600k/s, so the API is two endpoints and one table. Let me pin those.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="bitly-short-code-length">
+      <p class="stem">How many base62 characters are needed to comfortably cover 1B short URLs?</p>
+      <button class="opt">Four characters handle any billion-scale keyspace fine</button>
+      <button class="opt">Nine characters are the accepted minimum industry norm</button>
+      <button class="opt">Six characters give about fifty-seven billion codes</button>
+      <button class="opt">Three characters suffice given base62's large radix</button>
+      <p class="fb">62^6 ≈ 56.8 billion, roughly 50× more than the 1B target; 7 chars adds further headroom.</p>
+      <p class="hint">Reread the short-code-length table in Capacity Estimation.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="bitly-read-write-skew-drives-design">
+      <p class="stem">Why does the interview open by pinning the read:write ratio before anything else?</p>
+      <button class="opt">A 100:1+ skew means the read and write paths need entirely different scaling strategies</button>
+      <button class="opt">Interviewers only care about impressive-sounding traffic numbers</button>
+      <button class="opt">The ratio decides which programming language the service should be written in</button>
+      <button class="opt">Read and write traffic must always be handled by one shared code path</button>
+      <p class="fb">A write-tiny, read-massive system means writes stay a boring single insert while all the design effort goes into caching reads.</p>
+      <p class="hint">Reread the NFR paragraph on the 100:1 to 1000:1 read:write ratio.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 6 · Phase 3</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p>One entity does almost all the work: the <strong>URL mapping</strong> (<code>short_code</code>, <code>long_url</code>, <code>custom_alias</code>, <code>expires_at</code>, <code>created_by</code>, <code>created_at</code>). A <strong>User</strong> entity exists if you support ownership.<a href="#c1" class="cite">[1]</a> Two endpoints cover both flows; derive the creator from the auth token, never from the request body.</p>
@@ -177,6 +216,31 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “With the mapping table and two endpoints fixed, I'll draw the write and redirect paths end to end.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="bitly-primary-key-choice">
+      <p class="stem">What is the primary key of the <code>urls</code> table, and why?</p>
+      <button class="opt">owner_id, because grouping by user matters most for reads</button>
+      <button class="opt">short_code, because every redirect is a single point lookup</button>
+      <button class="opt">created_at, because expiry sweeps run on a schedule</button>
+      <button class="opt">long_url, because duplicate long URLs must be prevented</button>
+      <p class="fb">short_code as PK makes every redirect a point read, which is exactly what a cache, replica, or future shard can serve cheaply.</p>
+      <p class="hint">Reread the "load-bearing choice" sentence at the top of Data Model.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="d" data-concept="bitly-302-vs-301-why">
+      <p class="stem">Why does the API return a 302, not a cacheable 301, for the redirect endpoint?</p>
+      <button class="opt">Browsers reject 301 responses coming from third-party short domains</button>
+      <button class="opt">A 302 is required by HTTP for any URL under eight characters</button>
+      <button class="opt">A 301 is slower to generate than a 302 on the server side</button>
+      <button class="opt">A 301 gets cached by the browser, so the server loses clicks, expiry, and repointing</button>
+      <p class="fb">Once a browser caches a 301, later visits never come back to your server, killing analytics and the ability to change or expire the link.</p>
+      <p class="hint">Reread the "Why return 302 instead of 301?" pushback box.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 6 · Phase 4</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Component Diagram</h2>
 <pre class="diagram">
@@ -223,6 +287,31 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “The design works; the hard parts are unique code generation and serving 600k redirects/s, so I'll go deep there.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="bitly-write-vs-read-path-split">
+      <p class="stem">In the HLD, what is the key structural difference between the write and read paths?</p>
+      <button class="opt">Write is a single insert; read goes through CDN and cache before the database</button>
+      <button class="opt">Write and read both go through the CDN before touching any database</button>
+      <button class="opt">Write goes through Redis first; read skips Redis and hits Postgres directly</button>
+      <button class="opt">Write and read both require the same replica set for correctness</button>
+      <p class="fb">Writes are rare (~1/s) so they stay a simple insert. Reads are constant and spiky, so they layer edge cache, Redis, then DB replicas.</p>
+      <p class="hint">Reread the High-Level Design table splitting Write and Read flows.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="bitly-single-sql-db-not-bottleneck-why">
+      <p class="stem">Why isn't a single SQL database a bottleneck here, despite handling all persistent state?</p>
+      <button class="opt">SQL databases have no meaningful throughput limits when tuned correctly</button>
+      <button class="opt">The database is sharded across ten nodes from day one</button>
+      <button class="opt">Writes are only about 1 per second, and reads are absorbed by CDN and cache before reaching it</button>
+      <button class="opt">Postgres automatically replicates itself globally without configuration</button>
+      <p class="fb">The DB only sees the rare write and occasional cache-miss read; the hot 600k/s read path never touches it directly.</p>
+      <p class="hint">Reread the "Isn't a single SQL database a bottleneck?" pushback box.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 6 · Phase 5</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
   <p>This is 60% of your score. The first two are mandatory; the rest are proactive depth that signals seniority.</p>
@@ -295,6 +384,40 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “I've justified counter-based codes plus a cached read path. Let me cover how we'd run and protect it in production.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="bitly-counter-batching-purpose">
+      <p class="stem">Why does the write service grab a batch of IDs (e.g. 1,000) from Redis instead of incrementing per write?</p>
+      <button class="opt">It makes short codes noticeably shorter for every generated URL</button>
+      <button class="opt">It collapses network round-trips so one Redis node sustains far higher throughput</button>
+      <button class="opt">It is required because Redis cannot perform atomic increments at all</button>
+      <button class="opt">It removes the need for a unique constraint on the short_code column</button>
+      <p class="fb">Batching turns many small INCR round-trips into one, letting a single Redis node sustain 100k+ ops/sec while instances serve locally.</p>
+      <p class="hint">Reread "Counter batching" in the staff-favored-pick box.</p>
+    </div>
+    <div class="q" data-correct="a" data-concept="bitly-alternative-architectures-pick">
+      <p class="stem">Why is "SQL + Redis + CDN with counter codes" chosen over the serverless edge-KV or leaderless-hash alternatives?</p>
+      <button class="opt">Writes are tiny and reads are cacheable, so this system doesn't need the write-scale properties the alternatives buy</button>
+      <button class="opt">Serverless KV stores and leaderless databases cannot store string values at all</button>
+      <button class="opt">SQL databases are always cheaper than every other storage option in any workload</button>
+      <button class="opt">Edge KV stores are incompatible with issuing HTTP redirect responses</button>
+      <p class="fb">At ~1 write/sec with a 1000:1 read skew, the hard problem is caching reads, not scaling writes — the alternatives solve a problem this system doesn't have.</p>
+      <p class="hint">Reread the "Pick A" line under Alternative Approaches &amp; Tradeoffs.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="d" data-concept="bitly-enumeration-fix-why">
+      <p class="stem">Why does a monotonic counter need "shuffling" before it's safe to expose as a short code?</p>
+      <button class="opt">Shuffling is purely cosmetic and has no security or product purpose</button>
+      <button class="opt">Sequential codes take up more storage space per row than shuffled ones</button>
+      <button class="opt">Base62 encoding fails mathematically on plain sequential integers</button>
+      <button class="opt">Sequential codes let anyone enumerate and scrape the entire URL corpus by guessing nearby values</button>
+      <p class="fb">A raw counter produces predictable, adjacent codes; bias-shuffling or interleaving random bits makes codes opaque without reintroducing collisions.</p>
+      <p class="hint">Reread "Enumeration fix" in the staff-favored-pick box.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 6 · Phases 6–7</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -383,46 +506,95 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Let me recap the key decisions.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="bitly-10x-first-bottleneck">
+      <p class="stem">At 10× scale, what is named as the first bottleneck to hit?</p>
+      <button class="opt">The base62 short-code keyspace running out of room</button>
+      <button class="opt">The API gateway failing to authenticate enough users</button>
+      <button class="opt">Redis memory, then database miss traffic on cold links</button>
+      <button class="opt">The number of available custom alias combinations</button>
+      <p class="fb">Codes have 350× headroom left at 10×; the real pressure lands on cache memory and the misses that fall through to the DB.</p>
+      <p class="hint">Reread the "First bottleneck" line under Scaling 10×.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="bitly-cost-dominant-driver-why">
+      <p class="stem">Why is CDN/edge traffic the dominant cost line item rather than the database?</p>
+      <button class="opt">Databases are free to run at any scale on managed cloud platforms</button>
+      <button class="opt">Redirect volume is enormous and priced per request, while writes and storage stay small and cheap</button>
+      <button class="opt">CDNs charge a flat monthly fee regardless of how much traffic passes through</button>
+      <button class="opt">The database line item was left out of the estimate entirely by mistake</button>
+      <p class="fb">15B redirects/month at a per-request CDN price dwarfs the cost of a lightly-loaded write path and modest storage.</p>
+      <p class="hint">Reread the Cost of Running table and its "Dominant driver" line.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">6 of 6 · Wrap-up + comprehensive check</p>
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Bitly is a unique-ID generator bolted to a read-scaling cache. Writes are ~1/s, so a single Postgres table with a UNIQUE constraint and batched counter-based base62 codes gives collision-free short codes. Redirects peak near 600k/s, so the read path is CDN → Redis → replica, and 302s keep analytics and expiry under our control. Analytics are recorded asynchronously so redirects never wait. At 10× only the cache and CDN capacity grow, and cost is dominated by edge traffic, a few thousand dollars a month. Next I'd add abuse scanning and multi-region read replicas.</p></div>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why is the counter + base62 approach generally favored over hashing the long URL?</p>
+  <h2>Check yourself — comprehensive review</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is what makes it stick — these questions also seed spaced review.</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="b" data-concept="bitly-counter-vs-hash-final">
+      <p class="stem">Why is the counter + base62 approach generally favored over hashing the long URL?</p>
       <button class="opt">It produces far shorter codes than any other generation method available</button>
       <button class="opt">It removes collisions entirely instead of paying to handle them per write</button>
       <button class="opt">It lets the system avoid using a database to persist the mappings</button>
       <button class="opt">It makes the generated short codes harder for attackers to enumerate</button>
       <p class="fb">Monotonic counters are unique by construction; hashing turns collision handling into a steady-state per-write cost.</p>
+      <p class="hint">Reread Deep Dive 1's comparison table and the staff-favored-pick box.</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. Roughly how many base62 characters are needed to encode 1 billion URLs?</p>
+    <div class="q" data-correct="c" data-concept="bitly-code-length-final">
+      <p class="stem">Roughly how many base62 characters are needed to encode 1 billion URLs?</p>
       <button class="opt">4 characters, because that already covers many billions of codes</button>
       <button class="opt">9 characters, since base62 grows quite slowly per added symbol</button>
       <button class="opt">6 characters, since 62^6 is about 56 billion codes available</button>
       <button class="opt">2 characters, because each symbol contributes enormous keyspace</button>
       <p class="fb">62^6 ≈ 56.8 billion, comfortably above 1B; 7 chars (≈3.5T) adds headroom.</p>
+      <p class="hint">Reread the short-code-length table in Capacity Estimation.</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Why prefer a 302 over a 301 redirect for a URL shortener product?</p>
+    <div class="q" data-correct="a" data-concept="bitly-302-final">
+      <p class="stem">Why prefer a 302 over a 301 redirect for a URL shortener product?</p>
       <button class="opt">A 302 is not cached, so every click returns for analytics and control</button>
       <button class="opt">A 302 is cached, so the origin server load drops dramatically over time</button>
       <button class="opt">A 302 encodes the long URL directly inside the short code that is sent</button>
       <button class="opt">A 302 is the only status code browsers accept for any redirect at all</button>
       <p class="fb">302 isn't cached, so each hit returns through your server — needed for click tracking, expiry, and repointing.</p>
+      <p class="hint">Reread Deep Dive 5's 301-vs-302 tradeoff box.</p>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. What is the single most design-shaping fact about a URL shortener?</p>
+    <div class="q" data-correct="d" data-concept="bitly-design-shaping-fact-final">
+      <p class="stem">What is the single most design-shaping fact about a URL shortener?</p>
       <button class="opt">Long URLs must be validated and sanitized before they are ever stored</button>
       <button class="opt">Custom aliases can collide with generated codes within one namespace</button>
       <button class="opt">The total dataset of one billion mappings is around five hundred gigabytes</button>
       <button class="opt">It is extremely read-heavy, roughly a hundred or more reads per write</button>
       <p class="fb">The ~100:1+ read:write skew is why the read path gets caches and CDNs while writes stay a trivial insert.</p>
+      <p class="hint">Reread the opening line of Non-Functional Requirements.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="bitly-remove-cache-what-breaks">
+      <p class="stem">What would break first if you removed the Redis cache from the read path entirely?</p>
+      <button class="opt">Nothing, because the CDN alone already handles all redirect traffic</button>
+      <button class="opt">Short codes would stop being unique across concurrent writers</button>
+      <button class="opt">Every cache-miss-equivalent read would hit Postgres directly, and 600k/s would exceed its IOPS</button>
+      <button class="opt">The write path would be unable to generate any new short codes</button>
+      <p class="fb">Raw DB IOPS (~100k) can't meet peak 600k reads/sec; the cache is what absorbs the gap between disk speed and redirect volume.</p>
+      <p class="hint">Reread Deep Dive 2's read-scaling layer table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="bitly-eventual-consistency-why-final">
+      <p class="stem">Why does this system pick AP (availability over consistency) rather than strict consistency for redirects?</p>
+      <button class="opt">A stale redirect for a few seconds is harmless, but a failed redirect breaks the product's core promise</button>
+      <button class="opt">Strict consistency is technically impossible to implement in any cache layer</button>
+      <button class="opt">Base62 encoding only works correctly under eventual consistency guarantees</button>
+      <button class="opt">Redis and CDNs are incapable of serving strongly consistent reads under any configuration</button>
+      <p class="fb">The NFR table states availability 99.99%, AP over CP, because a slightly stale redirect beats a failed one for this product.</p>
+      <p class="hint">Reread the Availability row in Non-Functional Requirements.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this design — push on it. Try:
@@ -446,21 +618,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

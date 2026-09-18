@@ -43,22 +43,33 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
-  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
-    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
-    font-size:.9rem; transition:.15s;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule);
+    border-radius:6px; padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font:inherit; font-size:.9rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,155 +84,361 @@
     <strong>Why this lesson, for your mission:</strong> Caching is the single most common lever for hitting a latency NFR in an interview. But reaching for it reflexively is a senior tell. The staff move is to <em>justify</em> the cache — confirm there's a read-heavy hot-key problem, then speak fluently about invalidation. "There are only two hard things in computer science: cache invalidation and naming things." Interviewers test whether you respect that.
   </div>
 
-  <h2>What a cache is, and why</h2>
-  <p>A cache stores frequently accessed data in fast memory so you avoid repeating an expensive operation. It buys you two things <a href="#c1" class="cite">[1]</a>:</p>
-  <ul>
-    <li><b>Latency.</b> A cache hit on Redis takes around <code>1ms</code> versus <code>20–50ms</code> for a typical database query <a href="#c1" class="cite">[1]</a> — a 20–50× speedup that compounds at scale.</li>
-    <li><b>Offloading the database.</b> Every read served from cache is a read your database doesn't do, letting it spend its capacity on writes and avoiding premature (expensive) scaling <a href="#c1" class="cite">[1]</a>.</li>
-  </ul>
-  <p>The catch is the whole reason this lesson exists: a cache holds a <em>copy</em> of the truth. The moment the source changes, the copy is wrong. Everything hard about caching descends from that one fact.</p>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 6</p>
+    <h2>What a cache is, and why</h2>
+    <p>A cache stores frequently accessed data in fast memory so you avoid repeating an expensive operation. It buys you two things <a href="#c1" class="cite">[1]</a>:</p>
+    <ul>
+      <li><b>Latency.</b> A cache hit on Redis takes around <code>1ms</code> versus <code>20–50ms</code> for a typical database query <a href="#c1" class="cite">[1]</a> — a 20–50× speedup that compounds at scale.</li>
+      <li><b>Offloading the database.</b> Every read served from cache is a read your database doesn't do, letting it spend its capacity on writes and avoiding premature (expensive) scaling <a href="#c1" class="cite">[1]</a>.</li>
+    </ul>
+    <p>The catch is the whole reason this lesson exists: a cache holds a <em>copy</em> of the truth. The moment the source changes, the copy is wrong. Everything hard about caching descends from that one fact.</p>
 
-  <h2>Where caches live</h2>
-  <p>"Cache" is not one box. Data can be cached at several layers between the user and your database, each cheaper to hit than the last:</p>
-  <table>
-    <thead><tr><th>Layer</th><th>Where</th><th>Good for</th></tr></thead>
-    <tbody>
-      <tr><td>Client cache</td><td>Browser / app memory</td><td>User-specific data, avoiding round-trips entirely</td></tr>
-      <tr><td>CDN</td><td>Edge, near the user</td><td>Static assets — images, video, JS <a href="#c1" class="cite">[1]</a></td></tr>
-      <tr><td>In-process cache</td><td>Inside the app server</td><td>Feature flags, config — small, rarely-changing data <a href="#c1" class="cite">[1]</a></td></tr>
-      <tr><td>Distributed cache</td><td>Redis / Memcached cluster</td><td>Shared application data across many servers <a href="#c1" class="cite">[1]</a></td></tr>
-    </tbody>
-  </table>
-  <p>An in-process cache is fastest (no network hop) but each server has its own copy — they drift, and it doesn't survive a restart. A distributed cache adds a network hop (~1ms) but is shared and survives deploys. In interviews, "a cache" almost always means a <b>distributed cache, and almost always Redis</b> <a href="#c1" class="cite">[1]</a>.</p>
+    <h2>Where caches live</h2>
+    <p>"Cache" is not one box. Data can be cached at several layers between the user and your database, each cheaper to hit than the last:</p>
+    <table>
+      <thead><tr><th>Layer</th><th>Where</th><th>Good for</th></tr></thead>
+      <tbody>
+        <tr><td>Client cache</td><td>Browser / app memory</td><td>User-specific data, avoiding round-trips entirely</td></tr>
+        <tr><td>CDN</td><td>Edge, near the user</td><td>Static assets — images, video, JS <a href="#c1" class="cite">[1]</a></td></tr>
+        <tr><td>In-process cache</td><td>Inside the app server</td><td>Feature flags, config — small, rarely-changing data <a href="#c1" class="cite">[1]</a></td></tr>
+        <tr><td>Distributed cache</td><td>Redis / Memcached cluster</td><td>Shared application data across many servers <a href="#c1" class="cite">[1]</a></td></tr>
+      </tbody>
+    </table>
+    <p>An in-process cache is fastest (no network hop) but each server has its own copy — they drift, and it doesn't survive a restart. A distributed cache adds a network hop (~1ms) but is shared and survives deploys. In interviews, "a cache" almost always means a <b>distributed cache, and almost always Redis</b> <a href="#c1" class="cite">[1]</a>.</p>
 
-  <h2>Caching patterns</h2>
-  <p>This is <em>who writes to the cache, and when</em>. There are four classic patterns. You will use the first one almost every time.</p>
-  <table>
-    <thead><tr><th>Pattern</th><th>How it works</th><th>Tradeoff</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><b>Cache-aside</b><br>(lazy loading)</td>
-        <td>App checks cache. On a miss, app reads the DB, writes the result back into the cache with a TTL, returns it <a href="#c1" class="cite">[1]</a>.</td>
-        <td>Default, used ~90% of the time <a href="#c1" class="cite">[1]</a>. Only requested data is cached. Cost: a cold miss does extra work, and stale entries linger until TTL or explicit eviction.</td>
-      </tr>
-      <tr>
-        <td><b>Read-through</b></td>
-        <td>App always talks to the cache; the cache itself fetches from the DB on a miss.</td>
-        <td>App code stays simple, but you need a cache layer that supports it. Same staleness story as cache-aside.</td>
-      </tr>
-      <tr>
-        <td><b>Write-through</b></td>
-        <td>Writes go to cache <em>and</em> DB synchronously, together.</td>
-        <td>Cache is always fresh; writes are slower (two hops) and you cache data that may never be read.</td>
-      </tr>
-      <tr>
-        <td><b>Write-back</b><br>(write-behind)</td>
-        <td>Writes hit the cache immediately; the DB is updated asynchronously later.</td>
-        <td>Fastest writes, highest throughput — but if the cache dies before flushing, you lose data. Use only when some loss is tolerable.</td>
-      </tr>
-    </tbody>
-  </table>
-  <div class="box">
-    <b>Default to cache-aside.</b> It's the pattern you'll describe by reflex: <i>"on a read, check the cache; on a miss, hit the DB, populate the cache with a TTL, and return."</i> Reach for write-through only when you can't tolerate stale reads, and write-back only when you can tolerate losing recent writes for raw write speed.
-  </div>
-
-  <h2>Eviction policies</h2>
-  <p>A cache is finite. When it fills, something must go. That decision is the eviction policy:</p>
-  <table>
-    <thead><tr><th>Policy</th><th>Evicts</th></tr></thead>
-    <tbody>
-      <tr><td><b>LRU</b> — Least Recently Used</td><td>The entry untouched the longest. The sensible default; matches most access patterns.</td></tr>
-      <tr><td><b>LFU</b> — Least Frequently Used</td><td>The entry accessed the fewest times. Better when popularity is stable over time.</td></tr>
-      <tr><td><b>FIFO</b> — First In, First Out</td><td>The oldest inserted entry, ignoring how often it's used. Simple but rarely optimal.</td></tr>
-      <tr><td><b>TTL</b> — Time To Live</td><td>Not really eviction — every entry self-expires after a set time. Combine with LRU to bound staleness.</td></tr>
-    </tbody>
-  </table>
-
-  <h2>The hard problems</h2>
-  <p>This is the deep-dive gold. Saying "I'll add a cache" is senior. Naming and mitigating these failure modes is staff.</p>
-
-  <h3>1 · Invalidation &amp; staleness</h3>
-  <p>The hardest part, full stop. When a user updates their profile in the DB, the cached copy is now wrong; you must delete or update it <a href="#c1" class="cite">[1]</a>. Two strategies:</p>
-  <ul>
-    <li><b>TTL only:</b> let entries expire. Simple, but you serve stale data for up to the TTL window.</li>
-    <li><b>Write-time invalidation:</b> on a write, explicitly delete (or update) the key. Fresh immediately, but every write path must remember to do it — easy to miss, hard to test.</li>
-  </ul>
-  <p>The honest answer in an interview is to <em>pick</em>: "TTL of 60s plus delete-on-write for the profile key — I accept up to 60s of staleness if a delete is missed." A concrete pick beats hand-waving.</p>
-
-  <h3>2 · Thundering herd / cache stampede</h3>
-  <p>When a popular entry expires, many concurrent requests all miss at the same instant and pile onto the database to regenerate it <a href="#c1" class="cite">[1]</a> — sometimes enough to take the DB down. Mitigations:</p>
-  <ul>
-    <li><b>Request coalescing (locking):</b> only the first request recomputes; the rest wait for that single result.</li>
-    <li><b>Staggered / jittered TTL:</b> add randomness to expiry times so keys don't all die together <a href="#c1" class="cite">[1]</a>.</li>
-    <li><b>Early recomputation:</b> refresh a hot key <em>before</em> it expires, in the background.</li>
-  </ul>
-
-  <h3>3 · Hot keys</h3>
-  <p>One key — a celebrity's profile, a viral tweet — gets so much traffic it overwhelms a single cache node. Spread the load: replicate the value across multiple keys/nodes, or add a small in-process cache in front of the hot key so most reads never reach the shared cache at all.</p>
-
-  <h3>4 · Cache penetration</h3>
-  <p>Requests for keys that <em>don't exist</em> (often malicious) always miss the cache and always hit the DB — the cache provides zero protection. Defend by caching the negative result (a "not found" marker with a short TTL), or with a Bloom filter that cheaply rejects keys known not to exist.</p>
-
-  <div class="box">
-    <b>And when the whole cache falls over?</b> A full cache outage dumps 100% of traffic onto a DB sized for ~10%. Defenses: a small <b>in-process fallback cache</b>, <b>circuit breakers</b> to shed load, and <b>graceful degradation</b> <a href="#c1" class="cite">[1]</a>. Mentioning this unprompted signals you think about failure, not just the happy path.
-  </div>
-
-  <h2>Redis specifically</h2>
-  <p>Redis shows up in nearly every case study, and not only as a cache. It's a key-value store with a rich set of data structures — strings, hashes, lists, sets, sorted sets, bitmaps, hyperloglogs <a href="#c2" class="cite">[2]</a> — which lets a single technology solve several problems at once. (Memcached, by contrast, is a simple key-value store of strings and binary blobs <a href="#c2" class="cite">[2]</a> — pick it only when you want pure, dumb caching.)</p>
-  <p>Redis is effectively <b>single-threaded</b> for command execution. That sounds like a limitation but is a feature: each command runs to completion with no locks, so operations are <em>atomic</em> — which is exactly what makes the patterns below safe.</p>
-  <table>
-    <thead><tr><th>Use</th><th>How Redis does it</th></tr></thead>
-    <tbody>
-      <tr><td>Cache</td><td>Strings/hashes with TTL — the bread and butter <a href="#c2" class="cite">[2]</a>.</td></tr>
-      <tr><td>Rate limiting</td><td>Atomic <code>INCR</code> on a per-user key with expiry — a counter that can't race <a href="#c2" class="cite">[2]</a>.</td></tr>
-      <tr><td>Leaderboards</td><td><b>Sorted sets</b> keep members ranked by score; top-N is a single command <a href="#c2" class="cite">[2]</a>.</td></tr>
-      <tr><td>Distributed locks</td><td>One key as a lock to coordinate across servers — e.g. holding a concert ticket during checkout <a href="#c2" class="cite">[2]</a>.</td></tr>
-      <tr><td>Sessions / metrics</td><td>Shared store for session data and computed metrics <a href="#c2" class="cite">[2]</a>.</td></tr>
-    </tbody>
-  </table>
-  <p>That versatility — caching, locking, sessions, rate limiting, ranking in one box <a href="#c2" class="cite">[2]</a> — is exactly why "use Redis for X" is such a frequent move. Know <em>which data structure</em> backs each use; that's the depth marker.</p>
-
-  <h2>How caching shows up in an interview</h2>
-  <p>Sequencing matters as much as the content. Caching is almost never part of your first high-level design pass — the HLD should be the simplest thing that satisfies the functional requirements. You introduce caching in a <b>deep dive</b>, driven by a specific non-functional requirement: "reads must be under 50ms at p99" or "the DB can't take this read load."</p>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Don't reach for a cache reflexively. The senior move is "add Redis." The staff move is the question first: <em>"do we actually have a read-heavy, hot-key problem here?"</em> If reads are infrequent or data changes every request, a cache adds latency and complexity for no benefit <a href="#c1" class="cite">[1]</a> — say so and skip it. When you <em>do</em> cache, immediately address invalidation with a concrete pick (TTL + delete-on-write, with a stated staleness budget). Naming the stampede / hot-key / penetration failure modes unprompted is what separates "knows what a cache is" from "has run one in production."
-  </div>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Which caching pattern is the sensible default for most interview reads?</p>
-      <button class="opt">Write-back, because it gives you the fastest possible writes</button>
-      <button class="opt">Cache-aside, where a miss reads the database then fills</button>
-      <button class="opt">Write-through, because the cache is never ever stale</button>
-      <p class="fb">Cache-aside (lazy loading) is the pattern used ~90% of the time: on a miss, read the DB, populate the cache, return.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="caching-two-benefits">
+        <p class="stem">A cache buys you which two things?</p>
+        <button class="opt">Lower latency on hits, and offloading read traffic away from the database</button>
+        <button class="opt">Stronger consistency guarantees, and cheaper storage than a database</button>
+        <button class="opt">Automatic backups, and simpler schema design for the team</button>
+        <p class="fb">A cache hit is roughly 20-50x faster than a DB query, and every hit is a read the database never has to serve.</p>
+        <p class="hint">Reread the opening paragraph's two bullet points.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="caching-copy-of-truth">
+        <p class="stem">Why does the lesson call the cached value "a copy of the truth" rather than the truth itself?</p>
+        <button class="opt">Because caches store data in a different, less reliable file format</button>
+        <button class="opt">Because the source can change after the copy is made, leaving the cache holding stale data</button>
+        <button class="opt">Because caches are always physically farther from the user than the database</button>
+        <p class="fb">The database is the source of record. Once you duplicate a value into a cache, that duplicate can drift the instant the source is written.</p>
+        <p class="hint">Reread the last sentence of the first section: what does "everything hard about caching" descend from?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="caching-inprocess-vs-distributed">
+        <p class="stem">Why would an in-process cache give two servers behind a load balancer different answers for the same key?</p>
+        <button class="opt">In-process caches are not allowed to store the same keys as each other</button>
+        <button class="opt">Load balancers corrupt cached values when routing requests</button>
+        <button class="opt">Each server keeps its own private copy, so a write on one server never updates the copy sitting in another</button>
+        <button class="opt">In-process caches only work correctly on a single physical machine</button>
+        <p class="fb">An in-process cache lives inside one app server's memory. There is no shared state, so the two copies drift apart as soon as one of them changes.</p>
+        <p class="hint">Reread the paragraph comparing in-process to distributed caches.</p>
+      </div>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. A popular key expires and floods the database with misses. What is this?</p>
-      <button class="opt">Cache penetration, fixed by adding a Bloom filter up front</button>
-      <button class="opt">A hot key problem, fixed by replicating across more nodes</button>
-      <button class="opt">A thundering herd, fixed by coalescing or staggered TTLs</button>
-      <button class="opt">A full cache outage, fixed by a circuit breaker on reads</button>
-      <p class="fb">A stampede / thundering herd: mitigate with request coalescing (one recompute) or jittered TTLs so keys don't expire together.</p>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 6</p>
+    <h2>Caching patterns</h2>
+    <p>This is <em>who writes to the cache, and when</em>. There are four classic patterns. You will use the first one almost every time.</p>
+    <table>
+      <thead><tr><th>Pattern</th><th>How it works</th><th>Tradeoff</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Cache-aside</b><br>(lazy loading)</td>
+          <td>App checks cache. On a miss, app reads the DB, writes the result back into the cache with a TTL, returns it <a href="#c1" class="cite">[1]</a>.</td>
+          <td>Default, used ~90% of the time <a href="#c1" class="cite">[1]</a>. Only requested data is cached. Cost: a cold miss does extra work, and stale entries linger until TTL or explicit eviction.</td>
+        </tr>
+        <tr>
+          <td><b>Read-through</b></td>
+          <td>App always talks to the cache; the cache itself fetches from the DB on a miss.</td>
+          <td>App code stays simple, but you need a cache layer that supports it. Same staleness story as cache-aside.</td>
+        </tr>
+        <tr>
+          <td><b>Write-through</b></td>
+          <td>Writes go to cache <em>and</em> DB synchronously, together.</td>
+          <td>Cache is always fresh; writes are slower (two hops) and you cache data that may never be read.</td>
+        </tr>
+        <tr>
+          <td><b>Write-back</b><br>(write-behind)</td>
+          <td>Writes hit the cache immediately; the DB is updated asynchronously later.</td>
+          <td>Fastest writes, highest throughput — but if the cache dies before flushing, you lose data. Use only when some loss is tolerable.</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="box">
+      <b>Default to cache-aside.</b> It's the pattern you'll describe by reflex: <i>"on a read, check the cache; on a miss, hit the DB, populate the cache with a TTL, and return."</i> Reach for write-through only when you can't tolerate stale reads, and write-back only when you can tolerate losing recent writes for raw write speed.
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Which Redis structure most directly powers a ranked leaderboard?</p>
-      <button class="opt">Sorted sets, which keep members ordered by a numeric score</button>
-      <button class="opt">Plain strings, which hold one opaque value for each key</button>
-      <button class="opt">Hashes, which map many sub-fields under one single key</button>
-      <p class="fb">Sorted sets store members by score, so reading the top N is one command — the canonical leaderboard primitive.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="caching-pattern-default">
+        <p class="stem">Which pattern is the default, used about 90% of the time in interviews?</p>
+        <button class="opt">Write-through, since it always keeps the cache fully fresh</button>
+        <button class="opt">Cache-aside, where a miss reads the database then fills the cache</button>
+        <button class="opt">Write-back, since it gives the highest possible throughput</button>
+        <p class="fb">Cache-aside is the reflex default: on a miss, read the DB, populate the cache with a TTL, return.</p>
+        <p class="hint">Reread the box calling out the default pattern.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="caching-writeback-risk">
+        <p class="stem">What breaks if the cache node dies right after a write-back write, before the DB is updated?</p>
+        <button class="opt">That write is permanently lost, since the DB never received it</button>
+        <button class="opt">Nothing breaks, because write-back always replicates to a backup DB first</button>
+        <button class="opt">The read path silently falls back to write-through instead</button>
+        <p class="fb">Write-back trades durability for write speed: the write only lives in cache until the async flush, so a crash before that flush loses it.</p>
+        <p class="hint">Reread the write-back row's tradeoff column.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="caching-writethrough-cost">
+        <p class="stem">Why does write-through make writes slower than cache-aside?</p>
+        <button class="opt">Write-through requires a second, separate database to store data twice</button>
+        <button class="opt">Write-through only works with in-process caches, which are inherently slow</button>
+        <button class="opt">Every write must complete two hops, to the cache and to the database, before it returns</button>
+        <p class="fb">Write-through writes synchronously to both stores on the critical path, so the caller waits for both hops instead of one.</p>
+        <p class="hint">Reread the write-through row: what happens "synchronously, together"?</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. When should you introduce a cache in a system design interview?</p>
-      <button class="opt">In the very first high-level pass, before any requirements</button>
-      <button class="opt">In a deep dive, to satisfy a specific latency or load need</button>
-      <button class="opt">On every read path, since caching is essentially always free</button>
-      <p class="fb">Keep the HLD simple; add caching in a deep dive driven by a concrete NFR — and only when reads are frequent and stable.</p>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 6</p>
+    <h2>Eviction policies</h2>
+    <p>A cache is finite. When it fills, something must go. That decision is the eviction policy:</p>
+    <table>
+      <thead><tr><th>Policy</th><th>Evicts</th></tr></thead>
+      <tbody>
+        <tr><td><b>LRU</b> — Least Recently Used</td><td>The entry untouched the longest. The sensible default; matches most access patterns.</td></tr>
+        <tr><td><b>LFU</b> — Least Frequently Used</td><td>The entry accessed the fewest times. Better when popularity is stable over time.</td></tr>
+        <tr><td><b>FIFO</b> — First In, First Out</td><td>The oldest inserted entry, ignoring how often it's used. Simple but rarely optimal.</td></tr>
+        <tr><td><b>TTL</b> — Time To Live</td><td>Not really eviction — every entry self-expires after a set time. Combine with LRU to bound staleness.</td></tr>
+      </tbody>
+    </table>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="caching-eviction-lru-default">
+        <p class="stem">Which eviction policy is the sensible default for most access patterns?</p>
+        <button class="opt">LRU, evicting whichever entry has sat untouched the longest</button>
+        <button class="opt">FIFO, evicting whichever entry was inserted the earliest</button>
+        <button class="opt">TTL, evicting whichever entry was accessed the most times</button>
+        <p class="fb">LRU tracks recency of access, which matches how most real workloads actually behave: recently used data tends to be used again soon.</p>
+        <p class="hint">Reread the LRU row's second sentence.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="caching-lfu-vs-lru">
+        <p class="stem">When would LFU outperform LRU for choosing what to evict?</p>
+        <button class="opt">When the cache never fills up, so eviction never actually happens</button>
+        <button class="opt">When a key's popularity stays stable over time, so total access count is a better popularity signal than recency</button>
+        <button class="opt">When every key is read exactly once and never again</button>
+        <p class="fb">LRU can wrongly evict a consistently popular item just because it wasn't touched in the last few seconds. LFU's frequency count survives that noise when popularity is stable.</p>
+        <p class="hint">Reread the LFU row: "Better when popularity is stable over time."</p>
+      </div>
     </div>
-  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 6</p>
+    <h2>The hard problems</h2>
+    <p>This is the deep-dive gold. Saying "I'll add a cache" is senior. Naming and mitigating these failure modes is staff.</p>
+
+    <h3>1 · Invalidation &amp; staleness</h3>
+    <p>The hardest part, full stop. When a user updates their profile in the DB, the cached copy is now wrong; you must delete or update it <a href="#c1" class="cite">[1]</a>. Two strategies:</p>
+    <ul>
+      <li><b>TTL only:</b> let entries expire. Simple, but you serve stale data for up to the TTL window.</li>
+      <li><b>Write-time invalidation:</b> on a write, explicitly delete (or update) the key. Fresh immediately, but every write path must remember to do it — easy to miss, hard to test.</li>
+    </ul>
+    <p>The honest answer in an interview is to <em>pick</em>: "TTL of 60s plus delete-on-write for the profile key — I accept up to 60s of staleness if a delete is missed." A concrete pick beats hand-waving.</p>
+
+    <h3>2 · Thundering herd / cache stampede</h3>
+    <p>When a popular entry expires, many concurrent requests all miss at the same instant and pile onto the database to regenerate it <a href="#c1" class="cite">[1]</a> — sometimes enough to take the DB down. Mitigations:</p>
+    <ul>
+      <li><b>Request coalescing (locking):</b> only the first request recomputes; the rest wait for that single result.</li>
+      <li><b>Staggered / jittered TTL:</b> add randomness to expiry times so keys don't all die together <a href="#c1" class="cite">[1]</a>.</li>
+      <li><b>Early recomputation:</b> refresh a hot key <em>before</em> it expires, in the background.</li>
+    </ul>
+
+    <h3>3 · Hot keys</h3>
+    <p>One key — a celebrity's profile, a viral tweet — gets so much traffic it overwhelms a single cache node. Spread the load: replicate the value across multiple keys/nodes, or add a small in-process cache in front of the hot key so most reads never reach the shared cache at all.</p>
+
+    <h3>4 · Cache penetration</h3>
+    <p>Requests for keys that <em>don't exist</em> (often malicious) always miss the cache and always hit the DB — the cache provides zero protection. Defend by caching the negative result (a "not found" marker with a short TTL), or with a Bloom filter that cheaply rejects keys known not to exist.</p>
+
+    <div class="box">
+      <b>And when the whole cache falls over?</b> A full cache outage dumps 100% of traffic onto a DB sized for ~10%. Defenses: a small <b>in-process fallback cache</b>, <b>circuit breakers</b> to shed load, and <b>graceful degradation</b> <a href="#c1" class="cite">[1]</a>. Mentioning this unprompted signals you think about failure, not just the happy path.
+    </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="caching-stampede-identify">
+        <p class="stem">A popular key expires and floods the database with misses at the same instant. What is this?</p>
+        <button class="opt">Cache penetration, fixed by adding a Bloom filter up front</button>
+        <button class="opt">A hot key problem, fixed by replicating across more nodes</button>
+        <button class="opt">A thundering herd, fixed by coalescing or staggered TTLs</button>
+        <button class="opt">A full cache outage, fixed by a circuit breaker on reads</button>
+        <p class="fb">A stampede / thundering herd: mitigate with request coalescing (one recompute) or jittered TTLs so keys don't expire together.</p>
+        <p class="hint">Reread the "Thundering herd" subsection heading and its mitigations.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="caching-penetration-defense">
+        <p class="stem">Requests for keys that never exist always miss and always hit the DB. What defends against this?</p>
+        <button class="opt">Raising the TTL on every existing key in the cache</button>
+        <button class="opt">Caching a negative "not found" marker, or rejecting the key with a Bloom filter</button>
+        <button class="opt">Switching from LRU eviction to FIFO eviction</button>
+        <p class="fb">Cache penetration bypasses the cache entirely because a nonexistent key can never be a hit. Caching the negative result, or filtering it out with a Bloom filter, closes that gap.</p>
+        <p class="hint">Reread the "Cache penetration" subsection.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="caching-invalidation-tradeoff">
+        <p class="stem">Why does write-time invalidation fix staleness immediately but TTL-only invalidation not?</p>
+        <button class="opt">Write-time invalidation deletes the stale key the moment the write happens, while TTL just waits out a fixed window regardless of when the write occurred</button>
+        <button class="opt">TTL-only invalidation is a myth; every real cache always deletes keys on write</button>
+        <button class="opt">Write-time invalidation and TTL are the exact same mechanism under a different name</button>
+        <p class="fb">TTL bounds staleness only by time, so a key can be wrong for up to the full TTL window. Deleting on write removes the stale copy at the instant of the write instead.</p>
+        <p class="hint">Reread the two invalidation strategies and compare when each removes the stale value.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="caching-hotkey-vs-stampede">
+        <p class="stem">How does a hot key problem differ from a thundering herd, even though both involve one popular key overwhelming something?</p>
+        <button class="opt">They are identical; "hot key" and "thundering herd" are just two names for the same failure</button>
+        <button class="opt">A hot key only happens to write-heavy keys, while a thundering herd only happens to read-heavy keys</button>
+        <button class="opt">A hot key overwhelms one cache node under steady traffic, while a thundering herd is a burst triggered specifically by an expiry event</button>
+        <p class="fb">Hot keys are a sustained load-distribution problem on a single node. A stampede is a synchronized burst caused by many clients missing at the same expiry moment.</p>
+        <p class="hint">Reread both subsections: what triggers each one, ongoing load or a single expiry event?</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 6</p>
+    <h2>Redis specifically</h2>
+    <p>Redis shows up in nearly every case study, and not only as a cache. It's a key-value store with a rich set of data structures — strings, hashes, lists, sets, sorted sets, bitmaps, hyperloglogs <a href="#c2" class="cite">[2]</a> — which lets a single technology solve several problems at once. (Memcached, by contrast, is a simple key-value store of strings and binary blobs <a href="#c2" class="cite">[2]</a> — pick it only when you want pure, dumb caching.)</p>
+    <p>Redis is effectively <b>single-threaded</b> for command execution. That sounds like a limitation but is a feature: each command runs to completion with no locks, so operations are <em>atomic</em> — which is exactly what makes the patterns below safe.</p>
+    <table>
+      <thead><tr><th>Use</th><th>How Redis does it</th></tr></thead>
+      <tbody>
+        <tr><td>Cache</td><td>Strings/hashes with TTL — the bread and butter <a href="#c2" class="cite">[2]</a>.</td></tr>
+        <tr><td>Rate limiting</td><td>Atomic <code>INCR</code> on a per-user key with expiry — a counter that can't race <a href="#c2" class="cite">[2]</a>.</td></tr>
+        <tr><td>Leaderboards</td><td><b>Sorted sets</b> keep members ranked by score; top-N is a single command <a href="#c2" class="cite">[2]</a>.</td></tr>
+        <tr><td>Distributed locks</td><td>One key as a lock to coordinate across servers — e.g. holding a concert ticket during checkout <a href="#c2" class="cite">[2]</a>.</td></tr>
+        <tr><td>Sessions / metrics</td><td>Shared store for session data and computed metrics <a href="#c2" class="cite">[2]</a>.</td></tr>
+      </tbody>
+    </table>
+    <p>That versatility — caching, locking, sessions, rate limiting, ranking in one box <a href="#c2" class="cite">[2]</a> — is exactly why "use Redis for X" is such a frequent move. Know <em>which data structure</em> backs each use; that's the depth marker.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="caching-redis-leaderboard-structure">
+        <p class="stem">Which Redis structure most directly powers a ranked leaderboard?</p>
+        <button class="opt">Sorted sets, which keep members ordered by a numeric score</button>
+        <button class="opt">Plain strings, which hold one opaque value for each key</button>
+        <button class="opt">Hashes, which map many sub-fields under one single key</button>
+        <p class="fb">Sorted sets store members by score, so reading the top N is one command — the canonical leaderboard primitive.</p>
+        <p class="hint">Reread the Redis use-case table row for leaderboards.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="caching-redis-single-threaded-why">
+        <p class="stem">Why does Redis being single-threaded make an atomic <code>INCR</code>-based rate limiter safe from race conditions?</p>
+        <button class="opt">Single-threaded servers are simply faster at arithmetic than multi-threaded ones</button>
+        <button class="opt">Only one command runs to completion at a time, so two concurrent increments can never interleave and corrupt the count</button>
+        <button class="opt">Rate limiters do not actually depend on the value being correct</button>
+        <p class="fb">With no concurrent command execution, there is no window where two clients read-then-write the same counter and clobber each other's update.</p>
+        <p class="hint">Reread the sentence connecting single-threaded execution to "no locks" and "atomic."</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="caching-redis-vs-memcached">
+        <p class="stem">Why would you pick Memcached over Redis for a workload, given Redis can do everything Memcached does plus more?</p>
+        <button class="opt">Memcached is newer technology with better long-term support</button>
+        <button class="opt">Memcached supports more data structures than Redis does</button>
+        <button class="opt">You want the simplicity of pure, dumb key-value caching without the operational surface of Redis's extra data structures</button>
+        <p class="fb">Memcached's narrower feature set is the point: less to configure or misuse when all you need is a plain key-value cache.</p>
+        <p class="hint">Reread the parenthetical comparing Redis and Memcached.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 6</p>
+    <h2>How caching shows up in an interview</h2>
+    <p>Sequencing matters as much as the content. Caching is almost never part of your first high-level design pass — the HLD should be the simplest thing that satisfies the functional requirements. You introduce caching in a <b>deep dive</b>, driven by a specific non-functional requirement: "reads must be under 50ms at p99" or "the DB can't take this read load."</p>
+
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Don't reach for a cache reflexively. The senior move is "add Redis." The staff move is the question first: <em>"do we actually have a read-heavy, hot-key problem here?"</em> If reads are infrequent or data changes every request, a cache adds latency and complexity for no benefit <a href="#c1" class="cite">[1]</a> — say so and skip it. When you <em>do</em> cache, immediately address invalidation with a concrete pick (TTL + delete-on-write, with a stated staleness budget). Naming the stampede / hot-key / penetration failure modes unprompted is what separates "knows what a cache is" from "has run one in production."
+    </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="caching-when-to-introduce">
+        <p class="stem">When should you introduce a cache in a system design interview?</p>
+        <button class="opt">In the very first high-level pass, before any requirements</button>
+        <button class="opt">In a deep dive, to satisfy a specific latency or load need</button>
+        <button class="opt">On every read path, since caching is essentially always free</button>
+        <p class="fb">Keep the HLD simple; add caching in a deep dive driven by a concrete NFR — and only when reads are frequent and stable.</p>
+        <p class="hint">Reread the first sentence of this section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="caching-staff-vs-senior-move">
+        <p class="stem">Why is "add Redis" a senior move but "do we have a read-heavy, hot-key problem here" a staff move?</p>
+        <button class="opt">The staff move justifies the cache against the actual access pattern first, instead of reaching for the tool by reflex</button>
+        <button class="opt">Staff engineers are simply not allowed to mention Redis by name</button>
+        <button class="opt">Senior engineers always pick the wrong caching pattern by default</button>
+        <p class="fb">Staff-level judgement means confirming the problem the cache would solve actually exists, rather than applying a familiar tool reflexively.</p>
+        <p class="hint">Reread the staff-signal box's second sentence.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Comprehensive check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above.
+      Pulling the answer from memory is what makes it stick. These questions also
+      seed spaced review — expect variants back in a future session per the
+      forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="caching-pattern-default-final">
+        <p class="stem">Which caching pattern is the sensible default for most interview reads?</p>
+        <button class="opt">Write-back, because it gives you the fastest possible writes</button>
+        <button class="opt">Cache-aside, where a miss reads the database then fills</button>
+        <button class="opt">Write-through, because the cache is never ever stale</button>
+        <p class="fb">Cache-aside (lazy loading) is the pattern used ~90% of the time: on a miss, read the DB, populate the cache, return.</p>
+        <p class="hint">Revisit the caching-patterns section and its default box.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="caching-eviction-final">
+        <p class="stem">Which eviction policy evicts based on time since last access, not insertion order or frequency?</p>
+        <button class="opt">LRU, the entry untouched the longest</button>
+        <button class="opt">FIFO, the entry inserted the earliest</button>
+        <button class="opt">LFU, the entry accessed the fewest times</button>
+        <p class="fb">LRU tracks recency of access, the sensible default for most workloads.</p>
+        <p class="hint">Revisit the eviction-policies table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="caching-invalidation-hardest-why">
+        <p class="stem">The lesson calls invalidation "the hardest part, full stop." Why is naming versus solving eviction so much easier than invalidation?</p>
+        <button class="opt">Eviction policies were invented more recently and are less battle-tested</button>
+        <button class="opt">Invalidation only matters for read-heavy systems, and most systems are write-heavy</button>
+        <button class="opt">Eviction only needs local information the cache already has; invalidation needs every write path to remember to notify the cache of a change happening elsewhere</button>
+        <p class="fb">Eviction is a self-contained policy decision inside the cache. Invalidation is a cross-cutting correctness problem: every place that writes the source of truth must also think about the cache copy.</p>
+        <p class="hint">Compare what information LRU/LFU need versus what a delete-on-write path needs to know.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="caching-when-not-to-cache-final">
+        <p class="stem">If a candidate proposes caching a value that changes on every single request, what should a staff-level candidate say?</p>
+        <button class="opt">Approve it, because caching always improves latency regardless of access pattern</button>
+        <button class="opt">Push back, because a cache buys nothing when data changes every read and instead adds latency and invalidation complexity</button>
+        <button class="opt">Approve it, but only if the eviction policy is switched to FIFO</button>
+        <p class="fb">Caching only pays off when data is read more often than it changes. Data that changes every request would be stale before the first hit.</p>
+        <p class="hint">Reread the staff-signal box: "If reads are infrequent or data changes every request..."</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="caching-stampede-final">
+        <p class="stem">A popular key expires and floods the database with misses. What is this called?</p>
+        <button class="opt">Cache penetration</button>
+        <button class="opt">A hot key problem</button>
+        <button class="opt">A thundering herd / cache stampede</button>
+        <p class="fb">Mitigate with request coalescing or jittered TTLs so popular keys don't all expire in the same instant.</p>
+        <p class="hint">Revisit "The hard problems" section, subsection 2.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="caching-redis-versatility-final">
+        <p class="stem">Why does one Redis instance commonly replace several separate pieces of infrastructure (rate limiter, lock manager, session store) in a design?</p>
+        <button class="opt">Its rich set of atomic data structures lets each use case map onto a different structure inside the same single-threaded store</button>
+        <button class="opt">Redis silently runs a separate hidden database for each use case internally</button>
+        <button class="opt">Those other systems are all deprecated and Redis is the only option left</button>
+        <p class="fb">Strings, sorted sets, and atomic counters each map cleanly onto a different problem, and single-threaded execution makes every operation safe without extra coordination.</p>
+        <p class="hint">Revisit the Redis use-case table and the sentence about "versatility."</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this — push on it. Try: <em>"Walk me through implementing cache-aside with delete-on-write for a user profile, including the race condition between the delete and the next read."</em> · <em>"Design a Redis-backed sliding-window rate limiter and tell me where it can go wrong."</em> · <em>"Give me a scenario where adding a cache is the wrong call, and explain why."</em>
@@ -243,21 +460,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

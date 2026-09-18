@@ -61,22 +61,33 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -97,6 +108,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 8</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -129,6 +142,29 @@
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Browse needs to be fast and a bit stale; checkout must never oversell. Let me size both.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="gopuff-oversell-prevention">
+      <p class="stem">What prevents two customers from buying the same last physical unit?</p>
+      <button class="opt">Redis TTL ensures both customers see the same stock number</button>
+      <button class="opt">A serializable transaction lets one commit and aborts the loser</button>
+      <button class="opt">Read replicas serialize all writes into one ordered stream</button>
+      <p class="fb">Under serializable isolation the two orders conflict; one commits, the other fails because inventory is gone and is cleanly rejected.</p>
+      <p class="hint">You'll see the full transaction in the deep dives chunk, but the NFR table already states the checkout consistency target — reread it.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="gopuff-browse-vs-checkout-consistency-why">
+      <p class="stem">Why can browse and checkout safely use different consistency models on the same underlying inventory?</p>
+      <button class="opt">Checkout re-validates against the leader, so a stale browse read is corrected before money changes hands</button>
+      <button class="opt">Browse and checkout never touch the same inventory rows at all</button>
+      <button class="opt">Inventory counts are recomputed fresh on every single browse request anyway</button>
+      <p class="fb">Browse is allowed to lie a little because checkout is the gate: it re-checks the real quantity and aborts on conflict, so staleness upstream never causes an oversell.</p>
+      <p class="hint">Reread the NFR table's note on the "deliberate split" between availability and checkout.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only estimate numbers that change the design. The headline derivation:</p>
@@ -149,6 +185,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Browse is ~20k/s and orders ~115/s, so reads and writes get separate paths in the API.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="gopuff-read-write-qps-gap">
+      <p class="stem">Roughly how do browse QPS and order QPS compare?</p>
+      <button class="opt">Browse is roughly 170x the order QPS, since checks fan out per purchase</button>
+      <button class="opt">Browse and orders run at almost exactly the same QPS</button>
+      <button class="opt">Orders run higher QPS because every browse leads to one order</button>
+      <p class="fb">~20k browse QPS versus ~115 order QPS — the fan-out (10 checks per purchase, 5% conversion) inflates reads far past writes.</p>
+      <p class="hint">Reread the capacity box's two bolded QPS numbers.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="gopuff-precompute-dc-reachability-why">
+      <p class="stem">Why does the pushback answer precompute DC reachability per geohash cell instead of routing live on every browse call?</p>
+      <button class="opt">Live routing is more accurate so it should always be preferred at any QPS</button>
+      <button class="opt">Precomputing removes the need for a database entirely</button>
+      <button class="opt">At 20k QPS, a per-request routing call is too slow and expensive to run on the hot path</button>
+      <p class="fb">Precomputing turns an expensive per-request routing RPC into a cached lookup, which is the only way the read path survives 20k QPS.</p>
+      <p class="hint">Look at the pushback box right above — what does the "staff answer" trade off?</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <h3>Entities</h3>
@@ -190,6 +249,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Now the two services, split along the consistency seam.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="gopuff-inventory-per-dc-why">
+      <p class="stem">Why keep Inventory rows per distribution center instead of one global count?</p>
+      <button class="opt">Global counts are always slower to query than per-DC counts</button>
+      <button class="opt">Postgres cannot sum quantities across more than one row</button>
+      <button class="opt">A global count could sell stock that isn't deliverable from any DC near the customer</button>
+      <p class="fb">Customers are served by physical centers; availability must be scoped to what a reachable DC actually holds, not a fleet-wide total.</p>
+      <p class="hint">Reread the Data Model pushback box.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="gopuff-check-constraint-why">
+      <p class="stem">What would break if the <code>CHECK (qty &gt;= 0)</code> constraint were removed from the inventory table?</p>
+      <button class="opt">Nothing — the serializable transaction alone is already sufficient without it</button>
+      <button class="opt">A buggy or malicious caller bypassing normal checkout logic could push inventory negative, oversell ing</button>
+      <button class="opt">Browse queries would stop returning any results at all</button>
+      <p class="fb">The constraint is the last line of defense: even a bug in the transaction logic can't push a row negative, because the database itself rejects it.</p>
+      <p class="hint">Reread the Data Model intro sentence about the "load-bearing constraint."</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Component Diagram</h2>
 <pre class="diagram">
@@ -232,6 +314,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: availability by location, fast reads, and no overselling at checkout.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="gopuff-two-phase-dc-lookup">
+      <p class="stem">How does the two-phase DC lookup avoid thousands of travel-time RPCs?</p>
+      <button class="opt">A cheap in-memory radius cutoff prunes candidates before the expensive RPC runs</button>
+      <button class="opt">It caches every travel-time result forever and never recomputes routes</button>
+      <button class="opt">It queries the external travel-time service for all DCs in parallel</button>
+      <p class="fb">Phase A applies a ~60-mile radius filter in memory; only the handful of survivors get a real travel-time RPC in Phase B.</p>
+      <p class="hint">Reread the "two-phase prune" box in the High-Level Design phase pushback about routing.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="gopuff-hld-replica-leader-split-why">
+      <p class="stem">What would happen to browse latency at 20k QPS if both browse and orders read/wrote the same single Postgres leader?</p>
+      <button class="opt">Nothing changes, since Postgres has no limit on concurrent connections</button>
+      <button class="opt">Orders would become inconsistent while browse stays fast</button>
+      <button class="opt">The leader would become the bottleneck for both paths, since it's also handling every serializable order transaction</button>
+      <p class="fb">The whole point of splitting reads to replicas and writes to the leader is that 20k QPS of browse reads would otherwise contend with order transactions on one machine.</p>
+      <p class="hint">Look at the diagram caption describing "the consistency seam drawn literally."</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
 
@@ -311,6 +416,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Let me cover how we operate, secure and protect it.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="gopuff-availability-staleness-tolerance">
+      <p class="stem">Why can the availability browse path tolerate slightly stale data?</p>
+      <button class="opt">Distribution center inventory basically never changes during a day</button>
+      <button class="opt">Checkout re-validates against the leader, so stale browse gets corrected</button>
+      <button class="opt">Redis guarantees the cache is always within a second of the leader</button>
+      <p class="fb">The strongly-consistent order transaction is the safety net; browse may show stale stock because checkout re-checks and aborts on conflict.</p>
+      <p class="hint">This is the same seam from earlier chunks — reread the staff callout box.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="gopuff-serializable-vs-lock-why">
+      <p class="stem">Why does a serializable transaction beat a distributed lock per item for preventing oversell here?</p>
+      <button class="opt">It gets the same correctness with a simpler mechanism, and avoids lock-expiry failure modes that add latency</button>
+      <button class="opt">Distributed locks are always faster than any database transaction</button>
+      <button class="opt">A distributed lock can never prevent overselling in any system</button>
+      <p class="fb">Row-level conditional updates in a single transaction give the same guarantee without introducing a separate lock service with its own timeout and failure modes.</p>
+      <p class="hint">Reread the last pushback box in this section, about distributed locks.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -360,6 +488,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Finally, 10× growth and cost.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="gopuff-serialization-failure-metric">
+      <p class="stem">What does a rising serialization-failure rate on the orders metric tell you?</p>
+      <button class="opt">The Redis cache has gone stale beyond its TTL</button>
+      <button class="opt">The Travel-Time RPC is timing out</button>
+      <button class="opt">Concurrent order transactions are contending on the same inventory rows</button>
+      <p class="fb">Serialization failures are the direct signal of transactions conflicting on the same rows — the contention gauge for checkout.</p>
+      <p class="hint">Reread the Observability table's note next to "Metrics (RED)."</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="gopuff-precise-location-minimization-why">
+      <p class="stem">Why round coordinates before they hit browse logs or cache keys, but keep precise lat/lng on the order record?</p>
+      <button class="opt">Browse only needs coarse location to find nearby DCs, while delivery genuinely requires the exact address</button>
+      <button class="opt">Precise coordinates are always illegal to store under any privacy law</button>
+      <button class="opt">Coarse coordinates make the Redis cache keys smaller in every case</button>
+      <p class="fb">Data minimization means collecting only what a given function needs — browse's function is approximate proximity, delivery's function needs the exact drop-off point.</p>
+      <p class="hint">Reread the Privacy section's Minimization sentence.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+  <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = ~100M orders/day (~1.2k orders/s), ~200k browse QPS, ~100k DCs.</p>
@@ -393,46 +544,82 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “To recap:”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="gopuff-partitioning-read-scale-why">
+      <p class="stem">Why does regional partitioning (e.g. by zip prefix) help read scaling?</p>
+      <button class="opt">It lets every order write to all partitions for stronger durability</button>
+      <button class="opt">A location-scoped query then touches only one or two partitions</button>
+      <button class="opt">It removes the need for any read replicas across the fleet</button>
+      <p class="fb">A location-bound availability query lands in the partition(s) for that region rather than scanning the entire inventory dataset.</p>
+      <p class="hint">Reread the "Scaling reads" deep dive and the zip3 partitioning line.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="gopuff-10x-bottleneck-why">
+      <p class="stem">At 10x scale, why does write contention hit a single region's leader before browse read capacity becomes the problem?</p>
+      <button class="opt">Browse traffic actually shrinks as order volume grows tenfold</button>
+      <button class="opt">Read replicas cannot be added past a fixed hard limit of three</button>
+      <button class="opt">Reads scale out easily via more replicas and cache shards, but all orders in one region still serialize through one leader</button>
+      <p class="fb">Stateless services and replicas scale horizontally with more nodes; a single-leader write path does not, so write contention in dense metros is the first wall.</p>
+      <p class="hint">Reread the "First bottleneck" sentence under Scaling 10x.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-8" hidden>
+  <p class="chunk-label">8 of 8</p>
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Local delivery splits along a consistency seam. Browse availability is a read-heavy join of nearby DCs and inventory, precomputed per geohash cell and cached with a minute of staleness to serve ~20k QPS. Checkout is a low-volume (~115/s), strongly consistent transaction that conditionally decrements inventory on the primary, so we never oversell. Partitioning by region keeps transactions local, and at 10× we add regional leaders and cache shards without changing the design. I'd next add delivery slot capacity and driver assignment.</p></div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why can the availability browse path tolerate slightly stale data?</p>
-      <button class="opt">Inventory at distribution centers basically never changes during a day</button>
-      <button class="opt">Checkout re-validates against the leader, so stale browse is corrected</button>
-      <button class="opt">Customers rarely notice when an item shows as available wrongly</button>
-      <button class="opt">Redis guarantees the cache is always within a second of the leader</button>
-      <p class="fb">The strongly-consistent order transaction is the safety net; browse may show stale stock because the buy path re-checks and aborts on conflict.</p>
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">Final check</p>
+  <h2>Everything from this lesson</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up. This also seeds spaced review.</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="b" data-concept="gopuff-final-oversell-mechanism">
+      <p class="stem">What mechanism prevents overselling the last unit of an item?</p>
+      <button class="opt">A short Redis TTL that forces both customers to see the same count</button>
+      <button class="opt">A serializable transaction where the losing order fails to commit</button>
+      <button class="opt">Read replicas that serialize every write into one strict order</button>
+      <p class="fb">Serializable isolation makes conflicting orders on the same inventory row mutually exclusive at commit time.</p>
+      <p class="hint">Deep dive 3, "Inventory consistency at checkout."</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. How does the two-phase DC lookup avoid thousands of travel-time RPCs?</p>
-      <button class="opt">It caches every travel-time result forever and never recomputes routes</button>
-      <button class="opt">It precomputes the full delivery time from each DC to each address</button>
-      <button class="opt">A cheap in-memory radius cutoff prunes before the expensive RPC runs</button>
-      <button class="opt">It queries the external travel-time service for all DCs in parallel</button>
-      <p class="fb">Phase A applies a ~60-mile radius filter in memory; only the few survivors get a real travel-time RPC in Phase B.</p>
+    <div class="q" data-correct="a" data-concept="gopuff-final-two-phase-lookup">
+      <p class="stem">What is the purpose of the coarse in-memory radius cutoff before calling the Travel-Time Service?</p>
+      <button class="opt">To prune the candidate DC list cheaply before the expensive external RPC runs</button>
+      <button class="opt">To permanently replace the Travel-Time Service so it is never called</button>
+      <button class="opt">To compute the exact final delivery time shown to the customer</button>
+      <p class="fb">Phase A eliminates most DCs with cheap in-memory math so Phase B only calls the external service for a handful of survivors.</p>
+      <p class="hint">Deep dive 1, "Computing availability by location."</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What prevents two customers from buying the same last physical unit?</p>
-      <button class="opt">A serializable transaction lets one commit and aborts the conflicting one</button>
-      <button class="opt">A short Redis TTL ensures both customers see the same inventory data</button>
-      <button class="opt">Read replicas serialize all incoming writes into one ordered stream now</button>
-      <button class="opt">The radius cutoff routes the two customers to two different centers</button>
-      <p class="fb">Under serializable isolation the two orders conflict; one commits, the other fails to commit because inventory is gone, cleanly rejected.</p>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="gopuff-final-consistency-seam-why">
+      <p class="stem">Why is it safe for browse to be eventually consistent while checkout is strongly consistent, in the same system?</p>
+      <button class="opt">It isn't actually safe; the lesson treats this as an acceptable known bug</button>
+      <button class="opt">Browse and checkout use completely separate item catalogs</button>
+      <button class="opt">Checkout re-validates the true state and aborts on conflict, so a stale browse read can never cause a real oversell</button>
+      <p class="fb">The two consistency models compose because checkout is the final gate — staleness upstream is corrected downstream before anything commits.</p>
+      <p class="hint">Reread the staff-level signal callout in the deep dives chunk.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. Why does regional partitioning (e.g. by zip prefix) help read scaling?</p>
-      <button class="opt">It lets every order write to all partitions for stronger durability now</button>
-      <button class="opt">A location-scoped query then touches only one or two partitions</button>
-      <button class="opt">It removes the need for any read replicas across the whole fleet</button>
-      <button class="opt">It guarantees each distribution center maps to exactly one zip code</button>
-      <p class="fb">A location-bound availability query lands in the partition(s) for that region rather than scanning the entire inventory dataset.</p>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="gopuff-final-partition-key-choice-why">
+      <p class="stem">What would break if inventory were partitioned by item_id instead of by region (zip3)?</p>
+      <button class="opt">A location-scoped browse query would need to fan out across many partitions instead of just one or two</button>
+      <button class="opt">Nothing changes, since both keys give identical query patterns</button>
+      <button class="opt">Checkout transactions would no longer need to be serializable</button>
+      <p class="fb">Access is location-scoped (nearby DCs), so partitioning by region keeps a query local; partitioning by item_id would scatter a single browse query across every partition.</p>
+      <p class="hint">Reread the Data Model section's partitioning rationale.</p>
+    </div>
+    <div class="q" data-correct="b" data-concept="gopuff-final-10x-lever">
+      <p class="stem">What is the first knob turned when scaling this system 10x?</p>
+      <button class="opt">Switch the entire datastore from Postgres to a key-value store</button>
+      <button class="opt">Add more read replicas, shard Redis, and split leaders per region</button>
+      <button class="opt">Remove the serializable transaction to allow more throughput</button>
+      <p class="fb">The architecture doesn't change at 10x — the same components get more shards, replicas, and regional leaders.</p>
+      <p class="hint">Reread the Scaling 10x table.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this design — push on the hard parts. Try: <em>"Walk me through the SQL for the order transaction and show how the conflict aborts."</em> · <em>"When would you switch from a serializable transaction to a reservation-with-TTL model, and what breaks?"</em> · <em>"Sketch how you'd add a geospatial index instead of an in-memory DC table, and the tradeoff."</em>
@@ -454,21 +641,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

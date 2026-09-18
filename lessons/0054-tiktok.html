@@ -76,6 +76,20 @@
   .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
@@ -97,6 +111,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 8</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -125,6 +141,29 @@
 
   <p class="transition"><span class="lbl">Say to move on →</span> “The next video must play instantly on swipe. Let me size feed reads, egress and events.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="tiktok-engagement-dual-role">
+      <p class="stem">Why does "like / comment / share" count as more than a plain CRUD feature here?</p>
+      <button class="opt">It requires its own dedicated transcoding pipeline stage</button>
+      <button class="opt">It also supplies the signal source that powers the For-You feed</button>
+      <button class="opt">It is the only endpoint that reads from object storage</button>
+      <p class="fb">Engagement is both a user-facing action and the raw signal that ranking consumes — one endpoint, two jobs.</p>
+      <p class="hint">Reread the sentence right after the functional-requirements table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="tiktok-feed-latency-why-headline">
+      <p class="stem">Why is feed latency called the headline NFR instead of, say, upload throughput?</p>
+      <button class="opt">Users swipe repeatedly, so any visible delay breaks the core experience every few seconds</button>
+      <button class="opt">Uploads are technically impossible to make fast on mobile networks</button>
+      <button class="opt">Feed latency is the only NFR regulators require platforms to report</button>
+      <p class="fb">The product is consumed by rapid, continuous swiping — a delay there is felt on nearly every interaction, unlike an occasional upload.</p>
+      <p class="hint">Compare how often a user swipes versus how often they upload.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>3. Capacity Estimation</h2>
   <p>Only the numbers that change a decision. Two reframe the design.</p>
@@ -145,6 +184,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “~300k feed-item reads/s and exabytes of egress mean precomputed feeds and a CDN. Let me define entities.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="tiktok-firehose-is-own-system">
+      <p class="stem">Which capacity number "reframes" the whole design, per this lesson?</p>
+      <button class="opt">The low hundreds of uploads per second</button>
+      <button class="opt">The number of transcoding workers needed at launch</button>
+      <button class="opt">The ~10⁵–10⁶ events/sec engagement firehose</button>
+      <p class="fb">Uploads are a rounding error; the engagement firehose is a high-throughput streaming problem in its own right, and it's what shapes the architecture.</p>
+      <p class="hint">Look at the boxed callout right after the capacity table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="tiktok-why-not-sync-ranking">
+      <p class="stem">Why would ranking every video synchronously on each swipe fail even though the ranking logic itself is correct?</p>
+      <button class="opt">At ~300k reads/sec, running heavy ranking per swipe blows the latency and compute budget</button>
+      <button class="opt">Synchronous code cannot call a machine-learning model at all</button>
+      <button class="opt">The CDN refuses to serve a video that was ranked on demand</button>
+      <p class="fb">The volume of reads makes per-request ranking both too slow and too expensive — precomputing near-line and refilling a queue is the fix.</p>
+      <p class="hint">Reread the interviewer-pushback box in this phase.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>4. Core Entities &amp; API</h2>
   <p>Four entities. <code>Video</code> (blob) is deliberately separated from <code>VideoMetadata</code> (a small, queryable row) — that split is itself a deep dive below.</p>
@@ -188,6 +250,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “VideoMetadata is separate from video blobs. Now upload, feed and engagement paths.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="tiktok-video-blob-split">
+      <p class="stem">Why is Video (the blob) modeled separately from VideoMetadata?</p>
+      <button class="opt">Blobs and metadata always must live in the same table for consistency</button>
+      <button class="opt">Bytes are huge and immutable while metadata is small and updated often</button>
+      <button class="opt">The API gateway refuses requests that mix both entity types</button>
+      <p class="fb">Metadata is small, queried and updated constantly; bytes are huge and immutable — opposite access patterns need opposite stores.</p>
+      <p class="hint">Reread the pushback box right after the data model table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="tiktok-feed-batch-why">
+      <p class="stem">Why does GET /v1/feed return a batch of 5-10 videos instead of one video at a time?</p>
+      <button class="opt">Cassandra cannot return single rows efficiently</button>
+      <button class="opt">Batching is required so the auth token can be validated once</button>
+      <button class="opt">A batch gives the client several videos' manifests up front so it can prefetch ahead of the swipe</button>
+      <p class="fb">Returning a batch is what makes client-side prefetch possible — without several items in hand, there's nothing to buffer ahead of time.</p>
+      <p class="hint">Look at the sentence about the client prefetching from the batch, right after the endpoint table.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>6. Data Flow — engagement to a better feed</h2>
   <p>TikTok is a feedback loop, so trace the signal once before drawing boxes:</p>
@@ -242,6 +327,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: transcoding, the For You feed with prefetch, engagement streaming and metadata storage.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="tiktok-swipe-path-no-ranking">
+      <p class="stem">On a swipe, where does ranking happen?</p>
+      <button class="opt">Nowhere on the swipe path — ranking already ran near-line beforehand</button>
+      <button class="opt">Inside the Feed Service, synchronously, on every GET /v1/feed call</button>
+      <button class="opt">On the CDN edge node closest to the viewer</button>
+      <p class="fb">The scroll path is a cache read plus CDN prefetch; ranking happens offline/near-line and only writes into the feed cache.</p>
+      <p class="hint">Reread the caption under the component diagram.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="tiktok-what-breaks-without-prefetch">
+      <p class="stem">If client-side prefetch were removed but everything else stayed the same, what would happen to the &lt;100ms swipe target?</p>
+      <button class="opt">Nothing — the precomputed feed cache alone is sufficient</button>
+      <button class="opt">It would likely be missed, since a CDN round-trip would now happen on every swipe</button>
+      <button class="opt">It would improve, since the client would use less bandwidth</button>
+      <p class="fb">Precomputing removes ranking from the hot path, but prefetching is what hides the remaining network round-trip to the CDN — remove it and that latency reappears on every swipe.</p>
+      <p class="hint">Reread the "Why precompute + prefetch, not rank-on-read" box — precompute and prefetch solve two different delays.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>9. Deep Dives</h2>
   <p>This is 60% of the interview. Four hard parts — note the upload pipeline is compressed because it's reuse, while the feed and prefetch get the depth.</p>
@@ -308,6 +416,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, especially content safety.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="tiktok-why-async-events">
+      <p class="stem">Why are engagement events sent to Kafka instead of written directly to the database?</p>
+      <button class="opt">Databases cannot store a "like" or "skip" record at all</button>
+      <button class="opt">Kafka is required before a manifest URL can be generated</button>
+      <button class="opt">A firehose of ~10⁵–10⁶ events/sec needs decoupling and fan-out to many consumers</button>
+      <p class="fb">Synchronous DB writes would couple the watch path to the database and melt it; a stream absorbs spikes and fans out to counters, signals, and training data.</p>
+      <p class="hint">Reread the opening of Deep Dive 3.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="tiktok-approximate-counters-why">
+      <p class="stem">Why are per-video counters approximate rather than exact?</p>
+      <button class="opt">Exact counters are technically impossible to compute from a stream</button>
+      <button class="opt">Exact updates on a viral video would create hot-row contention</button>
+      <button class="opt">Approximate counters use less storage on the CDN</button>
+      <p class="fb">A viral video receiving millions of concurrent increments would hammer a single row; windowed, approximate aggregation avoids that contention.</p>
+      <p class="hint">Look at the "Exact vs approximate counters" row in the Deep Dive 3 table.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>11. Observability</h2>
   <table>
@@ -359,6 +490,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="tiktok-minors-personalization">
+      <p class="stem">What special privacy treatment applies to minors' accounts?</p>
+      <button class="opt">Default to private, restricted DMs, and limited personalization</button>
+      <button class="opt">Full personalization is enabled by default to improve retention</button>
+      <button class="opt">Their engagement events skip the streaming pipeline entirely</button>
+      <p class="fb">Under-18 accounts default to private with restricted DMs and limited personalization, aligned with COPPA/age-appropriate design rules.</p>
+      <p class="hint">Reread the Privacy section's "Minors" sentence.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="tiktok-staged-exposure-why">
+      <p class="stem">Why does harmful content get "staged exposure" (small audience first) instead of immediately going to the full recommendation pool?</p>
+      <button class="opt">Staged exposure is required so the CDN has time to cache the video</button>
+      <button class="opt">It limits how many people see harmful content before classifiers or reviewers can catch and remove it</button>
+      <button class="opt">It is purely a cost-saving measure for GPU ranking capacity</button>
+      <p class="fb">By limiting initial reach, a bad video causes less damage before automated or human review acts, and takedown propagates to feed caches quickly.</p>
+      <p class="hint">Reread the security pushback box about keeping harmful content out of a viral feed.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+  <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>16. Scaling 10× Without Changing the Architecture</h2>
   <p>10× = 5B DAU-equivalent load (~250B views/day) — realistically, 10× engagement per user or new regions.</p>
@@ -396,43 +550,56 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>18 · Closing Summary (60 seconds)</h2>
   <div class="summary"><p>TikTok combines a video delivery system with a real-time recommender. Uploads go directly to S3 and are transcoded into short segmented renditions. The For You feed is a near-line precomputed queue per user: candidates are generated, ranked and refilled as they're consumed. The client prefetches the next few videos from the CDN so swipes feel instant. Engagement events stream back to update features within the session. Staged exposure and classifiers gate content before it can go viral. At 10× we add CDN and ranking capacity.</p></div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why can't the For-You feed be ranked synchronously per swipe?</p>
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">Final check</p>
+  <h2>Everything from this lesson</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is what makes it stick. These questions also seed spaced review — expect variants back in a future session per the forgetting curve.</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="c" data-concept="tiktok-final-sync-ranking">
+      <p class="stem">Why can't the For-You feed be ranked synchronously per swipe?</p>
       <button class="opt">Because object storage blocks any read while a swipe is active</button>
       <button class="opt">Because the manifest must be rebuilt before each ranking pass</button>
       <button class="opt">Because read volume is enormous and ranking blows the latency budget</button>
-      <button class="opt">Because Cassandra cannot return more than one feed row per call</button>
       <p class="fb">At ~25B reads/day you precompute the funnel offline and serve from cache; ranking on the hot path is too slow and wasteful.</p>
+      <p class="hint">Reread Deep Dive 2's opening paragraph.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. How is the &lt;100ms next-video experience actually achieved?</p>
+    <div class="q" data-correct="b" data-concept="tiktok-final-instant-swipe">
+      <p class="stem">How is the &lt;100ms next-video experience actually achieved?</p>
       <button class="opt">By ranking the entire catalog faster on a larger server fleet</button>
       <button class="opt">By prefetching upcoming videos from the CDN during playback</button>
       <button class="opt">By storing the full video bytes inside the metadata database</button>
-      <button class="opt">By skipping the transcode step for the most popular uploads</button>
       <p class="fb">The feed returns a batch, so the client buffers the next 1–3 videos while the current plays — the network is ahead of the user.</p>
+      <p class="hint">Reread the "Why precompute + prefetch, not rank-on-read" box.</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Why are engagement events sent to a stream, not written to the DB?</p>
+    <div class="q" data-correct="a" data-concept="tiktok-final-stream-events">
+      <p class="stem">Why are engagement events sent to a stream, not written to the DB?</p>
       <button class="opt">A firehose needs decoupling, spike absorption, and fan-out</button>
       <button class="opt">A database is unable to persist any like or comment record</button>
       <button class="opt">A stream is the only place a manifest URL can be generated</button>
-      <button class="opt">A CDN requires every single event before it caches a segment</button>
       <p class="fb">~10⁵–10⁶ events/sec can't be synchronous writes; a log decouples the watch path and feeds many consumers, fresh in minutes.</p>
+      <p class="hint">Reread the opening of Deep Dive 3.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. Where should the raw video bytes be stored?</p>
+    <div class="q" data-correct="b" data-concept="tiktok-final-blob-storage">
+      <p class="stem">Where should the raw video bytes be stored?</p>
       <button class="opt">In the metadata database rows beside the caption and tags</button>
       <button class="opt">In object storage behind a CDN, referenced by a URL pointer</button>
       <button class="opt">In the Kafka log alongside the engagement event records</button>
-      <button class="opt">In the per-user feed cache next to the ranked candidate list</button>
       <p class="fb">Bytes belong in object storage + CDN; the small metadata row just holds the manifestUrl pointer, keeping each layer scalable.</p>
+      <p class="hint">Reread Deep Dive 4.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="tiktok-final-why-not-rederive-transcoding">
+      <p class="stem">A candidate spends 15 of their 20 deep-dive minutes re-deriving the transcoding pipeline in detail. What has gone wrong from a staff-signal perspective?</p>
+      <button class="opt">Nothing — transcoding is the hardest part of any video system</button>
+      <button class="opt">They should have skipped transcoding from the design entirely</button>
+      <button class="opt">They spent depth on solved, reused territory instead of the feed and prefetch, which is where this system actually differs from YouTube</button>
+      <p class="fb">The staff signal here is judgement about where depth belongs — upload/transcode is "reference, don't re-derive," freeing time for the feed, prefetch, and engagement pipeline.</p>
+      <p class="hint">Reread the staff-level-signal callout box.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this design — push on it. Try: <em>"Walk me through the cold-start feed for a brand-new user with no signals."</em> · <em>"How does client prefetch trade off against wasted bandwidth on a fast scroller?"</em> · <em>"Where exactly does watch-time enter the ranking model, and why does it beat likes?"</em>
@@ -454,21 +621,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

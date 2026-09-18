@@ -76,6 +76,21 @@
   .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
@@ -97,6 +112,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 8</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -128,6 +145,29 @@
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Availability for browse and strict consistency on inventory. The spike is what matters, so let me size it.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="flash-sale-two-consistency-regimes">
+      <p class="stem">Why does this design deliberately run two different consistency regimes?</p>
+      <button class="opt">Because Postgres cannot serve both reads and writes at once</button>
+      <button class="opt">Browse needs availability while inventory needs strict correctness</button>
+      <button class="opt">Because caches and databases must always run different models</button>
+      <p class="fb">Browsing tolerates staleness for speed and uptime (AP); the inventory decrement must never oversell, so it stays strongly consistent (CP).</p>
+      <p class="hint">Reread the NFR sentence: "prioritize availability... but prioritize consistency on inventory."</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="flash-sale-leak-risk-why">
+      <p class="stem">What breaks if the strongly-consistent inventory locking machinery leaks onto the browse/read path?</p>
+      <button class="opt">The read path inherits the write path's contention and the whole site slows or falls over</button>
+      <button class="opt">Nothing changes, since both paths already share the same database</button>
+      <button class="opt">The catalog becomes more consistent, which is strictly a benefit</button>
+      <p class="fb">The staff callout names this as the number-one failure mode: CP machinery meant for one hot row must not become a bottleneck for the 1000x larger read volume.</p>
+      <p class="hint">Look at the staff callout right above — what does it call "the number-one failure mode"?</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only estimate the numbers that change a decision. For a flash sale exactly one thing matters: the spike. Assume a sale of <b>10,000 units</b> opening to <b>~5M interested users</b> arriving within the first ~10 seconds.</p>
@@ -146,6 +186,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “~500k requests/s for 10k units: hundreds of times more demand than stock. Let me define entities.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="flash-sale-contention-not-storage">
+      <p class="stem">What makes flash-sale inventory a "hard" problem?</p>
+      <button class="opt">The total amount of inventory data is too large to store</button>
+      <button class="opt">The catalog search index cannot handle 5M concurrent users</button>
+      <button class="opt">Extreme concurrent contention on one small, hot counter</button>
+      <p class="fb">Inventory itself is tiny (one hot row per SKU). The challenge is funneling 500k req/s of intent into ≤10k correct writes.</p>
+      <p class="hint">Reread the line right after the estimation table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="flash-sale-autoscale-wont-help">
+      <p class="stem">Why won't autoscaling the inventory database solve the 500k req/s spike?</p>
+      <button class="opt">Autoscaling is free but takes zero minutes, so it's unrelated to this problem</button>
+      <button class="opt">Autoscaling reacts too slowly, and the DB still can't absorb that write contention on one row</button>
+      <button class="opt">Autoscaling only works for read replicas, never for any database</button>
+      <p class="fb">The pushback box says it directly: autoscaling lags by minutes, and no amount of compute fixes contention on a single hot row. You must shed and pace load before it arrives.</p>
+      <p class="hint">Reread the interviewer pushback box on capacity estimation.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p>Entities: <b>Product</b> (id, title, price, description — the catalog), <b>Inventory</b> (productId, <code>available</code> count, optional <code>reserved</code> count), <b>Cart</b> (userId, line items), <b>Reservation</b> (userId, productId, qty, expiry — a short TTL hold), and <b>Order</b> (userId, items, total, status: <code>pending | paid | confirmed | failed</code>). The <code>available</code> counter and the Order <code>status</code> are where the consistency story lives.</p>
@@ -181,6 +244,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Reservation with a TTL and idempotent orders. Now browse versus buy paths.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="flash-sale-reservation-vs-order">
+      <p class="stem">Why does the data model keep Reservation separate from Order?</p>
+      <button class="opt">A held unit must auto-expire on TTL if payment stalls, while an order is durable</button>
+      <button class="opt">Orders are optional but reservations are required for every purchase</button>
+      <button class="opt">Postgres cannot store two rows for the same purchase attempt</button>
+      <p class="fb">Holding a unit during checkout must expire automatically if payment doesn't finish; the order is the durable result once payment succeeds.</p>
+      <p class="hint">Reread the pushback box right after the data model table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="flash-sale-check-constraint-backstop">
+      <p class="stem">What would happen if the Redis stock gate were wrong (e.g., corrupted) but the Postgres CHECK constraint didn't exist?</p>
+      <button class="opt">Nothing changes, because Redis is always the final source of truth</button>
+      <button class="opt">The waiting room would automatically catch and fix the error</button>
+      <button class="opt">A wrong Redis count could let the database oversell with no backstop to reject it</button>
+      <p class="fb">The CHECK (available >= 0) plus conditional decrement is what makes Postgres refuse to oversell even when the fast-path gate is wrong.</p>
+      <p class="hint">Reread the data model intro paragraph on why Postgres is described as refusing to oversell "even if the Redis gate is wrong."</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Component Diagram</h2>
 <pre class="diagram">
@@ -220,6 +306,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: overselling, async checkout, cached reads and the thundering herd.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="flash-sale-sync-vs-async-boundary">
+      <p class="stem">In the HLD, which single step must complete synchronously before the checkout call returns?</p>
+      <button class="opt">Sending the confirmation email to the buyer</button>
+      <button class="opt">The atomic inventory decrement and reservation hold</button>
+      <button class="opt">Charging the buyer's card through the payment provider</button>
+      <p class="fb">Only the inventory decrement is synchronous; order creation and payment proceed asynchronously and idempotently after it.</p>
+      <p class="hint">Reread the "Flow" paragraph under High-Level Design.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="flash-sale-async-order-why">
+      <p class="stem">What would happen to checkout latency during the spike if order creation and payment had to finish synchronously inside the checkout call?</p>
+      <button class="opt">A slow payment provider or warehouse call would stall the whole request and amplify the spike</button>
+      <button class="opt">Nothing would change, since payment providers always respond instantly</button>
+      <button class="opt">The inventory decrement would become slower but everything else stays fast</button>
+      <p class="fb">The pushback box says it directly: only the inventory decrement must be synchronous, so a slow PSP doesn't stall checkout under load.</p>
+      <p class="hint">Reread the interviewer pushback box right after the HLD table.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2 id="dd1">Deep Dive 1 — Overselling under extreme contention (the central problem)</h2>
   <p>The hazard: 500k requests per second all read "1 unit left," all believe they won, and you ship 40,000 orders for 10,000 units.<a href="#c1" class="cite">[1]</a> The fix has two parts — make the decrement <em>atomic</em>, and make the hold <em>auto-expiring</em>. Mechanisms, escalating in quality:</p>
@@ -307,6 +416,38 @@
     <p class="pq">“How do you guarantee you never oversell?”</p>
     <p><b>Staff answer:</b> An atomic decrement-if-positive in Redis (a Lua script) gates 500k attempts in memory, and a conditional update in Postgres (stock ≥ qty) is the final truth. A reservation TTL returns unpaid units.</p>
   </div>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="flash-sale-atomic-decrement-pick">
+      <p class="stem">Why is a Redis atomic decrement the staff pick over a Postgres row lock for the inventory gate?</p>
+      <button class="opt">Postgres cannot store an integer counter at all</button>
+      <button class="opt">Row locks are always incorrect and can double-sell units</button>
+      <button class="opt">It serializes the decrement for free at high throughput without holding a network-round-trip lock</button>
+      <p class="fb">A row lock is correct but caps throughput because it holds a lock across the network round trip; single-threaded Redis serializes cheaply without that cost.</p>
+      <p class="hint">Reread the mechanisms table row comparing row locks to the Redis pick.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="flash-sale-stale-badge-why-ok">
+      <p class="stem">Why is it acceptable to show a slightly stale "in stock" badge on the product page during a flash sale?</p>
+      <button class="opt">The authoritative check happens at checkout via the atomic decrement, so a stale hint can't cause overselling</button>
+      <button class="opt">Stale badges are actually more accurate than live counts during a sale</button>
+      <button class="opt">Customers never look at the stock badge before buying</button>
+      <button class="opt">The CDN automatically corrects any stale value within milliseconds</button>
+      <p class="fb">Decoupling "is it available" (a cached hint) from "claim it" (the atomic truth) keeps the read spike off the contended counter while correctness lives entirely at checkout.</p>
+      <p class="hint">Reread the staff callout under Deep Dive 3 about decoupling the hint from the claim.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="flash-sale-waiting-room-why">
+      <p class="stem">Even with an atomic Redis counter, why is a waiting room still needed for the most contended sales?</p>
+      <button class="opt">Waiting rooms make the atomic decrement itself run faster</button>
+      <button class="opt">An atomic counter is correct per-request, but 500k req/s hitting it at once still overloads it; pacing admission bounds the stream</button>
+      <button class="opt">Waiting rooms replace the need for any inventory counter at all</button>
+      <p class="fb">Atomicity fixes correctness, not volume. The waiting room paces arrivals so the counter only ever sees a bounded, admitted trickle.</p>
+      <p class="hint">Reread the paragraph right after the "staff pick" box, before Deep Dive 2.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 8</p>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, especially bots.”</p>
 
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
@@ -360,6 +501,29 @@
     <p class="pq">“How do you stop bots grabbing everything?”</p>
     <p><b>Staff answer:</b> Waiting room with device attestation and CAPTCHA, per-account and per-card limits, randomized admission instead of first-come, and cancelling orders that violate limits.</p>
   </div>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="flash-sale-bot-defense-primary">
+      <p class="stem">What is the first-line defense against scalper bots buying out the entire flash sale?</p>
+      <button class="opt">Bot scoring and CAPTCHA/proof-of-work at the waiting room, plus per-user purchase limits</button>
+      <button class="opt">Relying solely on the payment provider to detect and cancel bot orders</button>
+      <button class="opt">Increasing the Postgres connection pool size</button>
+      <p class="fb">The security table lists bot scoring, CAPTCHA/proof-of-work in the waiting room, verified accounts, and per-user/card/address limits as the mitigation.</p>
+      <p class="hint">Reread the Security table's first row.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="flash-sale-observability-drift-why">
+      <p class="stem">Why does the design specifically monitor "Redis counter vs Postgres available (drift)" as a signal?</p>
+      <button class="opt">Drift is a cosmetic metric with no bearing on correctness</button>
+      <button class="opt">Drift between the fast gate and the source of truth is an early warning that overselling or lost inventory could be happening</button>
+      <button class="opt">Drift only matters for the catalog service, not inventory</button>
+      <p class="fb">Since Redis is the fast gate and Postgres is the durable truth, any drift beyond expected in-flight holds signals the "never oversell" guarantee is at risk.</p>
+      <p class="hint">Reread the Observability table's "Inventory correctness" row and the matching Monitoring SLO.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+  <p class="chunk-label">7 of 8</p>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
 
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
@@ -393,48 +557,96 @@
     <p class="pq">“What changes at 10× shoppers?”</p>
     <p><b>Staff answer:</b> The waiting room and CDN grow; the inventory gate and order pipeline stay the same because admission control caps load.</p>
   </div>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="flash-sale-10x-bottleneck">
+      <p class="stem">At 10× scale, what is named as the first bottleneck to hit?</p>
+      <button class="opt">The CDN's ability to serve static sale pages</button>
+      <button class="opt">The waiting room's SSE connection count</button>
+      <button class="opt">The payment provider's throughput for the burst of successful orders</button>
+      <p class="fb">The scaling table's callout names the payment provider's burst throughput as the first bottleneck at 10x.</p>
+      <p class="hint">Reread the line right after the 10x scaling table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="flash-sale-why-inventory-gate-unchanged-10x">
+      <p class="stem">Why does the inventory gate not need to change at 10x scale, unlike the CDN and waiting room?</p>
+      <button class="opt">Admission control caps how much load ever reaches the gate, regardless of how many people arrive</button>
+      <button class="opt">The inventory gate is stateless and therefore scales for free automatically</button>
+      <button class="opt">Ten times more shoppers means ten times fewer purchase attempts</button>
+      <p class="fb">The waiting room paces admission, so the inventory gate only ever sees a bounded, paced stream no matter how many people are waiting outside it.</p>
+      <p class="hint">Reread the final pushback box: "What changes at 10x shoppers?"</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-8" hidden>
+  <p class="chunk-label">8 of 8</p>
   <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
 
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A flash sale is an admission-control and atomic-inventory problem. The CDN serves static sale pages and a waiting room admits shoppers at a sustainable rate. Checkout does one synchronous action: an atomic decrement-if-available in Redis with a reservation TTL, backed by a conditional update in Postgres, so units are never oversold. Everything else (order creation, payment, notifications) runs asynchronously through an idempotent queue. Browse reads show a cached, slightly stale stock hint. At 10× only the edge and waiting room scale.</p></div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why does a read-then-write inventory check oversell under a flash sale?</p>
-      <button class="opt">A Redis counter cannot ever store the real remaining stock count</button>
-      <button class="opt">The primary database becomes the slowest possible component here</button>
-      <button class="opt">The check and the update are separate, so racing buyers all pass</button>
-      <button class="opt">The content delivery network caches the stale stock value forever</button>
-      <p class="fb">The read and the write aren't atomic — concurrent requests all read the same positive count and all decrement, selling more than exists.</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up. This also seeds spaced review.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="c" data-concept="flash-sale-final-read-then-write-race">
+        <p class="stem">Why does a read-then-write inventory check oversell under a flash sale?</p>
+        <button class="opt">A Redis counter cannot ever store the real remaining stock count</button>
+        <button class="opt">The primary database becomes the slowest possible component here</button>
+        <button class="opt">The check and the update are separate, so racing buyers all pass</button>
+        <button class="opt">The content delivery network caches the stale stock value forever</button>
+        <p class="fb">The read and the write aren't atomic — concurrent requests all read the same positive count and all decrement, selling more than exists.</p>
+        <p class="hint">Reread Deep Dive 1's first table row on read-then-write in app code.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="flash-sale-final-atomic-vs-lock">
+        <p class="stem">Why is a Redis atomic decrement preferred over <code>SELECT … FOR UPDATE</code> here?</p>
+        <button class="opt">A database row lock will silently permit two buyers to win once</button>
+        <button class="opt">It serializes the decrement without a lock that caps throughput</button>
+        <button class="opt">It removes the need to ever persist inventory in a real database</button>
+        <button class="opt">It guarantees the payment provider charges every card precisely once</button>
+        <p class="fb">A row lock is correct but serializes 500k req/s on one row, causing a latency cliff; an atomic counter is correct AND high-throughput.</p>
+        <p class="hint">Reread the mechanisms table in Deep Dive 1.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="flash-sale-final-async-queue-benefit">
+        <p class="stem">What does pushing order fulfillment onto a durable queue buy you?</p>
+        <button class="opt">Accept the order fast, then fulfill it asynchronously and resiliently</button>
+        <button class="opt">Make the inventory decrement eventually consistent across regions</button>
+        <button class="opt">Replace the idempotency key so retried requests create new orders</button>
+        <button class="opt">Serve the product detail page directly from the inventory primary</button>
+        <p class="fb">Only the inventory decrement must be synchronous and consistent; everything after it (orders, payment, email) can drain from a buffering queue.</p>
+        <p class="hint">Reread Deep Dive 2's staff callout.</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="flash-sale-final-idempotency-need">
+        <p class="stem">Why is an idempotency key essential on the checkout and payment calls?</p>
+        <button class="opt">It lets the catalog read path skip the content delivery network</button>
+        <button class="opt">It converts the strongly consistent counter into an available one</button>
+        <button class="opt">Retries and redelivery would otherwise create duplicate orders and charges</button>
+        <button class="opt">It shards the single hot inventory counter across many Redis nodes</button>
+        <p class="fb">Spikes cause retries and at-least-once redelivery; without idempotency you get duplicate orders and double charges — the worst trust outcome.</p>
+        <p class="hint">Reread Deep Dive 2b's table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="flash-sale-final-why-two-regimes">
+        <p class="stem">What is the single sentence that frames this entire design, and why does it matter?</p>
+        <button class="opt">Every component must use the same database for simplicity</button>
+        <button class="opt">Prioritize availability for browse but strict consistency for inventory, because they have opposite failure costs</button>
+        <button class="opt">All traffic should be treated identically regardless of read or write</button>
+        <p class="fb">Naming and enforcing the AP/CP split is called out as the single highest-leverage sentence in the whole interview — it drives caching, the atomic gate, and the waiting room.</p>
+        <p class="hint">Reread the staff callout in the NFR section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="flash-sale-final-waiting-room-vs-atomicity">
+        <p class="stem">If you only added the atomic Redis counter but skipped the waiting room, what would still go wrong at 500k req/s?</p>
+        <button class="opt">The counter stays correct, but the sheer request volume could overload Redis and the surrounding services before requests are admitted</button>
+        <button class="opt">Nothing, since atomicity alone fully solves both correctness and throughput</button>
+        <button class="opt">The counter would start overselling units immediately</button>
+        <p class="fb">Atomicity guarantees correctness per request, not capacity. Without pacing, all 500k req/s still arrive at once and can overwhelm the gate and its surrounding infrastructure.</p>
+        <p class="hint">Reread the paragraph connecting Deep Dive 1 to Deep Dive 4's waiting room.</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. Why is a Redis atomic decrement preferred over <code>SELECT … FOR UPDATE</code> here?</p>
-      <button class="opt">A database row lock will silently permit two buyers to win once</button>
-      <button class="opt">It serializes the decrement without a lock that caps throughput</button>
-      <button class="opt">It removes the need to ever persist inventory in a real database</button>
-      <button class="opt">It guarantees the payment provider charges every card precisely once</button>
-      <p class="fb">A row lock is correct but serializes 500k req/s on one row, causing a latency cliff; an atomic counter is correct AND high-throughput.</p>
-    </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What does pushing order fulfillment onto a durable queue buy you?</p>
-      <button class="opt">Accept the order fast, then fulfill it asynchronously and resiliently</button>
-      <button class="opt">Make the inventory decrement eventually consistent across regions</button>
-      <button class="opt">Replace the idempotency key so retried requests create new orders</button>
-      <button class="opt">Serve the product detail page directly from the inventory primary</button>
-      <p class="fb">Only the inventory decrement must be synchronous and consistent; everything after it (orders, payment, email) can drain from a buffering queue.</p>
-    </div>
-    <div class="q" data-correct="c">
-      <p class="stem">4. Why is an idempotency key essential on the checkout and payment calls?</p>
-      <button class="opt">It lets the catalog read path skip the content delivery network</button>
-      <button class="opt">It converts the strongly consistent counter into an available one</button>
-      <button class="opt">Retries and redelivery would otherwise create duplicate orders and charges</button>
-      <button class="opt">It shards the single hot inventory counter across many Redis nodes</button>
-      <p class="fb">Spikes cause retries and at-least-once redelivery; without idempotency you get duplicate orders and double charges — the worst trust outcome.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic — push on the parts that feel shaky. Try:
@@ -462,21 +674,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

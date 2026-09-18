@@ -61,22 +61,33 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -101,6 +112,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 8</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -137,8 +150,29 @@
     candidate explicitly draws the seam between them and optimizes each independently.
   </div>
 
-  <p class="transition"><span class="lbl">Say to move on →</span> “Strong consistency on bids with a real-time audience. Contention is per auction, so let me size that.”</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="online-auction-write-read-split">
+      <p class="stem">Why split the bid-write path from the read/broadcast path?</p>
+      <button class="opt">Because writing bids is far cheaper than reading them on every request</button>
+      <button class="opt">Because the read path needs stronger consistency than the bid writes</button>
+      <button class="opt">Because writes need strong consistency while reads can be eventual</button>
+      <p class="fb">Bids must be linearizable on one key; views can be stale-but-cheap. Opposite requirements force separate paths.</p>
+      <p class="hint">Reread the staff-signal callout right after the NFR table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="online-auction-single-system-failure-mode">
+      <p class="stem">What would go wrong if a senior candidate built one unified system to serve both bids and live viewing?</p>
+      <button class="opt">It would either slow bid writes with viewer load or weaken bid consistency to make reads scale</button>
+      <button class="opt">Nothing, since bids and views happen at completely different times</button>
+      <button class="opt">The system would need no database at all, only an in-memory queue</button>
+      <p class="fb">Bids demand linearizable single-key writes; viewers demand massive cheap fan-out. A shared system trades one requirement off against the other, which is exactly the "senior tries to make one system do both" trap named in the staff callout.</p>
+      <p class="hint">Reread the staff-signal box: what does a senior candidate do differently from a staff candidate here?</p>
+    </div>
+  </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only estimate the numbers that change a decision. Work them out loud:</p>
@@ -158,8 +192,21 @@
     <p class="pq">“Why not a distributed lock around each bid?”</p>
     <p><b>Staff answer:</b> Locks add latency and expiry failure modes. An optimistic compare-and-set on one row (UPDATE … WHERE highest_bid &lt; :amount) serializes bids atomically with no held lock.</p>
   </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Only ~230 bids/s on average, but hot auctions race on one row with 1000:1 viewers. Let me define the entities.”</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="online-auction-shard-by-auction-id">
+      <p class="stem">Why does the capacity estimate conclude "shard by auction_id" rather than by bidder_id?</p>
+      <button class="opt">Bidder IDs are harder to hash evenly than auction IDs across shards</button>
+      <button class="opt">Contention always happens within a single auction, never across auctions, so co-locating each auction's bids avoids cross-shard coordination</button>
+      <button class="opt">Auction IDs are always smaller numbers so they compress better on disk</button>
+      <p class="fb">A bid never spans auctions, so the compare-and-set never needs to touch two shards if data is sharded by auction_id — sharding by bidder_id would scatter one auction's contention across shards.</p>
+      <p class="hint">Reread the "Concurrent auctions" row's design implication.</p>
+    </div>
+  </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p><b>Entities:</b> <code>Auction</code> (id, itemId, sellerId, startPrice, endTime, status, <code>highestBid</code>,
@@ -192,8 +239,21 @@
     <p class="pq">“Why store every bid if only the highest matters?”</p>
     <p><b>Staff answer:</b> The bid history is the audit trail for disputes and fraud and is needed to pick the runner-up if the winner doesn't pay. It's append-only and cheap.</p>
   </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “The auction row with a version number is the serialization point. Now the write and broadcast paths.”</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="online-auction-outbox-purpose">
+      <p class="stem">What problem does writing a transactional outbox row in the same transaction as an accepted bid solve?</p>
+      <button class="opt">It prevents a bid from committing while its broadcast event is silently lost</button>
+      <button class="opt">It compresses the bid record to save storage space over time</button>
+      <button class="opt">It lets the client skip authentication on the next bid attempt</button>
+      <p class="fb">The Data Model section states this directly: the outbox row in the same transaction prevents "bid committed but broadcast lost."</p>
+      <p class="hint">Reread the Data Model intro paragraph, second sentence.</p>
+    </div>
+  </div>
+  </section>
 
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Component Diagram</h2>
 <pre class="diagram">
@@ -234,8 +294,21 @@
     <p class="pq">“Why separate the bid service from the broadcast fleet?”</p>
     <p><b>Staff answer:</b> Writes need correctness and are rare; broadcasts are massive fan-out. Splitting them means a viewer surge can't slow bid acceptance.</p>
   </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: accepting bids under contention, broadcasting, and closing exactly on time.”</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="online-auction-split-bid-broadcast-service">
+      <p class="stem">What breaks if the Bid Service and the Broadcast Service were merged into one process?</p>
+      <button class="opt">Auctions would no longer be able to close automatically at end time</button>
+      <button class="opt">The database would no longer be able to store bid history</button>
+      <button class="opt">A surge of viewers on a hot auction could slow down or contend with bid acceptance</button>
+      <p class="fb">The pushback answer is explicit: splitting them means a viewer surge can't slow bid acceptance — merging reintroduces exactly that coupling.</p>
+      <p class="hint">Reread the pushback: "Why separate the bid service from the broadcast fleet?"</p>
+    </div>
+  </div>
+  </section>
 
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
 
@@ -325,8 +398,45 @@
     <p class="pq">“How do you close the auction without accepting a late bid?”</p>
     <p><b>Staff answer:</b> The close is just another conditional write on the same row: set status=closed if now ≥ end_time. Bids check status in the same compare-and-set, so there's no race, and a durable delay queue triggers the close.</p>
   </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Now production readiness, including payments and fraud.”</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="online-auction-cas-primitive">
+      <p class="stem">What is the core correctness primitive for accepting a bid?</p>
+      <button class="opt">A queue that orders every incoming bid by the client-side timestamp value</button>
+      <button class="opt">An atomic compare-and-set that accepts only when above the current high</button>
+      <button class="opt">A nightly batch job that reconciles all bids and removes the duplicate ones</button>
+      <p class="fb">A bid is valid only if it beats the current max; that read-modify-write must be atomic to avoid lost updates.</p>
+      <p class="hint">Reread the intro to "Accepting bids correctly under contention."</p>
+    </div>
+    <div class="q" data-correct="a" data-concept="online-auction-close-trigger-mechanism">
+      <p class="stem">How should the system know an auction has reached its end time?</p>
+      <button class="opt">A delay queue or scheduled timer fires a close event at the end time</button>
+      <button class="opt">A tight loop scans every auction row repeatedly to check the clock</button>
+      <button class="opt">The next bidder triggers the close when they happen to submit a bid</button>
+      <p class="fb">Enqueue a delayed close-event per auction; polling all rows does not scale and client clocks are untrustworthy.</p>
+      <p class="hint">Reread "Closing the auction exactly at end time," the trigger box.</p>
+    </div>
+    <div class="q" data-correct="b" data-concept="online-auction-bid-close-race-fix">
+      <p class="stem">How is the bid-vs-close race resolved safely?</p>
+      <button class="opt">Trust the client clock and reject any bid stamped after the listed end</button>
+      <button class="opt">Make close an atomic write on the same row the bids contend on</button>
+      <button class="opt">Pause all writes for a buffer window on both sides of the close</button>
+      <p class="fb">Routing close through the same single serialization point as bids lets the database order them — no slip-through window.</p>
+      <p class="hint">Reread the "bid-vs-close race" box and the staff-signal callout right after it.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="online-auction-occ-retry-tradeoff">
+      <p class="stem">Why do OCC retries spike specifically in an auction's final seconds rather than staying constant throughout?</p>
+      <button class="opt">Bid rate itself spikes near close (sniping), so more concurrent writers collide on the same row at once</button>
+      <button class="opt">The database silently switches to a slower storage engine near the end time</button>
+      <button class="opt">OCC retries are unrelated to bid rate and instead depend only on time of day</button>
+      <p class="fb">Contention scales with concurrent writers on one row; capacity estimation shows bid rate can jump ~20× near close, so more optimistic writers collide and lose the race, forcing retries.</p>
+      <p class="hint">Connect the capacity estimate's "hot auction close" row with approach A's listed weakness in the Alternatives table.</p>
+    </div>
+  </div>
+  </section>
 
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -377,8 +487,21 @@
     <p class="pq">“How do you stop shill bidding?”</p>
     <p><b>Staff answer:</b> Detect seller-linked accounts via device and payment fingerprints, flag bid patterns that only raise prices, and require verified payment methods for high-value bids.</p>
   </div>
-  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="online-auction-pseudonym-privacy-why">
+      <p class="stem">Why show bidders pseudonymously to other users instead of hiding the bid amount too?</p>
+      <button class="opt">Bid amounts are not personal data so nothing about them needs protection</button>
+      <button class="opt">Hiding amounts would violate the strong-consistency requirement on bids</button>
+      <button class="opt">The auction's competitive function needs a visible price signal; only the bidder's identity is the sensitive part</button>
+      <p class="fb">Privacy minimization keeps what the function needs (the amount, to drive competitive bidding) while stripping what it doesn't need (identity), consistent with data minimization.</p>
+      <p class="hint">Reread the Privacy section's "Display" and "Minimization" sentences.</p>
+    </div>
+  </div>
+  </section>
 
+  <section class="chunk" id="chunk-7" hidden>
+  <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = 100M concurrent auctions, ~10× bids, ~100M live viewer connections.</p>
@@ -411,46 +534,60 @@
     <p><b>Staff answer:</b> Holding viewer WebSockets, not processing bids. Use cached snapshots or SSE for quiet auctions and reserve sockets for auctions near close.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
+  </section>
 
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">8 of 8 — comprehensive check</p>
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>An online auction needs linearizable bids for each auction under a real-time audience. Each auction row is the single serialization point: bids are an optimistic compare-and-set on the current highest bid and status, and closing is the same conditional write triggered by a durable timer, so late bids can't race it. Accepted bids publish to a per-auction channel that pushes coalesced updates to viewers. Reads never touch the bid row. We shard by auction id (~4 shards at 5k bids/s peak), and at 10× we add shards and broadcast nodes.</p></div>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. What is the core correctness primitive for accepting a bid?</p>
-      <button class="opt">A queue that orders every incoming bid by the client-side timestamp value</button>
-      <button class="opt">An atomic compare-and-set that accepts only when above the current high</button>
-      <button class="opt">A nightly batch job that reconciles all bids and removes the duplicate ones</button>
-      <p class="fb">A bid is valid only if it beats the current max; that read-modify-write must be atomic to avoid lost updates.</p>
-    </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. Why split the bid-write path from the read/broadcast path?</p>
+  <h2>Everything from this lesson</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. These questions also seed spaced review across the whole lesson.</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="b" data-concept="online-auction-write-read-split-final">
+      <p class="stem">Why split the bid-write path from the read/broadcast path?</p>
       <button class="opt">Because writing bids is far cheaper than reading them on every request</button>
-      <button class="opt">Because the read path needs stronger consistency than the bid writes</button>
       <button class="opt">Because writes need strong consistency while reads can be eventual</button>
       <button class="opt">Because the broadcast path must hold the database lock for each viewer</button>
-      <p class="fb">Bids must be linearizable on one key; views can be stale-but-cheap. Opposite requirements → separate paths.</p>
+      <p class="fb">Bids must be linearizable on one key; views can be stale-but-cheap. Opposite requirements force separate paths.</p>
+      <p class="hint">Revisit chunk 1's staff-signal callout on the split-brain insight.</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. How should the system know an auction has reached its end time?</p>
-      <button class="opt">A delay queue or scheduled timer fires a close event at the end time</button>
-      <button class="opt">A tight loop scans every auction row repeatedly to check the clock</button>
-      <button class="opt">The next bidder triggers the close when they happen to submit a bid</button>
-      <button class="opt">The viewer client closes the auction once its countdown reaches zero</button>
-      <p class="fb">Enqueue a delayed close-event per auction; polling all rows does not scale and client clocks are untrustworthy.</p>
+    <div class="q" data-correct="a" data-concept="online-auction-cas-primitive-final">
+      <p class="stem">What is the core correctness primitive for accepting a bid?</p>
+      <button class="opt">An atomic compare-and-set that accepts only when above the current high</button>
+      <button class="opt">A queue that orders every incoming bid by the client-side timestamp value</button>
+      <button class="opt">A nightly batch job that reconciles all bids and removes the duplicate ones</button>
+      <p class="fb">A bid is valid only if it beats the current max; that read-modify-write must be atomic to avoid lost updates.</p>
+      <p class="hint">Revisit chunk 5's "Accepting bids correctly under contention."</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. How is the bid-vs-close race resolved safely?</p>
+    <div class="q" data-correct="c" data-concept="online-auction-close-race-final">
+      <p class="stem">How is the bid-vs-close race resolved safely?</p>
       <button class="opt">Trust the client clock and reject any bid stamped after the listed end</button>
-      <button class="opt">Make close an atomic write on the same row the bids contend on</button>
       <button class="opt">Pause all writes for a buffer window on both sides of the close</button>
-      <button class="opt">Let the broadcast service decide which bids arrived before closing</button>
+      <button class="opt">Make close an atomic write on the same row the bids contend on</button>
       <p class="fb">Routing close through the same single serialization point as bids lets the database order them — no slip-through window.</p>
+      <p class="hint">Revisit chunk 5's "bid-vs-close race" box.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="online-auction-shard-key-choice-final">
+      <p class="stem">If the system instead sharded by bidder_id rather than auction_id, what would break?</p>
+      <button class="opt">Nothing, since bidder_id and auction_id are functionally interchangeable keys</button>
+      <button class="opt">A single auction's bids would scatter across shards, forcing cross-shard coordination on every compare-and-set</button>
+      <button class="opt">The system would no longer be able to store bid history at all</button>
+      <p class="fb">Contention is per auction; sharding by auction_id keeps every contending write on one shard. Sharding by bidder_id would split one auction's writes across many shards and break the single serialization point.</p>
+      <p class="hint">Revisit chunk 2's capacity estimate and the sharding implication.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="online-auction-broadcast-coalesce-why-final">
+      <p class="stem">Why does the design coalesce broadcast updates to ~5/s per auction instead of pushing every accepted bid immediately?</p>
+      <button class="opt">A hot auction's raw per-bid fan-out to 100k viewers would multiply into a message-volume explosion</button>
+      <button class="opt">Coalescing is required because WebSockets cannot deliver more than 5 messages per second</button>
+      <button class="opt">Coalescing makes bid writes themselves atomic and race-free</button>
+      <p class="fb">The capacity estimate shows one hot auction at 1,000 bids/s × 100k watchers would be 100M msgs/s if uncoalesced; coalescing to ~5/s cuts that by 200×.</p>
+      <p class="hint">Revisit chunk 2's "Viewer fan-out" row.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this one — push on it. Try:
@@ -480,21 +617,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

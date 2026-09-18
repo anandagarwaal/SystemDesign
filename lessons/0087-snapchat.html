@@ -61,22 +61,35 @@
   .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
   .transition .lbl{display:inline; margin-right:.4rem;}
   .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -97,6 +110,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 7</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -126,6 +141,29 @@
 
   <p class="transition"><span class="lbl">Say to move on →</span> “The unusual NFR is reliable deletion on a deadline. Let me size bytes, which dominate.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="snapchat-scope-recall">
+      <p class="stem">Which of these is explicitly out of scope for this design?</p>
+      <button class="opt">Sending a disappearing photo/video snap to friends</button>
+      <button class="opt">The camera/AR lens pipeline and end-to-end encryption</button>
+      <button class="opt">Posting a story that expires 24 hours after posting</button>
+      <p class="fb">The lens pipeline, Snap Map, Discover, group calls, and E2EE are named out of scope; the core snap/story lifecycle is in scope.</p>
+      <p class="hint">Reread the "Out of scope" line after the functional requirements table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="snapchat-ephemerality-why">
+      <p class="stem">Why does the ephemerality NFR force a TTL/lifecycle engine on every store, rather than just an app-level delete button?</p>
+      <button class="opt">The system must guarantee deletion on a deadline even if a worker crashes, so expiry has to be a property of the data itself, not just an action a service might forget to take</button>
+      <button class="opt">TTLs are required because DynamoDB cannot delete rows through a normal API call</button>
+      <button class="opt">A lifecycle engine is only needed to make story reads faster, not for correctness</button>
+      <p class="fb">Deletion here is a correctness guarantee with a deadline, not a convenience feature — so every row and blob needs its own expiry as a durable fallback.</p>
+      <p class="hint">Reread the NFR table row on Ephemerality and its "Why it shapes the design" column.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 7</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Estimate only what changes the design. For Snapchat the load-bearing numbers are <b>media bytes</b> (storage + egress), not metadata rows. The following are my own back-of-envelope estimates.</p>
@@ -146,6 +184,21 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “~10 PB/day in, but resident storage is bounded by TTLs. Let me define entities, each with an expiry.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="snapchat-storage-flow-why">
+      <p class="stem">Why is resident storage only a few PB despite ~10 PB/day of uploads?</p>
+      <button class="opt">Because media is compressed so heavily it shrinks by three orders of magnitude</button>
+      <button class="opt">Because most snaps are never actually delivered to any recipient</button>
+      <button class="opt">Because TTL-driven deletion means storage is a flow, not a stock — bytes leave nearly as fast as they arrive</button>
+      <p class="fb">Ephemerality bounds resident storage to roughly one day of unopened snaps plus one day of stories, regardless of cumulative upload volume.</p>
+      <p class="hint">Reread the "This is the design-changing number" bullet in capacity estimation.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 7</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p><b>Entities:</b> <code>User</code>, <code>Snap</code> (metadata: sender, media pointer, expiry, view state), <code>Media</code> (the blob + CDN URL), <code>Recipient</code> (per-friend delivery + view record), and <code>Story</code> (a user's 24h-TTL collection of snaps).</p>
@@ -182,6 +235,21 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Inbox rows per recipient with TTLs; bytes go direct to blob storage. Now control plane vs data plane.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="snapchat-per-recipient-row-recall">
+      <p class="stem">Why does each recipient get its own inbox row instead of one shared row per snap?</p>
+      <button class="opt">Each recipient views independently, so per-recipient state lets deletion happen per recipient and the shared blob purge only after the last one is done</button>
+      <button class="opt">A shared row would exceed the maximum item size supported by DynamoDB</button>
+      <button class="opt">Per-recipient rows are required so the CDN can cache each recipient's copy separately</button>
+      <p class="fb">Since recipients view at different times, tracking view/deletion state per recipient lets the system know exactly when it's safe to purge the shared blob.</p>
+      <p class="hint">Reread the pushback box right after the data model table.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 7</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Component Diagram</h2>
 <pre class="diagram">
@@ -217,6 +285,22 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: the media lifecycle, the deletion guarantee, CDN delivery, receipts and stories.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="snapchat-no-proxy-why">
+      <p class="stem">Why does media never pass through app servers on either upload or view?</p>
+      <button class="opt">App servers are physically incapable of handling binary payloads over HTTP</button>
+      <button class="opt">Proxying large media bytes through a tier meant to stay thin wastes CPU, memory, and bandwidth for no benefit</button>
+      <button class="opt">Blob stores reject any upload that did not originate from a CDN edge node</button>
+      <button class="opt">The metadata store cannot coexist in the same data center as a blob store</button>
+      <p class="fb">Presigned uploads and CDN-served views keep the app tier handling only small metadata, which is the whole point of separating control plane from data plane.</p>
+      <p class="hint">Reread the pushback box right after the HLD section.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 7</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
 
@@ -285,6 +369,37 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, where ephemerality is the privacy promise.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="snapchat-fallback-delete-recall">
+      <p class="stem">What happens if the "delete on view" handler never runs?</p>
+      <button class="opt">The blob is retained permanently since no other mechanism can remove it</button>
+      <button class="opt">The next view request from a different recipient triggers a full resend</button>
+      <button class="opt">The passive per-row/per-object TTL still guarantees eventual removal</button>
+      <p class="fb">Active deletion gives promptness; the passive TTL is the fallback that guarantees the worst case is delayed deletion, never permanent retention.</p>
+      <p class="hint">Reread the staff-signal box in Deep Dive 1.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="snapchat-true-deletion-why">
+      <p class="stem">Why can't the system honestly claim a snap is "gone from the universe" the instant it's viewed?</p>
+      <button class="opt">Copies can persist in CDN edge caches briefly and on a recipient's device via screenshots, which the server cannot reach or erase</button>
+      <button class="opt">The metadata store's TTL feature is unreliable and frequently fails to fire on schedule</button>
+      <button class="opt">Blob stores never actually delete an object, only mark it as hidden from listings</button>
+      <p class="fb">Deletion guarantees only extend to systems you control. CDN caches expire on a short window, and client-side copies or screenshots can only be discouraged and detected, not prevented.</p>
+      <p class="hint">Reread Deep Dive 2's table on where copies can survive.</p>
+    </div>
+    <div class="q" data-correct="c" data-concept="snapchat-alt-approach-pick">
+      <p class="stem">Per the alternatives table, when would peer-to-peer delivery (approach C) fit better than the chosen server-mediated design (A)?</p>
+      <button class="opt">Consumer ephemeral messaging at Snapchat's scale with offline recipient support</button>
+      <button class="opt">A privacy-first product like Signal's disappearing messages</button>
+      <button class="opt">Live, synchronous sharing only, where both parties are online at once</button>
+      <p class="fb">P2P delivery drops all server storage but requires both parties online simultaneously and doesn't support stories — a narrow fit for live sharing only.</p>
+      <p class="hint">Check approach C's "Pick it when" column.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 7</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -339,6 +454,22 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="snapchat-retention-audit-why">
+      <p class="stem">Why does the monitoring plan include a retention audit that scans for content past its expiry, rather than trusting the deletion pipeline's own success metrics?</p>
+      <button class="opt">Retention audits are cheaper to run than tracking deletion queue lag</button>
+      <button class="opt">Ephemerality is a privacy promise to users, so the system must independently prove the guarantee holds rather than just assume the pipeline worked</button>
+      <button class="opt">Audits are required because the blob store does not support TTL-based expiry natively</button>
+      <button class="opt">The deletion pipeline cannot emit any metrics about its own success or failure</button>
+      <p class="fb">A pipeline can silently fail. Independently auditing for objects that outlived their expiry catches privacy incidents the pipeline's own metrics might miss.</p>
+      <p class="hint">Reread the Observability table's "Retention audit" row.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">7 of 7 — comprehensive check</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = 50B snaps/day (~600k/s average).</p>
@@ -376,42 +507,54 @@
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Snapchat treats deletion as a feature with an SLA. The control plane writes snap, inbox and story rows that each carry an expiry, and notifies recipients through a messaging delivery path. The data plane sends bytes sender → blob store → CDN → recipient. A view marks the recipient row viewed, fires the read receipt, and enqueues idempotent deletion of the blob plus a CDN purge once the last recipient is done. Store-level TTLs are the safety net. Stories use fan-out-on-read with 24-hour expiry. At 10× resident storage stays bounded; CDN egress dominates.</p></div>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why does Snapchat back active "delete on view" with a passive per-row TTL as well?</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="c" data-concept="snapchat-ttl-backstop-final">
+      <p class="stem">Why does Snapchat back active "delete on view" with a passive per-row TTL as well?</p>
       <button class="opt">Because a TTL makes each snap open noticeably faster than an active delete can</button>
       <button class="opt">Because the CDN refuses to serve any object that does not carry a TTL value</button>
       <button class="opt">Because if the active delete worker fails, the TTL still guarantees eventual removal</button>
       <button class="opt">Because metadata rows cannot be deleted at all once a snap has been viewed once</button>
       <p class="fb">Active delete gives promptness; the TTL is the fallback so nothing is ever retained forever.</p>
+      <p class="hint">Reread Deep Dive 1's staff-signal box.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. What is the honest scope of Snapchat's deletion guarantee in an interview?</p>
+    <div class="q" data-correct="b" data-concept="snapchat-honest-guarantee-final">
+      <p class="stem">What is the honest scope of Snapchat's deletion guarantee in an interview?</p>
       <button class="opt">Every copy everywhere is provably erased the instant the recipient opens the snap</button>
       <button class="opt">Server and CDN copies expire reliably; device and screenshot copies are only deterred</button>
       <button class="opt">Nothing can ever be deleted, so the app simply hides snaps behind an access check</button>
       <button class="opt">Only the sender device is wiped; all recipient and server copies live on forever</button>
       <p class="fb">You control origin + CDN; client caches and screenshots you can only discourage and detect.</p>
+      <p class="hint">Reread Deep Dive 2.</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Why are media bytes uploaded with a pre-signed URL instead of through app servers?</p>
+    <div class="q" data-correct="a" data-concept="snapchat-presigned-upload-final">
+      <p class="stem">Why are media bytes uploaded with a pre-signed URL instead of through app servers?</p>
       <button class="opt">So bytes go straight to the blob store and the thin app tier never proxies them</button>
       <button class="opt">So the app tier can compress and re-encode every frame before it is finally stored</button>
       <button class="opt">So the CDN is bypassed entirely and viewers always read from the origin blob</button>
       <button class="opt">So each snap can be encrypted twice by the server before reaching the blob store</button>
       <p class="fb">Pre-signed URLs keep the bytes off the app tier; it only handles the small mediaId metadata.</p>
+      <p class="hint">Reread Deep Dive 3.</p>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">4. Why is fan-out-on-read the better fit for stories with a 24h expiry?</p>
+    <div class="q" data-correct="c" data-concept="snapchat-fanout-read-final">
+      <p class="stem">Why is fan-out-on-read the better fit for stories with a 24h expiry?</p>
       <button class="opt">Because pushing each story entry to every friend reduces total read query latency</button>
       <button class="opt">Because read fan-in lets the system skip storing any media in the blob store at all</button>
       <button class="opt">Because one stored copy with one TTL avoids duplicating media across all friends</button>
       <button class="opt">Because stories must be delivered instantly the way a direct snap push is delivered</button>
       <p class="fb">Stories are pulled on open, so store once with one TTL and filter expiry &gt; now at read time.</p>
+      <p class="hint">Reread Deep Dive 5.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="snapchat-whole-lesson-why">
+      <p class="stem">If the passive TTL mechanism were removed and only active "delete on view" remained, what new risk would this introduce?</p>
+      <button class="opt">An unopened snap whose recipient never views it, or a crashed reaper, would leave the blob and metadata retained indefinitely with no fallback</button>
+      <button class="opt">The CDN would no longer be able to cache any media at all</button>
+      <button class="opt">Read receipts would stop being delivered to the sender on view</button>
+      <p class="fb">Active deletion alone has no safety net. Passive TTL is what guarantees the worst case is delayed deletion, not permanent retention — removing it breaks the ephemerality NFR's core guarantee.</p>
+      <p class="hint">Think about what happens to an unopened snap or a delete worker that never runs, absent any TTL fallback.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this design — push on it:
@@ -438,21 +581,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

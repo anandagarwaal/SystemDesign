@@ -69,13 +69,26 @@
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
   .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
@@ -97,6 +110,8 @@
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
 
+  <section class="chunk" id="chunk-1">
+  <p class="chunk-label">1 of 9</p>
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
     <p class="lbl">Ask before you design</p>
@@ -132,6 +147,29 @@
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Under 200 ms at p99 over tens of billions of documents. Let me size corpus, index and QPS.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="search-scope-boundary">
+      <p class="stem">Which of these is explicitly out of scope for this design?</p>
+      <button class="opt">Returning a ranked list of matching pages</button>
+      <button class="opt">Showing a title and snippet per result</button>
+      <button class="opt">Crawling the web to build the corpus</button>
+      <p class="fb">Crawling is a separate system (Lesson 35); this design assumes the corpus already exists and focuses on indexing, serving, and ranking.</p>
+      <p class="hint">Reread the "Out of scope" line right after the FR table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="search-tension-latency-corpus">
+      <p class="stem">Why does "tens of billions of documents" force the index to live mostly in memory rather than on disk?</p>
+      <button class="opt">A 200 ms budget leaves no time to scan or seek across a corpus that large on disk</button>
+      <button class="opt">Disks cannot physically store more than a few million records total</button>
+      <button class="opt">In-memory storage is required by law for search engines</button>
+      <p class="fb">The latency-vs-corpus-size tension is the whole ballgame: RAM access is fast enough to fit the budget, disk generally is not at this scale.</p>
+      <p class="hint">Look at the "two tensions to name up front" box.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+  <p class="chunk-label">2 of 9</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only the numbers that <em>change a decision</em>. (Back-of-envelope assumptions — state them aloud, don't quote them as fact.)</p>
@@ -152,6 +190,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “The index is sharded across thousands of nodes and the query head is Zipfian. Let me define the API.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="search-fanout-tail-latency">
+      <p class="stem">Because the index is doc-partitioned, what does every query's latency depend on?</p>
+      <button class="opt">Only the average response time across all shards</button>
+      <button class="opt">The slowest of the shards it fanned out to</button>
+      <button class="opt">Only the size of the query string itself</button>
+      <p class="fb">Doc-partitioning means each query touches nearly all shards in parallel, so its latency is bounded by the slowest one — a tail-latency problem.</p>
+      <p class="hint">Look at the "Fan-out" row of the capacity table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="search-replicas-vs-shards">
+      <p class="stem">Why doesn't adding more replicas alone solve the corpus-size problem?</p>
+      <button class="opt">Replicas make each individual query cheaper to score</button>
+      <button class="opt">Replicas remove the need for an inverted index entirely</button>
+      <button class="opt">Replicas copy the same data, they don't hold more distinct documents</button>
+      <p class="fb">Replicas scale read throughput for a fixed dataset; fitting a bigger corpus requires more shards (more distinct partitions), not more copies of the same ones.</p>
+      <p class="hint">Reread the interviewer pushback right after the capacity table.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+  <p class="chunk-label">3 of 9</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p><b>Entities:</b> <code>Document</code> (docId, URL, title, text, plus static signals like <code>pageRank</code>), <code>Term</code> → <code>PostingList</code> (the inverted index entry: docIds + positions + per-doc weight), and the transient <code>Query</code>.</p>
@@ -185,6 +246,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “A search endpoint with a cursor, fed by an offline index. Now indexing plane and serving plane.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="search-cursor-pagination">
+      <p class="stem">Why does the API use an opaque cursor instead of a page number?</p>
+      <button class="opt">A live, ranked index makes offset pagination skip or repeat results</button>
+      <button class="opt">Cursors are required by REST conventions for all endpoints</button>
+      <button class="opt">Page numbers cannot be encoded in a URL query string</button>
+      <p class="fb">With ranking and the index both changing, offsets shift under you; a cursor encodes the last (score, docId) seen, which stays stable.</p>
+      <p class="hint">Reread the paragraph right after the API table about cursor vs page.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="search-immutable-segments-why">
+      <p class="stem">Why are index segments built as immutable, atomically-swapped units instead of updated in place?</p>
+      <button class="opt">Immutable data is required for GDPR compliance</button>
+      <button class="opt">Serving can keep reading the old segment safely until the new one is fully ready to swap in</button>
+      <button class="opt">It makes the lexicon smaller on disk</button>
+      <p class="fb">Atomic swap avoids ever serving a half-built index — readers see either the old complete segment or the new complete one, never a partial state.</p>
+      <p class="hint">Look at the Data Model intro sentence about "built offline and swapped in atomically."</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-4" hidden>
+  <p class="chunk-label">4 of 9</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Data Flow — the indexing pipeline (doc → searchable)</h2>
   <p>This is a data-processing system, so trace one crawled page from the corpus to being queryable. Indexing is offline/streaming and decoupled from serving.</p>
@@ -231,6 +315,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: the inverted index, sharding and scatter-gather, ranking and the latency budget.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="search-decoupled-planes">
+      <p class="stem">Why is indexing offline/streaming while serving is a separate online plane?</p>
+      <button class="opt">Offline processing is always cheaper per document than online</button>
+      <button class="opt">Serving requires a different programming language than indexing</button>
+      <button class="opt">Heavy batch index-building work must not block low-latency query serving</button>
+      <p class="fb">Decoupling lets index construction run as heavy batch/streaming work while queries hit an already-built, swapped-in segment with no write-path blocking.</p>
+      <p class="hint">Reread the interviewer pushback after the HLD table.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="search-pagerank-batch-why">
+      <p class="stem">Why is PageRank computed in batch over the whole link graph rather than per query?</p>
+      <button class="opt">It is a query-independent, global signal that only changes slowly, so precomputing it once amortizes the cost across every future query</button>
+      <button class="opt">PageRank must be recalculated for every query to stay accurate</button>
+      <button class="opt">Batch computation is required because PageRank cannot use the link graph</button>
+      <p class="fb">PageRank depends only on link structure, not on the query, so it is precomputed and joined at rank time instead of being recomputed per request.</p>
+      <p class="hint">Look at the "Compute static signals" step of the indexing pipeline.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-5" hidden>
+  <p class="chunk-label">5 of 9</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dive 1 — The inverted index, built from the crawl</h2>
   <p>Don't say "use a search cluster" and move on — explain what it's doing. A <b>forward index</b> maps <code>document → terms</code>; searching it means scanning every doc, impossible at tens of billions. An <b>inverted index</b> flips it to <code>term → posting list</code>, the set of docIds containing that term, usually with term positions and a per-doc weight.<a href="#c2" class="cite">[2]</a> Brin &amp; Page's original Google design stored exactly this — posting lists in "barrels" plus a lexicon of terms.<a href="#c1" class="cite">[1]</a></p>
@@ -259,6 +366,29 @@
   </div>
   <p>Real systems add a hierarchy: a root coordinator over <em>leaf</em> shards, often grouped into intermediate aggregators so the merge itself fans out. Latency is bounded by the slowest shard — picked up in DD4.</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="search-inverted-index-def">
+      <p class="stem">What does an inverted index map?</p>
+      <button class="opt">Each document to the full set of terms it contains</button>
+      <button class="opt">Each term to the set of documents that contain it</button>
+      <button class="opt">Each query to a cached list of prior results</button>
+      <p class="fb">Inverted = term → posting list of docIds, turning a would-be corpus scan into a posting-list read and intersection.</p>
+      <p class="hint">Reread the definition right after "Don't say use a search cluster..."</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="search-doc-partition-tradeoff">
+      <p class="stem">Document-partitioning avoids term hot-spots but forces what cost onto every query?</p>
+      <button class="opt">Scattering the query to nearly every shard instead of just a few</button>
+      <button class="opt">Storing each document's text three separate times</button>
+      <button class="opt">Recomputing the lexicon from scratch on each request</button>
+      <p class="fb">Spreading docs evenly avoids one shard owning a colossal posting list, but a query can no longer be routed to just the shards holding its terms — it must scatter to (almost) all of them.</p>
+      <p class="hint">Look at the term-vs-document partition comparison table.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-6" hidden>
+  <p class="chunk-label">6 of 9</p>
   <h2>Deep Dive 3 — Ranking: multi-stage retrieve-then-rerank</h2>
   <p>Returning matches is easy; returning the <em>best</em> matches in tens of ms is the whole game. You cannot run an expensive scorer over a million-entry posting list per query, so ranking is staged: cheap recall first, expensive precision last.</p>
   <h3>Stage 0 — query-independent signals</h3>
@@ -308,6 +438,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, including spam and adversarial SEO.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="b" data-concept="search-multistage-ranking">
+      <p class="stem">How does multi-stage ranking keep top-result quality affordable?</p>
+      <button class="opt">It scores the entire posting list with the expensive model each time</button>
+      <button class="opt">It re-ranks only a small merged candidate set with costly signals</button>
+      <button class="opt">It sorts every matching document by PageRank before reading it</button>
+      <p class="fb">Cheap BM25 gives recall on every shard; the expensive ranker runs once, on the few-thousand-doc merged candidate set.</p>
+      <p class="hint">Reread the staff-level signal box after Deep Dive 3.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="search-hedged-requests-why">
+      <p class="stem">Why do hedged/backup requests help p99 latency specifically, more than average latency?</p>
+      <button class="opt">They reduce the total number of shards that must be queried</button>
+      <button class="opt">They make the BM25 scoring function itself run faster</button>
+      <button class="opt">They route around the rare slow outlier shard that would otherwise define the tail</button>
+      <p class="fb">p99 is set by rare slow stragglers; re-issuing to a replica when one shard lags lets the fast reply win, cutting off exactly the outliers that drive the tail.</p>
+      <p class="hint">Look at "Tame the tail (slowest-shard problem)" in Deep Dive 4.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-7" hidden>
+  <p class="chunk-label">7 of 9</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -359,6 +512,29 @@
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
 
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="a" data-concept="search-spam-mitigation">
+      <p class="stem">What is the main defense against SEO spam and link-farm manipulation?</p>
+      <button class="opt">Spam classifiers at index time plus link-graph anomaly detection</button>
+      <button class="opt">Requiring every website owner to log in before indexing</button>
+      <button class="opt">Deleting all pages that receive any external links</button>
+      <p class="fb">Spam classifiers and link-graph trust signals feed a spam_score used at index/rank time, with manual actions as a backstop.</p>
+      <p class="hint">Reread the Security table's first row.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="search-query-privacy-why">
+      <p class="stem">Why are search queries treated as especially sensitive personal data, distinct from typical clickstream logs?</p>
+      <button class="opt">Queries are always encrypted twice, so they need separate handling</button>
+      <button class="opt">A raw query itself can reveal health, legal, or identity details about the person who typed it</button>
+      <button class="opt">Search engines are legally required to delete queries within one second</button>
+      <p class="fb">The query text is the sensitive payload — what someone searches for can expose private facts about them, unlike an anonymous page-view event.</p>
+      <p class="hint">Look at the Privacy section's "Queries" sentence.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-8" hidden>
+  <p class="chunk-label">8 of 9</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = ~500B documents or ~1M queries/s.</p>
@@ -397,38 +573,75 @@
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Web search separates an offline indexing plane from an online serving plane. Crawled documents are tokenized into document-sharded inverted-index segments with query-independent signals like PageRank. A query goes to a root server that fans out to replicated leaf shards; each retrieves candidates with cheap BM25-style scoring. The root merges the top thousands, and an expensive model re-ranks a small set. Caching the head, tiering hot and cold indexes, and hedged requests keep p99 under 200 ms. At 10× we add shards and replicas.</p></div>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. What is an inverted index in a web search engine?</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-correct="c" data-concept="search-10x-bottleneck">
+      <p class="stem">At 10× scale, what is named as the first bottleneck to hit?</p>
+      <button class="opt">Running out of unique terms to put in the lexicon</button>
+      <button class="opt">The client browser failing to render more results</button>
+      <button class="opt">Serving CPU for fan-out on every query</button>
+      <p class="fb">Every query still touches nearly every shard, so fan-out CPU across the fleet is the first thing that scales painfully, relieved by tier boundaries and cache hit rate.</p>
+      <p class="hint">Reread "First bottleneck" in the Scaling 10× section.</p>
+    </div>
+    <div class="q" data-type="intuition" data-correct="a" data-concept="search-cost-driver-why">
+      <p class="stem">Why do fan-out CPU and re-ranking dominate cost rather than storage?</p>
+      <button class="opt">Every query pays a compute cost across many shards plus a GPU re-rank, while storage is a one-time, amortized cost per document</button>
+      <button class="opt">Storage is free at any scale for a search engine</button>
+      <button class="opt">GPUs are cheaper per hour than storing text on disk</button>
+      <p class="fb">Compute is paid per query at huge QPS (fan-out + re-ranking), while storage cost grows only with corpus size and is far smaller in the monthly total.</p>
+      <p class="hint">Look at the Cost of Running table's line items and the "Dominant drivers" sentence.</p>
+    </div>
+  </div>
+  </section>
+
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">Final check</p>
+  <h2>Everything from this lesson</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is what makes it stick. These questions also seed spaced review — expect variants back in a future session per the forgetting curve.</p>
+  <div class="gate">
+    <span class="gate-lbl">Comprehensive check</span>
+    <div class="q" data-correct="b" data-concept="search-inverted-index-def-final">
+      <p class="stem">What is an inverted index in a web search engine?</p>
       <button class="opt">Mapping each document to the set of terms inside of it</button>
       <button class="opt">Mapping each term to the set of documents holding it</button>
       <button class="opt">Mapping each query to the set of cached pages for it</button>
       <p class="fb">Inverted = term → posting list of docIds, turning a corpus scan into a posting-list read and intersection.</p>
+      <p class="hint">Revisit Deep Dive 1 in the phase-5 chunk.</p>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">2. Why shard the web index by document rather than by term?</p>
+    <div class="q" data-correct="a" data-concept="search-doc-shard-why-final">
+      <p class="stem">Why shard the web index by document rather than by term?</p>
       <button class="opt">It avoids one huge posting list becoming a hot shard</button>
       <button class="opt">It lets a query hit just one shard and skip fan-out</button>
       <button class="opt">It removes the need to score any documents on read</button>
       <p class="fb">Doc-partitioning spreads load evenly and keeps intersection local; the cost it accepts is scatter-gather fan-out.</p>
+      <p class="hint">Revisit the sharding tradeoff table in Deep Dive 2.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">3. How does multi-stage ranking keep top-result quality affordable?</p>
-      <button class="opt">It scores the entire posting list with the model each time</button>
-      <button class="opt">It re-ranks only a small candidate set with costly signals</button>
-      <button class="opt">It sorts all of the matching docs by PageRank before reading</button>
-      <p class="fb">Stage 1 BM25 gives cheap recall per shard; stage 2 runs the expensive ranker once on the merged candidates.</p>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="search-zipfian-caching-final">
+      <p class="stem">Why does caching help search latency so much specifically, more than it would for a system with uniformly random query traffic?</p>
+      <button class="opt">Caching always halves latency regardless of traffic shape</button>
+      <button class="opt">Zipfian traffic means a small set of queries repeats constantly, so caching that head absorbs most of the load</button>
+      <button class="opt">Caching only works when queries are alphabetically sorted</button>
+      <p class="fb">A uniform workload has no "head" to cache; Zipfian traffic concentrates volume on a small repeated set, so a cache captures a large fraction of total QPS.</p>
+      <p class="hint">Revisit "Cache the Zipfian head" in Deep Dive 4.</p>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. Why keep hot index shards in RAM and cache popular queries?</p>
-      <button class="opt">Because the query traffic spreads evenly across all the terms</button>
-      <button class="opt">Because the query traffic is Zipfian and a head repeats a lot</button>
-      <button class="opt">Because each search must scan the entire corpus from cold disk</button>
-      <p class="fb">A skewed (Zipfian) head means caching + a hot in-memory tier serve most traffic at memory/ms speed, taming p99.</p>
+    <div class="q" data-type="intuition" data-correct="c" data-concept="search-scatter-gather-cost-final">
+      <p class="stem">If you removed scatter-gather and instead queried shards one at a time sequentially, what would break?</p>
+      <button class="opt">Nothing — total work done is identical either way</button>
+      <button class="opt">The index would no longer fit in memory</button>
+      <button class="opt">Latency would become the sum of all shard times instead of the max, blowing the 200 ms budget</button>
+      <p class="fb">Parallel fan-out means total latency tracks the slowest single shard; sequential querying would add up thousands of shard latencies instead.</p>
+      <p class="hint">Think about what "scatter" (parallel dispatch) buys you versus one-at-a-time requests.</p>
+    </div>
+    <div class="q" data-correct="a" data-concept="search-multistage-final">
+      <p class="stem">Which best describes why ranking is split into a cheap and an expensive stage?</p>
+      <button class="opt">Cheap scoring gives fast recall at scale; the expensive model then only runs once on a small merged candidate set</button>
+      <button class="opt">The expensive model is run on every document in the corpus for every query</button>
+      <button class="opt">Cheap scoring replaces the need for any relevance signal entirely</button>
+      <p class="fb">You cannot afford rich signals over billions of postings, so cheap BM25 narrows the field before the costly reranker runs on a few thousand candidates.</p>
+      <p class="hint">Revisit the staff-level signal box after Deep Dive 3.</p>
     </div>
   </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic — try: <em>"Walk me through how BM25 differs from plain TF-IDF and why length normalization matters."</em> · <em>"How would hybrid lexical + vector retrieval merge candidates before re-ranking?"</em> · <em>"Size the index: how many doc-shards for 50B docs and what fan-out does that imply?"</em>
@@ -451,21 +664,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

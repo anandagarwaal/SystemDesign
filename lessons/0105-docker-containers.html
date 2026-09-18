@@ -43,22 +43,35 @@
   .box li{margin:.35rem 0;}
   pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
     padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
-  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
-  .quiz h3{margin-top:0;}
-  .q{margin:1.3rem 0;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q{margin:1.1rem 0;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
   .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
   .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
     padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
     font-size:.9rem; transition:.15s;}
   .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
   .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
   .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
   .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
   .fb.show{display:block;}
-  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
-  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
-  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
-  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
+
+  @media print{ .opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
 </style>
 </head>
 <body>
@@ -73,113 +86,190 @@
     <strong>Why this lesson, for your mission:</strong> At L6/L7 "we'll containerize it" is a throwaway phrase the interviewer will test. They want to know you understand that a container is <em>just a process</em> with three kernel tricks applied — <b>namespaces</b> for isolation, <b>cgroups</b> for resource limits, and a <b>union filesystem</b> for layered images — and that this is precisely why containers start in milliseconds, ship reproducibly, and underpin Kubernetes. The staff move is also naming the limit out loud: a shared kernel is <em>not</em> the security boundary a VM gives you.<a href="#c1" class="cite">[1]</a>
   </div>
 
-  <h2>What it is — containers vs VMs</h2>
-  <p>A <b>container</b> packages an application together with its dependencies, libraries, and config into one immutable image, then runs it as an isolated process on a host.<a href="#c2" class="cite">[2]</a> The defining fact: <b>containers share the host's Linux kernel</b>. There is no guest operating system inside — the container is a regular process the kernel has been configured to isolate.<a href="#c1" class="cite">[1]</a> A <b>virtual machine</b>, by contrast, runs a full guest OS on top of a hypervisor that emulates hardware; every VM carries its own kernel, drivers, and boot sequence.</p>
-  <p>That single difference explains everything downstream. Because a container skips the guest OS, its image is megabytes not gigabytes, it boots in milliseconds not seconds-to-minutes, and you can pack far more containers than VMs onto the same box.<a href="#c2" class="cite">[2]</a> The cost is the flip side of the same coin: sharing a kernel means weaker isolation than a VM's hardware boundary — covered in the limits section below.</p>
-  <table>
-    <thead><tr><th>Dimension</th><th>Container</th><th>Virtual machine</th></tr></thead>
-    <tbody>
-      <tr><td><b>Kernel</b></td><td>Shares the host kernel<a href="#c1" class="cite">[1]</a></td><td>Ships its own guest kernel</td></tr>
-      <tr><td><b>Size</b></td><td>Megabytes (layers)</td><td>Gigabytes (full OS image)</td></tr>
-      <tr><td><b>Startup</b></td><td>Milliseconds<a href="#c2" class="cite">[2]</a></td><td>Seconds to minutes (boot)</td></tr>
-      <tr><td><b>Isolation</b></td><td>Process-level, namespaced</td><td>Hardware-level, hypervisor</td></tr>
-    </tbody>
-  </table>
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 4</p>
+    <h2>What it is — containers vs VMs</h2>
+    <p>A <b>container</b> packages an application together with its dependencies, libraries, and config into one immutable image, then runs it as an isolated process on a host.<a href="#c2" class="cite">[2]</a> The defining fact: <b>containers share the host's Linux kernel</b>. There is no guest operating system inside — the container is a regular process the kernel has been configured to isolate.<a href="#c1" class="cite">[1]</a> A <b>virtual machine</b>, by contrast, runs a full guest OS on top of a hypervisor that emulates hardware; every VM carries its own kernel, drivers, and boot sequence.</p>
+    <p>That single difference explains everything downstream. Because a container skips the guest OS, its image is megabytes not gigabytes, it boots in milliseconds not seconds-to-minutes, and you can pack far more containers than VMs onto the same box.<a href="#c2" class="cite">[2]</a> The cost is the flip side of the same coin: sharing a kernel means weaker isolation than a VM's hardware boundary — covered in the limits section below.</p>
+    <table>
+      <thead><tr><th>Dimension</th><th>Container</th><th>Virtual machine</th></tr></thead>
+      <tbody>
+        <tr><td><b>Kernel</b></td><td>Shares the host kernel<a href="#c1" class="cite">[1]</a></td><td>Ships its own guest kernel</td></tr>
+        <tr><td><b>Size</b></td><td>Megabytes (layers)</td><td>Gigabytes (full OS image)</td></tr>
+        <tr><td><b>Startup</b></td><td>Milliseconds<a href="#c2" class="cite">[2]</a></td><td>Seconds to minutes (boot)</td></tr>
+        <tr><td><b>Isolation</b></td><td>Process-level, namespaced</td><td>Hardware-level, hypervisor</td></tr>
+      </tbody>
+    </table>
 
-  <h2>Internals — how a Linux container actually works</h2>
-  <p>"Container" is not a kernel object. There is no <code>container</code> syscall. A container is an <em>emergent</em> illusion built from three independent Linux features that Docker (via a runtime like <code>runc</code>) composes around one process.<a href="#c3" class="cite">[3]</a> Knowing these three by name — and which job each does — is the whole deep dive.</p>
-
-  <h3>1. Namespaces — what the process can <em>see</em></h3>
-  <p><b>Namespaces</b> partition kernel resources so that a process inside one sees only its own slice of the system and believes it is alone.<a href="#c4" class="cite">[4]</a> Docker creates a fresh set of namespaces for each container; the process inside gets PID 1, its own network stack, its own mount table.<a href="#c3" class="cite">[3]</a> The kernel maintains several namespace types:</p>
-  <table>
-    <thead><tr><th>Namespace</th><th>Isolates</th></tr></thead>
-    <tbody>
-      <tr><td><b>pid</b></td><td>Process IDs — the container sees its app as PID 1, not host PIDs<a href="#c4" class="cite">[4]</a></td></tr>
-      <tr><td><b>net</b></td><td>Network interfaces, IPs, ports, routing tables<a href="#c4" class="cite">[4]</a></td></tr>
-      <tr><td><b>mnt</b></td><td>Mount points — its own view of the filesystem tree<a href="#c4" class="cite">[4]</a></td></tr>
-      <tr><td><b>uts</b></td><td>Hostname and domain name<a href="#c4" class="cite">[4]</a></td></tr>
-      <tr><td><b>ipc</b></td><td>Inter-process comms — shared memory, semaphores<a href="#c4" class="cite">[4]</a></td></tr>
-      <tr><td><b>user</b></td><td>User and group IDs — root inside can map to non-root outside<a href="#c4" class="cite">[4]</a></td></tr>
-    </tbody>
-  </table>
-
-  <h3>2. cgroups — what the process can <em>use</em></h3>
-  <p>Namespaces hide the rest of the system; they do nothing to stop one container from eating all the CPU and RAM. That is the job of <b>control groups (cgroups)</b>, the kernel feature that meters and caps the resources a group of processes may consume — CPU, memory, block I/O, and more.<a href="#c5" class="cite">[5]</a> When you run <code>docker run --memory=512m --cpus=1.5</code>, Docker is writing those limits into a cgroup.<a href="#c3" class="cite">[3]</a> Without cgroups a noisy-neighbor container could starve every other tenant on the host, so cgroups are what make dense multi-tenant packing safe and predictable. <b>Namespaces isolate visibility; cgroups isolate consumption</b> — say it that way and the distinction lands.</p>
-
-  <h3>3. Union / overlay filesystems — layered images &amp; copy-on-write</h3>
-  <p>The third trick is the filesystem. A Docker image is not one blob — it is a stack of read-only <b>layers</b>, and a <b>union filesystem</b> (today usually <code>overlayfs</code>) presents that stack as a single merged directory tree.<a href="#c6" class="cite">[6]</a> Each instruction in a Dockerfile (<code>FROM</code>, <code>RUN</code>, <code>COPY</code>) produces one new layer on top of the previous ones. When a container runs, Docker adds one thin <b>writable layer</b> on top; the read-only image layers underneath are untouched and shared.<a href="#c6" class="cite">[6]</a></p>
-  <p>This is <b>copy-on-write</b>: reads come straight from the shared lower layers, and only when the container <em>modifies</em> a file is that file copied up into the writable layer.<a href="#c6" class="cite">[6]</a> The payoff is large: a hundred containers from the same image share one on-disk copy of the base layers, so they are cheap to start and cheap to store. It also means container writable layers are ephemeral — destroy the container and those writes vanish — which is why persistent data belongs in volumes, not the container.</p>
-
-  <h3>The build cache &amp; registries</h3>
-  <p>Because layers are content-addressed and stacked, Docker can <b>cache</b> them. On a rebuild it reuses every layer up to the first Dockerfile instruction whose inputs changed, then rebuilds only from there down.<a href="#c7" class="cite">[7]</a> This is why ordering matters: put rarely-changing steps (installing dependencies) <em>before</em> frequently-changing steps (copying your source) so a code edit doesn't bust the expensive dependency layer. <b>Registries</b> (Docker Hub, ECR, GCR) store and distribute images; <code>docker push</code>/<code>pull</code> moves layers, and shared base layers are deduplicated so only missing layers transfer.<a href="#c2" class="cite">[2]</a> This layer model is also what powers fast rollbacks in <a href="0067-cicd-system.html">CI/CD pipelines</a>.</p>
-
-  <h2>Why it matters for system design</h2>
-  <table>
-    <thead><tr><th>Property</th><th>Design consequence</th></tr></thead>
-    <tbody>
-      <tr><td><b>Reproducible builds</b></td><td>The image is the artifact — "works on my machine" dies; dev, CI, and prod run the identical bytes<a href="#c2" class="cite">[2]</a></td></tr>
-      <tr><td><b>Fast startup</b></td><td>Millisecond boot enables autoscaling, scale-to-zero, and quick failure recovery<a href="#c2" class="cite">[2]</a></td></tr>
-      <tr><td><b>Immutable infra</b></td><td>Never patch a running box — ship a new image and replace it; rollback = redeploy the prior tag</td></tr>
-      <tr><td><b>K8s foundation</b></td><td>The portable unit Kubernetes schedules, scales, and heals<a href="#c1" class="cite">[1]</a></td></tr>
-    </tbody>
-  </table>
-  <p>In a design, containers are the layer that makes horizontal scaling believable: identical stateless instances behind a load balancer, each spun up from one image, each disposable. That uniformity is exactly the contract an orchestrator needs to do its job — which is why every Kubernetes discussion (<a href="0104-kubernetes.html">Lesson 104</a>) sits directly on top of this lesson.</p>
-
-  <h2>When NOT to / the limits</h2>
-  <div class="box">
-    <b>The boundary you must name: a container is not a security sandbox like a VM.</b>
-    <ul>
-      <li>Containers <b>share the host kernel</b>, so a kernel exploit or container escape can reach the host and its siblings — the isolation is process-level, not hardware-level.<a href="#c1" class="cite">[1]</a></li>
-      <li>For <b>hostile multi-tenant</b> workloads (running untrusted customer code) reach for stronger isolation: a VM per tenant, or microVM/sandbox runtimes (Firecracker, gVisor, Kata).</li>
-      <li>Containers are <b>ephemeral &amp; stateless by design</b> — the writable layer dies with the container, so databases and durable state need external volumes or managed stores, not the container itself.<a href="#c6" class="cite">[6]</a></li>
-      <li>They don't run a <b>different kernel</b>: a Windows container needs a Windows host; "Linux containers on Mac/Windows" actually run inside a hidden Linux VM.</li>
-    </ul>
-  </div>
-
-  <div class="staff">
-    <span class="tag">★ Staff-level signal</span>
-    Seniors say "we'll put it in a container." Staff candidates explain the mechanism in one breath — "a container is just a process with <em>namespaces</em> for what it sees, <em>cgroups</em> for what it uses, and an <em>overlay filesystem</em> for layered copy-on-write images" — and then <b>proactively name the ceiling</b>: "but it shares the host kernel, so it's not a security boundary; for untrusted tenants I'd isolate with VMs or a microVM runtime."<a href="#c1" class="cite">[1]</a> They also resist over-reaching: not every workload needs Kubernetes, and they won't volunteer a Dockerfile when the question is about architecture. Knowing the three primitives, why startup is fast, and exactly where the abstraction is <em>not</em> safe is the simple-by-default judgement the bar rewards.
-  </div>
-
-  <h2>In the interview</h2>
-  <p>When you draw a service box and say "containerized," be ready for the predictable probes. <em>"Why containers over VMs here?"</em> — answer with shared kernel, fast startup, and reproducible images, not buzzwords.<a href="#c2" class="cite">[2]</a> <em>"How does isolation actually work?"</em> — namespaces (see) + cgroups (use) + overlay FS (layers); naming the trio reads as hands-on depth. <em>"Any risk?"</em> — that's your cue to volunteer the shared-kernel security caveat <em>before</em> they corner you. Don't drift into Dockerfile syntax or a layer-by-layer tour unless asked; pick the abstraction the requirement needs and move up the stack to orchestration.</p>
-
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. What is the core structural difference between a container and a VM?</p>
-      <button class="opt">A container boots a small guest kernel inside its own image</button>
-      <button class="opt">A container shares the host kernel and runs as a process</button>
-      <button class="opt">A container emulates hardware through a dedicated hypervisor</button>
-      <button class="opt">A container needs a guest OS to be installed for each app</button>
-      <p class="fb">Containers share the host kernel and run as isolated processes; VMs each ship a full guest OS.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="docker-core-structural-difference">
+        <p class="stem">What is the core structural difference between a container and a VM?</p>
+        <button class="opt">A container boots its own small guest kernel inside its image</button>
+        <button class="opt">A container shares the host kernel and runs as a regular process</button>
+        <button class="opt">A container emulates hardware through a dedicated hypervisor layer</button>
+        <p class="fb">Containers share the host kernel and run as isolated processes; VMs each ship a full guest OS.</p>
+        <p class="hint">Reread "the defining fact" sentence about what a container shares with the host.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="docker-why-fast-startup-follows-from-shared-kernel">
+        <p class="stem">Why does skipping the guest OS specifically explain why containers boot in milliseconds rather than seconds?</p>
+        <button class="opt">Because there is no kernel to boot or hardware to emulate, starting a container just launches a process on a kernel that is already running</button>
+        <button class="opt">Because container images are always stored in RAM instead of on disk</button>
+        <button class="opt">Because Docker skips running any application code until the third startup attempt</button>
+        <p class="fb">A VM's slow boot comes from initializing a whole kernel and drivers from scratch. A container skips that entirely, since the host kernel is already up.</p>
+        <p class="hint">Think about what a VM has to do at boot that a container, sharing an already-running kernel, does not.</p>
+      </div>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. Which kernel feature LIMITS how much CPU and memory a container uses?</p>
-      <button class="opt">Namespaces, which hide other processes from the container</button>
-      <button class="opt">Overlay layers, which merge image files into one tree</button>
-      <button class="opt">Control groups, which meter and cap resource consumption</button>
-      <button class="opt">The registry, which deduplicates the shared base layers</button>
-      <p class="fb">cgroups meter and cap CPU, memory, and I/O; namespaces isolate visibility, not consumption.</p>
+  </section>
+
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 4</p>
+    <h2>Internals — how a Linux container actually works</h2>
+    <p>"Container" is not a kernel object. There is no <code>container</code> syscall. A container is an <em>emergent</em> illusion built from three independent Linux features that Docker (via a runtime like <code>runc</code>) composes around one process.<a href="#c3" class="cite">[3]</a> Knowing these three by name — and which job each does — is the whole deep dive.</p>
+
+    <h3>1. Namespaces — what the process can <em>see</em></h3>
+    <p><b>Namespaces</b> partition kernel resources so that a process inside one sees only its own slice of the system and believes it is alone.<a href="#c4" class="cite">[4]</a> Docker creates a fresh set of namespaces for each container; the process inside gets PID 1, its own network stack, its own mount table.<a href="#c3" class="cite">[3]</a> The kernel maintains several namespace types:</p>
+    <table>
+      <thead><tr><th>Namespace</th><th>Isolates</th></tr></thead>
+      <tbody>
+        <tr><td><b>pid</b></td><td>Process IDs — the container sees its app as PID 1, not host PIDs<a href="#c4" class="cite">[4]</a></td></tr>
+        <tr><td><b>net</b></td><td>Network interfaces, IPs, ports, routing tables<a href="#c4" class="cite">[4]</a></td></tr>
+        <tr><td><b>mnt</b></td><td>Mount points — its own view of the filesystem tree<a href="#c4" class="cite">[4]</a></td></tr>
+        <tr><td><b>uts</b></td><td>Hostname and domain name<a href="#c4" class="cite">[4]</a></td></tr>
+        <tr><td><b>ipc</b></td><td>Inter-process comms — shared memory, semaphores<a href="#c4" class="cite">[4]</a></td></tr>
+        <tr><td><b>user</b></td><td>User and group IDs — root inside can map to non-root outside<a href="#c4" class="cite">[4]</a></td></tr>
+      </tbody>
+    </table>
+
+    <h3>2. cgroups — what the process can <em>use</em></h3>
+    <p>Namespaces hide the rest of the system; they do nothing to stop one container from eating all the CPU and RAM. That is the job of <b>control groups (cgroups)</b>, the kernel feature that meters and caps the resources a group of processes may consume — CPU, memory, block I/O, and more.<a href="#c5" class="cite">[5]</a> When you run <code>docker run --memory=512m --cpus=1.5</code>, Docker is writing those limits into a cgroup.<a href="#c3" class="cite">[3]</a> Without cgroups a noisy-neighbor container could starve every other tenant on the host, so cgroups are what make dense multi-tenant packing safe and predictable. <b>Namespaces isolate visibility; cgroups isolate consumption</b> — say it that way and the distinction lands.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="docker-cgroups-limit-resources">
+        <p class="stem">Which kernel feature limits how much CPU and memory a container uses?</p>
+        <button class="opt">Namespaces, which hide other processes from the container</button>
+        <button class="opt">Overlay layers, which merge image files into one tree</button>
+        <button class="opt">Control groups, which meter and cap resource consumption</button>
+        <p class="fb">cgroups meter and cap CPU, memory, and I/O; namespaces isolate visibility, not consumption.</p>
+        <p class="hint">Reread "namespaces isolate visibility; cgroups isolate consumption."</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="docker-why-namespaces-alone-insufficient">
+        <p class="stem">Why do namespaces alone fail to stop a noisy-neighbor container from starving other tenants on the same host?</p>
+        <button class="opt">Namespaces are disabled by default and must be turned on manually per container</button>
+        <button class="opt">Namespaces only hide what a process can see, they place no cap on CPU or memory it can actually consume</button>
+        <button class="opt">Namespaces only work for network traffic, never for compute resources</button>
+        <p class="fb">A process can be blind to its neighbors (namespaced) while still consuming unlimited CPU and RAM, since visibility and consumption are separate kernel mechanisms. cgroups is what enforces the cap.</p>
+        <p class="hint">Reread what namespaces isolate versus what cgroups isolate.</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What does copy-on-write give a running container's filesystem?</p>
-      <button class="opt">Shared read-only layers, copied up only when a file is changed</button>
-      <button class="opt">A full private copy of every image layer made at startup time</button>
-      <button class="opt">A guest kernel that mounts the host disk for direct fast reads</button>
-      <button class="opt">A durable writable layer that persists after the container exits</button>
-      <p class="fb">Reads hit shared lower layers; only modified files copy up into the thin writable layer.</p>
+  </section>
+
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 4</p>
+    <h2>Union / overlay filesystems — layered images &amp; copy-on-write</h2>
+    <p>The third trick is the filesystem. A Docker image is not one blob — it is a stack of read-only <b>layers</b>, and a <b>union filesystem</b> (today usually <code>overlayfs</code>) presents that stack as a single merged directory tree.<a href="#c6" class="cite">[6]</a> Each instruction in a Dockerfile (<code>FROM</code>, <code>RUN</code>, <code>COPY</code>) produces one new layer on top of the previous ones. When a container runs, Docker adds one thin <b>writable layer</b> on top; the read-only image layers underneath are untouched and shared.<a href="#c6" class="cite">[6]</a></p>
+    <p>This is <b>copy-on-write</b>: reads come straight from the shared lower layers, and only when the container <em>modifies</em> a file is that file copied up into the writable layer.<a href="#c6" class="cite">[6]</a> The payoff is large: a hundred containers from the same image share one on-disk copy of the base layers, so they are cheap to start and cheap to store. It also means container writable layers are ephemeral — destroy the container and those writes vanish — which is why persistent data belongs in volumes, not the container.</p>
+
+    <h3>The build cache &amp; registries</h3>
+    <p>Because layers are content-addressed and stacked, Docker can <b>cache</b> them. On a rebuild it reuses every layer up to the first Dockerfile instruction whose inputs changed, then rebuilds only from there down.<a href="#c7" class="cite">[7]</a> This is why ordering matters: put rarely-changing steps (installing dependencies) <em>before</em> frequently-changing steps (copying your source) so a code edit doesn't bust the expensive dependency layer. <b>Registries</b> (Docker Hub, ECR, GCR) store and distribute images; <code>docker push</code>/<code>pull</code> moves layers, and shared base layers are deduplicated so only missing layers transfer.<a href="#c2" class="cite">[2]</a> This layer model is also what powers fast rollbacks in <a href="0067-cicd-system.html">CI/CD pipelines</a>.</p>
+
+    <h3>Why it matters for system design</h3>
+    <table>
+      <thead><tr><th>Property</th><th>Design consequence</th></tr></thead>
+      <tbody>
+        <tr><td><b>Reproducible builds</b></td><td>The image is the artifact — "works on my machine" dies; dev, CI, and prod run the identical bytes<a href="#c2" class="cite">[2]</a></td></tr>
+        <tr><td><b>Fast startup</b></td><td>Millisecond boot enables autoscaling, scale-to-zero, and quick failure recovery<a href="#c2" class="cite">[2]</a></td></tr>
+        <tr><td><b>Immutable infra</b></td><td>Never patch a running box — ship a new image and replace it; rollback = redeploy the prior tag</td></tr>
+        <tr><td><b>K8s foundation</b></td><td>The portable unit Kubernetes schedules, scales, and heals<a href="#c1" class="cite">[1]</a></td></tr>
+      </tbody>
+    </table>
+    <p>In a design, containers are the layer that makes horizontal scaling believable: identical stateless instances behind a load balancer, each spun up from one image, each disposable. That uniformity is exactly the contract an orchestrator needs to do its job — which is why every Kubernetes discussion (<a href="0104-kubernetes.html">Lesson 104</a>) sits directly on top of this lesson.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="docker-copy-on-write-behavior">
+        <p class="stem">What does copy-on-write give a running container's filesystem?</p>
+        <button class="opt">Shared read-only layers, copied up only when a file is changed</button>
+        <button class="opt">A full private copy of every image layer made at startup time</button>
+        <button class="opt">A durable writable layer that persists after the container exits</button>
+        <p class="fb">Reads hit shared lower layers; only modified files copy up into the thin writable layer.</p>
+        <p class="hint">Reread what "copy-on-write" means for reads versus writes.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="docker-why-dockerfile-ordering-matters">
+        <p class="stem">Why does putting dependency installation before source-code copying in a Dockerfile speed up rebuilds?</p>
+        <button class="opt">Dockerfile instruction order has no effect on build speed, only on final image size</button>
+        <button class="opt">Source code always builds faster than dependency installation regardless of order</button>
+        <button class="opt">The cache reuses every layer up to the first changed instruction, so a code edit no longer invalidates the expensive dependency layer above it</button>
+        <p class="fb">Since a rebuild reuses layers up to the first changed instruction, keeping the rarely-changing dependency step earlier means a source-only edit only rebuilds the small layer after it.</p>
+        <p class="hint">Reread how the build cache decides which layers to reuse versus rebuild.</p>
+      </div>
     </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. Why is a container NOT a security boundary equal to a virtual machine?</p>
-      <button class="opt">Because images are far too large to scan for known issues</button>
-      <button class="opt">Because cgroups cannot ever restrict the memory of a process</button>
-      <button class="opt">Because registries openly expose every layer to the public net</button>
-      <button class="opt">Because it shares the host kernel, so an escape reaches the host</button>
-      <p class="fb">Shared-kernel isolation is process-level; a kernel exploit or escape can reach the host and siblings.</p>
+  </section>
+
+  <section class="chunk" id="chunk-final">
+    <p class="chunk-label">4 of 4 — comprehensive check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is
+      what makes it stick. These questions also seed spaced review — expect variants back in a future session.</p>
+
+    <h3>When NOT to / the limits</h3>
+    <div class="box">
+      <b>The boundary you must name: a container is not a security sandbox like a VM.</b>
+      <ul>
+        <li>Containers <b>share the host kernel</b>, so a kernel exploit or container escape can reach the host and its siblings — the isolation is process-level, not hardware-level.<a href="#c1" class="cite">[1]</a></li>
+        <li>For <b>hostile multi-tenant</b> workloads (running untrusted customer code) reach for stronger isolation: a VM per tenant, or microVM/sandbox runtimes (Firecracker, gVisor, Kata).</li>
+        <li>Containers are <b>ephemeral &amp; stateless by design</b> — the writable layer dies with the container, so databases and durable state need external volumes or managed stores, not the container itself.<a href="#c6" class="cite">[6]</a></li>
+        <li>They don't run a <b>different kernel</b>: a Windows container needs a Windows host; "Linux containers on Mac/Windows" actually run inside a hidden Linux VM.</li>
+      </ul>
     </div>
-  </div>
+
+    <div class="staff">
+      <span class="tag">★ Staff-level signal</span>
+      Seniors say "we'll put it in a container." Staff candidates explain the mechanism in one breath — "a container is just a process with <em>namespaces</em> for what it sees, <em>cgroups</em> for what it uses, and an <em>overlay filesystem</em> for layered copy-on-write images" — and then <b>proactively name the ceiling</b>: "but it shares the host kernel, so it's not a security boundary; for untrusted tenants I'd isolate with VMs or a microVM runtime."<a href="#c1" class="cite">[1]</a> They also resist over-reaching: not every workload needs Kubernetes, and they won't volunteer a Dockerfile when the question is about architecture. Knowing the three primitives, why startup is fast, and exactly where the abstraction is <em>not</em> safe is the simple-by-default judgement the bar rewards.
+    </div>
+
+    <h3>In the interview</h3>
+    <p>When you draw a service box and say "containerized," be ready for the predictable probes. <em>"Why containers over VMs here?"</em> — answer with shared kernel, fast startup, and reproducible images, not buzzwords.<a href="#c2" class="cite">[2]</a> <em>"How does isolation actually work?"</em> — namespaces (see) + cgroups (use) + overlay FS (layers); naming the trio reads as hands-on depth. <em>"Any risk?"</em> — that's your cue to volunteer the shared-kernel security caveat <em>before</em> they corner you. Don't drift into Dockerfile syntax or a layer-by-layer tour unless asked; pick the abstraction the requirement needs and move up the stack to orchestration.</p>
+
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="d" data-concept="docker-not-security-boundary-final">
+        <p class="stem">Why is a container NOT a security boundary equal to a virtual machine?</p>
+        <button class="opt">Because images are far too large to scan for known issues</button>
+        <button class="opt">Because cgroups cannot ever restrict the memory of a process</button>
+        <button class="opt">Because registries openly expose every layer to the public net</button>
+        <button class="opt">Because it shares the host kernel, so an escape reaches the host</button>
+        <p class="fb">Shared-kernel isolation is process-level; a kernel exploit or escape can reach the host and siblings.</p>
+        <p class="hint">Reread "the boundary you must name" box.</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="docker-three-primitives-final">
+        <p class="stem">What are the three Linux kernel primitives that together create the "container" illusion?</p>
+        <button class="opt">Registries, Dockerfiles, and the build cache</button>
+        <button class="opt">Hypervisor, guest kernel, and virtual hardware</button>
+        <button class="opt">Namespaces, cgroups, and a union/overlay filesystem</button>
+        <p class="fb">Namespaces control what a process sees, cgroups control what it can use, and the overlay filesystem gives layered copy-on-write images.</p>
+        <p class="hint">Reread "knowing these three by name... is the whole deep dive."</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="docker-why-untrusted-code-needs-vm-final">
+        <p class="stem">Why would a platform running untrusted third-party code (e.g. a code-execution sandbox product) reject plain containers even with strict cgroup limits set?</p>
+        <button class="opt">Because cgroup limits cap resource usage but don't change the fact that a kernel exploit inside the container can still escape to the shared host kernel</button>
+        <button class="opt">Because cgroups cannot be applied to containers running untrusted code at all</button>
+        <button class="opt">Because containers without cgroups always crash when running unfamiliar code</button>
+        <button class="opt">Because untrusted code cannot be packaged into a Docker image in the first place</button>
+        <p class="fb">cgroups solve resource fairness, not the security boundary. Untrusted code still shares the host kernel, so a container escape or kernel bug threatens the host, which is exactly why hostile multi-tenant workloads need a VM or microVM instead.</p>
+        <p class="hint">Reread the difference between what cgroups protect against and what the shared-kernel limitation exposes.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="docker-why-stateless-design-final">
+        <p class="stem">What would go wrong if a service stored its database files only inside a container's writable layer instead of an external volume?</p>
+        <button class="opt">Nothing, the writable layer is just as durable as a normal disk partition</button>
+        <button class="opt">The data would vanish the moment the container was destroyed or replaced, since the writable layer is ephemeral</button>
+        <button class="opt">The overlay filesystem would automatically replicate that data to every other container from the same image</button>
+        <p class="fb">The writable layer lives and dies with the container. Any state that must outlive a container restart or redeploy has to sit in an external volume or managed store.</p>
+        <p class="hint">Reread "container writable layers are ephemeral, destroy the container and those writes vanish."</p>
+      </div>
+    </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Quiz me on which job each namespace, cgroups, and overlayfs does in one sentence." · "Walk me through how Dockerfile ordering affects the build cache, with an example." · "Give me a FAANG prompt and push me on when I should reach for VMs or microVMs instead of plain containers."
@@ -206,21 +296,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>
