@@ -158,9 +158,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="weather-app-staleness-why">
       <p class="stem">Why does staleness tolerance count as "the single most powerful constraint" in this design?</p>
-      <button class="opt">It legalizes long TTLs, async refresh, and stale-while-revalidate, which is what makes the whole system a caching problem instead of a real-time one</button>
-      <button class="opt">It means the upstream provider no longer needs to be called at all, ever</button>
-      <button class="opt">It removes the need for any read API service between the CDN and the store</button>
+      <button class="opt">It allows long TTLs, async refresh and SWR — a caching problem</button>
+      <button class="opt">The upstream provider then never needs to be called at all, ever</button>
+      <button class="opt">It removes any need for a read API between the CDN and the store</button>
       <p class="fb">Because a slightly old reading is acceptable, the design can lean entirely on caching with long TTLs instead of solving real-time freshness or invalidation.</p>
       <p class="hint">Reread the NFR table row on staleness tolerance and its "why it shapes the design" column.</p>
     </div>
@@ -194,9 +194,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="c" data-concept="weather-app-provider-decouple-why">
       <p class="stem">Why is calling the weather provider directly on every user read a bad idea?</p>
-      <button class="opt">The provider does not expose an HTTP API at all</button>
-      <button class="opt">User reads are strongly consistent, which the provider cannot guarantee</button>
-      <button class="opt">The provider is slow and rate-limited, and user QPS is ~1000× the data's actual change rate</button>
+      <button class="opt">The provider doesn't expose any HTTP API at all</button>
+      <button class="opt">Reads are strongly consistent, which the provider can't match</button>
+      <button class="opt">It's slow and rate-limited; reads outpace change ~1000×</button>
       <p class="fb">Reads dwarf writes; pre-fetching per cell on a schedule keeps provider calls bounded by cells × cadence, completely decoupled from user traffic.</p>
       <p class="hint">Reread the pushback box right after the capacity estimation.</p>
     </div>
@@ -247,13 +247,22 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="weather-app-cell-key-recall">
       <p class="stem">Why key by cell id instead of raw lat/lng?</p>
-      <button class="opt">Raw lat/lng values cannot be transmitted over HTTPS query strings</button>
-      <button class="opt">Raw coordinates give every user a unique key and a near-zero hit rate; quantized cells let neighbors share one entry</button>
-      <button class="opt">Cell ids are required by the CDN provider's cache configuration format</button>
+      <button class="opt">Raw lat/lng can't be sent over HTTPS query strings</button>
+      <button class="opt">Raw coordinates are unique per user; cells let neighbours share</button>
+      <button class="opt">Cell ids are required by the CDN's cache config format</button>
       <p class="fb">High-cardinality keys destroy cache hit ratio. Quantizing to a coarse cell collapses many nearby users onto one cached entry.</p>
       <p class="hint">Reread the pushback box right after the data model table.</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="a" data-concept="weather-cell-key">
+        <p class="stem">Why resolve lat/lng to a cellId before caching, instead of caching by raw coordinates?</p>
+        <button class="opt">Nearby users share one cache entry, so hit rates soar</button>
+        <button class="opt">Raw coordinates are private, so they can't be logged</button>
+        <button class="opt">Cells are smaller than coordinates, which saves bandwidth</button>
+        <button class="opt">The provider only accepts cell ids, never coordinates</button>
+        <p class="fb">Raw coordinates are nearly unique per user → ~0% hit rate. Snapping to a cell makes millions of users share a handful of keys.</p>
+        <p class="hint">How many users request exactly 40.71283, -74.00601?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-4" hidden>
@@ -325,9 +334,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="a" data-concept="weather-app-queue-purpose-why">
       <p class="stem">Why put a queue between the scheduler and ingest workers instead of the scheduler calling the provider directly?</p>
-      <button class="opt">It buffers work when the provider slows, lets workers respect rate limits, and supports replay after outages, independent of user traffic</button>
-      <button class="opt">Queues are required so the CDN can validate the cellId format before serving</button>
-      <button class="opt">The scheduler cannot make outbound HTTP calls to third-party services directly</button>
+      <button class="opt">It buffers slow providers, respects limits and allows replay</button>
+      <button class="opt">Queues let the CDN validate the cellId format before serving</button>
+      <button class="opt">The scheduler can't make outbound HTTP calls to third parties</button>
       <p class="fb">Decoupling scheduling from fetching means a slow or failing provider only backs up the queue, not the scheduler, and failed jobs can be replayed later.</p>
       <p class="hint">Reread the pushback box right after the HLD table.</p>
     </div>
@@ -435,17 +444,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="weather-app-invalidation-skip-why">
       <p class="stem">Per Deep Dive 1's staff signal, why is it a mistake to build a pub/sub cache-invalidation mesh for this system?</p>
-      <button class="opt">Staleness tolerance already removes the need for read-path invalidation, so a TTL-based cache alone satisfies the requirement</button>
-      <button class="opt">Pub/sub systems cannot be deployed on any CDN edge network</button>
-      <button class="opt">Cache invalidation meshes are always slower than a full cache flush</button>
+      <button class="opt">Staleness tolerance means TTLs alone meet the requirement</button>
+      <button class="opt">Pub/sub systems can't be deployed on any CDN edge network</button>
+      <button class="opt">Invalidation meshes are always slower than a full cache flush</button>
       <p class="fb">The requirement explicitly tolerates ~10 minutes of staleness, which is exactly what a TTL bounds. Building invalidation solves a problem the requirements already dissolved.</p>
       <p class="hint">Reread the staff-signal box in Deep Dive 1.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="weather-app-stale-if-error-why">
       <p class="stem">Why does serving a stale snapshot during a provider outage beat returning an error?</p>
       <button class="opt">Errors are technically impossible to return from a CDN edge node</button>
-      <button class="opt">The cache is the contract with users, and a slightly old value is acceptable per the NFR, so an outage becomes invisible instead of a user-facing incident</button>
-      <button class="opt">Stale data is always more accurate than data fetched fresh from the provider</button>
+      <button class="opt">A slightly old value is allowed, so the outage becomes invisible</button>
+      <button class="opt">Stale data is always more accurate than fresh provider data</button>
       <p class="fb">Because staleness is tolerable, "old but present" beats "absent" — stale-if-error turns a dependency outage into a non-event for users.</p>
       <p class="hint">Reread the "mental model" paragraph closing Deep Dive 4.</p>
     </div>
@@ -519,9 +528,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="b" data-concept="weather-app-location-minimization-why">
       <p class="stem">Why is precise lat/lng converted to a cell id at the edge before being forwarded to origin and logs?</p>
-      <button class="opt">Cell ids compress better than floating-point coordinates for network transport</button>
-      <button class="opt">Location is sensitive; minimizing to a coarse cell limits what origin systems and logs ever see about a user's precise whereabouts</button>
-      <button class="opt">The origin database cannot index floating-point coordinate columns</button>
+      <button class="opt">Cell ids compress better than float coordinates on the wire</button>
+      <button class="opt">Location is sensitive; coarse cells limit what origin and logs see</button>
+      <button class="opt">The origin database can't index floating-point coordinate columns</button>
       <p class="fb">Privacy minimization means the system only ever needs the cell, not the precise coordinate, so precision is dropped as early as possible.</p>
       <p class="hint">Reread the Privacy section's "Minimize at the edge" sentence.</p>
     </div>
@@ -604,9 +613,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="weather-app-whole-lesson-why">
       <p class="stem">If the staleness NFR were tightened to "must be under 5 seconds old," what would break in this design?</p>
-      <button class="opt">Long CDN/Redis TTLs and scheduler-driven refresh would no longer satisfy freshness, forcing a much more real-time, provider-coupled read path</button>
+      <button class="opt">Long TTLs and scheduled refresh fail; reads couple to the provider</button>
       <button class="opt">The geohash-based cell keying scheme would stop working entirely</button>
-      <button class="opt">The origin store would be unable to hold a durable last-known-good snapshot</button>
+      <button class="opt">The origin store couldn't hold a durable last-known-good snapshot</button>
       <p class="fb">The entire architecture is built on the premise that ~10-minute staleness is fine. A 5-second requirement would force the read path back toward the provider, undoing the core decoupling.</p>
       <p class="hint">Think about which single NFR the mission callout says the whole design "collapses" around.</p>
     </div>

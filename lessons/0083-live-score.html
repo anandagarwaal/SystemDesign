@@ -77,6 +77,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -96,6 +110,9 @@
     <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Data flow, component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
+
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 8</p>
 
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
@@ -130,7 +147,31 @@
   </div>
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Tiny, rarely changing data wanted by everyone at once. Let me size writes and the read fan-out.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="score-profile">
+        <p class="stem">What data profile makes live scores the textbook case for edge caching?</p>
+        <button class="opt">Huge objects that change constantly and are read by few users</button>
+        <button class="opt">Write-heavy streams where every user sees a different result</button>
+        <button class="opt">A tiny hot object, changing rarely, wanted by everyone at once</button>
+        <button class="opt">Private per-user data that must never be shared across users</button>
+        <p class="fb">Small + hot + enormous read multiplier + bursty → CDN.</p>
+        <p class="hint">Reread 'The key tension'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="score-ap-choice">
+        <p class="stem">Why choose availability over consistency for a score display?</p>
+        <button class="opt">Showing a score 1–2 s late beats showing an error page</button>
+        <button class="opt">Scores never change, so consistency is not a concern at all</button>
+        <button class="opt">Strong consistency is impossible to build over a CDN edge</button>
+        <button class="opt">Regulators forbid showing scores faster than two seconds</button>
+        <p class="fb">A slightly stale score is fine; no score is a failure. Staleness is bounded (TTL) and never backwards (versions).</p>
+        <p class="hint">Which is worse for a fan: seeing the goal 1 s late, or an error?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only compute numbers that change a decision. Two matter: how spiky the read load is, and how trivial the write load is.</p>
@@ -150,7 +191,31 @@
     <p><b>Staff answer:</b> It doesn't see them. The CDN serves one cached object per match with a ~1 s TTL, so origin gets roughly one request per POP per second.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Writes are trivial; reads can hit ~2M req/s for one match. Let me define the versioned MatchState.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="score-origin-math">
+        <p class="stem">10M viewers polling every 5 s = 2M req/s. With a 1 s CDN TTL, roughly how many hit origin per match?</p>
+        <button class="opt">All 2M, because each viewer needs their own fresh copy</button>
+        <button class="opt">About one per POP per second — independent of viewer count</button>
+        <button class="opt">About 10% of them, because the CDN has a 90% hit rate</button>
+        <button class="opt">Zero, because the CDN never contacts origin for scores</button>
+        <p class="fb">A cached object is fetched once per TTL per edge location, whether 10K or 10M people watch.</p>
+        <p class="hint">How often does each edge location need a fresh copy of one object with a 1 s TTL?</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="score-writes-trivial">
+        <p class="stem">How much do you need to scale the write path?</p>
+        <button class="opt">Heavily — goals arrive at over a million events per second</button>
+        <button class="opt">Moderately — each viewer writes a heartbeat to the database</button>
+        <button class="opt">Heavily — each event must be replicated to every viewer's row</button>
+        <button class="opt">Barely — under one event/sec even across thousands of matches</button>
+        <p class="fb">10–30 events per match per 90 min. Don't scale for writes; scale read distribution.</p>
+        <p class="hint">Reread the 'Write rate' bullet.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <h3>Entities</h3>
@@ -191,7 +256,31 @@
     <p><b>Staff answer:</b> Push and pull paths deliver at different speeds; clients ignore lower versions, so the score never appears to go backwards.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “MatchState is a small versioned object and the CDN caches it. Now ingest and delivery paths.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="score-version-why">
+        <p class="stem">Push delivers v7 to a viewer, then a slow CDN poll returns v6. Without a version number, what does the viewer see?</p>
+        <button class="opt">Nothing — the CDN automatically discards old responses</button>
+        <button class="opt">An error, because the two responses conflict</button>
+        <button class="opt">The score flicker backwards, e.g. 1–0 then 0–0</button>
+        <button class="opt">Both scores side by side until one expires</button>
+        <p class="fb">Two paths, different speeds. A monotonic version lets clients drop anything older than what they've shown.</p>
+        <p class="hint">Order the arrivals: v7 then v6. What would the screen show last?</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="score-cache-headers">
+        <p class="stem">What makes GET /matches/{id} the object the CDN holds?</p>
+        <button class="opt">Public, anonymous, Cache-Control max-age=1 plus an ETag</button>
+        <button class="opt">An auth token in the URL so each user gets their own copy</button>
+        <button class="opt">A POST method, so the CDN can cache the request body</button>
+        <button class="opt">A per-user cookie, so the CDN can personalize the score</button>
+        <p class="fb">No user id or cookie → one shared cache entry per match; short TTL bounds staleness.</p>
+        <p class="hint">What would a user id in the URL do to the cache hit rate?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Data Flow</h2>
   <p>This is a data-processing system: raw events in, a clean broadcastable state out. The pipeline is short but worth naming.</p>
@@ -250,7 +339,22 @@
     <p><b>Staff answer:</b> Corrections (a disallowed goal), duplicate feeds and late events need replayable truth; MatchState is a projection that can be rebuilt.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: ingest, push vs pull, the thundering herd and monotonic consistency.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="score-one-write-o1">
+        <p class="stem">A goal is scored. Why is the pipeline's work O(1) even with 10M viewers?</p>
+        <button class="opt">The pipeline sends one message to each viewer in a batch</button>
+        <button class="opt">Viewers are grouped by country, so work is O(countries)</button>
+        <button class="opt">The CDN pre-computes every possible score in advance</button>
+        <button class="opt">One cache update + one publish; the fan-out happens at the edge</button>
+        <p class="fb">The multiplication by 10M happens in the CDN and connection fleet, not in ingest.</p>
+        <p class="hint">Reread the Data Flow's final callout.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
 
@@ -326,7 +430,49 @@
     <p><b>Staff answer:</b> Hybrid: most viewers poll the CDN-cached state cheaply, while engaged foreground viewers get SSE pushes. Polling isn't a dirty word when the payload is one cacheable object.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness next.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="score-dedupe-feeds">
+        <p class="stem">Two providers report the same goal. Why must ingest be idempotent on (matchId, eventId)?</p>
+        <button class="opt">Providers charge per event, so dedup saves money</button>
+        <button class="opt">Otherwise one goal is applied twice and the score reads 2–0</button>
+        <button class="opt">Kafka rejects any message it has already stored once</button>
+        <button class="opt">Duplicate events slow the CDN's cache invalidation</button>
+        <p class="fb">Redundant feeds are normal; applying a fact twice corrupts state.</p>
+        <p class="hint">What does 'apply goal' do if run twice?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="score-event-sourcing">
+        <p class="stem">The referee disallows a goal via VAR. Why is an event log better than UPDATE score?</p>
+        <button class="opt">Append a correction and recompute the replayable projection</button>
+        <button class="opt">UPDATE statements can't decrease a number once it is stored</button>
+        <button class="opt">The event log deletes the goal event, so no one sees it</button>
+        <button class="opt">The CDN only accepts corrections that come from an event log</button>
+        <p class="fb">Corrections, late events and dueling feeds are just more events; the projection is rebuilt deterministically.</p>
+        <p class="hint">With UPDATE-in-place, how do you know which change to undo?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="score-polling-not-dirty">
+        <p class="stem">Why is polling 'not a dirty word' here, when it was wrong for chat?</p>
+        <button class="opt">Chat messages are larger, so polling for them uses more bandwidth</button>
+        <button class="opt">Scores are encrypted, so they can't be pushed over WebSockets</button>
+        <button class="opt">One shared cacheable object means polls are served by the edge</button>
+        <button class="opt">Polling has lower latency than push for small payloads</button>
+        <p class="fb">Chat is per-user data (uncacheable). A score is one object for everyone — polls become CDN hits.</p>
+        <p class="hint">Can a CDN cache Alice's chat inbox for Bob? Can it cache the match score for everyone?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="score-herd-picture">
+        <p class="stem">TTL expires everywhere at once after a goal, and 10M clients re-fetch. What two edge features stop origin melting?</p>
+        <button class="opt">Bigger origin servers and a larger Redis cache</button>
+        <button class="opt">Longer TTLs and client-side retries with backoff</button>
+        <button class="opt">Geo-DNS routing and anycast IP addresses</button>
+        <button class="opt">Request coalescing and stale-while-revalidate</button>
+        <p class="fb">Coalescing collapses concurrent misses into one fetch; SWR serves the stale copy while refreshing in the background.</p>
+        <p class="hint">Reread Deep Dive 3's table.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -377,7 +523,31 @@
     <p><b>Staff answer:</b> Per-provider credentials, cross-checking redundant feeds on marquee matches, anomaly rules and fast correction events.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="score-origin-shield-alert">
+        <p class="stem">Origin RPS jumps to 5× baseline. What's the likely cause?</p>
+        <button class="opt">A goal was scored, which always multiplies origin traffic</button>
+        <button class="opt">Coalescing or caching broke, so the herd is reaching origin</button>
+        <button class="opt">The feed providers are sending too many duplicate events</button>
+        <button class="opt">More viewers moved from polling to SSE push delivery</button>
+        <p class="fb">Origin load should be flat regardless of audience. A spike means the shield failed.</p>
+        <p class="hint">Should origin load depend on the number of viewers?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="score-cache-busting">
+        <p class="stem">An attacker requests /matches/42?x=RANDOM millions of times. Why is that dangerous, and the fix?</p>
+        <button class="opt">It fills the event log with junk; validate event types</button>
+        <button class="opt">It leaks private data; require auth on all read endpoints</button>
+        <button class="opt">Each unique URL misses cache and hits origin; normalize params</button>
+        <button class="opt">It overloads SSE servers; cap connections per IP address</button>
+        <p class="fb">Cache keys include the query string. Ignore unknown params at the CDN and make origin reachable only via the CDN.</p>
+        <p class="hint">What is the CDN's cache key for each of those requests?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = 100M concurrent viewers on one final, or 10× simultaneous live matches.</p>
@@ -414,43 +584,73 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A live score system is a read fan-out problem with a tiny payload. Feed events are deduplicated by event id, appended to a per-match log, and projected into a small, monotonically versioned MatchState. Most viewers poll a CDN-cached copy with a ~1 s TTL; request coalescing and stale-while-revalidate turn millions of synchronized requests into one origin read per POP. Engaged viewers receive SSE pushes via per-match pub/sub, and clients drop older versions so scores never regress. At 10× only edge and connection capacity grow.</p></div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="score-cost-requests">
+        <p class="stem">The dominant cost is CDN *request count*, not bytes. What's the cheapest lever?</p>
+        <button class="opt">Poll background tabs less often — 5 s → 10 s halves it</button>
+        <button class="opt">Compress the payload further so each response is smaller</button>
+        <button class="opt">Move the origin to a region closer to the viewers</button>
+        <button class="opt">Replace Redis with DynamoDB for the state store</button>
+        <p class="fb">Requests × $0.50/M dominates; byte savings barely matter. Poll less where freshness isn't needed.</p>
+        <p class="hint">Which line item is ~85% of the bill, and what drives it?</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why is CDN-cached polling the workhorse for delivering the score to the masses?</p>
-      <button class="opt">Polling guarantees every single viewer sees the exact same score at the exact same moment</button>
-      <button class="opt">The CDN rewrites each score event into a durable log that the database can later replay back</button>
-      <button class="opt">The score is one tiny object, so the edge serves millions from one origin fetch per interval</button>
-      <button class="opt">Persistent sockets are cheaper than caching once the audience grows beyond several thousand</button>
-      <p class="fb">A small hot object with a ~1s TTL caches at the edge; one origin miss per match per interval serves everyone, regardless of audience size.</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="score-cdn-polling-final">
+        <p class="stem">Why is CDN-cached polling the workhorse for delivering the score to the masses?</p>
+        <button class="opt">Polling guarantees every single viewer sees the exact same score at the exact same moment</button>
+        <button class="opt">The CDN rewrites each score event into a durable log that the database can later replay back</button>
+        <button class="opt">The score is one tiny object, so the edge serves millions from one origin fetch per interval</button>
+        <button class="opt">Persistent sockets are cheaper than caching once the audience grows beyond several thousand</button>
+        <p class="fb">A small hot object with a ~1s TTL caches at the edge; one origin miss per match per interval serves everyone, regardless of audience size.</p>
+        <p class="hint">Reread Deep Dive 2.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="score-coalescing-final">
+        <p class="stem">What collapses 10M simultaneous cache misses at kickoff into a single origin fetch?</p>
+        <button class="opt">Sharding the match state across many databases so each one absorbs a small slice of reads</button>
+        <button class="opt">Request coalescing plus stale-while-revalidate, so synchronized misses share one refresh</button>
+        <button class="opt">Switching every viewer onto a WebSocket so no cache lookups ever reach the busy origin</button>
+        <button class="opt">Raising the cache TTL to many minutes so the score effectively stops changing at kickoff</button>
+        <p class="fb">The edge coalesces concurrent misses for one key into a single origin request and serves stale-while-revalidate, so the herd costs one fetch.</p>
+        <p class="hint">Reread Deep Dive 3.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="score-monotonic-final">
+        <p class="stem">How is the displayed score kept from ever appearing to go backwards across viewers?</p>
+        <button class="opt">Each MatchState carries a monotonic version, and clients ignore updates older than what they hold</button>
+        <button class="opt">Every viewer opens a strongly consistent transaction against the primary database on each refresh</button>
+        <button class="opt">The system blocks all reads worldwide until the very last edge node confirms the newest score</button>
+        <button class="opt">Pushed updates are disabled entirely so that only one slow polling path can ever show the score</button>
+        <p class="fb">A monotonic version on the projection lets viewers differ in freshness while guaranteeing the score never regresses on any client.</p>
+        <p class="hint">Reread Deep Dive 4.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="score-event-log-final">
+        <p class="stem">Why model ingest as an append-only event log rather than updating the score in place?</p>
+        <button class="opt">Append-only logs are the only storage format that a content delivery network is able to cache</button>
+        <button class="opt">Idempotent appendable events make dedup, corrections, and dueling feeds tractable to reconcile</button>
+        <button class="opt">Writing events instead of state removes the need for any authentication on the ingest endpoint</button>
+        <button class="opt">An event log lets each viewer recompute the entire score independently on their own device</button>
+        <p class="fb">State becomes a derived projection of an idempotent log, so duplicate feeds, late events, and ref corrections are reconciled by replay, not mutation.</p>
+        <p class="hint">Reread Deep Dive 1.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="score-transfer-election">
+        <p class="stem">Election night results page, 50M viewers, updates every few minutes. Which design do you reuse?</p>
+        <button class="opt">WebSockets to every viewer, since results are important</button>
+        <button class="opt">Per-user results computed at origin on each request</button>
+        <button class="opt">A strongly consistent SQL read for every page view</button>
+        <button class="opt">Versioned state object, short-TTL CDN, coalescing and SWR</button>
+        <p class="fb">Same profile: tiny shared object, rare changes, huge synchronized audience.</p>
+        <p class="hint">Compare the data profile to live scores.</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. What collapses 10M simultaneous cache misses at kickoff into a single origin fetch?</p>
-      <button class="opt">Sharding the match state across many databases so each one absorbs a small slice of reads</button>
-      <button class="opt">Request coalescing plus stale-while-revalidate, so synchronized misses share one refresh</button>
-      <button class="opt">Switching every viewer onto a WebSocket so no cache lookups ever reach the busy origin</button>
-      <button class="opt">Raising the cache TTL to many minutes so the score effectively stops changing at kickoff</button>
-      <p class="fb">The edge coalesces concurrent misses for one key into a single origin request and serves stale-while-revalidate, so the herd costs one fetch.</p>
-    </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. How is the displayed score kept from ever appearing to go backwards across viewers?</p>
-      <button class="opt">Each MatchState carries a monotonic version, and clients ignore updates older than what they hold</button>
-      <button class="opt">Every viewer opens a strongly consistent transaction against the primary database on each refresh</button>
-      <button class="opt">The system blocks all reads worldwide until the very last edge node confirms the newest score</button>
-      <button class="opt">Pushed updates are disabled entirely so that only one slow polling path can ever show the score</button>
-      <p class="fb">A monotonic version on the projection lets viewers differ in freshness while guaranteeing the score never regresses on any client.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. Why model ingest as an append-only event log rather than updating the score in place?</p>
-      <button class="opt">Append-only logs are the only storage format that a content delivery network is able to cache</button>
-      <button class="opt">Idempotent appendable events make dedup, corrections, and dueling feeds tractable to reconcile</button>
-      <button class="opt">Writing events instead of state removes the need for any authentication on the ingest endpoint</button>
-      <button class="opt">An event log lets each viewer recompute the entire score independently on their own device</button>
-      <p class="fb">State becomes a derived projection of an idempotent log, so duplicate feeds, late events, and ref corrections are reconciled by replay, not mutation.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this one — push on it:
@@ -479,21 +679,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

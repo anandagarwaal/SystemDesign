@@ -117,9 +117,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="spark-why-lineage-not-replication">
         <p class="stem">Why can Spark skip disk replication for fault tolerance and still recover from a lost partition?</p>
-        <button class="opt">It remembers the exact sequence of operations (lineage) that built the data, so it can recompute just the lost piece</button>
-        <button class="opt">It never loses data because executors are physically incapable of crashing</button>
-        <button class="opt">It keeps three copies of every partition on separate disks at all times</button>
+        <button class="opt">It remembers lineage, so it recomputes just the lost piece</button>
+        <button class="opt">Executors are physically incapable of crashing at all</button>
+        <button class="opt">It keeps three copies of every partition on separate disks</button>
         <p class="fb">Lineage is a recipe, not a copy. Losing a partition just means re-running the recorded transformations that produced it.</p>
         <p class="hint">What does "resilient" in RDD refer to, if not replication?</p>
       </div>
@@ -164,9 +164,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="spark-why-laziness-helps-optimizer">
         <p class="stem">Why does laziness (deferring execution until an action) let Spark run faster, not just later?</p>
-        <button class="opt">It doesn't help performance at all, it only delays the same work</button>
-        <button class="opt">Seeing the whole pipeline as one unit lets the optimizer fuse steps and skip materializing intermediates you never asked for</button>
-        <button class="opt">It forces every operation to run on a single executor to avoid coordination</button>
+        <button class="opt">It doesn't help performance at all; it only delays the same work</button>
+        <button class="opt">Seeing the whole pipeline lets it fuse steps and skip intermediates</button>
+        <button class="opt">It forces every operation onto a single executor to avoid coordination</button>
         <p class="fb">Because nothing runs until the whole plan is known, Spark can fuse adjacent steps and push filters down instead of computing throwaway intermediates.</p>
         <p class="hint">Think about what's possible when you see the whole recipe upfront versus one step at a time.</p>
       </div>
@@ -209,17 +209,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="b" data-concept="spark-wide-dependency-cost">
         <p class="stem">What is the defining cost of a "wide" dependency compared to a "narrow" one?</p>
-        <button class="opt">It recompiles the generated JVM bytecode for the whole query</button>
-        <button class="opt">It forces a shuffle, moving data across the network so matching keys share a partition</button>
-        <button class="opt">It blocks the driver until every executor reports memory usage</button>
+        <button class="opt">It recompiles the query's generated JVM bytecode</button>
+        <button class="opt">A shuffle moves data so matching keys share a partition</button>
+        <button class="opt">It blocks the driver until executors report memory</button>
         <p class="fb">Wide dependencies (groupByKey, join) require a shuffle — the expensive network repartitioning step.</p>
         <p class="hint">Which dependency type needs data to move across the network to land on the right partition?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="spark-why-stages-split-at-shuffle">
         <p class="stem">Why does Spark specifically cut a new stage at a shuffle boundary, rather than at every operation?</p>
-        <button class="opt">Narrow operations can be pipelined within one stage without touching the network, so only a shuffle forces a hard synchronization point across the cluster</button>
-        <button class="opt">Stages are arbitrary and could just as easily be cut anywhere without changing performance</button>
-        <button class="opt">The driver runs out of memory after exactly one operation, forcing a new stage</button>
+        <button class="opt">Narrow ops pipeline locally; only a shuffle forces a cluster-wide sync</button>
+        <button class="opt">Stages are arbitrary and could be cut anywhere with no speed impact</button>
+        <button class="opt">The driver runs out of memory after exactly one operation each time</button>
         <p class="fb">Narrow deps chain freely inside a stage since nothing crosses the network. A shuffle needs all tasks to finish writing before the next stage can read, which is the real synchronization boundary.</p>
         <p class="hint">Ask what a shuffle requires that a plain map or filter doesn't: waiting for every upstream task to finish.</p>
       </div>
@@ -249,17 +249,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="spark-fast-on-iterative-jobs">
         <p class="stem">Why is Spark faster than classic MapReduce on iterative, multi-stage jobs?</p>
-        <button class="opt">It keeps working sets in memory and recomputes lost partitions from recorded lineage</button>
-        <button class="opt">It writes every intermediate stage to replicated disk so reduce reads stay sequential</button>
-        <button class="opt">It forbids any reduce step that moves data across the network</button>
+        <button class="opt">It keeps working sets in memory and recovers via lineage</button>
+        <button class="opt">It writes every stage to replicated disk for sequential reads</button>
+        <button class="opt">It forbids any reduce step that moves data over the network</button>
         <p class="fb">MapReduce writes each step to disk; Spark caches in memory and rebuilds lost data from lineage, not replicas.</p>
         <p class="hint">What does each iteration cost in MapReduce that Spark avoids?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="spark-driver-single-point-of-failure">
         <p class="stem">What breaks if the driver process dies mid-job, and why can't an executor simply take over?</p>
-        <button class="opt">Nothing breaks, executors keep running tasks on their own indefinitely</button>
-        <button class="opt">Only the currently running task is lost, since executors independently track the DAG</button>
-        <button class="opt">The whole application dies, because only the driver holds the DAG, the scheduling state, and knows what work remains</button>
+        <button class="opt">Nothing — executors keep running tasks on their own indefinitely</button>
+        <button class="opt">Only the running task is lost, since executors each track the DAG</button>
+        <button class="opt">The app dies: only the driver holds the DAG and remaining work</button>
         <p class="fb">The driver is the single brain: it builds the DAG and schedules stages/tasks. Executors are dumb workers with no view of the overall plan, so losing the driver kills the job.</p>
         <p class="hint">Which role "tracks where everything lives" according to the lesson?</p>
       </div>
@@ -336,14 +336,14 @@
         <p class="stem">Why do DataFrame/SQL queries usually outperform hand-written RDD code doing the same logical work?</p>
         <button class="opt">DataFrames always run on more executors than RDD code by default</button>
         <button class="opt">RDD code is deprecated and no longer executes on modern clusters</button>
-        <button class="opt">Catalyst sees the whole logical query plan and can rewrite it, while raw RDD operations are opaque steps the engine can't reorder</button>
+        <button class="opt">Catalyst can rewrite the whole plan; RDD steps are opaque to it</button>
         <p class="fb">The optimizer needs visibility into the full plan to push down filters, prune columns, and reorder joins. Hand-written RDD chains give it none of that.</p>
         <p class="hint">What does an optimizer need to see in order to rewrite a query, and does raw RDD code give it that?</p>
       </div>
     </div>
   </section>
 
-  <section class="chunk" id="chunk-final">
+  <section class="chunk" id="chunk-final" hidden>
     <p class="chunk-label">6 of 6 — comprehensive check</p>
     <h2>Everything from this lesson</h2>
     <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is
@@ -377,17 +377,17 @@
       </div>
       <div class="q" data-correct="a" data-concept="spark-interview-placement-final">
         <p class="stem">In a design interview, what role should Spark play, and what should it NOT be asked to do?</p>
-        <button class="opt">Spark cooks batch rollups; it should not serve low-latency point reads, which belong to an OLAP store or KV DB</button>
-        <button class="opt">Spark should serve all live reads directly since it's the fastest engine available</button>
-        <button class="opt">Spark should replace the message queue entirely since it can also buffer events</button>
+        <button class="opt">Batch rollups; not low-latency point reads, which need OLAP/KV</button>
+        <button class="opt">Serve all live reads directly, since it's the fastest engine</button>
+        <button class="opt">Replace the message queue entirely, since it can buffer events</button>
         <p class="fb">Spark is a processing engine, not a serving tier. Route low-latency reads to a store built for that.</p>
         <p class="hint">Reread "Place it correctly" above.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="spark-lineage-vs-replication-tradeoff-final">
         <p class="stem">What would you expect to happen to recovery time if a Spark job had an extremely long, un-checkpointed lineage chain and lost a partition deep in it?</p>
-        <button class="opt">Recovery time would be unaffected, since lineage recovery is always instant regardless of chain length</button>
-        <button class="opt">Recovery would be slow, because Spark must recompute the entire chain of transformations back to stable input, not just one step</button>
-        <button class="opt">The job would silently return wrong results instead of recomputing anything</button>
+        <button class="opt">Unaffected — lineage recovery is instant whatever the chain length</button>
+        <button class="opt">Slow: it must recompute the whole chain back to stable input</button>
+        <button class="opt">The job would silently return wrong results instead of recomputing</button>
         <p class="fb">Lineage-based recovery trades storage cost for recompute cost. A long, uncheckpointed chain means a lost partition triggers a long recomputation — which is exactly why long pipelines checkpoint periodically.</p>
         <p class="hint">Lineage is a recipe for rebuilding data. What happens if the recipe is very long and something is lost near the end?</p>
       </div>
@@ -395,7 +395,7 @@
         <p class="stem">Why would using far too few partitions for a large dataset hurt performance even on a big cluster?</p>
         <button class="opt">Too few partitions makes the DAG scheduler crash on startup</button>
         <button class="opt">Partitions only affect storage format, not runtime parallelism</button>
-        <button class="opt">Partitions are the unit of parallelism, so too few of them means most executor cores sit idle with no tasks to run</button>
+        <button class="opt">Partitions are the unit of parallelism, so most cores sit idle</button>
         <p class="fb">Tasks map one-to-one to partitions. If there are fewer partitions than available cores, the extra capacity goes unused no matter how big the cluster is.</p>
         <p class="hint">Reread how the Job → Stages → Tasks → Partitions hierarchy ties tasks to available concurrency.</p>
       </div>

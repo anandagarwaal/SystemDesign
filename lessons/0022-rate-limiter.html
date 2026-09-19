@@ -185,9 +185,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="b" data-concept="rate-limiter-why-not-db-counters">
       <p class="stem">Why does the design keep counters in Redis instead of a durable database, given the interviewer pushback?</p>
-      <button class="opt">Postgres cannot store integer counters at all, so Redis is required</button>
-      <button class="opt">Counters are short-lived and cheap to lose; persisting 1M writes/s would add cost for no benefit</button>
-      <button class="opt">Redis is a required dependency for every rate limiter by industry standard</button>
+      <button class="opt">Postgres cannot store integer counters, so Redis is required</button>
+      <button class="opt">Counters are cheap to lose; persisting 1M writes/s buys nothing</button>
+      <button class="opt">Redis is a mandatory dependency of every limiter by standard</button>
       <p class="fb">The pushback answer is explicit: durability buys nothing for a value that expires in seconds, but costs latency and money at 1M updates/s.</p>
       <p class="hint">Reread the pushback box right after the capacity estimation box.</p>
     </div>
@@ -235,7 +235,7 @@
       <p class="stem">Why does the Redis key use a hash tag like <code>rl:{clientKey}:...</code> instead of a plain key?</p>
       <button class="opt">Hash tags make the key shorter, saving memory per counter</button>
       <button class="opt">Hash tags are required syntax for any key stored with a TTL</button>
-      <button class="opt">All counters for one client land on the same cluster slot, so multi-rule checks run as one atomic script</button>
+      <button class="opt">One client's counters share a slot, so one script is atomic</button>
       <p class="fb">The hash tag pins every counter for a client to one Redis Cluster slot, letting a per-second and per-minute check both run inside a single Lua script on a single shard.</p>
       <p class="hint">Reread the Data Model intro paragraph about the "load-bearing key design."</p>
     </div>
@@ -282,8 +282,8 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="a" data-concept="rate-limiter-edge-vs-service-enforcement">
       <p class="stem">What would happen if the limiter check ran inside each application service instead of the edge gateway?</p>
-      <button class="opt">Blocked traffic would still consume application-server resources before being rejected</button>
-      <button class="opt">Nothing would change, since the gateway and services share one process</button>
+      <button class="opt">Blocked traffic would still burn app resources before rejection</button>
+      <button class="opt">Nothing changes, since the gateway and services share one process</button>
       <button class="opt">Rules would no longer need to be cached anywhere in the fleet</button>
       <p class="fb">The pushback answer says the edge check exists precisely so denied traffic never reaches application servers; moving it later defeats that goal.</p>
       <p class="hint">Reread the pushback: "Why enforce at the gateway instead of in each service?"</p>
@@ -452,9 +452,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="rate-limiter-fail-mode-per-route-why">
       <p class="stem">Why would a staff engineer pick fail-open for a checkout endpoint but fail-closed for a login endpoint, rather than one global fail mode?</p>
-      <button class="opt">Checkout traffic is always lower volume than login traffic, so it needs less protection</button>
-      <button class="opt">The cost of wrongly blocking a paying customer differs from the cost of wrongly allowing unlimited login attempts</button>
-      <button class="opt">Fail-open and fail-closed produce identical behavior, so the choice is arbitrary</button>
+      <button class="opt">Checkout has lower volume than login, so it needs less protection</button>
+      <button class="opt">Wrongly blocking a buyer costs differently than open login attempts</button>
+      <button class="opt">Fail-open and fail-closed behave identically, so it's arbitrary</button>
       <p class="fb">Fail mode trades availability against protection; checkout errs toward availability (don't block revenue), login errs toward protection (brute-force risk), so the right default is per-route, not global.</p>
       <p class="hint">Reread the closing pushback box in this section on fail-open/fail-closed by route.</p>
     </div>
@@ -495,6 +495,27 @@
     <p><b>Staff answer:</b> Cross-AZ traffic between gateways and Redis. Keep AZ-local replicas or local token caches to cut it.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “To recap:”</p>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="d" data-concept="rl-cost-driver">
+        <p class="stem">What's the surprising dominant cost of the rate limiter?</p>
+        <button class="opt">The Redis fleet, because every check runs a Lua script</button>
+        <button class="opt">The rules database, because rules are read on every request</button>
+        <button class="opt">Extra gateway CPU spent evaluating each limit per request</button>
+        <button class="opt">Cross-AZ data transfer between gateways and Redis shards</button>
+        <p class="fb">~$14k of ~$25k: two-thirds of calls cross an AZ. AZ-local shards (≈ limit/3 each) or AZ affinity remove most of it.</p>
+        <p class="hint">Look at the cost table's biggest line.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="rl-local-predeny">
+        <p class="stem">One giant client hammers a single hot key. Why does caching 'definitely over limit' locally for a few hundred ms help?</p>
+        <button class="opt">Rejected requests stop hitting Redis at all while the client is over</button>
+        <button class="opt">It resets the client's counter so its requests start succeeding again</button>
+        <button class="opt">It spreads the hot key across all Redis shards automatically</button>
+        <button class="opt">It makes the limit exact across regions without replication</button>
+        <p class="fb">Once a key is over the limit, every further check will say 'deny' — answering that locally removes the hot-key load.</p>
+        <p class="hint">After a client exceeds its limit, what will every Redis check for it return?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -517,33 +538,33 @@
     </div>
     <div class="q" data-correct="b" data-concept="rate-limiter-hot-path-latency-final">
       <p class="stem">Which NFR forces the counter store to be an in-memory cache rather than a durable database?</p>
-      <button class="opt">The requirement for exact, never-approximate accuracy across all nodes</button>
-      <button class="opt">The under-10-ms latency budget applying to every single request on the hot path</button>
-      <button class="opt">The requirement to support configurable per-tier rules</button>
+      <button class="opt">Exact, never-approximate accuracy across every single node</button>
+      <button class="opt">The sub-10 ms budget on every request in the hot path</button>
+      <button class="opt">Support for configurable rules per customer pricing tier</button>
       <p class="fb">The latency budget is the top constraint precisely because it taxes 100% of traffic; a database round trip would blow it.</p>
       <p class="hint">Revisit chunk 1's NFR table and chunk 2's capacity implication for counter memory.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="rate-limiter-atomicity-thread-final">
       <p class="stem">What single mechanism protects correctness both at the counter-update step and at the gateway-vs-app placement decision?</p>
-      <button class="opt">Deploying more Redis replicas so no shard is ever a bottleneck</button>
+      <button class="opt">More Redis replicas so that no shard is ever a bottleneck</button>
       <button class="opt">Caching the rules table locally on every gateway node</button>
-      <button class="opt">Collapsing the check into one atomic operation so blocked or racing traffic never partially succeeds</button>
+      <button class="opt">One atomic check, so racing traffic never half-succeeds</button>
       <p class="fb">Atomicity (Lua script / INCR+EXPIRE) prevents the read-then-write race, and edge enforcement prevents blocked traffic from partially consuming app resources — both are "make the decision atomic and final in one place."</p>
       <p class="hint">Connect the Lua-script deep dive with the "why enforce at the gateway" pushback — what do both defend against?</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="rate-limiter-fail-mode-tradeoff-final">
       <p class="stem">If Redis becomes unreachable and the system is fail-open everywhere, what is the concrete risk the design accepts?</p>
-      <button class="opt">Abusive clients can flood the backend right when a traffic spike is most likely to have caused the outage</button>
-      <button class="opt">Every request will be rejected until Redis recovers, causing a full outage</button>
-      <button class="opt">The rules database will silently lose all configured limits permanently</button>
+      <button class="opt">Abusers can flood the backend just when a spike likely caused it</button>
+      <button class="opt">Every request is rejected until Redis recovers — a full outage</button>
+      <button class="opt">The rules database silently loses all its configured limits</button>
       <p class="fb">Fail-open trades protection for availability; the danger named in the text is that limiter outages often coincide with the traffic spikes you most need protection from.</p>
       <p class="hint">Reread the fail-open bullet in "Fail-open vs fail-closed when the store is down."</p>
     </div>
     <div class="q" data-correct="c" data-concept="rate-limiter-cost-driver-final">
       <p class="stem">According to the cost breakdown, what is the dominant monthly cost driver for this system?</p>
-      <button class="opt">The Redis Cluster compute for running Lua scripts</button>
-      <button class="opt">The rules database and admin API</button>
-      <button class="opt">Cross-AZ network traffic between gateways and Redis</button>
+      <button class="opt">Redis Cluster compute for running Lua scripts</button>
+      <button class="opt">The rules database and the admin API service</button>
+      <button class="opt">Cross-AZ traffic between gateways and Redis</button>
       <p class="fb">Cross-AZ traffic costs more than the Redis fleet itself; AZ-local shards or routing removes most of it.</p>
       <p class="hint">Reread the Cost of Running table and its "Dominant driver" line.</p>
     </div>

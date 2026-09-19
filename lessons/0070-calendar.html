@@ -77,6 +77,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -100,6 +114,9 @@
     <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
+
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 8</p>
 
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
@@ -132,7 +149,31 @@
   is an eventually-consistent read path with one small, strongly-consistent booking core.</p>
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Read-heavy views with strong consistency for RSVPs and room booking. Let me size events and reminders.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="cal-cp-island">
+        <p class="stem">Which part of a calendar needs strong consistency, and which can lag?</p>
+        <button class="opt">Everything must be strongly consistent, including all month views</button>
+        <button class="opt">Views must be strong, but room bookings may lag for a few seconds</button>
+        <button class="opt">Room booking and RSVP need strong writes; month views can lag</button>
+        <button class="opt">Nothing needs strong consistency, since calendars are only reads</button>
+        <p class="fb">Mostly an eventually-consistent read path with one small CP core for conflicting writes (rooms, RSVPs).</p>
+        <p class="hint">Reread 'The tension to name' under the NFR table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="cal-why-rooms-strong">
+        <p class="stem">Why is it fine for Alice's month view to be 2 s stale, but not fine for a room booking to be?</p>
+        <button class="opt">A stale view self-heals; a double-booked room is a real-world conflict</button>
+        <button class="opt">Views are cached on a CDN, so they can never be strongly consistent</button>
+        <button class="opt">Room bookings are rarer, so strong consistency is cheaper for them</button>
+        <button class="opt">Month views are only read by one person, so staleness can't matter</button>
+        <p class="fb">Staleness in a view resolves on next refresh; two teams arriving at one room is an irreversible conflict.</p>
+        <p class="hint">What's the worst outcome of each kind of staleness, and can it be undone?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Only the numbers that change the design.</p>
@@ -150,7 +191,31 @@
     <p><b>Staff answer:</b> A daily meeting with no end date is infinite rows, and editing the series would rewrite all of them. Store the RRULE plus exceptions and expand for the requested window.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Tens of billions of events at rest, sharded by calendar; reminders are a scheduling problem. Let me define entities.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="cal-rrule-blowup">
+        <p class="stem">'Daily standup, no end date.' Why does materializing each occurrence as a row fail?</p>
+        <button class="opt">Each row is too large to fit into a single database page</button>
+        <button class="opt">It's unbounded rows, and editing the series rewrites them all</button>
+        <button class="opt">Databases cannot index dates more than ten years ahead</button>
+        <button class="opt">Recurring rows cannot be sharded by calendar_id at all</button>
+        <p class="fb">One rule vs ~10k+ rows; a series edit becomes O(occurrences). Store the RRULE and expand per window.</p>
+        <p class="hint">How many rows does 'forever' produce? What does 'move the whole series to 10 AM' touch?</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="cal-reminder-spike">
+        <p class="stem">Why must reminders go through a scheduler + queue instead of polling at send time?</p>
+        <button class="opt">Reminders are rare, so a scheduler is cheaper than any poller</button>
+        <button class="opt">Polling cannot see events created in a different time zone</button>
+        <button class="opt">Queues guarantee reminders are delivered exactly once always</button>
+        <button class="opt">Millions fire together at :00 — spiky load needs buffering</button>
+        <p class="fb">Top-of-hour peaks are violent; a time-indexed scheduler + queue absorbs the spike.</p>
+        <p class="hint">Reread the 'Reminder fan-out' row in Capacity Estimation.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p><b>Event</b> — the source of truth: time, recurrence rule, organizer, timezone.<a href="#c2" class="cite">[2]</a>
@@ -188,7 +253,31 @@
     <p><b>Staff answer:</b> Each attendee has their own RSVP and appears on their own calendar view; small rows make a 500-person invite and individual updates cheap.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Events store recurrence rules; attendees are join rows. Now the read-optimized core and the booking path.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="cal-attendee-rows">
+        <p class="stem">Why store attendees as separate rows rather than a JSON list on the event?</p>
+        <button class="opt">JSON lists cannot be stored in a sharded SQL database at all</button>
+        <button class="opt">Separate rows make the event itself smaller on the wire</button>
+        <button class="opt">Each attendee RSVPs independently and sees it on their own calendar</button>
+        <button class="opt">Attendees must be sharded by user_id, never by calendar_id</button>
+        <p class="fb">500 people changing RSVPs on one blob = 500 conflicting rewrites. Rows make each update small and isolated, with a reverse index per user.</p>
+        <p class="hint">Picture 500 attendees all clicking 'Accept' within a minute on one JSON blob.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="cal-room-as-calendar">
+        <p class="stem">Why model a meeting room as a calendar/attendee?</p>
+        <button class="opt">Booking a room then reuses the same event and conflict machinery</button>
+        <button class="opt">Rooms need to receive email invitations like any human attendee</button>
+        <button class="opt">It lets rooms be sharded separately from every user calendar</button>
+        <button class="opt">Calendars are cheaper to store than a dedicated rooms table</button>
+        <p class="fb">Rooms get free/busy, invites and booking for free; the only special part is the overlap constraint.</p>
+        <p class="hint">What features does a room need? Which of them does a calendar already have?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Component Diagram</h2>
 <pre class="diagram">
@@ -234,7 +323,31 @@
     <p><b>Staff answer:</b> Views can be slightly stale, but two meetings must never book the same room. A transactional check on the room's calendar prevents overlap.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: recurrence expansion, free/busy and rooms, reminders and timezones.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="cal-expand-on-read">
+        <p class="stem">How does the Event service answer 'show me March'?</p>
+        <button class="opt">It reads every materialized occurrence row stored for March</button>
+        <button class="opt">It finds series overlapping March and expands their rules there</button>
+        <button class="opt">It asks the job scheduler which events will fire during March</button>
+        <button class="opt">It returns all rules and lets the client do the expansion</button>
+        <p class="fb">Window query → overlapping series (via series_end_utc) → expand RRULE + apply exceptions inside the window → cache.</p>
+        <p class="hint">Reread the HLD flow's last sentence.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="cal-utc-plus-zone">
+        <p class="stem">Why store both a UTC instant AND an IANA zone, instead of just one of them?</p>
+        <button class="opt">UTC alone is ambiguous, since it can't be compared across events</button>
+        <button class="opt">The zone alone is enough; the UTC value is only kept for backups</button>
+        <button class="opt">UTC pins the instant; the zone says how 'every day at 9' should move</button>
+        <button class="opt">Databases require both fields before they will index a timestamp</button>
+        <p class="fb">The instant answers 'when exactly'; the zone answers 'what does 9 AM mean for the next occurrence' across DST.</p>
+        <p class="hint">Which of the two tells you what happens to a recurring event when clocks change?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
 
@@ -326,7 +439,40 @@
     <p><b>Staff answer:</b> Store the local wall time with its IANA timezone for recurring events and expand with current tz rules, so a 9am meeting stays 9am after DST changes. Store one-off instants in UTC.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness next.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="cal-toctou">
+        <p class="stem">Two organizers both run 'SELECT: is room free?' → both see free → both INSERT. What's the bug and the fix?</p>
+        <button class="opt">A cache bug; fix it by invalidating the free/busy cache faster</button>
+        <button class="opt">A timezone bug; fix it by storing both bookings in UTC instead</button>
+        <button class="opt">A replication bug; fix it by reading from the primary database</button>
+        <button class="opt">Check-then-act race; let the DB reject overlaps in one write</button>
+        <p class="fb">Time-of-check vs time-of-use. An exclusion/unique constraint or row lock makes check+insert atomic so exactly one wins.</p>
+        <p class="hint">Between the SELECT and the INSERT, what can the other organizer do?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="cal-dst-picture">
+        <p class="stem">'9 AM daily' in New York, stored as a fixed UTC-5 offset. What happens in summer?</p>
+        <button class="opt">Nothing — UTC offsets are adjusted by the database automatically</button>
+        <button class="opt">It shows up at 10 AM local, since New York is UTC-4 in summer</button>
+        <button class="opt">It shows up at 8 AM local, since New York is UTC-6 in summer</button>
+        <button class="opt">The event is skipped entirely on each day that DST is active</button>
+        <p class="fb">14:00 UTC is 9 AM at UTC-5 but 10 AM at UTC-4. Anchor recurrence to wall-clock time in the IANA zone and recompute the offset per occurrence.</p>
+        <p class="hint">Convert: 9 AM at UTC-5 = 14:00 UTC. What is 14:00 UTC at UTC-4?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="cal-this-and-following">
+        <p class="stem">User edits 'this and all following' on a recurring event. What does the data model do?</p>
+        <button class="opt">Ends the old rule at that date and starts a new series from there</button>
+        <button class="opt">Writes one exception row for every remaining future occurrence</button>
+        <button class="opt">Rewrites the original RRULE, changing all past occurrences too</button>
+        <button class="opt">Materializes all following occurrences as individual rows</button>
+        <p class="fb">Split the series: cap the old RRULE, create a new one. O(1), and history stays intact.</p>
+        <p class="hint">Reread the Deep Dive 1 'Pick & justify' paragraph.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -378,7 +524,31 @@
     <p><b>Staff answer:</b> Free/busy exposes only busy intervals, not titles or attendees. Sharing levels are enforced server-side, including for delegated calendars.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="cal-freebusy-privacy">
+        <p class="stem">Why does free/busy sharing default to busy blocks without titles?</p>
+        <button class="opt">Titles make the free/busy payload too large for the cache</button>
+        <button class="opt">Titles can't be expanded from recurrence rules on the server</button>
+        <button class="opt">Calendars reveal sensitive facts like doctor or job interviews</button>
+        <button class="opt">Free/busy is computed before titles are written to the DB</button>
+        <p class="fb">Scheduling needs only intervals. Titles leak who/why — minimize by default.</p>
+        <p class="hint">What might the title 'Interview @ Competitor' reveal?</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="cal-rrule-dos">
+        <p class="stem">Why cap expansion counts and validate RRULEs as a security control?</p>
+        <button class="opt">A rule like 'every second forever' could burn CPU on every view</button>
+        <button class="opt">RRULEs can contain SQL, so they must be escaped before storage</button>
+        <button class="opt">Invalid rules crash the job scheduler's time-indexed storage</button>
+        <button class="opt">Attackers can use RRULEs to read other users' calendar events</button>
+        <p class="fb">Expansion is read-time CPU. Pathological rules are a resource-exhaustion vector.</p>
+        <p class="hint">Look at the Security table's 'pathological RRULEs' row.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = 5B users-equivalent load or 10× events and view traffic.</p>
@@ -415,39 +585,69 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A calendar service is a read-optimized event store with one strongly consistent booking path. Events store recurrence rules, exceptions and IANA timezones, and are expanded on read for the requested window, with caching. Attendees are per-user rows carrying RSVP state. Free/busy aggregates busy intervals across calendars without exposing details. Room booking checks overlap transactionally on the resource calendar, so rooms can't be double-booked. Reminders are indexed by trigger time and fired by a durable scheduler into notification queues. At 10× we add shards and archive old years.</p></div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="cal-10x-bottleneck">
+        <p class="stem">What's the first thing to break at 10×, and why that?</p>
+        <button class="opt">Event storage, because rules grow faster than users do</button>
+        <button class="opt">Reminder spikes at the top of the hour, since load is bunched</button>
+        <button class="opt">Room booking, since strong consistency can't be sharded</button>
+        <button class="opt">Free/busy caches, because Redis can't store intervals</button>
+        <p class="fb">Reminders aren't spread evenly: millions of 9:00 events fire together. Jitter within a small window and add scheduler shards.</p>
+        <p class="hint">Which workload is concentrated in time rather than spread evenly?</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why store an RRULE instead of materializing every occurrence?</p>
-      <button class="opt">Materialized rows are far simpler to read</button>
-      <button class="opt">A rule cannot capture weekly meeting times</button>
-      <button class="opt">Infinite series would explode storage and edits</button>
-      <p class="fb">"Daily forever" is ~10k rows; the rule keeps it one row and makes series edits O(1).</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="cal-rrule-final">
+        <p class="stem">Why store an RRULE instead of materializing every occurrence?</p>
+        <button class="opt">Materialized rows are far simpler to read</button>
+        <button class="opt">A rule cannot capture weekly meeting times</button>
+        <button class="opt">Infinite series would explode storage and edits</button>
+        <p class="fb">"Daily forever" is ~10k rows; the rule keeps it one row and makes series edits O(1).</p>
+        <p class="hint">Reread Deep Dive 1.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="cal-room-double-book-final">
+        <p class="stem">What actually prevents two organizers double-booking a room?</p>
+        <button class="opt">A DB lock or uniqueness on the booked slot</button>
+        <button class="opt">A read check confirming the room looks free</button>
+        <button class="opt">A larger cache in front of the booking path</button>
+        <p class="fb">Read-then-write races (TOCTOU); a row lock or unique constraint lets the DB serialize the booking.</p>
+        <p class="hint">Reread Deep Dive 2.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="cal-reminder-due-final">
+        <p class="stem">How should the reminder pipeline find which reminders are due?</p>
+        <button class="opt">Scan the entire event table once a minute</button>
+        <button class="opt">Register triggers with the job scheduler tier</button>
+        <button class="opt">Ask each client device to poll the server</button>
+        <p class="fb">Delegate timing to the scheduler indexed by next-run-time, then fan out via the notification service.</p>
+        <p class="hint">Reread Deep Dive 3.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="cal-iana-final">
+        <p class="stem">Why store the IANA timezone id and not just a UTC offset?</p>
+        <button class="opt">Offsets are slower for the database to index</button>
+        <button class="opt">UTC offsets cannot be displayed to the user</button>
+        <button class="opt">Offsets drift across DST; the zone fixes it</button>
+        <p class="fb">A fixed offset like -05:00 breaks for half the year; the IANA zone recomputes DST per occurrence.</p>
+        <p class="hint">Reread Deep Dive 4.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="cal-transfer-rental">
+        <p class="stem">You design a car-rental booking system. Which calendar decision transfers directly?</p>
+        <button class="opt">Store recurring rentals as RRULEs and expand them on read</button>
+        <button class="opt">Default to push reminders instead of email to cut costs</button>
+        <button class="opt">Treat each car as an IANA timezone so DST is handled</button>
+        <button class="opt">Guard overlapping reservations with a DB range constraint</button>
+        <p class="fb">A car is a room is a seat: an exclusive resource over a time range. The overlap constraint is the transferable core.</p>
+        <p class="hint">What is structurally the same between a meeting room and a rental car?</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">2. What actually prevents two organizers double-booking a room?</p>
-      <button class="opt">A DB lock or uniqueness on the booked slot</button>
-      <button class="opt">A read check confirming the room looks free</button>
-      <button class="opt">A larger cache in front of the booking path</button>
-      <p class="fb">Read-then-write races (TOCTOU); a row lock or unique constraint lets the DB serialize the booking.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">3. How should the reminder pipeline find which reminders are due?</p>
-      <button class="opt">Scan the entire event table once a minute</button>
-      <button class="opt">Register triggers with the job scheduler tier</button>
-      <button class="opt">Ask each client device to poll the server</button>
-      <p class="fb">Delegate timing to the scheduler indexed by next-run-time, then fan out via the notification service.</p>
-    </div>
-    <div class="q" data-correct="c">
-      <p class="stem">4. Why store the IANA timezone id and not just a UTC offset?</p>
-      <button class="opt">Offsets are slower for the database to index</button>
-      <button class="opt">UTC offsets cannot be displayed to the user</button>
-      <button class="opt">Offsets drift across DST; the zone fixes it</button>
-      <p class="fb">A fixed offset like -05:00 breaks for half the year; the IANA zone recomputes DST per occurrence.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic. Try:
@@ -472,21 +672,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

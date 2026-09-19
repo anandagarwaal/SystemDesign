@@ -159,9 +159,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="notification-latency-throughput-tension">
       <p class="stem">Why can't a login OTP and a marketing blast share one FIFO queue?</p>
-      <button class="opt">A blast enqueues millions of messages that would sit ahead of the OTP, delaying a latency-critical send</button>
-      <button class="opt">FIFO queues silently drop messages once they exceed a fixed daily count limit</button>
-      <button class="opt">Marketing messages require a completely different network protocol than OTPs</button>
+      <button class="opt">A blast puts millions of messages ahead of the time-critical OTP</button>
+      <button class="opt">FIFO queues silently drop messages past a fixed daily count limit</button>
+      <button class="opt">Marketing messages need a different network protocol than OTPs do</button>
       <p class="fb">FIFO means first-in-first-out: a blast ahead of the OTP in the same queue makes the OTP wait behind millions of unrelated messages, breaking the seconds-level latency NFR.</p>
       <p class="hint">Think about what FIFO ordering actually guarantees, and what sits in front of the OTP if they share a queue.</p>
     </div>
@@ -347,9 +347,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="notification-enrich-before-queue-why">
       <p class="stem">What would break if enrichment/filtering happened AFTER the channel queues instead of before?</p>
-      <button class="opt">Muted or unaddressed messages would reach workers, wasting delivery capacity and risking sending to opted-out users</button>
-      <button class="opt">Kafka would refuse to accept messages that have not been rendered from a template first</button>
-      <button class="opt">The ingestion API would no longer be able to return a 202 response to callers</button>
+      <button class="opt">Muted or opted-out messages would reach workers and might send</button>
+      <button class="opt">Kafka rejects messages that haven't been rendered from a template</button>
+      <button class="opt">The ingestion API could no longer return a 202 to its callers</button>
       <p class="fb">Filtering pre-queue means workers only ever see addressed, rendered, allowed messages. Filtering after the queue would let muted messages consume worker/provider capacity and risk violating opt-outs.</p>
       <p class="hint">Reread the sentence right after the Data Flow table describing "the decisive move."</p>
     </div>
@@ -536,9 +536,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="notification-preferences-filter-location">
       <p class="stem">Where should preferences and quiet hours be applied?</p>
-      <button class="opt">Inside each provider's system, after the message is already handed off</button>
-      <button class="opt">Before the channel queues, in the processing tier</button>
-      <button class="opt">Within the client app, right before it shows the alert</button>
+      <button class="opt">Inside each provider, after hand-off</button>
+      <button class="opt">Before the channel queues, in processing</button>
+      <button class="opt">In the client app, right before showing</button>
       <p class="fb">Filtering pre-queue means workers never even see a muted message — cheaper and avoids leaking content to a channel the user opted out of.</p>
       <p class="hint">This mirrors the HLD staff-signal box: "filter before you fan out."</p>
     </div>
@@ -593,6 +593,27 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A notification service splits accept-and-decide from delivery. The ingestion API authenticates callers, checks idempotency keys, stores the notification and returns 202. Processors resolve recipients, apply preferences, quiet hours and rate limits, render templates, and publish to per-channel priority queues. Worker pools deliver through APNs/FCM, SMS and email providers with retries, backoff, circuit breakers and dead-letter queues, deduplicating before each send. Delivery receipts update a status store. At 10× we add partitions and workers.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="notif-cost-driver">
+        <p class="stem">Infra is ~$94k but the total is ~$4.2M. What's the rest?</p>
+        <button class="opt">Kafka storage for 30 days of notification events</button>
+        <button class="opt">Third-party channel fees — mostly email and SMS</button>
+        <button class="opt">Cassandra nodes for the status store DB</button>
+        <button class="opt">Push notification fees charged by APNs and FCM</button>
+        <p class="fb">Email and SMS providers dominate; push is ~free. Prefer push/in-app, digest marketing, SMS only for transactional.</p>
+        <p class="hint">Which channel costs ~$0 per message?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="notif-ip-warmup">
+        <p class="stem">Why is email reputation the first bottleneck at 10×, not our servers?</p>
+        <button class="opt">Email servers can't be scaled beyond a fixed number of nodes</button>
+        <button class="opt">SMTP forbids sending more than a million emails per day</button>
+        <button class="opt">Our Kafka cluster can't store enough email payloads</button>
+        <button class="opt">Inbox providers throttle sudden volume jumps from our IPs</button>
+        <p class="fb">Gmail/Outlook treat a sudden surge as spam-like. You must warm up new IPs gradually — an external limit you can't autoscale.</p>
+        <p class="hint">Who decides whether our emails are accepted — us or the recipient's provider?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -627,9 +648,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="notification-approach-b-tradeoff-final">
       <p class="stem">Why would a managed notification SaaS (alternative B) struggle at this system's 5B/day volume even though it launches faster?</p>
-      <button class="opt">Its preference/quiet-hour logic and prioritization are weak, and per-message markup gets expensive at billions/day</button>
-      <button class="opt">Managed services are physically incapable of connecting to more than one provider</button>
-      <button class="opt">Managed services do not support push notifications under any circumstance</button>
+      <button class="opt">Weak preference and priority logic, and markup costly at billions</button>
+      <button class="opt">Managed services can't connect to more than one provider at all</button>
+      <button class="opt">Managed services don't support push notifications in any case</button>
       <p class="fb">The Alternative Approaches table calls out exactly this: fast to launch, but weak policy logic and vendor markup dominate cost at extreme scale.</p>
       <p class="hint">Reread row B of the Alternative Approaches & Tradeoffs table.</p>
     </div>

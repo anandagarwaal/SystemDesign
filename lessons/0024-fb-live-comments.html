@@ -156,9 +156,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="fb-comments-availability-why">
         <p class="stem">Why does the NFR table pick availability over strict consistency for comment ordering?</p>
-        <button class="opt">Strict ordering is technically impossible to implement over HTTP connections</button>
-        <button class="opt">A viewer missing or seeing one comment slightly out of order is invisible; a stalled stream is not</button>
-        <button class="opt">Comments are never actually shown to more than one viewer at a time</button>
+        <button class="opt">Strict ordering can't be implemented over HTTP connections</button>
+        <button class="opt">One comment out of order is invisible; a stalled stream isn't</button>
+        <button class="opt">Comments are never shown to more than one viewer at a time</button>
         <p class="fb">Live comments are ephemeral and high-volume — a viewer can't tell if one comment arrived a beat late, but a frozen feed is immediately obvious and breaks the "live" promise.</p>
         <p class="hint">Think about what a viewer would actually notice: a slightly out-of-order comment, or a frozen feed.</p>
       </div>
@@ -260,9 +260,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="fb-comments-cursor-why">
         <p class="stem">Why does offset pagination break for comment history but cursor pagination doesn't?</p>
-        <button class="opt">Offsets shift under concurrent inserts, causing skips or repeats; a time-ordered id is stable regardless of new writes</button>
-        <button class="opt">Offset pagination is slower to compute in every database engine, regardless of write volume</button>
-        <button class="opt">Cursor pagination requires no database index at all, unlike offset pagination</button>
+        <button class="opt">Offsets shift under inserts; a time-ordered id cursor stays stable</button>
+        <button class="opt">Offset pagination is slower in every engine, whatever the writes</button>
+        <button class="opt">Cursor pagination needs no database index at all, unlike offsets</button>
         <p class="fb">Offset N means "skip N rows," but if rows are inserted above your window, "row N" now refers to something different — you skip or repeat comments. A cursor keyed on a stable, sortable id doesn't shift.</p>
         <p class="hint">Picture new comments arriving while you page through page 2 with an offset — what happens to "row 50"?</p>
       </div>
@@ -322,17 +322,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="c" data-concept="fb-comments-happy-path-order">
         <p class="stem">In the happy path, what happens right after the Comment Service persists a new comment?</p>
-        <button class="opt">It waits for every connection server to acknowledge receipt before responding</button>
-        <button class="opt">It queries the tail cache to check whether the video is still live</button>
-        <button class="opt">It publishes the comment to that video's pub/sub channel</button>
+        <button class="opt">Waits for every connection server to acknowledge receipt</button>
+        <button class="opt">Queries the tail cache to check if the video is still live</button>
+        <button class="opt">Publishes the comment to that video's pub/sub channel</button>
         <p class="fb">Store then publish: the write path persists first, then hands off to the pub/sub channel, which is the actual fan-out primitive.</p>
         <p class="hint">Reread the numbered happy-path list — what is step 2?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="fb-comments-global-channel-why-bad">
         <p class="stem">Why would one single global pub/sub channel for all videos be worse than one channel per video?</p>
-        <button class="opt">A global channel cannot technically support more than one publisher</button>
-        <button class="opt">Every connection server would receive every comment for every video, wasting work on videos it doesn't serve</button>
-        <button class="opt">Global channels lose messages under any load above ten publishes per second</button>
+        <button class="opt">A global channel can't support more than one publisher at a time</button>
+        <button class="opt">Every server would get every video's comments, mostly wasted work</button>
+        <button class="opt">Global channels lose messages above ten publishes per second</button>
         <p class="fb">With one channel, subscribing means subscribing to everything — a server serving one small video would still process traffic from every mega-stream on the platform.</p>
         <p class="hint">If there's only one channel, can a server subscribe to just the videos its viewers are watching?</p>
       </div>
@@ -424,17 +424,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="fb-comments-hot-stream-tradeoff-why">
         <p class="stem">Why does the CDN tail snapshot trick let a mega-stream scale to hundreds of millions of viewers?</p>
-        <button class="opt">It turns per-connection push into serving one cached, shared object that any number of viewers can read</button>
-        <button class="opt">It adds more connection servers until the push model can handle the load</button>
-        <button class="opt">It removes the need for the video to have any comments feature at all</button>
+        <button class="opt">It turns per-connection push into one shared, cached object</button>
+        <button class="opt">It adds connection servers until push can handle the load</button>
+        <button class="opt">It removes the need for the video to have comments at all</button>
         <p class="fb">A per-connection push must do work proportional to viewer count. A cached static object is fetched by however many clients want it at no extra origin cost — that's what breaks the scaling wall.</p>
         <p class="hint">Compare the cost of pushing to N connections versus N clients reading one cached object.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="fb-comments-dispatcher-tradeoff">
         <p class="stem">Why is the dispatcher-service alternative (Deep Dive 2 table) rejected in favor of channel-per-video?</p>
-        <button class="opt">A dispatcher service is architecturally impossible to build with current technology</button>
-        <button class="opt">Dispatchers cannot route messages to more than one server at a time</button>
-        <button class="opt">Keeping an accurate mapping of which servers serve which video is hard as viewers connect and disconnect constantly</button>
+        <button class="opt">A dispatcher service is impossible to build with current technology</button>
+        <button class="opt">Dispatchers can't route one message to more than a single server</button>
+        <button class="opt">Tracking which servers serve which video churns as viewers come and go</button>
         <p class="fb">The dispatcher must track live server-to-video assignments under constant churn — that bookkeeping problem is harder to keep correct than just letting pub/sub subscriptions handle routing.</p>
         <p class="hint">Look at the "Problem" column for the dispatcher row.</p>
       </div>
@@ -499,17 +499,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="fb-comments-privacy-cdn">
         <p class="stem">Why must friends-only stream comments never land in a public CDN snapshot?</p>
-        <button class="opt">The CDN serves snapshots unsigned to anyone, so a private comment would leak to the public</button>
+        <button class="opt">The CDN serves snapshots to anyone, so a private comment would leak</button>
         <button class="opt">CDNs are technically unable to cache anything marked friends-only</button>
-        <button class="opt">Friends-only comments are always encrypted and therefore unreadable at the CDN</button>
+        <button class="opt">Friends-only comments are always encrypted and unreadable at the CDN</button>
         <p class="fb">Public mega-streams get unsigned CDN snapshots for scale; a private stream's data must never enter that unauthenticated path, so visibility follows the video's audience.</p>
         <p class="hint">Reread the Authentication &amp; Authorization row on CDN snapshots.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="fb-comments-moderation-tiering-why">
         <p class="stem">Why does moderation use synchronous cheap filters before publish plus asynchronous ML review after, rather than one thorough check before every publish?</p>
-        <button class="opt">Asynchronous review is more accurate so it should be the only check performed</button>
-        <button class="opt">A full ML review is too slow to run inline without blowing the 200ms delivery budget, so cheap checks gate publish and heavier review happens after</button>
-        <button class="opt">Synchronous checks are only used for broadcasters, never for regular viewers</button>
+        <button class="opt">Async review is more accurate, so it should be the only check run</button>
+        <button class="opt">Full ML review inline would blow 200 ms; cheap checks gate publish</button>
+        <button class="opt">Synchronous checks are used only for broadcasters, never viewers</button>
         <p class="fb">Latency is the scarce resource on the write path — a heavy model can't run inline without breaking the NFR, so the design front-loads cheap filters and defers deep analysis to an async pass.</p>
         <p class="hint">What's the latency budget for a comment to go from POST to delivered, and does a full ML model fit inside it?</p>
       </div>
@@ -568,9 +568,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="fb-comments-redesign-trigger-why">
         <p class="stem">Why would per-viewer personalized comment ranking force an actual architecture change, unlike normal 10× growth?</p>
-        <button class="opt">It breaks the "one publish, identical deliveries" assumption that lets one channel serve every subscriber the same content</button>
-        <button class="opt">Personalized ranking requires no database at all, unlike the current design</button>
-        <button class="opt">It would reduce total viewer count, so it's unrelated to scaling</button>
+        <button class="opt">It breaks 'one publish, identical deliveries' that channels rely on</button>
+        <button class="opt">Personalized ranking needs no database at all, unlike the current one</button>
+        <button class="opt">It would reduce the total viewer count, so it's unrelated to scale</button>
         <p class="fb">The whole design leans on one publish reaching all subscribers unchanged. Personalizing per-viewer output means each viewer needs a different payload, which the shared-channel model can't produce without a redesign.</p>
         <p class="hint">What does "one publish, identical deliveries" assume about what every subscriber receives?</p>
       </div>
@@ -620,9 +620,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="fb-comments-final-why-thin-write-fat-read">
         <p class="stem">Why does the whole architecture split cleanly into a "thin write path" and a "fat broadcast path" instead of treating comments like a normal CRUD resource?</p>
-        <button class="opt">Writing comments is legally required to be processed separately from reading them</button>
-        <button class="opt">CRUD frameworks cannot handle text fields longer than a tweet</button>
-        <button class="opt">The read/write skew is extreme: one write triggers millions of deliveries, so the two paths need entirely different scaling strategies</button>
+        <button class="opt">Comments are legally required to be written apart from being read</button>
+        <button class="opt">CRUD frameworks can't handle text fields longer than a tweet</button>
+        <button class="opt">One write fans out to millions of reads, so each path scales apart</button>
         <p class="fb">A normal CRUD resource has comparable read and write costs. Here one write fans out to millions of reads, so bundling them into one code path would force the cheap write path to carry the expensive read path's scaling burden.</p>
         <p class="hint">Go back to "The key tension" box in chunk 1 — what asymmetry does it name?</p>
       </div>

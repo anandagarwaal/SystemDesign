@@ -164,9 +164,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="workflow-engine-central-tension-why">
       <p class="stem">Why can't a month-long workflow simply live in a running process's memory?</p>
-      <button class="opt">A crash would lose all in-memory state, so resuming would have no way to know what already happened</button>
-      <button class="opt">Processes are billed per hour, so long-running ones cost more than short ones</button>
-      <button class="opt">Operating systems refuse to schedule any process older than a few hours</button>
+      <button class="opt">A crash loses in-memory state, with no record of what already ran</button>
+      <button class="opt">Processes are billed per hour, so long-running ones cost more</button>
+      <button class="opt">Operating systems refuse to schedule processes over a few hours old</button>
       <p class="fb">The whole design exists to resolve durability vs. long duration: persist history and replay it, rather than trusting fragile in-memory state that a crash wipes out.</p>
       <p class="hint">Reread the paragraph right after the NFR table describing "the central tension."</p>
     </div>
@@ -200,9 +200,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="c" data-concept="workflow-engine-idle-cost-why">
       <p class="stem">Why does the capacity estimate call "10M idle workflows" the number that forces the architecture?</p>
-      <button class="opt">Because 10M is close to the total row limit of a single Postgres table</button>
-      <button class="opt">Because idle workflows generate more network traffic than active ones</button>
-      <button class="opt">Because a thread or container per idle workflow would need 10M live processes, which is infeasible</button>
+      <button class="opt">10M is near the row limit of a single Postgres table</button>
+      <button class="opt">Idle workflows generate more network traffic than active ones</button>
+      <button class="opt">A thread per idle workflow means 10M live processes — infeasible</button>
       <p class="fb">A design that keeps a thread/container per running workflow collapses at this scale. Idle workflows must cost close to nothing — a database row plus a timer, not a live process.</p>
       <p class="hint">Reread "The number that matters" callout right after the capacity table.</p>
     </div>
@@ -255,13 +255,22 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="workflow-engine-history-source-of-truth">
       <p class="stem">Why keep an append-only history instead of a mutable status column?</p>
-      <button class="opt">History records every decision and result, so the engine can rebuild state by replay and it doubles as an audit trail</button>
-      <button class="opt">A status column cannot be indexed by any relational database engine</button>
-      <button class="opt">Append-only tables are always faster to write to than columns that update in place</button>
+      <button class="opt">History records every step, so state rebuilds by replay and audits</button>
+      <button class="opt">Status columns can't be indexed by any relational database engine</button>
+      <button class="opt">Append-only tables are always faster to write than updated columns</button>
       <p class="fb">A status column loses intermediate outputs and exact code position. An immutable event log lets replay reconstruct state exactly, and serves as the audit log for free.</p>
       <p class="hint">Reread the pushback box right after the data model table.</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="c" data-concept="wf-single-shard-txn">
+        <p class="stem">Why shard everything for a run (history, state, timers, tasks) by run id?</p>
+        <button class="opt">So each run can execute on a different region's servers</button>
+        <button class="opt">So history can be deleted as soon as a step completes</button>
+        <button class="opt">Event + state + task writes become one local transaction</button>
+        <button class="opt">So workers can pick any shard at random for load balancing</button>
+        <p class="fb">Co-location turns the engine's core step into a single-shard atomic write — no distributed transaction, no lost task.</p>
+        <p class="hint">What three writes must happen atomically when a step completes?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-4" hidden>
@@ -330,9 +339,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="b" data-concept="workflow-engine-no-direct-call-why">
       <p class="stem">Why doesn't the orchestrator call user activity code directly?</p>
-      <button class="opt">Direct calls would violate the single-shard transaction guarantee on history writes</button>
-      <button class="opt">User activities are slow and untrusted, and coupling them to the stateful engine would make it fail with every flaky call</button>
-      <button class="opt">Direct calls cannot be authenticated using mTLS certificates</button>
+      <button class="opt">Direct calls would break the single-shard history transaction</button>
+      <button class="opt">Slow, untrusted activities would make the engine fail with them</button>
+      <button class="opt">Direct calls can't be authenticated with mTLS certificates</button>
       <p class="fb">Keeping the orchestrator's job to "append event + enqueue task" isolates the stateful, critical engine from slow or unreliable third-party code.</p>
       <p class="hint">Reread the pushback box right after the HLD table.</p>
     </div>
@@ -457,9 +466,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="workflow-engine-idempotency-why">
       <p class="stem">Why is idempotency mandatory for every activity, given at-least-once delivery?</p>
-      <button class="opt">Retries mean an activity attempt can run more than once, so a repeat must be a safe no-op instead of a duplicate side effect</button>
-      <button class="opt">Idempotency keys are required by the HTTP specification for all POST requests</button>
-      <button class="opt">The task queue refuses to deliver a task without an idempotency key attached</button>
+      <button class="opt">An attempt may run twice, so a repeat must be a harmless no-op</button>
+      <button class="opt">HTTP requires idempotency keys on every single POST request</button>
+      <button class="opt">The task queue won't deliver any task without an idempotency key</button>
       <p class="fb">At-least-once delivery guarantees a retry can re-run a step. Idempotent activities turn that retry into a safe no-op, giving exactly-once effect despite at-least-once execution.</p>
       <p class="hint">Reread the paragraph on idempotency in deep dive 3.</p>
     </div>
@@ -534,9 +543,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="b" data-concept="workflow-engine-tenant-isolation-why">
       <p class="stem">Why does one noisy tenant's giant fan-out threaten other tenants if left unmitigated?</p>
-      <button class="opt">Fan-out always corrupts the event-sourcing replay log for every namespace</button>
-      <button class="opt">Shared queues and shards can be monopolized by one tenant's burst of tasks, starving others</button>
-      <button class="opt">Fan-out is impossible to represent in an append-only history at all</button>
+      <button class="opt">Fan-out always corrupts every namespace's replay log</button>
+      <button class="opt">One tenant's burst can monopolize shared queues and shards</button>
+      <button class="opt">Fan-out can't be represented in append-only history</button>
       <p class="fb">Without per-namespace rate limits, queue partitions, and fan-out quotas, one tenant's spike can dominate shared infrastructure and delay everyone else's runs.</p>
       <p class="hint">Reread the security table row on noisy/abusive tenants and the tenant-isolation pushback box.</p>
     </div>
@@ -619,9 +628,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="workflow-engine-whole-lesson-why">
       <p class="stem">If the orchestrator kept workflow state in RAM instead of replaying history, what would break?</p>
-      <button class="opt">Any orchestrator host crash would lose the run's progress, since no other host could reconstruct where it was</button>
-      <button class="opt">Task queues would no longer be able to deliver activity results to workers</button>
-      <button class="opt">Triggers would be unable to start new workflow runs on a schedule</button>
+      <button class="opt">A host crash would lose progress no other host could rebuild</button>
+      <button class="opt">Task queues could no longer deliver activity results to workers</button>
+      <button class="opt">Triggers could no longer start new workflow runs on a schedule</button>
       <p class="fb">The entire point of event sourcing is that any orchestrator can pick up any run after a crash by replaying history. In-memory-only state defeats that — a crash becomes unrecoverable.</p>
       <p class="hint">Reread the first staff-level signal box in the HLD section.</p>
     </div>

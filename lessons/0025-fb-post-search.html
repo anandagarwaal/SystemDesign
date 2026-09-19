@@ -163,9 +163,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="fb-search-why-index-not-scan">
         <p class="stem">Why does "latency vs. corpus size" force the entire design toward an inverted index?</p>
-        <button class="opt">Scanning billions to trillions of posts per query cannot fit a 500ms budget, so lookups must replace scans</button>
-        <button class="opt">An inverted index is required by law for any search feature at this scale</button>
-        <button class="opt">Corpus size only matters for storage cost, not for query latency</button>
+        <button class="opt">Scanning billions of posts can't fit 500 ms; lookups must replace scans</button>
+        <button class="opt">An inverted index is legally required for search at this kind of scale</button>
+        <button class="opt">Corpus size only affects storage cost, never the query latency at all</button>
         <p class="fb">A linear scan over a multi-trillion-post corpus takes far longer than 500ms; a term-to-posting-list structure turns the query into a fast lookup instead of a scan.</p>
         <p class="hint">Think about how long a full scan of 3.6 trillion posts would take versus a direct lookup.</p>
       </div>
@@ -199,16 +199,16 @@
       <div class="q" data-correct="b" data-concept="fb-search-like-post-ratio">
         <p class="stem">What is the headline capacity fact that shapes the write path?</p>
         <button class="opt">Searches at 10k/s outnumber posts and likes combined</button>
-        <button class="opt">Likes outnumber posts roughly 10 to 1, dominating write volume</button>
-        <button class="opt">The corpus fits entirely in memory on one node</button>
+        <button class="opt">Likes outnumber posts ~10:1 and dominate write volume</button>
+        <button class="opt">The whole corpus fits in memory on a single node</button>
         <p class="fb">~100k likes/s versus ~10k posts/s means likes, not posts, are the write bottleneck to design around.</p>
         <p class="hint">Compare the "Likes written" row to the "Posts written" row.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="fb-search-naive-like-index-why-fails">
         <p class="stem">Why does "re-index the post on every like" fail even though each individual like write is cheap?</p>
-        <button class="opt">Likes cannot be represented as index writes under any circumstances</button>
-        <button class="opt">The index only supports one write per post for its entire lifetime</button>
-        <button class="opt">At 100k likes/sec the aggregate index-write rate thrashes segments, even though each write alone is trivial</button>
+        <button class="opt">Likes can't be represented as index writes under any circumstances</button>
+        <button class="opt">The index supports only one write per post for its entire lifetime</button>
+        <button class="opt">100k likes/s of index writes thrash segments, though each is cheap</button>
         <p class="fb">One cheap operation times 100,000 per second is not cheap in aggregate — it's the volume, not the per-write cost, that breaks the naive design.</p>
         <p class="hint">A single like-triggered index write is fast — so what breaks when you do 100,000 of them every second?</p>
       </div>
@@ -254,17 +254,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="fb-search-cursor-vs-offset">
         <p class="stem">Why does the search API use a cursor rather than a page number?</p>
-        <button class="opt">Offset pagination breaks when the index changes between page requests</button>
-        <button class="opt">Cursors are required by the Elasticsearch client library and cannot be avoided</button>
-        <button class="opt">Page numbers cannot be encoded in a URL query string</button>
+        <button class="opt">Offsets break when the index changes between pages</button>
+        <button class="opt">Cursors are forced by the Elasticsearch client library</button>
+        <button class="opt">Page numbers can't be encoded in a URL query string</button>
         <p class="fb">A live, constantly-updated index shifts offsets underneath a paging client; a cursor tied to a stable score/id survives that.</p>
         <p class="hint">Same idea as offset pagination in other lessons — what happens when the underlying data changes mid-page?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="fb-search-index-derived-why">
         <p class="stem">Why is the search index treated as a "derived, rebuildable projection" rather than a source of truth?</p>
-        <button class="opt">Elasticsearch cannot durably store any data, so it must be rebuilt on every restart</button>
-        <button class="opt">If the index is lost or corrupted, replaying Kafka's post/like events regenerates it, so correctness never depends on the index surviving</button>
-        <button class="opt">Search indices are legally required to be temporary under data retention law</button>
+        <button class="opt">Elasticsearch can't durably store data, so it rebuilds on each restart</button>
+        <button class="opt">Replaying Kafka's events regenerates it, so correctness never needs it</button>
+        <button class="opt">Search indices must legally be temporary under data retention law</button>
         <p class="fb">Keeping posts and likes as the durable source, with the index as a replayable Kafka consumer, means an index shard can be safely wiped and rebuilt from the log.</p>
         <p class="hint">If an index shard were deleted, could the system recover it from something else?</p>
       </div>
@@ -344,10 +344,10 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="fb-search-kafka-decouple-why">
         <p class="stem">Why does putting Kafka between the Post Service and the indexers matter, beyond "it's a queue"?</p>
-        <button class="opt">It decouples post-creation latency from indexing speed, so a slow or backed-up indexer never makes posting itself slow</button>
-        <button class="opt">Kafka encrypts post content in transit, which no other transport can do</button>
-        <button class="opt">It doubles the write throughput of the Post Service automatically</button>
-        <button class="opt">Kafka removes the need for indexers to tokenize text before indexing</button>
+        <button class="opt">A slow or backed-up indexer never makes posting itself slower</button>
+        <button class="opt">Kafka encrypts post content in transit, which nothing else can do</button>
+        <button class="opt">It automatically doubles the write throughput of the Post Service</button>
+        <button class="opt">It removes the need for indexers to tokenize text before indexing</button>
         <p class="fb">The Post Service only has to write to Kafka to return success. Indexer throughput, lag, or failure never blocks or slows the write path — that decoupling is the point.</p>
         <p class="hint">If indexers suddenly got 10x slower, would the Post Service's POST latency change?</p>
       </div>
@@ -469,24 +469,24 @@
       <div class="q" data-correct="c" data-concept="fb-search-sharding-tradeoff">
         <p class="stem">What do you trade away by choosing document-partitioned sharding over term-partitioned?</p>
         <button class="opt">You lose the ability to sort results by like count at all</button>
-        <button class="opt">You lose the ability to run multi-word queries entirely</button>
-        <button class="opt">You pay scatter-gather fan-out cost on every query, in exchange for even load</button>
+        <button class="opt">You lose the ability to run any multi-word query at all</button>
+        <button class="opt">Every query fans out to all shards, in exchange for even load</button>
         <p class="fb">Doc-partitioning avoids hot term shards and keeps indexing simple, but every query must be scattered to all shards since any shard might hold a match.</p>
         <p class="hint">Reread "The pick" box in Deep Dive 1.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="fb-search-two-phase-why">
         <p class="stem">Why does two-phase ranking let the index tolerate an approximate, milestone-based like count instead of an exact one?</p>
-        <button class="opt">Phase two re-scores only the small candidate set with live counts, so any staleness in the index's coarse order gets corrected there</button>
-        <button class="opt">Like counts are never actually shown to users in the final results</button>
-        <button class="opt">Phase one already guarantees perfectly exact ordering by like count</button>
+        <button class="opt">Phase two re-scores the small candidate set with live counts</button>
+        <button class="opt">Like counts are never actually shown to users in the results</button>
+        <button class="opt">Phase one already guarantees exact ordering by like count</button>
         <p class="fb">The index only needs to produce a reasonable candidate set cheaply; correctness of the final ranking is restored by the second, expensive pass over just those candidates.</p>
         <p class="hint">Where does the "fresh" like count actually get applied — retrieval or ranking?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="fb-search-term-shard-hotspot-why">
         <p class="stem">Why does term-partitioned sharding create hot shards that document-partitioned sharding avoids?</p>
-        <button class="opt">Term-partitioned indexes cannot use posting lists at all</button>
-        <button class="opt">A single popular term's entire posting list lives on one shard, so query volume for that term concentrates there</button>
-        <button class="opt">Document-partitioned sharding stores every term on every shard, doubling storage</button>
+        <button class="opt">Term-partitioned indexes can't use posting lists at all</button>
+        <button class="opt">A hot term's whole posting list sits on one shard</button>
+        <button class="opt">Document partitioning stores every term everywhere</button>
         <p class="fb">Since one shard owns a whole term's posting list, a viral or common term ("the," a trending topic) sends all of its traffic and storage to that single shard. Doc-partitioning spreads any one term's postings across many shards instead.</p>
         <p class="hint">If shard placement is by term, where does all the traffic for one especially popular term go?</p>
       </div>
@@ -550,17 +550,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="c" data-concept="fb-search-delete-pipeline">
         <p class="stem">How does the design keep a deleted post from staying searchable?</p>
-        <button class="opt">A nightly batch job scans the entire index for deleted posts</button>
-        <button class="opt">Deleted posts are never removed from the index, only hidden by the client app</button>
-        <button class="opt">Deletes flow through Kafka as tombstones, and results are post-filtered against the post store</button>
+        <button class="opt">A nightly batch job scans the whole index for deleted posts</button>
+        <button class="opt">Deleted posts stay indexed and are only hidden by the client</button>
+        <button class="opt">Tombstones flow via Kafka and results are post-filtered</button>
         <p class="fb">The index itself may lag on the tombstone; the post-filter against the live post store is the safety net that guarantees deleted posts never surface.</p>
         <p class="hint">Reread the Privacy section's "Deletion is the hard part for search" sentence.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="fb-search-index-never-authority-why">
         <p class="stem">Why is "the index is never the authority on visibility" the right design principle here?</p>
-        <button class="opt">Because the index cannot store any access-control fields whatsoever</button>
-        <button class="opt">Because the index can lag behind privacy changes and deletes, so trusting it directly risks leaking content that should no longer be visible</button>
-        <button class="opt">Because the index is rebuilt from scratch every night, making authority checks pointless</button>
+        <button class="opt">The index can't store any access-control fields whatsoever</button>
+        <button class="opt">The index lags deletes and privacy changes, so trusting it leaks</button>
+        <button class="opt">The index is rebuilt nightly, which makes authority checks moot</button>
         <p class="fb">The index is an eventually-consistent, replayable projection — exactly the kind of store that can be stale for seconds or minutes. Visibility decisions need a check against the current, authoritative state, not the projection.</p>
         <p class="hint">Recall that the index is described as a "derived, rebuildable projection" — can a projection ever be behind the source of truth?</p>
       </div>
@@ -619,9 +619,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="fb-search-personalized-ranking-redesign-why">
         <p class="stem">Why would adding personalized ML ranking over large candidate sets force an actual redesign, rather than just scaling existing components?</p>
-        <button class="opt">ML models cannot run on the same servers as the search service under any configuration</button>
-        <button class="opt">Personalization would eliminate the need for an inverted index entirely</button>
-        <button class="opt">The current two-phase pattern re-ranks a small, shared candidate set; per-user personalization needs per-user candidate scoring, which is a different retrieval + ranking architecture</button>
+        <button class="opt">ML models can't run on the same servers as the search service</button>
+        <button class="opt">Personalization would eliminate the need for an inverted index</button>
+        <button class="opt">Per-user candidate scoring needs a different retrieval architecture</button>
         <p class="fb">Two-phase ranking assumes one candidate set can be re-ranked and served to everyone who ran that query. True personalization breaks that shared-result assumption, requiring a dedicated retrieval/ranking stack, not just more of the same nodes.</p>
         <p class="hint">Does the current architecture assume the same candidate set is valid for every user running the same query?</p>
       </div>
@@ -671,9 +671,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="fb-search-final-why-derived-index">
         <p class="stem">Why can the search index safely be treated as disposable and rebuildable, unlike the posts and likes stores?</p>
-        <button class="opt">Kafka retains the post and like events, so a lost or corrupted index shard can be regenerated by replaying them</button>
-        <button class="opt">The index never contains any information that matters for correctness</button>
-        <button class="opt">Elasticsearch shards are replicated so many times that loss is statistically impossible</button>
+        <button class="opt">Kafka keeps the events, so a lost shard is rebuilt by replay</button>
+        <button class="opt">The index holds nothing that matters for correctness at all</button>
+        <button class="opt">Shards are replicated so often that loss is statistically impossible</button>
         <p class="fb">The index is a projection built from Kafka events. As long as the log is retained, any shard can be rebuilt from scratch — that's what makes it safe to treat as derived rather than a source of truth.</p>
         <p class="hint">Trace back to where the index gets its data from, and whether that source persists independently.</p>
       </div>

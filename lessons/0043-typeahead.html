@@ -153,9 +153,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="typeahead-latency-dominant">
         <p class="stem">Why does "latency under 100ms" as the cardinal NFR immediately point toward precomputation over query-time ranking?</p>
-        <button class="opt">The network is so fast that 100ms is plenty of time for any algorithm</button>
-        <button class="opt">At millions of queries/s, computing top-K live would exceed the budget; precompute moves work offline</button>
-        <button class="opt">Users inherently prefer results that took longer to compute because they trust the ranking</button>
+        <button class="opt">The network is fast enough that 100 ms fits any algorithm</button>
+        <button class="opt">Live top-K at millions of QPS blows the budget; precompute it</button>
+        <button class="opt">Users prefer slower results because they trust the ranking</button>
         <p class="fb">The budget is fixed and tight. Every millisecond spent computing is a millisecond not spent on the network roundtrip.</p>
         <p class="hint">If you have 35k QPS average and each query needs to sort, how many sorts per second must a single machine do?</p>
       </div>
@@ -194,9 +194,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="typeahead-read-write-ratio">
         <p class="stem">A 1000:1 read-to-write ratio. Why does that ratio specifically favor precomputation over incremental updates?</p>
-        <button class="opt">Amortizing one expensive offline build across 1000 reads makes the write amplification invisible</button>
-        <button class="opt">The ratio has no bearing on precomputation; both strategies would work equally well</button>
-        <button class="opt">1000:1 means you never need to update rankings or the trie at all</button>
+        <button class="opt">One offline build amortized over 1000 reads hides its cost</button>
+        <button class="opt">The ratio has no bearing; both strategies work equally well</button>
+        <button class="opt">1000:1 means rankings and the trie never need any update</button>
         <p class="fb">A massive read surplus means you can afford a heavier build because every read amortizes the cost. Per-read computation would kill latency.</p>
         <p class="hint">If build costs $100 and you have 1000 queries, is that $100 per query or per batch?</p>
       </div>
@@ -247,9 +247,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="typeahead-immutable-trie">
         <p class="stem">Why store the trie as an immutable versioned snapshot instead of a mutable database?</p>
-        <button class="opt">Immutability + versioning allows atomic swaps, rolling back, and read-only replicas without write coordination</button>
+        <button class="opt">Versioned snapshots allow atomic swaps, rollback and easy replicas</button>
         <button class="opt">Immutable data is always faster than mutable data in any system</button>
-        <button class="opt">Mutable tries cannot store top-K at all because updates would corrupt the list</button>
+        <button class="opt">Mutable tries can't hold top-K, since updates corrupt the list</button>
         <p class="fb">Immutability means reads never compete with writers, replicas stay consistent across a version flip, and you can rollback instantly.</p>
         <p class="hint">If the trie was mutable and two builders tried to update it, what coordination would you need?</p>
       </div>
@@ -417,9 +417,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="typeahead-hot-prefix-cache">
         <p class="stem">Why does caching help solve the hot-prefix sharding problem?</p>
-        <button class="opt">Caching removes the shard entirely so there is no hot shard</button>
-        <button class="opt">A tiny set of popular prefixes gets cached; most traffic hits the cache, never the shards</button>
-        <button class="opt">Caching distributes the hot prefix load equally across all shards</button>
+        <button class="opt">Caching removes the shard entirely, so no shard is ever hot</button>
+        <button class="opt">A few popular prefixes get cached; most traffic never hits shards</button>
+        <button class="opt">Caching spreads the hot prefix load evenly across all shards</button>
         <p class="fb">Prefix popularity is skewed the same way that's bad for sharding — but it's gold for caching. Cache the few hot ones; long tail reaches shards evenly.</p>
         <p class="hint">If "y" gets 10M requests and 90% hit the cache, how many actually reach the trie shard?</p>
       </div>
@@ -483,17 +483,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="typeahead-privacy-kanon">
         <p class="stem">What does k-anonymity for suggestions accomplish?</p>
-        <button class="opt">Only phrases searched by N+ users are suggestable; private rare queries never surface</button>
-        <button class="opt">It requires all users to have identical IP addresses</button>
+        <button class="opt">Only phrases searched by N+ users can ever surface</button>
+        <button class="opt">It requires all users to share identical IP addresses</button>
         <button class="opt">It prevents any search from ever reaching the trie</button>
         <p class="fb">If one user searches something unique, that phrase stays invisible until enough others search it — protecting outliers.</p>
         <p class="hint">If someone searches their SSN, how many people need to search it for it to become a suggestion?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="typeahead-blocklist-timing">
         <p class="stem">Why do you need both a build-time blocklist AND a serving-time emergency path?</p>
-        <button class="opt">The serving-time path ensures no suggestion is ever offensive regardless of the blocklist</button>
-        <button class="opt">Build-time is too slow for emergency; serving-time lets you suppress instantly; build-time catches new crud systematically</button>
-        <button class="opt">One of them is redundant; you only need either the build-time or serving-time filter</button>
+        <button class="opt">Serving-time alone guarantees nothing offensive, whatever the list</button>
+        <button class="opt">Serving-time suppresses instantly; build-time filters systematically</button>
+        <button class="opt">One is redundant; you only ever need build-time or serving-time</button>
         <p class="fb">Build takes 5–10 minutes; an offensive trend can surface in seconds. Emergency suppression is immediate; systemic filtering happens at build.</p>
         <p class="hint">If a phrase becomes trending and offensive right now, how long until the next build deploys it?</p>
       </div>
@@ -539,8 +539,8 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="b" data-concept="typeahead-scale-bottleneck">
         <p class="stem">At 10× scale, what is the first architectural bottleneck?</p>
-        <button class="opt">The CDN has infinite capacity and never saturates</button>
-        <button class="opt">Build time exceeds the freshness SLO; switch to incremental rebuilds</button>
+        <button class="opt">The CDN, which saturates at its fixed capacity</button>
+        <button class="opt">Build time exceeds the freshness SLO; go incremental</button>
         <button class="opt">Queries can no longer be routed to the trie at all</button>
         <p class="fb">3B queries × 10 means build pipeline must stay sub-30min; incremental updates solve it.</p>
         <p class="hint">If builds currently take 10 minutes, and you 10× the data, what happens to build time?</p>
@@ -570,32 +570,32 @@
       <div class="q" data-correct="b" data-concept="typeahead-core-decision">
         <p class="stem">The core L6 decision in typeahead design is:</p>
         <button class="opt">Building a fast trie structure for prefix matching</button>
-        <button class="opt">Recognizing a latency problem and precomputing all answers offline</button>
+        <button class="opt">Treating it as latency: precompute answers offline</button>
         <button class="opt">Choosing the best database to store suggestions</button>
         <p class="fb">The system's entire shape comes from one insight: build once, read many times. Everything else follows.</p>
         <p class="hint">What separates a staff candidate from a senior candidate on this problem?</p>
       </div>
       <div class="q" data-correct="a" data-concept="typeahead-tradeoff-staleness">
         <p class="stem">The honest cost of precomputing the trie is:</p>
-        <button class="opt">Staleness between builds; mitigated by frequent rebuilds and emergency blocklists</button>
-        <button class="opt">Suggestions can never be accurate or ranked properly</button>
-        <button class="opt">No cost; precomputation is strictly better in every way</button>
+        <button class="opt">Staleness between builds; rebuild often, keep a blocklist</button>
+        <button class="opt">Suggestions can never be accurate or properly ranked</button>
+        <button class="opt">No cost at all; precomputing is strictly better in every way</button>
         <p class="fb">Minutes of staleness is the price; the NFR said "eventually fresh" so it's paid and budgeted.</p>
         <p class="hint">If a new trending phrase hits and the next build is in 5 minutes, when is it suggestable?</p>
       </div>
       <div class="q" data-correct="c" data-concept="typeahead-latency-stack">
         <p class="stem">Meeting the 100ms latency budget relies on which tactics? (Pick the one most often overlooked.)</p>
-        <button class="opt">Having a fast trie and plenty of replicas</button>
+        <button class="opt">A fast trie and plenty of read replicas</button>
         <button class="opt">Encrypting responses and using HTTPS</button>
-        <button class="opt">Client-side debouncing to collapse keystrokes into fewer requests</button>
+        <button class="opt">Client debouncing to cut keystroke requests</button>
         <p class="fb">Debouncing is the cheapest win and the one most candidates skip, thinking the server internals matter most.</p>
         <p class="hint">If debouncing saves 90% of requests, what is the actual network load?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="typeahead-why-async-logging">
         <p class="stem">Why does decoupling search-event logging from reads justify calling this design "staff-level"?</p>
-        <button class="opt">Async logging is always faster than synchronous logging, so it's the obvious choice</button>
-        <button class="opt">It shows judgment: knowing the read path is sacred and that measurement feeds ranking offline</button>
-        <button class="opt">Decoupling is a generic principle everyone should apply everywhere</button>
+        <button class="opt">Async logging is always faster than sync, so it's the obvious pick</button>
+        <button class="opt">The read path is sacred; measurement feeds ranking offline</button>
+        <button class="opt">Decoupling is a generic principle to apply everywhere, always</button>
         <p class="fb">Recognizing that reads must stay pure fast, and that instrumentation is deferred work, is the insight that makes the rest work.</p>
         <p class="hint">If you logged synchronously, what would happen to the 100ms SLO?</p>
       </div>

@@ -150,9 +150,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="fb-newsfeed-consistency-tradeoff">
       <p class="stem">Why can this design accept eventual consistency (up to ~1 minute of staleness) instead of demanding strong consistency?</p>
-      <button class="opt">Nobody is harmed by seeing a followee's post a little late, so trading consistency for availability and latency costs nothing real</button>
-      <button class="opt">Eventual consistency is always the correct default for any read-heavy system regardless of what it stores</button>
-      <button class="opt">Strong consistency is impossible to implement for any system with more than one database</button>
+      <button class="opt">Seeing a followee's post a bit late harms no one, so it costs nothing</button>
+      <button class="opt">Eventual consistency is always right for any read-heavy system</button>
+      <button class="opt">Strong consistency is impossible with more than one database</button>
       <p class="fb">The NFR table states this directly: a stale-by-a-minute post is harmless, so the design leans into availability and latency instead of paying for strong consistency.</p>
       <p class="hint">Look at the Non-Functional Requirements table's note on the "dominant tension."</p>
     </div>
@@ -196,9 +196,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="fb-newsfeed-precompute-cheap-why">
       <p class="stem">Why is precomputing feeds for 2 billion users "cheap" even though it sounds wasteful at first glance?</p>
-      <button class="opt">Because Redis automatically deduplicates identical post ids across every user's feed</button>
-      <button class="opt">Because each feed only holds ~200 small post ids, so the whole dataset is a few TB, far cheaper than a live merge on every read</button>
-      <button class="opt">Because feeds are only precomputed for users who are currently online at read time</button>
+      <button class="opt">Redis automatically dedupes identical post ids across user feeds</button>
+      <button class="opt">~200 small ids per feed is a few TB — cheaper than live merges</button>
+      <button class="opt">Feeds are only precomputed for users currently online at read time</button>
       <p class="fb">200 ids × 2B users is ~4TB — a few racks of Redis. That one-time storage cost beats re-merging hundreds of followees on every single read.</p>
       <p class="hint">Reread the interviewer pushback box right after the capacity numbers.</p>
     </div>
@@ -257,9 +257,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="fb-newsfeed-feed-ids-only">
       <p class="stem">What would break if the feed cache stored full post bodies instead of just post ids?</p>
-      <button class="opt">Nothing would break, since Redis has no size limit on stored values</button>
-      <button class="opt">Feed reads would become slower because ids are actually larger than bodies</button>
-      <button class="opt">Editing or deleting one popular post would require rewriting it in millions of feeds, instead of just updating one row in the post store</button>
+      <button class="opt">Nothing, since Redis has no size limit on stored values at all</button>
+      <button class="opt">Reads would slow down, because ids are larger than post bodies</button>
+      <button class="opt">Editing one popular post would mean rewriting millions of feeds</button>
       <p class="fb">Storing only ids means a post's content lives in one place (the post store) and every feed just references it — an edit or delete requires no fan-out rewrite.</p>
       <p class="hint">Reread "Note the feed uses a cursor..." paragraph and the Data Model intro sentence about why feeds hold only post ids.</p>
     </div>
@@ -315,17 +315,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="fb-newsfeed-hld-feed-ids">
       <p class="stem">Why store only post ids in the feed cache rather than hydrated content?</p>
-      <button class="opt">Post ids compress better than any other data type in Redis</button>
-      <button class="opt">Ids are small and stable, and edits/deletes are reflected at hydration time</button>
+      <button class="opt">Post ids compress better than any other type in Redis</button>
+      <button class="opt">Ids are small and stable; edits show up at hydration</button>
       <button class="opt">Redis cannot store strings longer than a few characters</button>
       <p class="fb">Ids are cheap to fan out and stay correct forever; the actual post body is fetched fresh at read time, so edits and deletes are automatically respected.</p>
       <p class="hint">Reread the pushback box in the HLD section.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="fb-newsfeed-hld-simple-first">
       <p class="stem">The HLD section deliberately keeps things simple, deferring the celebrity problem to Deep Dives. Why?</p>
-      <button class="opt">Because a working end-to-end design that satisfies every FR should come first; the hard tradeoffs get the depth budget in deep dives, not the HLD walkthrough</button>
-      <button class="opt">Because interviewers don't want to hear about celebrities at all during a system design round</button>
-      <button class="opt">Because the celebrity problem doesn't actually affect this system's architecture</button>
+      <button class="opt">A working end-to-end design comes first; hard tradeoffs get deep dives</button>
+      <button class="opt">Interviewers never want to hear about celebrities in a design round</button>
+      <button class="opt">The celebrity problem doesn't actually affect this architecture at all</button>
       <p class="fb">The delivery framework says to stay shallow in HLD and name hard spots to revisit — depth belongs in deep dives, which is exactly where fan-out gets solved.</p>
       <p class="hint">Think back to the framework lesson: what's the staff-level reason HLD says "stay shallow on purpose"?</p>
     </div>
@@ -445,9 +445,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="fb-newsfeed-skew-unifying-insight">
       <p class="stem">Celebrity fan-out (write side) and the viral hot-key problem (read side) are called "the same phenomenon" in this lesson. What is that shared phenomenon?</p>
-      <button class="opt">Extreme skew in the popularity distribution, attacked from the write side (pull) and the read side (replication)</button>
-      <button class="opt">Both problems are caused by using Redis instead of a relational database for storage</button>
-      <button class="opt">Both problems only appear when the network between data centers is slow</button>
+      <button class="opt">Extreme popularity skew, attacked from write side and read side</button>
+      <button class="opt">Both are caused by using Redis instead of a relational database</button>
+      <button class="opt">Both appear only when inter-datacenter networking is slow</button>
       <p class="fb">A handful of accounts or posts dominate load. Pull-on-read handles the write-side skew; cache replication handles the read-side skew — same root cause, two ends.</p>
       <p class="hint">Reread the second staff-level signal box, right after the hot-key table.</p>
     </div>
@@ -511,17 +511,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="fb-newsfeed-visibility-recheck">
       <p class="stem">How does the design prevent a deleted or privacy-restricted post from appearing in a feed?</p>
-      <button class="opt">Every read hydrates posts and re-checks deletion/audience, so stale feed entries are harmless</button>
-      <button class="opt">Deleted posts are immediately purged from every follower's feed cache</button>
-      <button class="opt">Users are prevented from ever deleting a post once it's created</button>
+      <button class="opt">Every read hydrates and re-checks deletion and audience</button>
+      <button class="opt">Deleted posts are purged from every follower's feed at once</button>
+      <button class="opt">Users can never delete a post once it has been created</button>
       <p class="fb">Feeds hold candidate ids, not permissions. Visibility is enforced at hydration time on every read, so a stale id can't leak a deleted or blocked post.</p>
       <p class="hint">Reread the Privacy pushback box.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="fb-newsfeed-observability-vs-monitoring">
       <p class="stem">What would you lose if Observability metrics existed but there were no Monitoring/SLO layer on top?</p>
-      <button class="opt">Nothing — Observability and Monitoring measure exactly the same thing</button>
-      <button class="opt">The system would stop emitting any logs or traces</button>
-      <button class="opt">You'd have signals to query but no automatic way for humans to learn something is wrong before a user complains</button>
+      <button class="opt">Nothing — observability and monitoring measure exactly the same thing</button>
+      <button class="opt">The system would stop emitting any of its logs and distributed traces</button>
+      <button class="opt">Signals to query, but nothing tells humans before users complain</button>
       <p class="fb">Observability is the raw signal (metrics/logs/traces); Monitoring turns it into SLOs and alerts that page a human. Without it, nobody notices a burning SLO until it's reported.</p>
       <p class="hint">Reread how the Authoring Guide distinguishes Observability from Monitoring, then look at this lesson's SLO table.</p>
     </div>
@@ -576,16 +576,16 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="fb-newsfeed-cost-driver">
       <p class="stem">Why is ML ranking inference the dominant cost driver, not the Redis feed cache or Cassandra post store?</p>
-      <button class="opt">Because Redis and Cassandra are actually free to run at this scale</button>
-      <button class="opt">Because scoring hundreds of candidates per feed load on GPUs across billions of loads costs far more per request than a cheap key lookup or append-only write</button>
-      <button class="opt">Because ranking only runs once per day in a nightly batch job</button>
+      <button class="opt">Redis and Cassandra are effectively free to run at this scale</button>
+      <button class="opt">GPU-scoring hundreds of candidates per load dwarfs a key lookup</button>
+      <button class="opt">Ranking only runs once per day as a nightly batch job</button>
       <p class="fb">The cost table shows ML ranking inference at ~$1.5M vs. ~$400K for everything else combined — GPU-backed scoring per load dwarfs simple storage/cache costs.</p>
       <p class="hint">Reread the Cost of Running table and its "Dominant driver" line.</p>
     </div>
   </div>
   </section>
 
-  <section class="chunk" id="chunk-8" hidden>
+  <section class="chunk" id="chunk-final" hidden>
   <p class="chunk-label">8 of 8 — comprehensive check</p>
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
@@ -622,16 +622,16 @@
     <div class="q" data-type="intuition" data-correct="b" data-concept="fb-newsfeed-final-skew-connection">
       <p class="stem">What single underlying phenomenon connects the celebrity fan-out problem and the viral hot-key cache problem?</p>
       <button class="opt">Both are solved exclusively by adding more Cassandra nodes</button>
-      <button class="opt">Extreme skew in popularity — a tiny share of users/posts get outsized load — attacked on the write side and the read side respectively</button>
-      <button class="opt">Both only occur when users are located in different geographic regions</button>
+      <button class="opt">Popularity skew — attacked on the write side and the read side</button>
+      <button class="opt">Both only occur when users are in different geographic regions</button>
       <p class="fb">The lesson explicitly names this connection: pull-on-read handles write-side skew, cache replication handles read-side skew — same root cause, two ends of the pipeline.</p>
       <p class="hint">Revisit the second staff-level signal box in Deep Dive 4.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="fb-newsfeed-final-tradeoff-judgement">
       <p class="stem">A senior candidate says "use a hybrid." What makes a staff candidate's version of that answer different?</p>
-      <button class="opt">They explain the threshold is a tunable knob set by the follower distribution, name celebrity fan-out as the real bottleneck, and say they'd measure and tune it in production</button>
-      <button class="opt">They memorize the exact follower-count threshold Facebook uses in production</button>
-      <button class="opt">They avoid mentioning celebrities entirely to keep the design simple</button>
+      <button class="opt">The threshold is a knob set by the follower curve, measured and tuned</button>
+      <button class="opt">They memorize Facebook's exact production follower-count threshold</button>
+      <button class="opt">They avoid mentioning celebrities to keep the design simple and clean</button>
       <p class="fb">The differentiator is judgement: sizing the bottleneck, treating the threshold as a measured tradeoff rather than dogma, not just naming the pattern.</p>
       <p class="hint">Revisit the first staff-level signal box in Deep Dive 2.</p>
     </div>

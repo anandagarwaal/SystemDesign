@@ -147,16 +147,16 @@
     <div class="q" data-correct="b" data-concept="topk-fr-scope">
       <p class="stem">Which query is explicitly out of scope for this design?</p>
       <button class="opt">Top K most-viewed videos over the last hour</button>
-      <button class="opt">Top videos as of an arbitrary past date, like last Tuesday</button>
+      <button class="opt">Top videos as of an arbitrary past date</button>
       <button class="opt">Top K most-viewed videos over the last day</button>
       <p class="fb">Arbitrary historical ranges, per-user/region top-K are explicitly parked to keep the windows fixed and the design simple.</p>
       <p class="hint">Reread "Explicitly out of scope" under Functional Requirements.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="topk-approximate-nfr-why-proactive">
       <p class="stem">Why is proposing "approximate is fine" yourself, rather than waiting for the interviewer to grant it, the staff move?</p>
-      <button class="opt">Stating the relaxed accuracy NFR upfront is what licenses cheap sketches later, instead of building an exact system that later can't scale</button>
-      <button class="opt">Interviewers always reject candidates who mention exact counting under any circumstance</button>
-      <button class="opt">Approximate answers are inherently faster to compute than any exact answer regardless of scale</button>
+      <button class="opt">Stating it upfront licenses cheap sketches instead of an exact dead end</button>
+      <button class="opt">Interviewers reject anyone who mentions exact counting in any context</button>
+      <button class="opt">Approximate answers are always faster than exact ones at every scale</button>
       <p class="fb">Negotiating the NFR up front means you design straight to the cheap solution, instead of building exact and getting stuck.</p>
       <p class="hint">Reread the staff-level signal box right after the NFR table.</p>
     </div>
@@ -195,9 +195,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="topk-db-counter-why-fails">
       <p class="stem">Why doesn't "just increment a counter per video in a database" work at this scale?</p>
-      <button class="opt">Databases cannot store integer counters larger than a few million</button>
-      <button class="opt">700k writes/sec against billions of rows, then sorting them per query, doesn't fit in one database</button>
-      <button class="opt">Relational databases cannot express an UPDATE statement with a WHERE clause</button>
+      <button class="opt">Databases can't store integer counters larger than a few million</button>
+      <button class="opt">700k writes/s over billions of rows, then sorting, won't fit one DB</button>
+      <button class="opt">Relational databases can't express an UPDATE with a WHERE clause</button>
       <p class="fb">The write rate and row count overwhelm a single database's ability to both accept writes and serve a sorted view.</p>
       <p class="hint">Reread the pushback box right after the capacity estimation table.</p>
     </div>
@@ -238,17 +238,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="topk-partition-key-videoid">
       <p class="stem">Why is the Kafka partition key videoId the load-bearing choice in the data model?</p>
-      <button class="opt">It makes each task's local top-K complete and the later merge across tasks provably correct</button>
-      <button class="opt">It is required so Kafka can compress event payloads more efficiently</button>
-      <button class="opt">It lets a single partition store the entire multi-terabyte counter table</button>
+      <button class="opt">Each task's local top-K is complete, so the merge is provably right</button>
+      <button class="opt">It is required for Kafka to compress event payloads more efficiently</button>
+      <button class="opt">It lets a single partition hold the entire multi-TB counter table</button>
       <p class="fb">Partitioning by videoId sends all of a video's views to one task, so that task's counts are exact for its videos.</p>
       <p class="hint">Reread the sentence right before the Data Model table.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="topk-no-write-endpoint-why">
       <p class="stem">Why does this design expose no public REST write endpoint for view events?</p>
-      <button class="opt">REST endpoints cannot accept small JSON payloads under heavy load</button>
-      <button class="opt">Video servers are not permitted to make any outbound network calls</button>
-      <button class="opt">Views are a continuous firehose better buffered durably on a stream than accepted as individual synchronous calls</button>
+      <button class="opt">REST endpoints can't accept small JSON payloads under heavy load</button>
+      <button class="opt">Video servers aren't permitted to make any outbound network calls</button>
+      <button class="opt">Views are a firehose, better buffered on a stream than as calls</button>
       <p class="fb">A Kafka stream buffers the firehose durably and lets aggregation scale independently of a request-response write API.</p>
       <p class="hint">Reread the pushback: "Why isn't ingest a REST endpoint?"</p>
     </div>
@@ -325,9 +325,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="topk-diagram-two-level-why">
       <p class="stem">Why does the component diagram show per-task local aggregation before a separate merger stage, rather than one aggregator for everything?</p>
-      <button class="opt">A single aggregator handling all 700k events/sec directly would be one hot bottleneck; splitting the work across tasks avoids that</button>
-      <button class="opt">Kafka technically forbids more than one consumer from reading the same topic</button>
-      <button class="opt">Redis cannot accept writes from more than one process at a time</button>
+      <button class="opt">One aggregator taking all 700k events/s would be a hot bottleneck</button>
+      <button class="opt">Kafka forbids more than one consumer from reading the same topic</button>
+      <button class="opt">Redis can't accept writes from more than one process at a time</button>
       <p class="fb">Two-level aggregation spreads the firehose across many tasks so only small partial lists ever reach one merge point.</p>
       <p class="hint">This is the idea the deep dive later calls "avoid a single hot aggregator" — preview it from the diagram caption.</p>
     </div>
@@ -414,17 +414,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="topk-merge-correctness">
       <p class="stem">Why does merging per-partition top-K lists provably contain the global top-K?</p>
-      <button class="opt">A video in the global top-K must also be in the top-K of its own partition, since that partition saw all of its views</button>
-      <button class="opt">The merger re-reads the raw Kafka events a second time to double-check the totals</button>
-      <button class="opt">Each partition already holds a fully sorted list of every video in the entire catalog</button>
+      <button class="opt">A global top-K video must top its own partition, which saw all its views</button>
+      <button class="opt">The merger re-reads the raw Kafka events to double-check the totals</button>
+      <button class="opt">Each partition holds a fully sorted list of every video in the catalog</button>
       <p class="fb">Because videoId partitioning gives one partition all of a video's views, a global winner can't be missing from that partition's local top-K.</p>
       <p class="hint">Reread "Why this is correct" under deep dive 4.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="topk-wrong-partition-key-breaks-what">
       <p class="stem">What would break if Kafka used round-robin partitioning instead of keying by videoId?</p>
-      <button class="opt">Nothing; the merge step would still find the correct global top-K</button>
-      <button class="opt">Redis would refuse to store the resulting top-K list</button>
-      <button class="opt">A video's views would be split across tasks, so no single task's local top-K would be complete for that video, breaking the merge guarantee</button>
+      <button class="opt">Nothing; the merge step would still find the right global top-K</button>
+      <button class="opt">Redis would refuse to store the resulting top-K list at all</button>
+      <button class="opt">A video's views split across tasks, so no local top-K is complete</button>
       <p class="fb">The correctness proof depends on one partition seeing all of a video's views. Round-robin breaks that assumption entirely.</p>
       <p class="hint">Reread the second staff-level signal box, about "get the key wrong."</p>
     </div>
@@ -488,17 +488,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="topk-privacy-no-user-id">
       <p class="stem">Why does the view-events topic carry only {video_id, ts} and not user id or IP?</p>
-      <button class="opt">Kafka technically cannot store more than two fields per message</button>
-      <button class="opt">Keeping personal identifiers out of the topic avoids turning an aggregate analytics pipeline into a personal-data pipeline</button>
-      <button class="opt">Adding more fields would exceed the Count-Min Sketch's fixed memory budget</button>
+      <button class="opt">Kafka can't store more than two fields in a single message</button>
+      <button class="opt">It keeps an aggregate pipeline from becoming a personal-data one</button>
+      <button class="opt">More fields would exceed the Count-Min Sketch's memory budget</button>
       <p class="fb">The output is aggregate and non-personal only if the input never carries personal identifiers in the first place.</p>
       <p class="hint">Reread the Privacy section's first two sentences.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="topk-bot-inflation-why-filter-at-ingest">
       <p class="stem">Why filter bot-inflated views at ingest rather than after they're already counted in the sketch?</p>
-      <button class="opt">A Count-Min Sketch cannot un-count or subtract an event once it has been folded into the estimate</button>
-      <button class="opt">Bots are only capable of inflating all-time counts, never hourly ones</button>
-      <button class="opt">Filtering after counting would require a second, larger Kafka cluster</button>
+      <button class="opt">A Count-Min Sketch can't subtract an event once it's counted</button>
+      <button class="opt">Bots can only inflate all-time counts, never the hourly ones</button>
+      <button class="opt">Filtering after counting would need a second, larger Kafka cluster</button>
       <p class="fb">Once an event contributes to a sketch's counters, there's no clean way to remove just that increment — dedup and bot detection belong before counting.</p>
       <p class="hint">Reread the pushback on stopping bots inflating view counts.</p>
     </div>
@@ -544,6 +544,27 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Top-K is a streaming heavy-hitters problem. View events go into Kafka partitioned by videoId. Flink tasks keep local counts (Count-Min Sketch plus a min-heap) per window and emit local top-K lists to a global aggregator that merges them. That avoids a single hot aggregator and stays correct because each video's views live on one partition. Results for each window are precomputed into a cache, so reads take tens of milliseconds. At 10× we raise partitions and parallelism, and memory stays bounded.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="topk-sketch-fixed">
+        <p class="stem">At 10× distinct videos, why doesn't sketch memory grow?</p>
+        <button class="opt">Old videos are deleted from the sketch every hour</button>
+        <button class="opt">Count-Min is fixed-size; more keys only add error</button>
+        <button class="opt">Sketches are stored on disk, which is effectively unlimited</button>
+        <button class="opt">Each video gets its own sketch, so none of them get bigger</button>
+        <p class="fb">Fixed width × depth counters regardless of key count — the trade is error, not memory.</p>
+        <p class="hint">Does a Count-Min sketch allocate per key?</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="topk-cost-driver">
+        <p class="stem">What dominates the top-K system's cost?</p>
+        <button class="opt">The Flink cluster computing heavy hitters</button>
+        <button class="opt">The Redis read service for the top-K lists</button>
+        <button class="opt">ClickHouse rollups for historical windows</button>
+        <button class="opt">Moving and retaining the raw event stream</button>
+        <p class="fb">Collectors + Kafka ≈ $27k of $39k. The sketch itself is nearly free.</p>
+        <p class="hint">Look at the collectors and Kafka lines together.</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -578,17 +599,17 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="topk-final-precompute-why">
       <p class="stem">Why precompute the top-K into cache instead of a lazy TTL cache-on-miss?</p>
-      <button class="opt">Precomputing lets the read API skip the auth token check entirely</button>
-      <button class="opt">Lazy expiry would trigger a thundering-herd query on the count store right when the cache entry expires</button>
-      <button class="opt">Redis technically cannot store an ordered list data structure</button>
+      <button class="opt">Precomputing lets the read API skip the auth token check</button>
+      <button class="opt">Lazy expiry causes a herd of count-store queries on each miss</button>
+      <button class="opt">Redis technically cannot store an ordered list structure</button>
       <p class="fb">Refreshing the entry before expiry keeps the read path a single key lookup with no store contention or latency spike.</p>
       <p class="hint">Reread "Serving — precompute and read from cache" in deep dive 5.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="topk-final-tumbling-vs-sliding-why">
       <p class="stem">Why does the design default to tumbling windows for day/month but reserve sliding windows for the last-hour view?</p>
-      <button class="opt">Sliding windows are impossible to implement for any granularity coarser than a minute</button>
-      <button class="opt">Tumbling windows require more memory than sliding windows at every granularity</button>
-      <button class="opt">Sliding windows need continuous minute-level increment/decrement bookkeeping, worth paying for only where smoothness (the last hour) actually matters</button>
+      <button class="opt">Sliding windows can't be built for granularity coarser than a minute</button>
+      <button class="opt">Tumbling windows need more memory than sliding at every granularity</button>
+      <button class="opt">Sliding needs constant bookkeeping, worth it only for the last hour</button>
       <p class="fb">Tumbling is cheap because old windows are dropped wholesale with no per-key cleanup; sliding costs more but avoids jarring hour-boundary resets.</p>
       <p class="hint">Reread deep dive 3's table and the "reserve for last hour" sentence.</p>
     </div>

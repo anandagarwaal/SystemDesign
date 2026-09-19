@@ -527,6 +527,27 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A leaderboard is a Redis sorted set in front of a durable score store. Authoritative game servers submit scores through a stateless API that writes the database and updates the sorted set; ZADD, ZREVRANGE and ZREVRANK make updates, top-N and rank queries O(log n). Ties are encoded into a composite score. Friends boards are computed at read time from a small friend list. Time-windowed boards are separate keys with TTLs, and Redis is rebuildable from the event log. At 10× we shard boards and merge top-N.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="lb-approx-global-rank">
+        <p class="stem">Once boards are sharded, why is exact global rank the first thing to go?</p>
+        <button class="opt">Rank needs a count of higher scores from every shard</button>
+        <button class="opt">Sharded Redis can't store scores as floating-point numbers</button>
+        <button class="opt">Sharding makes a top-N list impossible to compute</button>
+        <button class="opt">Each shard then gives every player the same rank</button>
+        <p class="fb">Top-N merges cheaply (take N from each). Exact rank for player #3,000,000 needs a count from every shard — approximate with histograms, as the NFRs allow.</p>
+        <p class="hint">What must you know to say 'you are rank 3,141,592'?</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="lb-cost-driver">
+        <p class="stem">What's the dominant cost of the leaderboard?</p>
+        <button class="opt">Redis, since sorted sets need much RAM</button>
+        <button class="opt">The Score API fleet handling all writes</button>
+        <button class="opt">The durable Postgres DB, not Redis at all</button>
+        <button class="opt">CDN delivery of top-N lists to users</button>
+        <p class="fb">The ranking index is tiny (~20 GB). Batch score events, snapshot old seasons, serve top-N from the edge.</p>
+        <p class="hint">Compare the Postgres and Redis lines.</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -561,9 +582,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="leaderboard-approach-b-limit-final">
       <p class="stem">Why does the relational-only alternative (B) lose at scale even though it's the simplest option?</p>
-      <button class="opt">Rank via COUNT(*) or window functions is effectively an O(n) scan that slows badly under high read QPS</button>
-      <button class="opt">Relational databases cannot store a numeric score column under any circumstance</button>
-      <button class="opt">Relational databases have no way to create an index on a score column</button>
+      <button class="opt">Rank via COUNT(*) is an O(n) scan that crawls under read load</button>
+      <button class="opt">Relational DBs can't store a numeric score column in any case</button>
+      <button class="opt">Relational databases can't create an index on a score column</button>
       <p class="fb">A B-tree index supports range scans, but computing "how many rows have a higher score" still costs roughly O(n) per query — fine for small or rarely-read boards, not for tens of thousands of reads/sec.</p>
       <p class="hint">Reread the "Loses" column for approach B in the Alternative Approaches table.</p>
     </div>

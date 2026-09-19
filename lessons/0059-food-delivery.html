@@ -154,10 +154,10 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="food-delivery-dispatch-latency-drives-index">
       <p class="stem">The NFR requires courier assignment within seconds of restaurant acceptance. What would break if couriers were only stored in a relational table, scanned per dispatch?</p>
-      <button class="opt">A table scan for nearby couriers can't finish in seconds at dispatch volume, so the latency target is missed</button>
-      <button class="opt">Nothing breaks, since courier count is small compared to menu reads</button>
-      <button class="opt">Relational tables can't store a courier's latitude and longitude at all</button>
-      <button class="opt">The NFR only applies to menu reads, not to courier dispatch</button>
+      <button class="opt">A table scan for nearby couriers can't finish within seconds</button>
+      <button class="opt">Nothing breaks, since courier count is small next to menu reads</button>
+      <button class="opt">Relational tables can't store a courier's latitude and longitude</button>
+      <button class="opt">The NFR applies only to menu reads, never to courier dispatch</button>
       <p class="fb">A full scan or unindexed query can't answer "who's near this restaurant" fast enough at scale — that's exactly why dispatch needs an in-memory geo index instead.</p>
       <p class="hint">What does the NFR table say forces "an in-memory geo index — no table scan per order"?</p>
     </div>
@@ -198,10 +198,10 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="food-delivery-low-write-volume-enables-saga">
       <p class="stem">Why does the low order-write volume (~1–2k/sec) matter for how orders are processed, not just how they're stored?</p>
-      <button class="opt">It means orders never need a database at all, only an in-memory cache</button>
-      <button class="opt">Low volume means a single strongly-consistent primary can absorb writes, affording an expensive multi-step saga per order</button>
-      <button class="opt">It means the courier location firehose can also skip using Redis</button>
-      <button class="opt">Low volume means menus can be safely served without any caching layer</button>
+      <button class="opt">Orders then need no database at all, only an in-memory cache</button>
+      <button class="opt">One strong primary absorbs writes, affording a saga per order</button>
+      <button class="opt">The courier location firehose can then skip Redis as well</button>
+      <button class="opt">Menus can then be served safely without any caching layer</button>
       <p class="fb">Because orders are rare compared to reads, the system can afford to spend more work per order (a saga with compensations) without threatening throughput.</p>
       <p class="hint">Look at the capacity box's second bullet on "Implication of ~1–2k order write QPS."</p>
     </div>
@@ -261,7 +261,7 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="food-delivery-menu-versioning-purpose">
       <p class="stem">Why does the data model version menus instead of always reading the latest?</p>
-      <button class="opt">A cart references prices at a menu version, so a mid-checkout edit can be detected and re-quoted, not silently mischarged</button>
+      <button class="opt">A cart pins prices to a version, so mid-checkout edits get re-quoted</button>
       <button class="opt">Versioning lets menus skip the CDN and read straight from Postgres</button>
       <button class="opt">Versioning is required by the courier location Redis TTL mechanism</button>
       <p class="fb">Versioning protects the customer from paying a stale or wrong price if the restaurant edits the menu between browse and checkout.</p>
@@ -269,10 +269,10 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="food-delivery-city-shard-key-why">
       <p class="stem">Why is city_id the shard key for orders and restaurants, rather than, say, customer_id?</p>
-      <button class="opt">customer_id would be simpler to implement but Postgres doesn't support it</button>
-      <button class="opt">city_id is required because couriers only exist in Redis, not Postgres</button>
-      <button class="opt">A delivery never crosses cities, so city-based sharding keeps a hot city's dinner-rush load contained without cross-shard queries</button>
-      <button class="opt">Sharding by city removes the need for an idempotency key on orders</button>
+      <button class="opt">customer_id would be simpler, but Postgres doesn't support it</button>
+      <button class="opt">city_id is needed because couriers exist only in Redis</button>
+      <button class="opt">Deliveries never cross cities, so a hot city's rush stays contained</button>
+      <button class="opt">Sharding by city removes the need for idempotency keys on orders</button>
       <p class="fb">Because every order, restaurant, and courier interaction is geographically local, city_id is a shard key with no cross-shard joins — a spike in one city never touches another's capacity.</p>
       <p class="hint">Look at the NFR table's "Per-city scalability" row for the stated reason.</p>
     </div>
@@ -335,18 +335,18 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="food-delivery-three-load-paths">
       <p class="stem">The HLD splits the system into which three paths?</p>
-      <button class="opt">Auth path, billing path, and analytics path</button>
-      <button class="opt">Read path (menus), order path (correctness), and location path (throughput)</button>
-      <button class="opt">Frontend path, backend path, and database path</button>
+      <button class="opt">Auth path, billing path and analytics path</button>
+      <button class="opt">Menus (read), orders (correct), locations (fast)</button>
+      <button class="opt">Frontend path, backend path and database path</button>
       <p class="fb">Each load profile — cacheable reads, low-volume-but-correct writes, and a high-throughput ping firehose — gets its own store and scaling strategy.</p>
       <p class="hint">Reread the High-Level Design intro paragraph, right after the component table heading.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="d" data-concept="food-delivery-connection-svc-decoupling">
       <p class="stem">What would break if the Connection Service (WebSocket relay) were merged directly into the Order Service instead of staying separate?</p>
-      <button class="opt">Nothing; WebSockets and order state changes have no relationship to each other</button>
-      <button class="opt">Menus would stop being cacheable at the CDN</button>
-      <button class="opt">The saga would no longer need compensations for restaurant rejection</button>
-      <button class="opt">Socket connections (many, long-lived, per-customer) couldn't scale independently of order-processing load, coupling two very different scaling needs</button>
+      <button class="opt">Nothing; WebSockets and order state changes are unrelated</button>
+      <button class="opt">Menus would stop being cacheable at the CDN edge</button>
+      <button class="opt">The saga would no longer need restaurant-reject compensations</button>
+      <button class="opt">Long-lived sockets couldn't scale apart from order processing</button>
       <p class="fb">Order processing and holding millions of live sockets scale on different axes; keeping them separate lets each scale out independently.</p>
       <p class="hint">Look at how the diagram and component table describe the Connection Service's role and store.</p>
     </div>
@@ -435,26 +435,26 @@
     <div class="q" data-correct="c" data-concept="food-delivery-dispatch-objective-reframe">
       <p class="stem">Per the staff-level signal, batched dispatch should assign couriers based on what, instead of order-placed time?</p>
       <button class="opt">Whichever courier has the highest customer rating</button>
-      <button class="opt">The courier who has been idle the longest, regardless of distance</button>
-      <button class="opt">The food's predicted ready time, so the courier arrives as it comes up</button>
+      <button class="opt">The courier idle the longest, regardless of distance</button>
+      <button class="opt">The food's predicted ready time, so they arrive in sync</button>
       <p class="fb">Timing assignment to predicted food-ready time minimizes both food-cold time and courier idle time — the real objective, not just proximity.</p>
       <p class="hint">Reread the staff-level signal box in Deep Dive 1.</p>
     </div>
     <div class="q" data-correct="d" data-concept="food-delivery-saga-vs-2pc">
       <p class="stem">Why can't the order flow use a single 2PC distributed transaction across payment, restaurant, and courier?</p>
-      <button class="opt">2PC is too slow for any system processing more than 100 requests per second</button>
-      <button class="opt">2PC only works for read-only operations, never writes</button>
-      <button class="opt">Redis doesn't support transactions of any kind</button>
-      <button class="opt">The external PSP and restaurant tablet are separate services/datastores that can't be enlisted into one cross-service lock</button>
+      <button class="opt">2PC is too slow for any system above 100 requests per second</button>
+      <button class="opt">2PC only works for read-only operations, never for writes</button>
+      <button class="opt">Redis doesn't support transactions of any kind at all</button>
+      <button class="opt">The PSP and restaurant tablet can't join one cross-service lock</button>
       <p class="fb">2PC requires all participants to join one transaction and hold locks; an external PSP and a restaurant's own systems can't participate that way.</p>
       <p class="hint">Reread the "One distributed (2PC) txn" row's verdict in Deep Dive 2's table.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="food-delivery-menu-invalidation-why-version-bump">
       <p class="stem">What would happen to a cached menu if item availability changed but the cache had no version-bump or overlay mechanism?</p>
-      <button class="opt">Customers could keep ordering a sold-out dish until the full TTL expired, since nothing would signal the cache to refresh sooner</button>
-      <button class="opt">The CDN would automatically detect the change and refresh within milliseconds regardless</button>
-      <button class="opt">The order service would reject all orders for that restaurant until the cache clears</button>
-      <button class="opt">Only the courier's geo index would need to be updated, not the menu cache</button>
+      <button class="opt">Sold-out dishes stay orderable until the full TTL expires</button>
+      <button class="opt">The CDN detects the change and refreshes in milliseconds anyway</button>
+      <button class="opt">Orders for that restaurant are rejected until the cache clears</button>
+      <button class="opt">Only the courier geo index needs updating, never the menu cache</button>
       <p class="fb">Without a version bump or a fast-changing availability overlay, staleness would let customers order items that are actually 86'd until the TTL naturally expires.</p>
       <p class="hint">Reread the "Invalidation" paragraph in Deep Dive 3 — what's the interview gotcha it names?</p>
     </div>
@@ -520,18 +520,18 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="food-delivery-authz-courier-location-restriction">
       <p class="stem">Per the Authentication &amp; Authorization table, what limits a courier's ability to update orders?</p>
-      <button class="opt">Couriers can update any order in their city, not just their own</button>
-      <button class="opt">Couriers may update only orders assigned to them, and only through allowed status transitions</button>
-      <button class="opt">Couriers authenticate the same way as support agents, via SSO and MFA</button>
+      <button class="opt">Couriers can update any order in their city, not just theirs</button>
+      <button class="opt">Only their assigned orders, via allowed status transitions</button>
+      <button class="opt">Couriers authenticate like support agents, via SSO and MFA</button>
       <p class="fb">Authorization restricts couriers to their own assigned orders and to legal state transitions, not arbitrary order mutation.</p>
       <p class="hint">Reread the "Courier → pings, offers, status updates" row.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="food-delivery-privacy-address-exposure-timing">
       <p class="stem">Why does the design reveal the exact delivery address to the courier only after pickup, not at order placement?</p>
-      <button class="opt">It minimizes the window in which a courier holds sensitive home-address PII, limiting exposure to only when it's operationally necessary</button>
+      <button class="opt">It shrinks the window a courier holds home-address PII to the need</button>
       <button class="opt">Restaurants would otherwise be unable to prepare the food correctly</button>
-      <button class="opt">The address is technically unavailable in the system until pickup occurs</button>
-      <button class="opt">It has no privacy purpose; it's purely a performance optimization for the geo index</button>
+      <button class="opt">The address is technically unavailable until pickup has occurred</button>
+      <button class="opt">It's purely a performance optimization for the geo index, not privacy</button>
       <p class="fb">This is data minimization: exposing PII (a home address) only for as long and to whom it's actually needed reduces the blast radius of any leak or misuse.</p>
       <p class="hint">Reread the Privacy section's "Exposure limits" sentence.</p>
     </div>
@@ -587,10 +587,10 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="food-delivery-10x-forces-redesign">
       <p class="stem">Why would multi-restaurant orders (grocery-style picking) force an actual architecture change rather than just scaling existing components?</p>
-      <button class="opt">They would require switching the entire orders table from Postgres to Redis</button>
-      <button class="opt">They break the single-restaurant saga's assumption and turn dispatch into a multi-stop routing problem, not just a bigger version of the current one</button>
+      <button class="opt">The whole orders table would have to move from Postgres to Redis</button>
+      <button class="opt">They break the one-restaurant saga and make dispatch multi-stop</button>
       <button class="opt">They would eliminate the need for a payment saga entirely</button>
-      <button class="opt">They only affect the menu caching layer, which already scales horizontally</button>
+      <button class="opt">They only affect menu caching, which already scales horizontally</button>
       <p class="fb">The current saga and dispatch model assume one restaurant per order; multiple restaurants per order changes the shape of the problem, not just its size.</p>
       <p class="hint">Reread "What forces a redesign" at the end of the 10× section.</p>
     </div>
@@ -602,6 +602,18 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Food delivery has three load profiles. Menus are read-mostly, versioned and served from CDN and Redis at ~50k QPS. Orders are a durable saga across payment, restaurant and courier with idempotent steps and compensations, orchestrated by a workflow engine. Courier locations are a firehose kept in an in-memory geo index. Dispatch buffers orders for a few seconds and solves a batched assignment for fleet efficiency, and customers track status and couriers over WebSockets. We shard by city, and at 10× we split dense cities.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="food-three-profiles">
+        <p class="stem">Why is food delivery described as three load profiles rather than one system?</p>
+        <button class="opt">Each profile is written in a different programming language</button>
+        <button class="opt">Each profile belongs to a different company's data center</button>
+        <button class="opt">Only one profile needs a database, the others are stateless</button>
+        <button class="opt">Menus, orders and pings need different consistency</button>
+        <p class="fb">Read-mostly cached menus, a durable saga for orders, and an in-memory location firehose — each designed for its own shape.</p>
+        <p class="hint">Compare how often each changes and how bad it is to lose one.</p>
+      </div>
+    </div>
   </section>
 
   <div class="ask">
@@ -655,19 +667,19 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="food-delivery-load-split-final">
         <p class="stem">If you merged menu reads, order writes, and courier location pings into a single relational store with one scaling strategy, what would break first?</p>
-        <button class="opt">The ~50k QPS of menu reads would overwhelm the primary that also needs to serialize correctness-critical order writes</button>
-        <button class="opt">Nothing, since all three load types have identical throughput and consistency needs</button>
+        <button class="opt">~50k QPS of menu reads swamp the primary serializing orders</button>
+        <button class="opt">Nothing, since all three loads have identical needs</button>
         <button class="opt">Courier GPS spoofing would become undetectable</button>
-        <button class="opt">The saga's compensating actions would no longer be necessary</button>
+        <button class="opt">The saga's compensations would no longer be needed</button>
         <p class="fb">Each load profile needs a different store: cacheable high-QPS reads, low-QPS strongly-consistent writes, and an ephemeral high-throughput firehose. Mixing them starves the correctness-critical path.</p>
         <p class="hint">Reread the High-Level Design section's opening paragraph on the three load profiles.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="food-delivery-city-shard-final">
         <p class="stem">What would happen to a citywide dinner-rush spike in NYC if the system sharded by customer_id instead of city_id?</p>
-        <button class="opt">It would have no effect since customer_id and city_id distribute load identically</button>
-        <button class="opt">NYC's spike would land across many shards holding customers from unrelated cities, so scaling NYC capacity would mean over-provisioning shards that also serve Chicago</button>
+        <button class="opt">No effect, since customer_id and city_id spread load identically</button>
+        <button class="opt">NYC's spike spreads over shards shared with unrelated cities</button>
         <button class="opt">It would only affect the menu CDN, not the orders database</button>
-        <button class="opt">Courier dispatch would become faster because more shards are touched</button>
+        <button class="opt">Dispatch would get faster, because more shards are touched</button>
         <p class="fb">City-based sharding keeps a geographically local spike contained to its own shard; customer-based sharding would smear that spike across shards that also serve unrelated cities.</p>
         <p class="hint">Reread the NFR table's "Per-city scalability" row and the Data Model's shard-key rationale.</p>
       </div>

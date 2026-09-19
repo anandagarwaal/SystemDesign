@@ -115,9 +115,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="zk-why-purpose-built-not-hand-rolled">
         <p class="stem">Why do teams reach for ZooKeeper/etcd instead of hand-rolling leader election themselves?</p>
-        <button class="opt">Because agreement under crashes and partitions is a genuinely hard problem, and these services solve it once behind a simple API</button>
-        <button class="opt">Because hand-rolled leader election is always faster, but illegal to ship in production</button>
-        <button class="opt">Because ZooKeeper and etcd remove the need for a network entirely</button>
+        <button class="opt">Agreement under crashes and partitions is hard; they solve it once</button>
+        <button class="opt">Hand-rolled election is faster but illegal to ship in production</button>
+        <button class="opt">ZooKeeper and etcd remove the need for any network at all</button>
         <p class="fb">The hard part is agreement under failure. These services solve it once and expose simple primitives (read, write, watch, ephemeral nodes) so no team has to re-derive consensus.</p>
         <p class="hint">What is the "genuinely hard part" the lesson says these services solve underneath the simple API?</p>
       </div>
@@ -149,9 +149,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="zk-why-ephemeral-enables-liveness">
         <p class="stem">Why does the ephemeral node design remove the need for a separate garbage collector to clean up dead nodes' registrations?</p>
-        <button class="opt">Because ZooKeeper stores all data purely in memory, so nothing ever needs cleanup</button>
-        <button class="opt">Because deletion is tied directly to session death, so a crash automatically and immediately removes the stale entry</button>
-        <button class="opt">Because clients are required to poll every registration once per second to confirm liveness</button>
+        <button class="opt">ZooKeeper keeps all data in memory, so nothing needs any cleanup</button>
+        <button class="opt">Deletion is tied to session death, so crashes clean up at once</button>
+        <button class="opt">Clients must poll every registration each second to prove liveness</button>
         <p class="fb">Ephemeral nodes bind data lifetime to session lifetime. The cluster deletes the node the instant the session is declared dead, which is liveness detection and cleanup in one mechanism.</p>
         <p class="hint">What does the lesson call this behavior, and what problem does it replace?</p>
       </div>
@@ -224,24 +224,24 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="b" data-concept="zk-why-clusters-stay-small">
         <p class="stem">Why are ZooKeeper and etcd clusters kept to 3 or 5 nodes instead of scaled out wide?</p>
-        <button class="opt">More nodes always raise the cluster's overall write throughput</button>
-        <button class="opt">Every write needs a quorum, so more nodes mean slower commits, not more capacity</button>
-        <button class="opt">The underlying runtimes hard-cap membership at five nodes</button>
+        <button class="opt">More nodes always raise the cluster's write throughput</button>
+        <button class="opt">Each write needs a quorum, so more nodes slow commits</button>
+        <button class="opt">The runtimes hard-cap cluster membership at five nodes</button>
         <p class="fb">Adding nodes adds more round-trips to reach a quorum on every write, which raises latency without adding write capacity.</p>
         <p class="hint">What does every write have to wait on, and what happens to that wait as node count grows?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="zk-why-lock-recipe-needs-ephemeral">
         <p class="stem">In the distributed lock recipe, why must the lock node specifically be ephemeral rather than a plain persistent node?</p>
-        <button class="opt">So the lock is automatically released if the holder crashes, instead of freezing the system with an orphaned lock forever</button>
-        <button class="opt">So the lock node gets a smaller storage footprint on disk than a persistent node would</button>
-        <button class="opt">So multiple clients can hold the exact same lock simultaneously without conflict</button>
+        <button class="opt">A crashed holder's lock frees itself instead of orphaning forever</button>
+        <button class="opt">Ephemeral nodes use a smaller on-disk footprint than persistent ones</button>
+        <button class="opt">Several clients can then hold the same lock at once without conflict</button>
         <p class="fb">A persistent lock node would survive its holder's crash and block everyone forever. Tying it to the holder's session means the lock releases automatically on crash.</p>
         <p class="hint">What would happen to a lock held by a node that crashed, if the lock node were not tied to a session?</p>
       </div>
     </div>
   </section>
 
-  <section class="chunk" id="chunk-final">
+  <section class="chunk" id="chunk-final" hidden>
     <p class="chunk-label">5 of 5 — comprehensive check</p>
     <h2>When NOT to use it, and how this shows up in the interview</h2>
     <table>
@@ -283,17 +283,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="zk-why-not-a-database-final">
         <p class="stem">A team proposes storing all user session data (millions of rows, frequent writes) in their existing etcd cluster instead of adding Redis. What breaks?</p>
-        <button class="opt">Nothing breaks, etcd scales writes the same way a normal database does</button>
-        <button class="opt">The high write volume saturates the quorum commit path, and the coordination features (leader election, config) that the rest of the system depends on for liveness start failing too</button>
-        <button class="opt">etcd would simply reject the writes with no other effect on the cluster</button>
+        <button class="opt">Nothing — etcd scales writes just as a normal database does</button>
+        <button class="opt">Session writes saturate the quorum, and coordination fails too</button>
+        <button class="opt">etcd would simply reject the writes, with no other side effect</button>
         <p class="fb">Coordination clusters are sized and tuned for small, hot metadata. Loading bulk data onto the same quorum write path slows or destabilizes the coordination duties everything else relies on.</p>
         <p class="hint">Reread the anti-pattern box: what specifically gets saturated, and what else depends on that same path?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="zk-watch-vs-polling-tradeoff-final">
         <p class="stem">Why do watches scale better than polling for a cluster of a thousand nodes checking "did the leader change"?</p>
-        <button class="opt">Watches use a completely different, non-quorum write path that skips consensus</button>
-        <button class="opt">Watches are stored on the client instead of the server, so the server does no work</button>
-        <button class="opt">Polling means every node repeatedly asks the cluster the same question, while a watch lets the server push one notification only when the value actually changes</button>
+        <button class="opt">Watches use a separate, non-quorum write path that skips consensus</button>
+        <button class="opt">Watches live on the client, so the server does no work for them</button>
+        <button class="opt">Polling repeats the question; a watch pushes once on change</button>
         <p class="fb">Polling costs a request per node per interval regardless of whether anything changed. A watch shifts the cost to a single push, only on an actual change.</p>
         <p class="hint">Reread what a watch replaces and why constant polling from many nodes is wasteful.</p>
       </div>

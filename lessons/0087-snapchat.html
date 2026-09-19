@@ -153,9 +153,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="snapchat-ephemerality-why">
       <p class="stem">Why does the ephemerality NFR force a TTL/lifecycle engine on every store, rather than just an app-level delete button?</p>
-      <button class="opt">The system must guarantee deletion on a deadline even if a worker crashes, so expiry has to be a property of the data itself, not just an action a service might forget to take</button>
-      <button class="opt">TTLs are required because DynamoDB cannot delete rows through a normal API call</button>
-      <button class="opt">A lifecycle engine is only needed to make story reads faster, not for correctness</button>
+      <button class="opt">Deletion must happen on deadline even if a worker crashes</button>
+      <button class="opt">DynamoDB can't delete rows through a normal API call</button>
+      <button class="opt">It's only needed to make story reads faster, not correct</button>
       <p class="fb">Deletion here is a correctness guarantee with a deadline, not a convenience feature — so every row and blob needs its own expiry as a durable fallback.</p>
       <p class="hint">Reread the NFR table row on Ephemerality and its "Why it shapes the design" column.</p>
     </div>
@@ -188,9 +188,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="c" data-concept="snapchat-storage-flow-why">
       <p class="stem">Why is resident storage only a few PB despite ~10 PB/day of uploads?</p>
-      <button class="opt">Because media is compressed so heavily it shrinks by three orders of magnitude</button>
-      <button class="opt">Because most snaps are never actually delivered to any recipient</button>
-      <button class="opt">Because TTL-driven deletion means storage is a flow, not a stock — bytes leave nearly as fast as they arrive</button>
+      <button class="opt">Media compresses so hard it shrinks by three orders of magnitude</button>
+      <button class="opt">Most snaps are never actually delivered to any recipient at all</button>
+      <button class="opt">TTL deletion makes storage a flow — bytes leave as fast as they come</button>
       <p class="fb">Ephemerality bounds resident storage to roughly one day of unopened snaps plus one day of stories, regardless of cumulative upload volume.</p>
       <p class="hint">Reread the "This is the design-changing number" bullet in capacity estimation.</p>
     </div>
@@ -239,13 +239,22 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="snapchat-per-recipient-row-recall">
       <p class="stem">Why does each recipient get its own inbox row instead of one shared row per snap?</p>
-      <button class="opt">Each recipient views independently, so per-recipient state lets deletion happen per recipient and the shared blob purge only after the last one is done</button>
-      <button class="opt">A shared row would exceed the maximum item size supported by DynamoDB</button>
-      <button class="opt">Per-recipient rows are required so the CDN can cache each recipient's copy separately</button>
+      <button class="opt">Recipients view independently; purge the blob after the last one</button>
+      <button class="opt">A shared row would exceed DynamoDB's maximum item size</button>
+      <button class="opt">Per-recipient rows let the CDN cache each recipient's copy</button>
       <p class="fb">Since recipients view at different times, tracking view/deletion state per recipient lets the system know exactly when it's safe to purge the shared blob.</p>
       <p class="hint">Reread the pushback box right after the data model table.</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="c" data-concept="snap-born-with-expiry">
+        <p class="stem">Why is every row and blob 'born with an expiry' instead of deleted by a cleanup job?</p>
+        <button class="opt">Cleanup jobs can't delete blobs from object storage</button>
+        <button class="opt">Expiry makes snaps load faster from the CDN edge</button>
+        <button class="opt">Storage guarantees deletion even if some job fails</button>
+        <button class="opt">Regulators require that all data have a TTL field</button>
+        <p class="fb">Native TTL and lifecycle rules make ephemerality a property of the data, not a job that can lag or crash — the product's core promise.</p>
+        <p class="hint">What happens to 'ephemeral' snaps if the cleanup job is down for a week?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-4" hidden>
@@ -289,10 +298,10 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="b" data-concept="snapchat-no-proxy-why">
       <p class="stem">Why does media never pass through app servers on either upload or view?</p>
-      <button class="opt">App servers are physically incapable of handling binary payloads over HTTP</button>
-      <button class="opt">Proxying large media bytes through a tier meant to stay thin wastes CPU, memory, and bandwidth for no benefit</button>
-      <button class="opt">Blob stores reject any upload that did not originate from a CDN edge node</button>
-      <button class="opt">The metadata store cannot coexist in the same data center as a blob store</button>
+      <button class="opt">App servers physically can't handle binary payloads over HTTP</button>
+      <button class="opt">Proxying big media through a thin tier wastes CPU and bandwidth</button>
+      <button class="opt">Blob stores reject any upload that didn't come via a CDN edge</button>
+      <button class="opt">The metadata store can't share a datacenter with a blob store</button>
       <p class="fb">Presigned uploads and CDN-served views keep the app tier handling only small metadata, which is the whole point of separating control plane from data plane.</p>
       <p class="hint">Reread the pushback box right after the HLD section.</p>
     </div>
@@ -381,17 +390,17 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="snapchat-true-deletion-why">
       <p class="stem">Why can't the system honestly claim a snap is "gone from the universe" the instant it's viewed?</p>
-      <button class="opt">Copies can persist in CDN edge caches briefly and on a recipient's device via screenshots, which the server cannot reach or erase</button>
-      <button class="opt">The metadata store's TTL feature is unreliable and frequently fails to fire on schedule</button>
-      <button class="opt">Blob stores never actually delete an object, only mark it as hidden from listings</button>
+      <button class="opt">CDN caches and recipients' screenshots can outlive the delete</button>
+      <button class="opt">The metadata store's TTL often fails to fire on schedule</button>
+      <button class="opt">Blob stores never delete objects, only hide them from lists</button>
       <p class="fb">Deletion guarantees only extend to systems you control. CDN caches expire on a short window, and client-side copies or screenshots can only be discouraged and detected, not prevented.</p>
       <p class="hint">Reread Deep Dive 2's table on where copies can survive.</p>
     </div>
     <div class="q" data-correct="c" data-concept="snapchat-alt-approach-pick">
       <p class="stem">Per the alternatives table, when would peer-to-peer delivery (approach C) fit better than the chosen server-mediated design (A)?</p>
-      <button class="opt">Consumer ephemeral messaging at Snapchat's scale with offline recipient support</button>
+      <button class="opt">Consumer messaging at Snapchat scale with offline recipients</button>
       <button class="opt">A privacy-first product like Signal's disappearing messages</button>
-      <button class="opt">Live, synchronous sharing only, where both parties are online at once</button>
+      <button class="opt">Live, synchronous sharing only, with both parties online</button>
       <p class="fb">P2P delivery drops all server storage but requires both parties online simultaneously and doesn't support stories — a narrow fit for live sharing only.</p>
       <p class="hint">Check approach C's "Pick it when" column.</p>
     </div>
@@ -458,10 +467,10 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="b" data-concept="snapchat-retention-audit-why">
       <p class="stem">Why does the monitoring plan include a retention audit that scans for content past its expiry, rather than trusting the deletion pipeline's own success metrics?</p>
-      <button class="opt">Retention audits are cheaper to run than tracking deletion queue lag</button>
-      <button class="opt">Ephemerality is a privacy promise to users, so the system must independently prove the guarantee holds rather than just assume the pipeline worked</button>
-      <button class="opt">Audits are required because the blob store does not support TTL-based expiry natively</button>
-      <button class="opt">The deletion pipeline cannot emit any metrics about its own success or failure</button>
+      <button class="opt">Retention audits are cheaper than tracking deletion queue lag</button>
+      <button class="opt">It's a privacy promise, so prove it independently, don't assume it</button>
+      <button class="opt">The blob store doesn't support TTL-based expiry natively</button>
+      <button class="opt">The deletion pipeline can't emit any metrics about itself</button>
       <p class="fb">A pipeline can silently fail. Independently auditing for objects that outlived their expiry catches privacy incidents the pipeline's own metrics might miss.</p>
       <p class="hint">Reread the Observability table's "Retention audit" row.</p>
     </div>
@@ -547,9 +556,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="snapchat-whole-lesson-why">
       <p class="stem">If the passive TTL mechanism were removed and only active "delete on view" remained, what new risk would this introduce?</p>
-      <button class="opt">An unopened snap whose recipient never views it, or a crashed reaper, would leave the blob and metadata retained indefinitely with no fallback</button>
+      <button class="opt">Unviewed snaps or a crashed reaper would keep data forever</button>
       <button class="opt">The CDN would no longer be able to cache any media at all</button>
-      <button class="opt">Read receipts would stop being delivered to the sender on view</button>
+      <button class="opt">Read receipts would stop reaching the sender on view</button>
       <p class="fb">Active deletion alone has no safety net. Passive TTL is what guarantees the worst case is delayed deletion, not permanent retention — removing it breaks the ephemerality NFR's core guarantee.</p>
       <p class="hint">Think about what happens to an unopened snap or a delete worker that never runs, absent any TTL fallback.</p>
     </div>

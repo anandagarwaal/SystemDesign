@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spaced Review — System Design</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink); font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:760px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.72rem; letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.3rem; line-height:1.1; margin:0 0 .4rem;}
+  h2{font-size:1.3rem; margin:2.2rem 0 .4rem; border-bottom:1px solid var(--rule); padding-bottom:.3rem;}
+  .sub{color:var(--muted); font-style:italic; margin:0 0 1.6rem;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.2rem 0; font-size:.93rem;}
+  .tabs{display:flex; flex-wrap:wrap; gap:.4rem; margin:1.5rem 0 1rem; font-family:-apple-system,sans-serif;}
+  .tab{border:1px solid var(--rule); background:#fff; border-radius:20px; padding:.4rem .9rem; font-size:.85rem; cursor:pointer; color:var(--ink);}
+  .tab.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .tab .n{display:inline-block; min-width:1.3rem; margin-left:.3rem; padding:0 .35rem; border-radius:10px; background:var(--accent-soft); color:var(--accent); font-size:.72rem; font-weight:700; text-align:center;}
+  .tab.on .n{background:#fff;}
+  .panel{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.92rem;}
+  .panel p{margin:.5rem 0;}
+  .controls{display:flex; flex-wrap:wrap; gap:.6rem; align-items:center; margin:.8rem 0;}
+  select,button.go{font:inherit; font-size:.88rem; padding:.45rem .7rem; border:1px solid var(--rule); border-radius:6px; background:#fff;}
+  button.go{background:var(--staff); border-color:var(--staff); color:#fff; cursor:pointer; font-weight:600;}
+  button.go:disabled{opacity:.5; cursor:default;}
+  .card{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1rem 0;}
+  .meta{font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:0 0 .5rem;}
+  .meta .why{color:var(--staff); font-weight:700;}
+  .stem{font-weight:600; margin:0 0 .7rem; font-size:.97rem;}
+  .stem code, .opt code, .fb code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.05rem .3rem; border-radius:3px;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px; padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font:inherit; font-size:.9rem;}
+  .opt:hover{border-color:var(--accent);}
+  .opt:disabled{cursor:default;}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{display:none; margin:.7rem 0 0; color:var(--muted); font-size:.87rem;}
+  .fb.show{display:block;}
+  .fb .back{display:block; margin-top:.4rem; font-size:.8rem;}
+  .next{display:none; margin-top:.9rem;}
+  .next.show{display:inline-block;}
+  .progress{height:6px; background:var(--accent-soft); border-radius:3px; overflow:hidden; margin:.6rem 0 0;}
+  .progress i{display:block; height:100%; background:var(--staff); width:0; transition:width .2s;}
+  table{border-collapse:collapse; width:100%; margin:.8rem 0; font-size:.85rem;}
+  th,td{text-align:left; padding:.4rem .5rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .pass{color:var(--staff); font-weight:700;} .fail{color:var(--accent); font-weight:700;}
+  textarea{width:100%; font-family:"SF Mono",Menlo,monospace; font-size:.78rem; padding:.6rem; border:1px solid var(--rule); border-radius:6px; background:#fbf9f4;}
+  .muted{color:var(--muted);}
+  footer{margin-top:3rem; padding-top:1rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Practice</p>
+  <h1>Spaced Review</h1>
+  <p class="sub">Start every session here. Retrieval on a forgetting-curve schedule, cumulative section exams, and a drill on whatever you keep missing.</p>
+
+  <div class="mission">
+    <b>How this works.</b> Every question you answer in a lesson is scheduled for review: a miss
+    comes back the next day; a first-try correct comes back after 1 day, then 3, then growing gaps. Here, only your
+    <b>first answer counts</b> and options are shuffled, so you have to recall the idea, not the letter.
+    About half the questions are <b>intuition</b> questions ("why", "what breaks if", "picture it"). On those you
+    <b>write your answer in your own words first</b>; the options unlock only after you commit. If you only remember the
+    steps, those are the ones you'll miss, and what you wrote goes into the report so your teacher can find the gap.
+  </div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab" data-mode="today">Today's review <span class="n" id="n-today">0</span></button>
+    <button class="tab" data-mode="exam">Section exam</button>
+    <button class="tab" data-mode="weak">Weak spots <span class="n" id="n-weak">0</span></button>
+    <button class="tab" data-mode="drill">Interleaved drill</button>
+    <button class="tab" data-mode="report">Report for your teacher</button>
+  </div>
+
+  <div class="panel" id="panel"></div>
+  <div id="stage"></div>
+
+  <footer>
+    Scheduling is SM-2-lite in <code>reference/mastery.js</code>. Your progress lives in this browser's localStorage,
+    so use the <b>Report</b> tab to hand results to your teacher in the chat.
+    Question bank: <code>reference/question-bank.js</code> (rebuild with <code>python3 tools/build_question_bank.py</code>).
+  </footer>
+</div>
+
+<script src="question-bank.js"></script>
+<script src="mastery.js"></script>
+<script>
+(function(){
+  var BANK = window.SD_BANK;
+  var byId = {};
+  BANK.questions.forEach(function(q){ byId[q.id] = q; });
+  var EXAMS_KEY = 'sd-exams-v1', SESSIONS_KEY = 'sd-sessions-v1';
+  var PASS = 0.85;
+
+  var panel = document.getElementById('panel'), stage = document.getElementById('stage');
+  var session = null; // { mode, label, deck, pos, results: [] }
+
+  function shuffle(a){ a = a.slice(); for (var i = a.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+  function loadJSON(k, d){ try { return JSON.parse(localStorage.getItem(k) || JSON.stringify(d)); } catch(e){ return d; } }
+  function saveJSON(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  function lessonTitle(f){ return BANK.lessons[f] || f; }
+  function completed(){ return SDMastery.loadProgress().map(function(k){ return k.replace('lessons/', ''); }); }
+
+  // Interleave: never two questions from the same lesson back to back when avoidable.
+  function interleave(qs){
+    var groups = {};
+    shuffle(qs).forEach(function(q){ (groups[q.lesson] = groups[q.lesson] || []).push(q); });
+    var out = [], keys = Object.keys(groups), last = null;
+    while (out.length < qs.length){
+      keys.sort(function(a, b){ return groups[b].length - groups[a].length; });
+      var k = keys.find(function(x){ return groups[x].length && x !== last; }) || keys.find(function(x){ return groups[x].length; });
+      out.push(groups[k].shift()); last = k;
+    }
+    return out;
+  }
+
+  function dueQuestions(){ return SDMastery.due().map(function(id){ return byId[id]; }).filter(Boolean); }
+  function weakQuestions(){ return SDMastery.weak().map(function(id){ return byId[id]; }).filter(Boolean); }
+
+  function refreshCounts(){
+    document.getElementById('n-today').textContent = dueQuestions().length;
+    document.getElementById('n-weak').textContent = weakQuestions().length;
+  }
+
+  // ---------- panels ----------
+  function showMode(mode){
+    Array.prototype.forEach.call(document.querySelectorAll('.tab'), function(t){ t.classList.toggle('on', t.dataset.mode === mode); });
+    stage.innerHTML = '';
+    if (history.replaceState) history.replaceState(null, '', '#' + mode);
+    ({ today: panelToday, exam: panelExam, weak: panelWeak, drill: panelDrill, report: panelReport }[mode] || panelToday)();
+  }
+
+  function panelToday(){
+    var due = dueQuestions();
+    var intu = due.filter(function(q){ return q.intuition; }).length;
+    if (!due.length){
+      var any = Object.keys(SDMastery.loadAll()).length;
+      panel.innerHTML = any
+        ? '<p><b>Nothing is due right now.</b> Your schedule is clear; that is the forgetting curve doing its job. Continue with a new lesson, or take a section exam if you just finished a section.</p>'
+        : '<p><b>No history yet.</b> Start with the <a href="../lessons/0000-prereq-diagnostic.html">prerequisite diagnostic</a>, then Lesson 01. Every question you answer there lands on this schedule.</p>';
+      return;
+    }
+    panel.innerHTML = '<p><b>' + due.length + '</b> question' + (due.length > 1 ? 's are' : ' is') + ' due (' + intu + ' intuition), most overdue first. ' +
+      'Do these <b>before</b> any new lesson. Retrieving them just as they start to fade is what makes them stick.</p>' +
+      '<div class="controls"><label>Session size <select id="cap"><option value="15">15</option><option value="30" selected>30</option><option value="0">All due</option></select></label>' +
+      '<button class="go" id="go">Start review</button></div>';
+    document.getElementById('go').onclick = function(){
+      var cap = +document.getElementById('cap').value;
+      var deck = cap ? due.slice(0, cap) : due; // most overdue first, then interleave within the session
+      start('today', "Today's review", interleave(deck));
+    };
+  }
+
+  function panelExam(){
+    var done = completed();
+    var exams = loadJSON(EXAMS_KEY, {});
+    var opts = BANK.sections.map(function(s, i){
+      var have = s.lessons.filter(function(l){ return done.indexOf(l) !== -1; }).length;
+      var last = exams[s.name];
+      var tag = last ? ' · last ' + Math.round(100 * last.score) + '%' + (last.score >= PASS ? ' ✓' : '') : '';
+      return '<option value="' + i + '">' + s.name + ' (' + have + '/' + s.lessons.length + ' lessons done' + tag + ')</option>';
+    }).join('');
+    panel.innerHTML = '<p>At the end of a section, prove you can pull <b>all</b> of it back at once, mixed together, with no lesson context to cue you. ' +
+      'The exam samples every lesson in the section, weighted toward final-check and intuition questions. Pass mark: <b>' + Math.round(PASS * 100) + '%</b>. ' +
+      'Below that, revisit the lessons it flags and retake it in a day or two.</p>' +
+      '<div class="controls"><select id="sec">' + opts + '</select>' +
+      '<label>Questions <select id="qn"><option>15</option><option selected>25</option><option>40</option></select></label>' +
+      '<label><input type="checkbox" id="onlydone" checked> only lessons I’ve completed</label>' +
+      '<button class="go" id="go">Start exam</button></div><p class="muted" id="exnote"></p>';
+    document.getElementById('go').onclick = function(){
+      var sec = BANK.sections[+document.getElementById('sec').value];
+      var n = +document.getElementById('qn').value;
+      var lessons = sec.lessons;
+      if (document.getElementById('onlydone').checked) lessons = lessons.filter(function(l){ return done.indexOf(l) !== -1; });
+      if (!lessons.length){ document.getElementById('exnote').textContent = 'You haven’t completed any lessons in this section yet. Finish them first, or untick the box.'; return; }
+      start('exam', sec.name, buildExam(lessons, n), { section: sec.name, lessons: lessons });
+    };
+  }
+
+  // Round-robin across lessons so every lesson is represented; prefer final/intuition questions.
+  function buildExam(lessons, n){
+    var pools = lessons.map(function(l){
+      var qs = BANK.questions.filter(function(q){ return q.lesson === l; });
+      var pri = shuffle(qs.filter(function(q){ return q.final || q.intuition; }));
+      var rest = shuffle(qs.filter(function(q){ return !(q.final || q.intuition); }));
+      return pri.concat(rest);
+    }).filter(function(p){ return p.length; });
+    var out = [];
+    while (out.length < n && pools.some(function(p){ return p.length; })){
+      shuffle(pools).forEach(function(p){ if (p.length && out.length < n) out.push(p.shift()); });
+    }
+    return interleave(out);
+  }
+
+  function panelWeak(){
+    var w = weakQuestions();
+    if (!w.length){ panel.innerHTML = '<p>No weak spots on record. A question lands here when you miss it, and leaves once you have recalled it correctly on schedule for a few days.</p>'; return; }
+    panel.innerHTML = '<p><b>' + w.length + '</b> concept' + (w.length > 1 ? 's' : '') + ' you’ve missed and haven’t yet re-learned. ' +
+      'If the same one keeps failing, don’t just re-drill it. Reopen the lesson chunk and ask your teacher for the intuition behind it.</p>' +
+      '<div class="controls"><button class="go" id="go">Drill weak spots</button></div>';
+    document.getElementById('go').onclick = function(){ start('weak', 'Weak spots', interleave(w.slice(0, 30))); };
+  }
+
+  function panelDrill(){
+    var done = completed();
+    panel.innerHTML = '<p>Random, interleaved questions across lessons. Mixing topics forces you to first work out <i>which</i> idea applies, which is the skill an interview actually tests.</p>' +
+      '<div class="controls"><select id="src"><option value="done">Lessons I’ve completed (' + done.length + ')</option><option value="all">Whole course</option></select>' +
+      '<select id="kind"><option value="all">All questions</option><option value="intuition">Intuition only</option></select>' +
+      '<label>Questions <select id="qn"><option>10</option><option selected>25</option><option>50</option></select></label>' +
+      '<button class="go" id="go">Start drill</button></div><p class="muted" id="dnote"></p>';
+    document.getElementById('go').onclick = function(){
+      var pool = BANK.questions;
+      if (document.getElementById('src').value === 'done') pool = pool.filter(function(q){ return done.indexOf(q.lesson) !== -1; });
+      if (document.getElementById('kind').value === 'intuition') pool = pool.filter(function(q){ return q.intuition; });
+      if (!pool.length){ document.getElementById('dnote').textContent = 'No questions match. Complete a lesson first, or pick "Whole course".'; return; }
+      start('drill', 'Interleaved drill', interleave(shuffle(pool).slice(0, +document.getElementById('qn').value)));
+    };
+  }
+
+  function panelReport(){
+    var recent = loadJSON(SESSIONS_KEY, []).filter(function(x){ return Date.now() - x.when < 7 * 86400000; });
+    var exams = loadJSON(EXAMS_KEY, {});
+    var diag = loadJSON('sd-diagnostic-v1', null);
+    var state = SDMastery.loadAll();
+    var ids = Object.keys(state);
+    var lines = [];
+    lines.push('System Design progress report, ' + new Date().toISOString().slice(0, 10));
+    lines.push('Lessons completed: ' + completed().length + '. Concepts on schedule: ' + ids.length + '. Due now: ' + dueQuestions().length + '.');
+    if (diag) lines.push('Diagnostic: ' + diag.score + '/' + diag.total + (diag.gaps.length ? ', gaps: ' + diag.gaps.join(', ') : ', no gaps') + '.');
+    var ex = Object.keys(exams);
+    if (ex.length) lines.push('Section exams: ' + ex.map(function(k){ return k + ' ' + Math.round(100 * exams[k].score) + '% (' + new Date(exams[k].when).toISOString().slice(0, 10) + ')'; }).join('; ') + '.');
+    if (recent.length){
+      lines.push('Sessions in the last 7 days: ' + recent.map(function(x){ return x.label + ' ' + x.right + '/' + x.total + ' (' + new Date(x.when).toISOString().slice(0, 10) + ')'; }).join('; ') + '.');
+      var seen = {}, missed = [];
+      recent.forEach(function(x){ x.missed.forEach(function(m){ if (!seen[m.id]){ seen[m.id] = 1; missed.push(m); } }); });
+      if (missed.length){
+        lines.push('Missed recently:');
+        var answers = SDMastery.loadAnswers();
+        missed.slice(0, 25).forEach(function(m){
+          lines.push('- [' + (m.intuition ? 'intuition' : 'recall') + '] ' + m.lesson + ': ' + m.stem);
+          if (answers[m.id] && !answers[m.id].correct) lines.push('    my own words: "' + answers[m.id].text.replace(/\s+/g, ' ') + '"');
+        });
+      }
+    }
+    var weak = weakQuestions().slice(0, 15);
+    if (weak.length){
+      lines.push('Weak concepts (missed, not yet re-learned):');
+      weak.forEach(function(q){ lines.push('- ' + q.id + ' (' + q.lesson + ', lapses ' + state[q.id].lapses + ')'); });
+    }
+    lines.push('Please quiz me in the chat on the weak and missed items above, intuition first, before any new material. Where I wrote my own words, diagnose the misconception in them.');
+    panel.innerHTML = '<p>Your schedule lives in this browser, so your teacher in the chat can’t see it. Paste this at the start of a session and the chat review targets exactly what you missed.</p>' +
+      '<textarea id="rep" rows="14" readonly></textarea><div class="controls"><button class="go" id="copy">Copy report</button><span class="muted" id="copied"></span></div>';
+    var ta = document.getElementById('rep');
+    ta.value = lines.join('\n').replace(/<[^>]+>/g, '');
+    document.getElementById('copy').onclick = function(){
+      ta.select();
+      (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).then(
+        function(){ document.getElementById('copied').textContent = 'Copied.'; },
+        function(){ document.execCommand('copy'); document.getElementById('copied').textContent = 'Copied.'; });
+    };
+  }
+
+  // ---------- running a session ----------
+  function start(mode, label, deck, extra){
+    session = { mode: mode, label: label, deck: deck, pos: 0, results: [], extra: extra || {} };
+    panel.innerHTML = '<p class="muted">' + label + ': ' + deck.length + ' questions. First answer counts.</p><div class="progress"><i id="bar"></i></div>';
+    render();
+  }
+
+  function render(){
+    if (session.pos >= session.deck.length) return finish();
+    var q = session.deck[session.pos];
+    document.getElementById('bar').style.width = Math.round(100 * session.pos / session.deck.length) + '%';
+    var order = shuffle(q.opts.map(function(_, i){ return i; }));
+    var st = SDMastery.status(q.id);
+    var why = session.mode === 'today' && st ? (st.lapses ? 'missed before' : 'due after ' + st.interval + 'd') : '';
+    var html = '<div class="card"><p class="meta">' + (session.pos + 1) + ' / ' + session.deck.length + ' · ' +
+      (q.intuition ? '<span class="why">intuition</span> · ' : '') + (why ? why + ' · ' : '') + lessonTitle(q.lesson) + '</p>' +
+      '<p class="stem">' + q.stem + '</p>';
+    order.forEach(function(i){ html += '<button class="opt" data-i="' + i + '">' + q.opts[i] + '</button>'; });
+    html += '<div class="fb"></div><button class="go next">Next →</button></div>';
+    stage.innerHTML = html;
+    var opts = stage.querySelectorAll('.opt'), fb = stage.querySelector('.fb'), next = stage.querySelector('.next');
+    var written = null;
+    if (q.intuition){
+      SDMastery.injectStyle();
+      SDMastery.commitFirst(stage.querySelector('.card'), opts[0], Array.prototype.slice.call(opts), function(t){ written = t; });
+    }
+    Array.prototype.forEach.call(opts, function(b){
+      b.onclick = function(){
+        var right = +b.dataset.i === q.correct;
+        if (written !== null) SDMastery.saveAnswer(q.id, written, right);
+        Array.prototype.forEach.call(opts, function(o){ o.disabled = true; if (+o.dataset.i === q.correct) o.classList.add('correct'); });
+        if (!right) b.classList.add('wrong');
+        SDMastery.review(q.id, right ? 1 : 0);
+        session.results.push({ q: q, right: right });
+        fb.innerHTML = (right ? '' : '<b>Not quite.</b> ') + q.fb +
+          (right ? '' : (q.hint ? '<br><i>' + q.hint + '</i>' : '')) +
+          '<a class="back" href="../lessons/' + q.lesson + '">↗ ' + lessonTitle(q.lesson) + '</a>';
+        fb.classList.add('show'); next.classList.add('show'); next.focus();
+      };
+    });
+    next.onclick = function(){ session.pos++; render(); };
+  }
+
+  function finish(){
+    document.getElementById('bar').style.width = '100%';
+    var r = session.results, right = r.filter(function(x){ return x.right; }).length, total = r.length;
+    var score = total ? right / total : 0;
+    var missed = r.filter(function(x){ return !x.right; }).map(function(x){ return { id: x.q.id, lesson: x.q.lesson, stem: x.q.stem.replace(/<[^>]+>/g, ''), intuition: x.q.intuition }; });
+    var hist = loadJSON(SESSIONS_KEY, []);
+    hist.push({ label: session.label, when: Date.now(), right: right, total: total, missed: missed });
+    saveJSON(SESSIONS_KEY, hist.slice(-20));
+
+    var intuR = r.filter(function(x){ return x.q.intuition; }), recR = r.filter(function(x){ return !x.q.intuition; });
+    function pct(a){ return a.length ? Math.round(100 * a.filter(function(x){ return x.right; }).length / a.length) + '%' : '—'; }
+    var html = '<div class="card"><p class="meta">' + session.label + ' · done</p>' +
+      '<p style="font-size:1.6rem; font-weight:700; margin:.2rem 0;">' + right + ' / ' + total + ' (' + Math.round(100 * score) + '%)</p>' +
+      '<p>Recall ' + pct(recR) + ' · Intuition ' + pct(intuR) + '</p>';
+    if (intuR.length && recR.length && pct(intuR) !== '—' && parseInt(pct(intuR)) + 15 < parseInt(pct(recR)))
+      html += '<p class="fail">Intuition is well behind recall: you know the steps but not always why. Take the missed intuition questions to your teacher and ask for the picture behind each.</p>';
+
+    if (session.mode === 'exam'){
+      var exams = loadJSON(EXAMS_KEY, {});
+      exams[session.extra.section] = { score: score, when: Date.now(), total: total };
+      saveJSON(EXAMS_KEY, exams);
+      var perLesson = {};
+      r.forEach(function(x){ var p = perLesson[x.q.lesson] = perLesson[x.q.lesson] || { r: 0, n: 0 }; p.n++; if (x.right) p.r++; });
+      html += '<p class="' + (score >= PASS ? 'pass' : 'fail') + '">' + (score >= PASS ? 'Section passed. It stays on the review schedule from here.' :
+        'Below ' + Math.round(PASS * 100) + '%. Revisit the lessons marked below, then retake in a day or two. Don’t just re-read: redo their checks.') + '</p>';
+      html += '<table><tr><th>Lesson</th><th>Score</th></tr>' + Object.keys(perLesson).map(function(l){
+        var p = perLesson[l]; var ok = p.r === p.n;
+        return '<tr><td><a href="../lessons/' + l + '">' + lessonTitle(l) + '</a></td><td class="' + (ok ? 'pass' : 'fail') + '">' + p.r + '/' + p.n + '</td></tr>';
+      }).join('') + '</table>';
+    }
+    if (missed.length){
+      html += '<p><b>Missed</b> (scheduled for tomorrow):</p><ul>' + missed.map(function(m){
+        return '<li>' + (m.intuition ? '<span class="why" style="color:var(--staff)">intuition</span> · ' : '') + m.stem + ' <a href="../lessons/' + m.lesson + '">↗</a></li>';
+      }).join('') + '</ul>';
+    }
+    html += '<p>Next: open the <a href="#report" id="torep">report for your teacher</a> and paste it in the chat, so the next lesson starts from what you missed.</p></div>';
+    stage.innerHTML = html;
+    document.getElementById('torep').onclick = function(e){ e.preventDefault(); showMode('report'); };
+    refreshCounts();
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function(t){ t.onclick = function(){ showMode(t.dataset.mode); }; });
+  refreshCounts();
+  var initial = (location.hash || '').slice(1);
+  showMode(['today', 'exam', 'weak', 'drill', 'report'].indexOf(initial) !== -1 ? initial : 'today');
+})();
+</script>
+</body>
+</html>

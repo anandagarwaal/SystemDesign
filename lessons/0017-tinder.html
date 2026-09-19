@@ -152,9 +152,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="tinder-consistency-split">
       <p class="stem">Why does the design accept eventual consistency for the feed path but demand strong consistency for the swipe/match path?</p>
-      <button class="opt">A stale candidate in the stack is harmless, but a missed mutual match is a broken guarantee users would notice and complain about</button>
-      <button class="opt">Feeds and swipes are stored in the same database, so they must share identical consistency guarantees</button>
-      <button class="opt">Eventual consistency is technically impossible to implement for any geospatial index</button>
+      <button class="opt">A stale candidate is harmless; a missed mutual match is a broken promise</button>
+      <button class="opt">Feeds and swipes share one database, so they must share guarantees</button>
+      <button class="opt">Eventual consistency can't be implemented for any geospatial index</button>
       <p class="fb">The lesson states this tension directly: feed reads tolerate staleness, but the swipe path can't — a missed match has no graceful degradation.</p>
       <p class="hint">Reread the paragraph right after the NFR table.</p>
     </div>
@@ -194,9 +194,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="tinder-capacity-write-heavy-why">
       <p class="stem">Why does swipe volume, not profile reads, dominate the capacity math for this system?</p>
-      <button class="opt">Because profiles are never read after account creation</button>
-      <button class="opt">Because each user swipes roughly 100 times a day, producing billions of small append-only writes daily, which is the load a single SQL primary can't absorb</button>
-      <button class="opt">Because swipes are stored as full profile copies, making them larger than reads</button>
+      <button class="opt">Profiles are never read again after account creation</button>
+      <button class="opt">~100 swipes per user per day = billions of small writes</button>
+      <button class="opt">Swipes store full profile copies, so they're larger than reads</button>
       <p class="fb">100 swipes/user/day × 20M DAU is ~2B writes/day (~70k/s peak). That write volume, not occasional profile reads, is what forces the write-optimized store choice.</p>
       <p class="hint">Reread the Capacity Estimation box's swipes bullet and its "Implication."</p>
     </div>
@@ -247,17 +247,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="tinder-match-separate-entity">
       <p class="stem">Why is Match a separate entity instead of a query over swipes?</p>
-      <button class="opt">Swipes cannot be queried at all once they're written to Cassandra</button>
-      <button class="opt">Matches are read constantly, and materializing on the mutual right swipe avoids joining billions of swipe rows</button>
-      <button class="opt">Matches must be stored in a different database than swipes for legal reasons</button>
+      <button class="opt">Swipes can't be queried at all once they're written to Cassandra</button>
+      <button class="opt">Matches are read constantly; materializing avoids joining swipes</button>
+      <button class="opt">Matches must live in a different database for legal reasons</button>
       <p class="fb">The chat list reads matches constantly; computing that from raw swipes on every read would mean scanning billions of rows.</p>
       <p class="hint">Reread the Data Model pushback box.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="tinder-canonical-pair-key-why">
       <p class="stem">Why does the swipe key use <code>swipe:{min(a,b)}:{max(a,b)}</code> instead of separate keys per direction?</p>
-      <button class="opt">Sorting the ids alphabetically makes the swipe log easier for humans to read</button>
-      <button class="opt">It reduces the number of bytes needed to store each swipe record</button>
-      <button class="opt">It routes both directions of a pair to the same key, so the match check becomes a single-key atomic operation instead of needing a distributed transaction across two separate records</button>
+      <button class="opt">Sorting ids alphabetically makes the swipe log easier for humans to read</button>
+      <button class="opt">It reduces the number of bytes needed to store each single swipe record</button>
+      <button class="opt">Both directions share one key, so the match check is one atomic op</button>
       <p class="fb">Co-locating both swipes of a pair on one key means the second write deterministically observes the first — no cross-partition coordination needed.</p>
       <p class="hint">Reread the Data Model intro paragraph about the "load-bearing key."</p>
     </div>
@@ -320,9 +320,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="tinder-hld-two-paths">
       <p class="stem">Why does the HLD split cleanly into a "read path" and a "write path" rather than one unified flow?</p>
-      <button class="opt">Because recommendations (read, latency-sensitive, geo-driven) and swipes (write, throughput-driven, correctness-critical) have fundamentally different requirements and bottlenecks, so each earns its own components and stores</button>
-      <button class="opt">Because REST APIs are physically incapable of handling both reads and writes in one service</button>
-      <button class="opt">Because splitting paths is required by the auth token validation logic</button>
+      <button class="opt">Recs are latency/geo-bound; swipes are write/correctness-bound</button>
+      <button class="opt">REST services physically can't handle both reads and writes</button>
+      <button class="opt">Splitting paths is required by the auth-token validation logic</button>
       <p class="fb">The two flows have different NFRs (latency vs. throughput/correctness), so they use different stores and components — that's why the diagram draws them as separate paths.</p>
       <p class="hint">Reread the "High-Level Design" intro sentence and compare the read path's Redis GEO against the write path's Cassandra + Redis pair keys.</p>
     </div>
@@ -432,9 +432,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="tinder-match-not-distributed-transaction">
       <p class="stem">Why does the lesson say the "consistent match" requirement is NOT actually a distributed-transactions problem?</p>
-      <button class="opt">Because co-locating both swipes of a pair on one canonically-keyed partition turns the match check into a single-shard atomic read-then-write, so there's nothing distributed left to coordinate</button>
-      <button class="opt">Because matches are allowed to be inconsistent for up to a minute, same as the feed</button>
-      <button class="opt">Because Cassandra automatically provides distributed transactions for every write</button>
+      <button class="opt">Both swipes share one partition, so the check is single-shard atomic</button>
+      <button class="opt">Matches may be inconsistent for up to a minute, the same as the feed</button>
+      <button class="opt">Cassandra automatically provides distributed transactions for writes</button>
       <p class="fb">The staff-level insight is recognizing the hard-sounding requirement collapses into a same-shard atomic op once you pick the right key — no saga or 2PC needed.</p>
       <p class="hint">Reread the staff-level signal box right after "Make the pair-write atomic."</p>
     </div>
@@ -499,17 +499,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="tinder-location-privacy">
       <p class="stem">How does the design prevent location triangulation attacks?</p>
-      <button class="opt">Round distances and snap locations to a coarse grid with jitter, never returning exact coordinates</button>
-      <button class="opt">Encrypt the user's exact GPS coordinates before storing them in Redis</button>
-      <button class="opt">Require a subscription before any distance information is shown</button>
+      <button class="opt">Round distances and snap to a coarse, jittered grid</button>
+      <button class="opt">Encrypt exact GPS coordinates before storing in Redis</button>
+      <button class="opt">Require a subscription before showing any distance</button>
       <p class="fb">Never exposing exact distance or coordinates defeats trilateration; rounding and coarse cells with jitter are the concrete mitigation.</p>
       <p class="hint">Reread the Privacy pushback box.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="tinder-sensitive-data-scope">
       <p class="stem">Why does dating data get treated as more sensitive than, say, a to-do list app's data?</p>
-      <button class="opt">Because dating apps have larger databases than to-do list apps</button>
-      <button class="opt">Because dating apps store more text content per user on average</button>
-      <button class="opt">Because fields like interestedIn reveal sexual orientation and precise location reveals where someone is, both of which can cause real harm if leaked, unlike a to-do item</button>
+      <button class="opt">Dating apps simply have larger databases than to-do list apps do</button>
+      <button class="opt">Dating apps store more free-text content per user on average</button>
+      <button class="opt">Orientation and live location can cause real harm if they leak</button>
       <p class="fb">The Privacy section calls this out explicitly: orientation and location are the kind of fields that need field-level encryption and minimization, not just baseline protection.</p>
       <p class="hint">Reread the opening sentence of the Privacy section.</p>
     </div>
@@ -564,16 +564,16 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="tinder-10x-bottleneck">
       <p class="stem">At 10× scale, why does a dense city's geo bucket become the first bottleneck rather than the swipe write path?</p>
-      <button class="opt">A single geo radius query in a dense city can pull in millions of candidates from one bucket, while swipe writes just add more Cassandra nodes linearly since the partition key already spreads them evenly</button>
-      <button class="opt">Because Cassandra cannot scale past 400 nodes under any circumstances</button>
-      <button class="opt">Because photo storage becomes technically impossible above 100M profiles</button>
+      <button class="opt">A dense city's radius query pulls millions of candidates from one bucket</button>
+      <button class="opt">Cassandra cannot scale past 400 nodes under any circumstances at all</button>
+      <button class="opt">Photo storage becomes technically impossible above 100M user profiles</button>
       <p class="fb">Swipes scale by adding nodes (the partition key already spreads load). Dense-city geo buckets don't scale that way — they need finer cell subdivision, so they hit a wall first.</p>
       <p class="hint">Reread the Scaling 10× section's "First bottleneck" line.</p>
     </div>
   </div>
   </section>
 
-  <section class="chunk" id="chunk-8" hidden>
+  <section class="chunk" id="chunk-final" hidden>
   <p class="chunk-label">8 of 8 — comprehensive check</p>
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
@@ -609,17 +609,17 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="tinder-final-two-hard-problems">
       <p class="stem">What connects the geo-candidate problem and the match-correctness problem as "the same kind of judgement call"?</p>
-      <button class="opt">Both are solved by using the exact same database technology</button>
-      <button class="opt">Both trade a small amount of exactness (a stale/false-positive candidate, a slightly delayed match check) for a probabilistic or precomputed structure that's dramatically cheaper, without breaking the user-facing guarantee</button>
-      <button class="opt">Both require the user to manually refresh the app to get correct results</button>
+      <button class="opt">Both are solved by exactly the same database technology</button>
+      <button class="opt">Both trade a bit of exactness for far cheaper structures, safely</button>
+      <button class="opt">Both require users to manually refresh to get correct results</button>
       <p class="fb">Bloom filters and precomputed stacks both trade small, invisible imprecision for cheap scale; the atomic pair key trades apparent complexity (distributed transaction) for a same-shard op — all staff-level "right primitive" calls.</p>
       <p class="hint">Compare the two staff-level signal boxes in chunk 5.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="tinder-final-consistency-split">
       <p class="stem">If you had to explain in one sentence why Tinder's architecture has two different consistency models, what would you say?</p>
-      <button class="opt">Because Redis and Cassandra cannot be configured to use the same consistency level</button>
-      <button class="opt">Because regulators require dating apps to use eventual consistency for all location data</button>
-      <button class="opt">Because a stale feed candidate is harmless but a missed mutual match is a broken product guarantee, so each path gets the consistency level its failure mode demands</button>
+      <button class="opt">Redis and Cassandra can't be set to the same consistency level</button>
+      <button class="opt">Regulators require eventual consistency for dating location data</button>
+      <button class="opt">Each path gets the consistency its failure mode demands</button>
       <p class="fb">This is the core judgement of the lesson: match the consistency model to what breaks if you're wrong, not to a single system-wide default.</p>
       <p class="hint">Revisit chunk 1's NFR table and the paragraph right after it.</p>
     </div>

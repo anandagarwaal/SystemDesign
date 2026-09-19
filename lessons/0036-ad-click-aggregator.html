@@ -152,17 +152,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="c" data-concept="ad-click-aggregator-fr-scope">
         <p class="stem">Which of these is explicitly deferred (out of scope) in the functional requirements?</p>
-        <button class="opt">Recording a click event and redirecting the user to the advertiser</button>
-        <button class="opt">Querying aggregated clicks-per-ad at one-minute granularity</button>
+        <button class="opt">Recording a click and redirecting to the advertiser</button>
+        <button class="opt">Querying clicks per ad at one-minute granularity</button>
         <button class="opt">Detecting click fraud and bots at ingestion time</button>
         <p class="fb">Fraud/bot detection is named and deferred, along with ad serving/targeting and billing settlement itself.</p>
         <p class="hint">Reread the "Out of scope" line after the FR table.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="ad-click-aggregator-accuracy-latency-tension">
         <p class="stem">Why can't a single pipeline path maximize both freshness and accuracy at once here?</p>
-        <button class="opt">Kafka physically cannot deliver messages faster than once per minute</button>
-        <button class="opt">A fast streaming path can drift from late events or bugs, while a correct batch path is inherently slower to compute</button>
-        <button class="opt">OLAP databases refuse to accept writes faster than their compaction interval</button>
+        <button class="opt">Kafka physically can't deliver messages faster than once a minute</button>
+        <button class="opt">Fast streaming can drift; correct batch recompute is inherently slow</button>
+        <button class="opt">OLAP databases refuse writes faster than their compaction interval</button>
         <p class="fb">Speed and correctness pull in opposite directions: streaming trades some accuracy for seconds of freshness, batch trades freshness for guaranteed correctness — hence needing both (lambda).</p>
         <p class="hint">Reread the "core tension" box right after the NFR table.</p>
       </div>
@@ -194,17 +194,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="ad-click-aggregator-dedup-fits-redis">
         <p class="stem">Why is a Redis-based dedup key set for exactly-once counting affordable at this scale?</p>
-        <button class="opt">The daily dedup key set is only about 1.6 GB, which comfortably fits a Redis cluster</button>
+        <button class="opt">A day's dedup keys are only ~1.6 GB — fits Redis easily</button>
         <button class="opt">Redis clusters have unlimited memory capacity by default</button>
-        <button class="opt">Dedup keys are compressed to zero bytes using Bloom filters</button>
+        <button class="opt">Bloom filters compress every dedup key down to zero bytes</button>
         <p class="fb">100M clicks/day × ~16 bytes per key ≈ 1.6 GB/day, small enough to keep in memory in Redis.</p>
         <p class="hint">Reread the "Dedup key set" row of the capacity table.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="ad-click-aggregator-durable-log-decouples">
         <p class="stem">Why does writing clicks straight into the analytics database (skipping a log) hurt more than it seems?</p>
-        <button class="opt">Analytics databases cannot physically accept more than 100 writes per second</button>
-        <button class="opt">It would violate the signed impression id's HMAC signature</button>
-        <button class="opt">Bursty ingest writes would contend with dashboard read queries on the same store, and there'd be no buffer to replay from on failure</button>
+        <button class="opt">Analytics databases can't accept more than 100 writes per second</button>
+        <button class="opt">It would break the HMAC signature on the signed impression id</button>
+        <button class="opt">Bursty writes fight dashboard reads, with no buffer to replay from</button>
         <p class="fb">A durable log absorbs write bursts and decouples ingest from serving and aggregation, so each can scale and fail independently — direct writes couple them together.</p>
         <p class="hint">Reread the pushback's staff answer.</p>
       </div>
@@ -255,9 +255,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="ad-click-aggregator-upsert-source-column">
         <p class="stem">Why do the ad_clicks_minute rows carry a source column (stream vs batch)?</p>
-        <button class="opt">So the batch layer's recomputed row can cleanly overwrite the speed layer's estimate for the same bucket</button>
-        <button class="opt">So advertisers can filter dashboards by which team produced the data</button>
-        <button class="opt">So ClickHouse can charge different storage tiers per source type</button>
+        <button class="opt">So batch's recomputed row can overwrite the stream's estimate</button>
+        <button class="opt">So advertisers can filter dashboards by producing team</button>
+        <button class="opt">So ClickHouse can bill different storage tiers per source</button>
         <p class="fb">Idempotent upsert by (ad_id, window_start) plus a source column lets the authoritative batch recompute replace the speed layer's number without ambiguity.</p>
         <p class="hint">Reread the Data Model intro paragraph, first sentence.</p>
       </div>
@@ -324,16 +324,16 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="ad-click-aggregator-two-tier-shape">
         <p class="stem">What is the "two-tier write, pre-aggregated read" shape of this pipeline?</p>
-        <button class="opt">Writes buffer and roll up on the hot path; reads only ever touch cooked, columnar data</button>
-        <button class="opt">Every write is synchronously duplicated into two separate OLAP clusters</button>
+        <button class="opt">Writes buffer and roll up; reads touch only cooked columnar data</button>
+        <button class="opt">Every write is synchronously duplicated into two OLAP clusters</button>
         <button class="opt">Reads and writes both go directly against the raw Kafka topic</button>
         <p class="fb">The hot path buffers and pre-aggregates so the read path never has to scan raw events — reads are cheap because writes did the work upfront.</p>
         <p class="hint">Reread the sentence right after the Data Flow list.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="ad-click-aggregator-raw-lake-necessity">
         <p class="stem">If the design only kept the Flink-produced aggregates and deleted raw click events, what capability would be lost?</p>
-        <button class="opt">Nothing — aggregates alone are sufficient for every use case forever</button>
-        <button class="opt">The ability to recompute or correct historical counts, backfill new metrics, or resolve billing disputes</button>
+        <button class="opt">Nothing — aggregates alone are enough for every future use case</button>
+        <button class="opt">Recomputing history, backfilling metrics, and settling disputes</button>
         <button class="opt">The ability to redirect users to the advertiser's site on click</button>
         <p class="fb">Aggregates are a lossy summary; only the immutable raw lake lets you recompute, add a new metric retroactively, or prove a disputed number.</p>
         <p class="hint">Reread the pushback's staff answer about keeping raw events.</p>
@@ -436,17 +436,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="ad-click-aggregator-exactly-once-write-order">
         <p class="stem">Why does the Click Processor write to the Kafka log FIRST, then record the impression id in Redis, rather than the reverse order?</p>
-        <button class="opt">A crash between the two steps then causes a harmless re-write attempt, never a silently lost click</button>
-        <button class="opt">Kafka requires all consumers to be registered in Redis before it accepts writes</button>
-        <button class="opt">Writing to Redis first would exceed the 1.6 GB/day memory budget</button>
+        <button class="opt">A crash between steps causes a harmless retry, never a lost click</button>
+        <button class="opt">Kafka requires consumers to be registered in Redis before writes</button>
+        <button class="opt">Writing to Redis first would exceed its 1.6 GB/day memory budget</button>
         <p class="fb">If Redis were marked first and the process crashed before the Kafka write, that click would be permanently lost, since a retry would see it as "already seen" and drop it — log-first avoids that.</p>
         <p class="hint">Reread step (3) of the double-counting fix in Deep Dive 2.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="ad-click-aggregator-lambda-vs-topk">
         <p class="stem">Why doesn't the "roughly right" approximation acceptable in a Top-K/trending design apply to this ad click system?</p>
-        <button class="opt">Top-K systems use a different programming language than streaming aggregators</button>
-        <button class="opt">Each counted click is directly billable, so any overcount or undercount translates into real money charged incorrectly</button>
-        <button class="opt">Ad click data has a smaller volume than trending-item data, making approximation unnecessary</button>
+        <button class="opt">Top-K systems use a different programming language than aggregators</button>
+        <button class="opt">Every click is billable, so any miscount charges real money wrongly</button>
+        <button class="opt">Ad clicks are lower volume than trending data, so no need to guess</button>
         <p class="fb">Trending/Top-K tolerates approximate counts because the cost of being slightly wrong is low; here, a duplicate count is a duplicate charge to an advertiser.</p>
         <p class="hint">Reread the opening of Deep Dive 2: "Clicks are money."</p>
       </div>
@@ -511,17 +511,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="c" data-concept="ad-click-aggregator-open-redirect-mitigation">
         <p class="stem">How does the design prevent open-redirect abuse on the click endpoint?</p>
-        <button class="opt">By requiring advertisers to re-authenticate on every single click</button>
-        <button class="opt">By encrypting the redirect URL with the same HMAC key used for impressions</button>
-        <button class="opt">By redirecting only to the ad's registered URL looked up server-side, never a URL from the request</button>
+        <button class="opt">Advertisers must re-authenticate on every single click</button>
+        <button class="opt">The redirect URL is encrypted with the impression's HMAC key</button>
+        <button class="opt">Redirect only to the ad's registered URL, looked up server-side</button>
         <p class="fb">Never trusting a redirect target from the request body closes the open-redirect vector; the destination always comes from a server-side lookup.</p>
         <p class="hint">Look at the "Open redirect abuse" row in the Security table.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="ad-click-aggregator-lineage-detects-loss">
         <p class="stem">Why track counts at every hop (clicks accepted = Kafka records = lake rows = sum of buckets) as an observability signal?</p>
-        <button class="opt">A mismatch between hop counts reveals silent data loss somewhere in the pipeline before it shows up as a billing dispute</button>
-        <button class="opt">It is required by GDPR for all advertising click data</button>
-        <button class="opt">It replaces the need for the reconciliation job entirely</button>
+        <button class="opt">A hop-count mismatch reveals silent loss before a billing dispute</button>
+        <button class="opt">It is required by GDPR for all advertising click data collected</button>
+        <button class="opt">It replaces the need for the batch reconciliation job entirely</button>
         <p class="fb">Lineage counts are a cheap tripwire: if any hop's count diverges from the others, you catch silent loss early instead of discovering it via an angry advertiser.</p>
         <p class="hint">Reread the "Lineage" row in the Observability table.</p>
       </div>
@@ -581,16 +581,16 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="ad-click-aggregator-cost-vs-revenue-tradeoff">
         <p class="stem">Why is spending extra infrastructure cost on a redundant batch reconciliation layer described as "an easy call"?</p>
-        <button class="opt">Because Spark jobs are free to run on any cloud provider</button>
-        <button class="opt">Because reconciliation replaces the need for a streaming layer entirely, cutting cost</button>
-        <button class="opt">Because the pipeline's total cost is a tiny fraction of the billed revenue it protects, so correctness insurance is cheap relative to the risk of billing errors</button>
+        <button class="opt">Spark jobs are free to run on every major cloud provider</button>
+        <button class="opt">Reconciliation replaces the streaming layer, which cuts the total cost</button>
+        <button class="opt">Pipeline cost is tiny next to the billed revenue it protects</button>
         <p class="fb">At ~0.001% of the money the pipeline measures, the batch layer's cost is negligible compared to the financial risk of an uncorrected billing error.</p>
         <p class="hint">Reread the "Perspective" sentence in Cost of Running.</p>
       </div>
     </div>
   </section>
 
-  <section class="chunk" id="chunk-final">
+  <section class="chunk" id="chunk-final" hidden>
     <p class="chunk-label">Final check</p>
     <h2>Everything from this lesson</h2>
     <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also
@@ -636,9 +636,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="ad-click-aggregator-staff-signal-synthesis">
         <p class="stem">A candidate proposes "just aggregate in Flink and skip the batch layer to save cost." What's the staff-level objection?</p>
-        <button class="opt">The speed layer alone can drift from bugs or very late events, and without a batch reconciliation layer there is no way to detect or correct a billing-affecting error</button>
-        <button class="opt">Flink cannot technically perform tumbling window aggregation at all</button>
-        <button class="opt">Kafka topics expire after exactly one minute, so Flink would have nothing to read</button>
+        <button class="opt">Without batch, stream drift from bugs or late events goes uncorrected</button>
+        <button class="opt">Flink can't technically perform tumbling-window aggregation at all</button>
+        <button class="opt">Kafka topics expire after one minute, so Flink would read nothing</button>
         <p class="fb">The staff callout is explicit: correctness budget goes toward exactly-once dedup AND batch reconciliation, because the speed layer alone cannot guarantee billing-grade accuracy.</p>
         <p class="hint">Reread the staff-level signal box in Deep Dive 2.</p>
       </div>

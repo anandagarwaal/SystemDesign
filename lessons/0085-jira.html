@@ -154,9 +154,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="jira-consistency-why">
       <p class="stem">Why does Jira need strong/read-your-writes consistency on issue mutations, unlike a typical read-heavy social feed?</p>
-      <button class="opt">An engineer must never see their own status change silently roll back, since that breaks trust in the tool they work in all day</button>
-      <button class="opt">Strong consistency is required because Elasticsearch cannot serve any query without it</button>
-      <button class="opt">Read-heavy systems always default to strong consistency regardless of the use case</button>
+      <button class="opt">An engineer must never see their own status change roll back</button>
+      <button class="opt">Elasticsearch can't serve any query without strong consistency</button>
+      <button class="opt">Read-heavy systems always default to strong consistency</button>
       <p class="fb">Jira is read-heavy like a feed, but unlike a feed, a mutation the user just made must be immediately and reliably visible to them — that's the read-your-writes requirement.</p>
       <p class="hint">Reread the sentence contrasting Jira with a social feed in the NFR intro.</p>
     </div>
@@ -192,9 +192,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="b" data-concept="jira-board-query-why">
       <p class="stem">Why can't the primary relational database serve board queries directly?</p>
-      <button class="opt">Postgres cannot store more than a few million rows in one table</button>
-      <button class="opt">Boards are saved filters with many predicates on custom fields, re-run on every load, which becomes a scan without useful indexes</button>
-      <button class="opt">Board queries always require a full-text search across attachment contents</button>
+      <button class="opt">Postgres can't store more than a few million rows per table</button>
+      <button class="opt">Boards re-run many custom-field predicates, which scan without indexes</button>
+      <button class="opt">Board queries always need full-text search over attachment contents</button>
       <p class="fb">A board re-executes a rich, multi-predicate filter every time it loads. That kind of query doesn't have a useful index path in a general relational schema, so it belongs in a dedicated search index.</p>
       <p class="hint">Reread the pushback box right after the capacity estimation.</p>
     </div>
@@ -251,13 +251,22 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="jira-cursor-paging-recall">
       <p class="stem">Why does <code>GET /search</code> return a cursor instead of an offset?</p>
-      <button class="opt">Result sets are large and shift as people edit issues, so offset paging causes duplicates and skips</button>
-      <button class="opt">Elasticsearch does not support numeric offsets in any query type</button>
-      <button class="opt">Cursors are required so the API gateway can resolve tenant identity</button>
+      <button class="opt">Large results shift as issues change; offsets skip or repeat</button>
+      <button class="opt">Elasticsearch doesn't support numeric offsets in any query</button>
+      <button class="opt">Cursors let the API gateway resolve the tenant identity</button>
       <p class="fb">Offset pagination breaks when the underlying result set changes between pages. A cursor anchors to a stable position instead.</p>
       <p class="hint">Reread the note right after the API table.</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="b" data-concept="jira-tenant-first-index">
+        <p class="stem">Why does every table and index lead with tenant_id?</p>
+        <button class="opt">It makes tenant ids unique across the whole database</button>
+        <button class="opt">It's the shard key and keeps each query inside one tenant's data</button>
+        <button class="opt">It lets tenants see each other's issues for collaboration</button>
+        <button class="opt">It removes the need for custom field validation per tenant</button>
+        <p class="fb">Multi-tenant SaaS: tenant-first keys give locality (one shard), isolation (every query scoped), and efficient indexes.</p>
+        <p class="hint">What must be true of every query a tenant runs?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-4" hidden>
@@ -308,9 +317,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="c" data-concept="jira-cdc-vs-dual-write-why">
       <p class="stem">Why sync the search index via CDC/change events instead of writing to Postgres and Elasticsearch directly in the request handler?</p>
-      <button class="opt">Elasticsearch cannot accept writes faster than once per second</button>
-      <button class="opt">Dual writes are actually faster but are banned by the multi-tenancy NFR</button>
-      <button class="opt">The issue, activity entry and outbox event commit atomically in one transaction; a CDC consumer then updates the index, so search can lag but never permanently diverges</button>
+      <button class="opt">Elasticsearch can't accept writes faster than once per second</button>
+      <button class="opt">Dual writes are faster but are banned by the multi-tenancy NFR</button>
+      <button class="opt">Issue and outbox commit together; CDC lags but never diverges</button>
       <p class="fb">Dual writes risk one succeeding and the other failing, leaving the two stores permanently inconsistent. Committing an outbox event in the same transaction and letting CDC drive the index keeps them eventually consistent instead.</p>
       <p class="hint">Reread the pushback box right after the HLD section.</p>
     </div>
@@ -396,17 +405,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="jira-eav-failure-mode">
       <p class="stem">What is EAV's failure mode that pushes the design toward a typed jsonb column instead?</p>
-      <button class="opt">Reconstructing one issue needs N joins, and the query planner can't optimize cross-attribute filters</button>
-      <button class="opt">EAV cannot represent more than a handful of custom fields per tenant</button>
-      <button class="opt">EAV tables cannot be sharded by tenant_id at all</button>
+      <button class="opt">One issue needs N joins; cross-attribute filters can't be planned</button>
+      <button class="opt">EAV can't represent more than a handful of fields per tenant</button>
+      <button class="opt">EAV tables cannot be sharded by tenant_id in any way at all</button>
       <p class="fb">EAV's one-row-per-attribute shape makes reading a whole issue expensive and makes filtering across attributes hard for the planner to optimize.</p>
       <p class="hint">Reread the staff-signal box in Deep Dive 1.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="jira-workflow-data-driven-why">
       <p class="stem">Why must workflow validation happen server-side in the engine, not just in the client UI that greys out illegal buttons?</p>
-      <button class="opt">Client-side validation is technically impossible in a browser environment</button>
-      <button class="opt">A client can be bypassed or tampered with, so the server is the only place that can actually guarantee the strong-consistency and correctness guarantee</button>
-      <button class="opt">Server-side validation is required only because Postgres enforces foreign keys</button>
+      <button class="opt">Client-side validation is technically impossible in a browser</button>
+      <button class="opt">Clients can be bypassed; only the server can guarantee correctness</button>
+      <button class="opt">It's required only because Postgres enforces foreign keys</button>
       <p class="fb">The UI greying out a button is a convenience, not a guarantee — only the server-side engine can be trusted to reject illegal transitions, which is what the NFR on consistency demands.</p>
       <p class="hint">Reread the staff-signal box in Deep Dive 3.</p>
     </div>
@@ -481,9 +490,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="a" data-concept="jira-tenant-filter-enforcement-why">
       <p class="stem">Why is the tenant filter enforced in a shared data-access layer instead of trusted to each handler?</p>
-      <button class="opt">A single handler that forgets the filter would leak one tenant's data to another; centralizing it removes that failure mode entirely</button>
-      <button class="opt">Data-access layers are the only place Postgres allows WHERE clauses to run</button>
-      <button class="opt">Handlers cannot read the tenant id from the auth token at all</button>
+      <button class="opt">One forgetful handler would leak data; centralizing removes the risk</button>
+      <button class="opt">Data-access layers are the only place Postgres allows WHERE clauses</button>
+      <button class="opt">Handlers are unable to read the tenant id from the auth token at all</button>
       <p class="fb">Cross-tenant leaks are catastrophic and easy to introduce if every handler must remember to filter. Centralizing the filter in the data layer makes the omission structurally impossible.</p>
       <p class="hint">Reread the tenant-isolation pushback box and the multi-tenancy deep dive.</p>
     </div>
@@ -570,9 +579,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="jira-whole-lesson-why">
       <p class="stem">If Elasticsearch were deleted entirely and only Postgres remained, what would break first?</p>
-      <button class="opt">Boards and JQL filters would collapse into slow multi-predicate scans with no useful index path</button>
-      <button class="opt">Workflow transitions would no longer be able to commit atomically with activity entries</button>
-      <button class="opt">Tenant isolation would stop being enforced on issue mutation endpoints</button>
+      <button class="opt">Boards and JQL become slow multi-predicate scans with no index</button>
+      <button class="opt">Transitions could no longer commit atomically with activity</button>
+      <button class="opt">Tenant isolation would stop being enforced on mutations</button>
       <p class="fb">The whole reason for the search index's existence is to serve JQL/board queries that the relational store can't index well. Removing it forces those queries back onto slow scans.</p>
       <p class="hint">Think about which subsystem exists purely to answer the query pattern EAV/JSON-column choices can't serve well.</p>
     </div>

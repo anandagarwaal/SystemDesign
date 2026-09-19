@@ -254,9 +254,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="whatsapp-connection-registry-vs-store">
       <p class="stem">What would break if the connection registry and the message store were the same durable system?</p>
-      <button class="opt">Nothing breaks; merging them would only simplify the design further</button>
-      <button class="opt">Messages would become permanently unreadable after the first delivery</button>
-      <button class="opt">Losing a chat server would risk losing durable messages, not just rebuildable routing state</button>
+      <button class="opt">Nothing — merging them would only simplify the design further</button>
+      <button class="opt">Messages would become unreadable forever after first delivery</button>
+      <button class="opt">Losing a chat server could lose durable messages, not just routing</button>
       <p class="fb">Connection state is volatile and cheap to rebuild; message state must survive host failure. Conflating them ties data durability to socket lifetime.</p>
       <p class="hint">Look at how the registry is described in the Data Model table: TTL refreshed by heartbeat, versus the durable stores.</p>
     </div>
@@ -409,9 +409,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="whatsapp-clientmsgid-vs-messageid">
       <p class="stem">What would break if the server didn't dedupe on messageId, relying only on the client's clientMsgId?</p>
-      <button class="opt">At-least-once delivery could redeliver the same server-assigned message twice to a receiver</button>
-      <button class="opt">Nothing; clientMsgId alone is always sufficient to prevent every kind of duplicate</button>
-      <button class="opt">Messages would arrive out of order within the same chat</button>
+      <button class="opt">At-least-once could redeliver the same message twice to a receiver</button>
+      <button class="opt">Nothing; clientMsgId alone always prevents every kind of duplicate</button>
+      <button class="opt">Messages would arrive out of order within the same conversation</button>
       <p class="fb">clientMsgId dedups retried sends at write time; messageId dedup at the receiver guards against at-least-once redelivery on the push/inbox path.</p>
       <p class="hint">Reread the "Ordering, receipts, and idempotency" table's dedup row.</p>
     </div>
@@ -539,7 +539,16 @@
       <p class="fb">Chat servers are the dominant host cost; doubling sockets-per-host roughly halves the host count and its cost line.</p>
       <p class="hint">Reread the "Unit cost" paragraph after the cost table.</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="b" data-concept="whatsapp-reconnect-storm">
+        <p class="stem">Why is a reconnect storm after a regional blip the first bottleneck, rather than message volume?</p>
+        <button class="opt">Messages sent during the blip are too large to store</button>
+        <button class="opt">Millions of TLS handshakes land at once, far above steady state</button>
+        <button class="opt">The inbox store can't accept messages from reconnected devices</button>
+        <button class="opt">Groups over 100 members must be rebuilt after each reconnect</button>
+        <p class="fb">Steady state is cheap; synchronized reconnects are a thundering herd of expensive handshakes. Jittered backoff + handshake headroom.</p>
+        <p class="hint">What does every one of 200M clients do the moment the network comes back?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -586,9 +595,9 @@
     </div>
     <div class="q" data-correct="a" data-concept="whatsapp-privacy-retention-final">
       <p class="stem">Why does the server-side message store retain ciphertext for only 30 days rather than indefinitely?</p>
-      <button class="opt">Long-term history lives on devices/backups; server-side retention is minimized for privacy and bounded storage</button>
-      <button class="opt">Cassandra and DynamoDB are physically incapable of storing data longer than 30 days</button>
-      <button class="opt">Regulations require every messaging app to delete data after exactly 30 days worldwide</button>
+      <button class="opt">History lives on devices; server retention is minimized and bounded</button>
+      <button class="opt">Cassandra and DynamoDB physically can't keep data past 30 days</button>
+      <button class="opt">Regulations require every messenger to delete data after 30 days</button>
       <p class="fb">Data minimization plus TTL-bounded storage keeps privacy exposure and storage cost down; devices/backups hold the durable history.</p>
       <p class="hint">Reread the Privacy section's retention sentence.</p>
     </div>

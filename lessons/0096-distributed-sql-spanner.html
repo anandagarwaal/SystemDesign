@@ -116,17 +116,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="c" data-concept="spanner-newsql-goal">
         <p class="stem">What is the core goal that distributed SQL / NewSQL systems refuse to trade away?</p>
-        <button class="opt">Eventual consistency in exchange for unlimited write throughput</button>
-        <button class="opt">A single primary node that keeps every commit strictly local</button>
-        <button class="opt">Relational, strongly-consistent, transactional data that also scales horizontally</button>
+        <button class="opt">Eventual consistency in exchange for unlimited writes</button>
+        <button class="opt">One primary node keeping every commit strictly local</button>
+        <button class="opt">Relational ACID data that also scales horizontally</button>
         <p class="fb">Distributed SQL wants both sides at once: SQL/ACID like a single-node database, and horizontal scale like NoSQL.</p>
         <p class="hint">Reread the second paragraph — what does the "goal" sentence say the database itself handles?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="spanner-nosql-tradeoff-why">
         <p class="stem">Why did NoSQL systems like Dynamo and Cassandra give up joins and multi-key transactions in the first place?</p>
-        <button class="opt">Coordinating multiple keys or tables across many nodes needs cross-node agreement, which is exactly what horizontal write scaling tries to avoid</button>
-        <button class="opt">Joins and transactions were patented technology only single-node vendors could license</button>
-        <button class="opt">Application developers never asked for joins so vendors removed them to save engineering time</button>
+        <button class="opt">Multi-key work needs cross-node agreement, which scale-out avoids</button>
+        <button class="opt">Joins and transactions were patents only single-node vendors held</button>
+        <button class="opt">Developers never asked for joins, so vendors dropped them</button>
         <p class="fb">Multi-key operations require coordinating across nodes; NoSQL systems sidestepped that coordination cost to scale writes, at the price of those features.</p>
         <p class="hint">Think about what a join or a multi-row transaction requires when the rows involved live on different machines.</p>
       </div>
@@ -201,17 +201,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="spanner-why-2pc-not-fragile">
         <p class="stem">Classic 2PC is famous for blocking forever if the coordinator crashes mid-commit. Why doesn't that happen here?</p>
-        <button class="opt">The coordinator's state and each vote are stored in consensus-replicated ranges, so a crashed coordinator's own Raft/Paxos group recovers it</button>
-        <button class="opt">Distributed SQL systems never use a coordinator at all, so there's nothing to crash</button>
-        <button class="opt">Every participant range independently guesses the outcome and they always happen to agree</button>
+        <button class="opt">Coordinator state and votes live in consensus groups that recover</button>
+        <button class="opt">Distributed SQL never uses a coordinator, so nothing can crash</button>
+        <button class="opt">Every range guesses the outcome and they always happen to agree</button>
         <p class="fb">Consensus gives 2PC's coordinator state durability, so recovery is automatic instead of leaving participants blocked indefinitely.</p>
         <p class="hint">Reread the "Why 2PC isn't fragile here" box — what layer recovers the coordinator's state?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="spanner-per-range-scaling-why">
         <p class="stem">Why does running consensus "per range" instead of "per cluster" matter for write scalability?</p>
-        <button class="opt">Per-range consensus means only one range in the whole cluster can ever accept writes at a time</button>
-        <button class="opt">Thousands of independent consensus groups can commit writes in parallel instead of funneling every write through one shared log</button>
-        <button class="opt">Per-range consensus removes the need for any replication at all</button>
+        <button class="opt">Only one range in the whole cluster can accept writes at a time</button>
+        <button class="opt">Thousands of independent groups commit writes in parallel</button>
+        <button class="opt">Per-range consensus removes the need for any replication</button>
         <p class="fb">A single cluster-wide log would serialize every write through one leader. Independent per-range groups let unrelated writes commit concurrently.</p>
         <p class="hint">Compare "one global log" versus "one log per range" — which one lets 1,000 nodes commit writes at the same time?</p>
       </div>
@@ -269,16 +269,16 @@
       <div class="q" data-type="intuition" data-correct="b" data-concept="spanner-truetime-why-external-consistency">
         <p class="stem">Why would skipping commit wait break external consistency, even though the clock uncertainty ε is often just a few milliseconds?</p>
         <button class="opt">Skipping it would only slow down reads, never affect correctness</button>
-        <button class="opt">Without waiting out ε, a later transaction could pick a timestamp that looks earlier than one that already committed, reversing the real-time order observers see</button>
-        <button class="opt">Commit wait is purely a legacy step with no effect on correctness today</button>
+        <button class="opt">A later txn could get an earlier timestamp, reversing real time</button>
+        <button class="opt">Commit wait is a legacy step with no effect on correctness today</button>
         <p class="fb">External consistency requires that real-time order matches commit-timestamp order. Uncertainty ε means two nearby timestamps could overlap in real time; waiting it out guarantees separation.</p>
         <p class="hint">Think about two transactions committing within ε of each other, and what "external consistency" promises about their real-time order.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="spanner-hlc-vs-truetime-tradeoff">
         <p class="stem">What is the fundamental tradeoff CockroachDB makes by using HLC and uncertainty restarts instead of TrueTime?</p>
-        <button class="opt">HLC is strictly better in every way, so there is no tradeoff at all</button>
+        <button class="opt">HLC is strictly better in every way, so there's no tradeoff at all</button>
         <button class="opt">HLC gives up SQL support entirely in exchange for commodity hardware</button>
-        <button class="opt">HLC avoids needing specialized GPS/atomic-clock hardware, but pays for it with occasional transaction restarts instead of Spanner's upfront wait</button>
+        <button class="opt">No atomic clocks needed, at the price of occasional restarts</button>
         <p class="fb">Spanner pays a fixed small wait on every commit using expensive hardware; CockroachDB avoids that hardware but occasionally retries transactions that land inside the uncertainty window.</p>
         <p class="hint">Compare the "Cost" row for each system, and what each one does instead of relying on tightly bounded clock hardware.</p>
       </div>
@@ -325,9 +325,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="spanner-hotspot-why-sequential-keys">
         <p class="stem">Why do sequential keys like auto-increment IDs create a write hotspot in a range-sharded distributed SQL system?</p>
-        <button class="opt">Every new sequential key sorts to the end of the key space, so all new writes land on the same newest range and its single leader</button>
-        <button class="opt">Sequential keys are stored on every range simultaneously, tripling storage cost</button>
-        <button class="opt">Sequential keys disable consensus entirely for that table</button>
+        <button class="opt">New sequential keys all sort to the end — one range, one leader</button>
+        <button class="opt">Sequential keys are stored on every range at once, tripling cost</button>
+        <button class="opt">Sequential keys disable consensus entirely for that whole table</button>
         <p class="fb">Because ranges are sorted by key, monotonically increasing keys keep appending to the same range, funneling all writes through that range's one leader.</p>
         <p class="hint">Remember: ranges are sorted contiguous chunks of key space. Where do ever-increasing keys always land?</p>
       </div>
@@ -362,18 +362,18 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-type="intuition" data-correct="c" data-concept="spanner-staff-vs-senior-signal">
         <p class="stem">What most separates a staff-level answer from a senior-level answer when reaching for distributed SQL?</p>
-        <button class="opt">The staff candidate names more buzzwords in the same amount of time</button>
-        <button class="opt">The staff candidate always recommends Spanner over CockroachDB</button>
-        <button class="opt">The staff candidate frames it as a deliberate tradeoff tied to a specific NFR, names the mechanism, and is willing to say it's not needed</button>
-        <button class="opt">The staff candidate skips explaining any mechanism to save time</button>
+        <button class="opt">Staff names more buzzwords in the same amount of time</button>
+        <button class="opt">Staff always recommends Spanner over CockroachDB</button>
+        <button class="opt">Staff ties it to an NFR, names the mechanism, and may skip it</button>
+        <button class="opt">Staff skips explaining any mechanism to save time</button>
         <p class="fb">The staff signal is judgement: trigger from a real requirement, explain the mechanism, and know when to say no — not just naming the technology.</p>
         <p class="hint">Reread the staff callout — what three things does it list as "the deeper signal"?</p>
       </div>
       <div class="q" data-correct="a" data-concept="spanner-interview-preempt-hotspot">
         <p class="stem">Per the "In the interview" guidance, what should you proactively call out about order IDs before the interviewer asks?</p>
-        <button class="opt">That sequential IDs create a write hotspot, so you'd hash-prefix the key</button>
-        <button class="opt">That order IDs should never be stored in a distributed SQL system at all</button>
-        <button class="opt">That order IDs require a separate NoSQL database</button>
+        <button class="opt">Sequential IDs hotspot one range, so hash-prefix the key</button>
+        <button class="opt">Order IDs should never be stored in distributed SQL at all</button>
+        <button class="opt">Order IDs require a separate NoSQL database of their own</button>
         <p class="fb">Pre-empting the hotspot is one of the four staff-signal moves: name the sequential-key problem and its fix before being prompted.</p>
         <p class="hint">Look at point 3 in the numbered interview list.</p>
       </div>
@@ -394,9 +394,9 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-type="intuition" data-correct="b" data-concept="spanner-decision-rule-why">
         <p class="stem">Why is "does this workload need multi-key ACID AND horizontal scale simultaneously" the right decision question, rather than "is distributed SQL more powerful"?</p>
-        <button class="opt">Because distributed SQL is always more powerful and should always be the default choice</button>
-        <button class="opt">Because the extra power of distributed SQL comes with real, concrete costs (write latency, 2PC overhead, hotspot risk), so it should only be paid for when the workload's requirements actually demand both properties at once</button>
-        <button class="opt">Because power and cost are unrelated to each other in distributed systems</button>
+        <button class="opt">Distributed SQL is always more powerful, so default to it</button>
+        <button class="opt">Its power costs latency, 2PC and hotspots — pay only if needed</button>
+        <button class="opt">Power and cost are unrelated to each other in distributed systems</button>
         <p class="fb">Every capability in this lesson (consensus, 2PC, TrueTime/HLC) has a latency or complexity cost. The right lens is "does the workload need what only this combination provides," not raw capability.</p>
         <p class="hint">Revisit the tradeoffs chunk — every mechanism that gives distributed SQL its power also appears as a line item in the cost table.</p>
       </div>
@@ -414,40 +414,40 @@
       <div class="q" data-correct="c" data-concept="spanner-final-goal">
         <p class="stem">What problem does distributed SQL / NewSQL solve that neither single-node SQL nor NoSQL solved alone?</p>
         <button class="opt">It removes the need for replication entirely</button>
-        <button class="opt">It makes eventual consistency stronger than strong consistency</button>
-        <button class="opt">It provides relational ACID transactions that also scale horizontally across nodes</button>
+        <button class="opt">It makes eventual consistency stronger than strong</button>
+        <button class="opt">Relational ACID transactions that scale horizontally</button>
         <p class="fb">That combination, strong consistency plus horizontal scale, is exactly the gap between single-node SQL and NoSQL.</p>
         <p class="hint">Reread chunk 1 — what did single-node SQL and NoSQL each fail to offer?</p>
       </div>
       <div class="q" data-correct="b" data-concept="spanner-final-2pc-recovery">
         <p class="stem">Why does a distributed SQL system's 2PC coordinator not permanently block on a crash, unlike classic 2PC?</p>
-        <button class="opt">There is no coordinator, only leaderless gossip</button>
-        <button class="opt">The coordinator's state is itself stored in consensus-replicated ranges, so it recovers automatically</button>
-        <button class="opt">2PC is abandoned entirely in favor of eventual consistency</button>
+        <button class="opt">There's no coordinator — only leaderless gossip</button>
+        <button class="opt">Its state lives in consensus ranges, so it recovers</button>
+        <button class="opt">2PC is dropped entirely for eventual consistency</button>
         <p class="fb">Consensus underpins the 2PC coordinator's durability, which is what avoids the classic blocking failure mode.</p>
         <p class="hint">Reread the "Why 2PC isn't fragile here" box in chunk 2.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="spanner-final-truetime-intuition">
         <p class="stem">If Spanner removed commit wait to make commits faster, what would break?</p>
-        <button class="opt">Two transactions could commit within the clock's uncertainty window in an order that contradicts real time, breaking external consistency</button>
+        <button class="opt">Commits inside the uncertainty window could contradict real time</button>
         <button class="opt">Nothing would break, since commit wait is only a debugging aid</button>
-        <button class="opt">Replication would stop working across all ranges</button>
+        <button class="opt">Replication would stop working across all of the ranges</button>
         <p class="fb">Commit wait exists precisely to prevent a later transaction from appearing to precede an earlier one within the uncertainty window.</p>
         <p class="hint">Revisit chunk 3 — what does commit wait guarantee about real-time order versus timestamp order?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="spanner-final-when-not-to-use">
         <p class="stem">A candidate proposes distributed SQL for a single-region app with one write-heavy table and no multi-row transactions. What's the staff-level pushback?</p>
-        <button class="opt">Agree immediately, since distributed SQL is always the safest choice</button>
-        <button class="opt">Reject it because distributed SQL cannot run in a single region</button>
-        <button class="opt">Question it: without multi-row ACID or multi-region needs, a single Postgres primary is simpler and avoids paying quorum write latency for nothing</button>
+        <button class="opt">Agree at once, since distributed SQL is always the safest choice</button>
+        <button class="opt">Reject it, because distributed SQL can't run in a single region</button>
+        <button class="opt">Question it: one Postgres primary avoids needless quorum latency</button>
         <p class="fb">Reaching for distributed SQL without a workload reason that needs it is exactly the over-engineering the staff signal warns against.</p>
         <p class="hint">Reread "Do NOT reach for it when" and the staff-level signal callout.</p>
       </div>
       <div class="q" data-correct="a" data-concept="spanner-final-hotspot-fix">
         <p class="stem">What is the standard fix for a write hotspot caused by sequential primary keys?</p>
-        <button class="opt">Hash-prefix or randomize the key so writes spread across ranges</button>
-        <button class="opt">Switch the table to use a single global range with no splits</button>
-        <button class="opt">Disable consensus for that specific table</button>
+        <button class="opt">Hash-prefix or randomize keys to spread writes</button>
+        <button class="opt">Put the table in one global range with no splits</button>
+        <button class="opt">Disable consensus for that one specific table</button>
         <p class="fb">Hashing or randomizing the key breaks up the sequential ordering that funnels all writes into the newest range.</p>
         <p class="hint">Reread the "Write hotspots" row in the tradeoffs table.</p>
       </div>

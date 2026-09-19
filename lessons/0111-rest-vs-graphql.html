@@ -59,6 +59,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -72,6 +86,9 @@
   <div class="mission">
     <strong>Why this lesson, for your mission:</strong> In almost every case study you'll define a "Core Entities &amp; API" section, and interviewers read it as a tell. A junior lists endpoints. A staff candidate picks <em>REST, GraphQL, or gRPC for a stated reason</em>, then nails the cross-cutting details that separate a toy API from a production one: idempotency keys so a retried payment doesn't double-charge, cursor pagination so a feed doesn't break under writes, and an auth/rate-limit story. This lesson gives you a crisp decision rubric and the handful of details to drop into every API design.
   </div>
+
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 4</p>
 
   <h2>REST done well</h2>
   <p><b>REST</b> models your system as <b>resources</b> (nouns) addressed by URLs, manipulated with HTTP <b>verbs</b>.<a href="#c1" class="cite">[1]</a> The discipline is more than "JSON over HTTP" — it's using the protocol's own semantics so caches, proxies, and clients behave predictably.</p>
@@ -94,7 +111,40 @@
     <li><b>Pagination — cursor beats offset:</b> <code>?limit=20&amp;offset=100</code> is simple but <em>breaks under writes</em> — insert a row and page 6 repeats an item or skips one, and large offsets force the DB to scan-and-discard. <b>Cursor (keyset) pagination</b> passes an opaque pointer to the last item seen (<code>?limit=20&amp;after=eyJpZCI6...</code>) and queries <code>WHERE id &lt; cursor ORDER BY id LIMIT 20</code> — stable under concurrent writes and index-friendly at any depth. Use cursors for feeds and large/append-heavy lists.</li>
   </ul>
   <p>(<b>HATEOAS</b> — responses embedding links to related actions — is the purest form of REST but rarely implemented in practice; know the term, don't over-invest.)</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="rest-idempotent-verbs">
+        <p class="stem">Which HTTP verbs are idempotent?</p>
+        <button class="opt">GET, PUT and DELETE</button>
+        <button class="opt">POST, PATCH and GET</button>
+        <button class="opt">POST, PUT and DELETE</button>
+        <button class="opt">Only GET, nothing else</button>
+        <p class="fb">Repeating GET/PUT/DELETE leaves the same end state. POST creates again; PATCH (e.g. 'increment') may not.</p>
+        <p class="hint">Look at the 'Idempotent?' column of the verb table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="rest-timeout-ambiguity">
+        <p class="stem">A client's POST /payments times out. Why can't it just retry safely without an idempotency key?</p>
+        <button class="opt">The server rejects any request that arrives twice from one IP</button>
+        <button class="opt">A timeout means the request never reached the server at all</button>
+        <button class="opt">It can't know if the charge ran; a blind retry may charge twice</button>
+        <button class="opt">HTTP forbids retrying POST, so the client library will refuse</button>
+        <p class="fb">Timeout = unknown outcome. The key lets the server recognize the replay and return the original result.</p>
+        <p class="hint">From the client's side, what's the difference between 'request lost' and 'response lost'?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="rest-offset-breaks">
+        <p class="stem">You're on page 5 of a feed (offset 80). A new post arrives at the top. What do you see on page 6?</p>
+        <button class="opt">Exactly the next 20 items, since offsets ignore new inserts</button>
+        <button class="opt">An item from page 5 again, because everything shifted down one</button>
+        <button class="opt">The newest post, because offset pages always start at the top</button>
+        <button class="opt">An error, because the database locks the table during inserts</button>
+        <p class="fb">Offset counts positions, and an insert at the top shifts every position by one. Cursors anchor to an item, not a position.</p>
+        <p class="hint">Picture the list as numbered slots. An insert at slot 0 moves item #100 to which slot?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 4</p>
   <h2>GraphQL</h2>
   <p><b>GraphQL</b> exposes a <em>single endpoint</em> (<code>POST /graphql</code>) and a typed <b>schema</b>; the client sends a query describing <em>exactly</em> the fields it wants, and the server returns precisely that shape.<a href="#c2" class="cite">[2]</a> Each field is backed by a <b>resolver</b> function. It exists to kill two REST pain points on rich, nested data:</p>
   <ul>
@@ -111,7 +161,40 @@
       <li><b>New risks:</b> a client can ask for a hugely deep/expensive query, so you add query depth/complexity limits and cost analysis.</li>
     </ul>
   </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="d" data-concept="gql-solves">
+        <p class="stem">Which two REST pain points is GraphQL designed to remove?</p>
+        <button class="opt">Slow JSON parsing and the lack of HTTP status codes</button>
+        <button class="opt">Weak authentication and missing rate limiting</button>
+        <button class="opt">Hard versioning and the overhead of HTTPS handshakes</button>
+        <button class="opt">Over-fetching and needing many calls for nested data</button>
+        <p class="fb">Client-shaped queries return exactly the fields needed, in one round trip for the whole tree.</p>
+        <p class="hint">Reread the two bullets in the GraphQL section.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="gql-n-plus-1-picture">
+        <p class="stem">A query asks for 50 posts, each with author and author's company. Naively, how many DB queries fire?</p>
+        <button class="opt">1 + 50 + 50 = 101: posts, then one per author, then one per company</button>
+        <button class="opt">3: one per level of the query, since resolvers batch automatically</button>
+        <button class="opt">1: GraphQL compiles the whole query into a single SQL join</button>
+        <button class="opt">50: one per post, since authors and companies come for free</button>
+        <p class="fb">Each resolver fires per parent object. DataLoader batches each level into one IN(...) query → 3 total.</p>
+        <p class="hint">Resolvers run once per parent. How many parents does the author resolver have? The company resolver?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="gql-caching-hard">
+        <p class="stem">Why does GraphQL lose the free CDN caching that REST gets?</p>
+        <button class="opt">GraphQL responses are binary, and CDNs only cache text formats</button>
+        <button class="opt">GraphQL requires authentication, and CDNs never cache auth traffic</button>
+        <button class="opt">Everything is a POST to one URL, so the URL no longer names the data</button>
+        <button class="opt">GraphQL servers set no-cache headers on every response by spec</button>
+        <p class="fb">HTTP caches key on method + URL. One POST /graphql endpoint means the URL says nothing about what's inside.</p>
+        <p class="hint">What does a CDN use as its cache key?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 4</p>
   <h2>Choosing — and the cross-cutting concerns</h2>
   <table>
     <thead><tr><th></th><th>REST</th><th>GraphQL</th><th>gRPC</th></tr></thead>
@@ -132,43 +215,64 @@
 
   <h2>In the interview</h2>
   <p>In the "Core Entities &amp; API" step: (1) list the 3-4 core entities, (2) pick a style with one sentence of justification ("REST — this is a public CRUD-ish API and I want CDN caching on reads"), (3) sketch 4-6 endpoints with the right verbs and status codes, (4) proactively drop the two details that signal seniority — an <b>idempotency key</b> on the critical write and <b>cursor pagination</b> on the big list — and (5) name auth + rate limiting in a line. Don't agonize over REST vs GraphQL; state a default fast and spend your depth budget on idempotency, consistency, and pagination instead.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="api-style-transfer">
+        <p class="stem">Internal ranking service called 50k times/sec by three of your own services. Which style and why?</p>
+        <button class="opt">GraphQL, because clients will want flexible nested slices of data</button>
+        <button class="opt">gRPC, because you own both ends and want compact low-latency calls</button>
+        <button class="opt">REST, because public CDN caching will absorb most of the requests</button>
+        <button class="opt">GraphQL, because it removes the need for any versioning strategy</button>
+        <p class="fb">Internal, high-QPS, both ends controlled → gRPC (HTTP/2 + Protobuf). REST/GraphQL shine at the public edge.</p>
+        <p class="hint">Who are the clients, and does CDN caching even apply to internal calls?</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why does cursor pagination beat offset pagination?</p>
-      <button class="opt">It lets clients jump directly to any arbitrary page number</button>
-      <button class="opt">It returns every page in a single compressed binary frame</button>
-      <button class="opt">It stays stable and index-friendly even under concurrent writes</button>
-      <button class="opt">It removes the need for the server to sort the result set</button>
-      <p class="fb">A cursor anchors to the last item seen, so inserts don't shift pages and the DB seeks instead of scanning-and-discarding at large offsets.</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="rest-cursor-final">
+        <p class="stem">Why does cursor pagination beat offset pagination?</p>
+        <button class="opt">It lets clients jump directly to any arbitrary page number</button>
+        <button class="opt">It returns every page in a single compressed binary frame</button>
+        <button class="opt">It stays stable and index-friendly even under concurrent writes</button>
+        <button class="opt">It removes the need for the server to sort the result set</button>
+        <p class="fb">A cursor anchors to the last item seen, so inserts don't shift pages and the DB seeks instead of scanning-and-discarding at large offsets.</p>
+        <p class="hint">Reread the pagination bullet.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="rest-idempotency-key-final">
+        <p class="stem">What does an idempotency key on a POST prevent?</p>
+        <button class="opt">A retried request from performing the action a second time</button>
+        <button class="opt">An attacker from reading another user's private resource</button>
+        <button class="opt">The server from ever returning a 5xx error to a client</button>
+        <button class="opt">The client from over-fetching fields it does not need</button>
+        <p class="fb">The server records the result against the key, so a replay after a timeout returns the original outcome instead of charging again.</p>
+        <p class="hint">Reread the idempotency paragraph under the verb table.</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="gql-purpose-final">
+        <p class="stem">What problem is GraphQL specifically designed to solve?</p>
+        <button class="opt">Guaranteeing exactly-once delivery of asynchronous events</button>
+        <button class="opt">Making every response cacheable at the CDN edge by URL</button>
+        <button class="opt">Encrypting payloads in transit without extra configuration</button>
+        <button class="opt">Over-fetching and multi-round-trip under-fetching of nested data</button>
+        <p class="fb">Clients request the exact fields they need in one query, eliminating fixed over-sized responses and many sequential REST calls.</p>
+        <p class="hint">Reread the GraphQL section's two bullets.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="gql-dataloader-final">
+        <p class="stem">How does DataLoader fix GraphQL's N+1 problem?</p>
+        <button class="opt">It caches the entire query response at the HTTP edge layer</button>
+        <button class="opt">It batches per-field lookups into one IN-query per tick</button>
+        <button class="opt">It rejects any query that nests deeper than three levels</button>
+        <button class="opt">It converts the GraphQL schema into REST endpoints first</button>
+        <p class="fb">Instead of one DB call per parent, it collects all requested IDs and issues a single batched query, collapsing N+1 into ~2 queries.</p>
+        <p class="hint">Reread the N+1 box.</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">2. What does an idempotency key on a POST prevent?</p>
-      <button class="opt">A retried request from performing the action a second time</button>
-      <button class="opt">An attacker from reading another user's private resource</button>
-      <button class="opt">The server from ever returning a 5xx error to a client</button>
-      <button class="opt">The client from over-fetching fields it does not need</button>
-      <p class="fb">The server records the result against the key, so a replay after a timeout returns the original outcome instead of charging again.</p>
-    </div>
-    <div class="q" data-correct="d">
-      <p class="stem">3. What problem is GraphQL specifically designed to solve?</p>
-      <button class="opt">Guaranteeing exactly-once delivery of asynchronous events</button>
-      <button class="opt">Making every response cacheable at the CDN edge by URL</button>
-      <button class="opt">Encrypting payloads in transit without extra configuration</button>
-      <button class="opt">Over-fetching and multi-round-trip under-fetching of nested data</button>
-      <p class="fb">Clients request the exact fields they need in one query, eliminating fixed over-sized responses and many sequential REST calls.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. How does DataLoader fix GraphQL's N+1 problem?</p>
-      <button class="opt">It caches the entire query response at the HTTP edge layer</button>
-      <button class="opt">It batches per-field lookups into one IN-query per tick</button>
-      <button class="opt">It rejects any query that nests deeper than three levels</button>
-      <button class="opt">It converts the GraphQL schema into REST endpoints first</button>
-      <p class="fb">Instead of one DB call per parent, it collects all requested IDs and issues a single batched query, collapsing N+1 into ~2 queries.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Design the full REST API for the <a href="0011-bitly.html">URL shortener</a>, including idempotency and rate limiting." · "Walk through exactly how a GraphQL query becomes N+1 database calls and how DataLoader batches them." · "When would you regret choosing GraphQL, and what would you migrate to?"
@@ -191,21 +295,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

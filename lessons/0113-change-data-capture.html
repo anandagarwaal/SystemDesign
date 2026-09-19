@@ -105,9 +105,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="cdc-why-no-trycatch-fix">
         <p class="stem">Why can't a try/catch block around the two writes fix the dual-write problem?</p>
-        <button class="opt">Try/catch blocks are not supported in most database driver libraries</button>
-        <button class="opt">A crash can land between any two lines, so no in-process code path is guaranteed to run before it</button>
-        <button class="opt">Elasticsearch rejects all writes wrapped in an exception handler</button>
+        <button class="opt">Try/catch isn't supported in most database driver libraries</button>
+        <button class="opt">A crash can land between any two lines, before any handler</button>
+        <button class="opt">Elasticsearch rejects any write wrapped in an exception handler</button>
         <p class="fb">A process crash doesn't respect your code structure — it can happen after the first write commits but before the second one even starts, and no catch block runs during a crash.</p>
         <p class="hint">Think about when exactly a crash can occur relative to your two separate write calls.</p>
       </div>
@@ -150,9 +150,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="cdc-idempotent-consumers-why">
         <p class="stem">Why must CDC consumers be idempotent?</p>
-        <button class="opt">Because the source database commits in random order</button>
-        <button class="opt">Because triggers fire twice for every single row change</button>
-        <button class="opt">Because offset-based resume after a restart gives at-least-once delivery</button>
+        <button class="opt">The source database commits rows in random order</button>
+        <button class="opt">Triggers fire twice for every single row change</button>
+        <button class="opt">Resuming from offsets after restart is at-least-once</button>
         <p class="fb">After a restart the connector resumes from its last checkpoint and may re-emit events, so each change can arrive more than once.</p>
         <p class="hint">Reread the "Offsets" bullet — what delivery guarantee does resuming from a checkpoint give you, and what's missing from it?</p>
       </div>
@@ -182,9 +182,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="cdc-outbox-relay-ordering">
         <p class="stem">Why does tailing an outbox table with CDC eliminate the dual-write bug that plain application code has?</p>
-        <button class="opt">The outbox row and the business-state row commit in one local transaction, so CDC only ever sees a committed pair, never a half-done one</button>
-        <button class="opt">CDC retries the outbox write automatically until Kafka confirms it was received</button>
-        <button class="opt">The outbox table uses a different storage engine that never loses writes</button>
+        <button class="opt">The outbox and state rows commit together, so CDC sees whole pairs</button>
+        <button class="opt">CDC retries the outbox write until Kafka confirms it was received</button>
+        <button class="opt">The outbox table uses a special storage engine that never loses data</button>
         <p class="fb">Because the outbox insert and the state change share one local transaction, there's no window where one commits without the other — CDC just reads what the DB already guaranteed atomically.</p>
         <p class="hint">What makes the outbox row's write different from a second, independent write to Elasticsearch?</p>
       </div>
@@ -200,9 +200,9 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-type="intuition" data-correct="c" data-concept="cdc-stalled-consumer-risk-why">
         <p class="stem">Why can a stalled CDC consumer fill up the source database's disk?</p>
-        <button class="opt">Kafka automatically doubles the source's write volume when a consumer lags</button>
-        <button class="opt">The source database starts logging every consumer's error messages to disk</button>
-        <button class="opt">The replication slot must retain WAL until the stalled consumer reads it, so unread WAL keeps accumulating</button>
+        <button class="opt">Kafka automatically doubles the source's write volume on lag</button>
+        <button class="opt">The source starts logging every consumer's errors to its disk</button>
+        <button class="opt">The slot must retain WAL until the consumer reads it, so it grows</button>
         <p class="fb">A replication slot is a promise to the source database: don't recycle this WAL until I've read it. A stalled consumer means the WAL just keeps growing, unread, on the source's disk.</p>
         <p class="hint">Think about what a replication slot is telling the source database to hold onto, and for how long.</p>
       </div>
@@ -234,8 +234,8 @@
       <div class="q" data-correct="c" data-concept="cdc-snapshot-then-stream-final">
         <p class="stem">What does a CDC connector do the very first time it starts against an existing table?</p>
         <button class="opt">It refuses to start until the table is completely empty</button>
-        <button class="opt">It begins streaming only new changes and ignores all existing rows forever</button>
-        <button class="opt">It takes a consistent snapshot of existing rows, then switches to streaming the log</button>
+        <button class="opt">It streams only new changes and ignores existing rows forever</button>
+        <button class="opt">It snapshots existing rows, then switches to the log stream</button>
         <p class="fb">Snapshot-then-stream is how downstreams get the full existing dataset before continuing with live deltas.</p>
         <p class="hint">Reread the "Snapshot + stream" bullet in chunk 2.</p>
       </div>
@@ -249,17 +249,17 @@
       </div>
       <div class="q" data-correct="a" data-concept="cdc-dont-need-it-when-final">
         <p class="stem">When does the lesson say CDC is unnecessary overhead?</p>
-        <button class="opt">A single small service with only one datastore and no downstream consumers</button>
-        <button class="opt">Any system that has more than one microservice deployed</button>
+        <button class="opt">One small service, one datastore, no downstream consumers</button>
+        <button class="opt">Any system with more than one microservice deployed</button>
         <button class="opt">Any system that stores data in a relational database</button>
         <p class="fb">CDC earns its operational weight only once there's a real synchronization problem across multiple stores — a lone service with one datastore has nothing to sync.</p>
         <p class="hint">Reread the opening of the "When NOT to use it" section.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="cdc-outbox-vs-plain-cdc-final">
         <p class="stem">Why is the transactional outbox pattern described as CDC's "robust backbone" for a Saga, rather than tailing business tables directly?</p>
-        <button class="opt">Outbox tables are always smaller and therefore faster for Debezium to snapshot</button>
-        <button class="opt">Business tables cannot be read by any WAL-based connector under any circumstances</button>
-        <button class="opt">The outbox row is written atomically with the state change, so CDC always emits an event exactly when — and only when — the state actually changed</button>
+        <button class="opt">Outbox tables are smaller, so Debezium snapshots them faster</button>
+        <button class="opt">Business tables can never be read by any WAL-based connector</button>
+        <button class="opt">The outbox row commits with the change, so events match reality</button>
         <p class="fb">The outbox guarantees the event and the state change are one atomic unit; tailing arbitrary business tables directly doesn't give you that same guarantee about what should count as "an event."</p>
         <p class="hint">Recall chunk 3's outbox explanation — what does the shared local transaction guarantee that a raw table tail wouldn't?</p>
       </div>

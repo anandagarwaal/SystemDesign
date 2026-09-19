@@ -199,9 +199,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="cicd-why-burst-not-average">
       <p class="stem">Why does the lesson size the runner pool for the ~10× burst peaks rather than the ~6/sec average trigger rate?</p>
-      <button class="opt">Because average and peak are always numerically identical in production systems</button>
-      <button class="opt">Because a pool sized for the average would be overwhelmed and stall queues during real spikes like 9am pushes</button>
-      <button class="opt">Because interviewers only ever grade the average-case number, never the peak</button>
+      <button class="opt">Average and peak are always numerically identical in production</button>
+      <button class="opt">An average-sized pool would stall queues during real 9am spikes</button>
+      <button class="opt">Interviewers only grade the average-case number, never the peak</button>
       <p class="fb">Demand is spiky (9am, pre-deploy). A fleet sized to the calm average leaves no headroom for the burst, so queue wait blows past the SLO exactly when developers notice most.</p>
       <p class="hint">Think about what happens to queue depth if capacity matches only the average, not the spike.</p>
     </div>
@@ -335,17 +335,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="cicd-hld-metadata-vs-blob-split">
       <p class="stem">What is described as the "load-bearing split" in the high-level design?</p>
-      <button class="opt">Keeping small transactional orchestration metadata separate from huge append-only blobs</button>
-      <button class="opt">Keeping the webhook ingestion service in a different programming language than the planner</button>
-      <button class="opt">Keeping every component behind exactly one shared load balancer</button>
+      <button class="opt">Small transactional metadata apart from huge append-only blobs</button>
+      <button class="opt">The webhook service in a different language than the planner</button>
+      <button class="opt">Every component behind exactly one shared load balancer</button>
       <p class="fb">Orchestration state (pipelines, jobs, edges) is small and transactional; artifacts, logs and caches are huge and append-only — mixing them into one store would be a poor fit for both.</p>
       <p class="hint">Reread the last sentence of the High-Level Design section's "Flow" paragraph.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="cicd-trigger-queue-why">
       <p class="stem">What would happen if the ingestion service dispatched jobs to the scheduler directly, skipping the trigger queue?</p>
-      <button class="opt">Nothing would change, since webhook volume is always perfectly steady</button>
-      <button class="opt">A burst of pushes could overload the scheduler or drop triggers with nowhere to buffer them</button>
-      <button class="opt">The planner would no longer be able to build a DAG of jobs at all</button>
+      <button class="opt">Nothing changes, since webhook volume is always perfectly steady</button>
+      <button class="opt">A push burst could overload the scheduler or drop triggers</button>
+      <button class="opt">The planner could no longer build a DAG of jobs at all</button>
       <p class="fb">The queue is a durable buffer specifically so bursts are absorbed instead of overloading downstream planning and scheduling, and so a crash doesn't lose a trigger.</p>
       <p class="hint">Reread the pushback: "Why a trigger queue before the scheduler?"</p>
     </div>
@@ -457,9 +457,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="cicd-cache-poisoning-why">
       <p class="stem">What would break if fork-PR jobs were allowed to write to the same dependency cache trusted builds read from?</p>
-      <button class="opt">A malicious PR could plant a backdoored dependency that a later trusted build silently pulls in</button>
+      <button class="opt">A malicious PR could plant a backdoor that trusted builds pull in</button>
       <button class="opt">The cache would simply run out of disk space faster than usual</button>
-      <button class="opt">Build times would immediately get slower for every tenant using that cache</button>
+      <button class="opt">Build times would immediately slow for every tenant using the cache</button>
       <p class="fb">A writable shared cache is a poisoning vector: untrusted code corrupts an artifact that a trusted pipeline later trusts and consumes, defeating the isolation deep dive entirely.</p>
       <p class="hint">Reread "The caching subtlety" box under deep dive 4.</p>
     </div>
@@ -565,9 +565,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="cicd-fork-pr-secrets-why">
       <p class="stem">Why does the security design withhold secrets from fork-PR workflows by default?</p>
-      <button class="opt">Fork PRs are technically incapable of running any workflow steps at all</button>
-      <button class="opt">Anyone can open a fork PR with attacker-controlled code, so exposing secrets there risks exfiltration</button>
-      <button class="opt">Fork PRs always run on a completely separate, unrelated cloud provider</button>
+      <button class="opt">Fork PRs are technically incapable of running any workflow steps</button>
+      <button class="opt">Anyone can open a fork PR with hostile code that exfiltrates secrets</button>
+      <button class="opt">Fork PRs always run on a separate, unrelated cloud provider</button>
       <p class="fb">A fork PR is arbitrary untrusted code from an unknown contributor; if it could read org secrets, opening a PR would be enough to steal them.</p>
       <p class="hint">Reread the pushback: "How do you protect secrets from pull requests by forks?"</p>
     </div>
@@ -579,6 +579,18 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A CI/CD system turns push events into DAGs of isolated jobs. Webhooks are verified, deduplicated and queued; a planner expands the pipeline into a DAG, and a scheduler dispatches ready jobs fairly across tenants. Each job runs on an ephemeral microVM runner claimed from a warm pool that autoscales on queue depth and is destroyed afterward. Artifacts and logs go to object storage, and dependency caches cut build time. Secrets use short-lived OIDC credentials. At 10× we add hosts, regions and scheduler shards.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="cicd-ephemeral-microvm">
+        <p class="stem">Why run each job on an ephemeral microVM rather than a long-lived shared runner?</p>
+        <button class="opt">MicroVMs are cheaper per hour than any container</button>
+        <button class="opt">Long-lived runners can't read from the job queue</button>
+        <button class="opt">MicroVMs let jobs share a cache directory safely</button>
+        <button class="opt">Untrusted code gets a clean sandbox that's discarded</button>
+        <p class="fb">CI runs arbitrary customer code. Fresh isolation per job prevents cross-tenant leaks and poisoned state; a warm pool hides boot time.</p>
+        <p class="hint">Whose code runs on a CI runner, and what could it leave behind?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>

@@ -24,12 +24,36 @@ curve. Concretely, every lesson MUST:
    correctly. Wrong answers show `.hint` and re-arm the question — there is no
    soft-pass. Do not write your own gating JS; include the shared script:
    `<script src="../reference/mastery.js"></script>`.
-5. End with a comprehensive final chunk (`id="chunk-final"` or similar) whose
+5. End with a comprehensive final chunk (it must be `id="chunk-final"`) whose
    gate spans every chunk in the lesson, mixing recall and intuition questions.
 6. Never assume an unstated prerequisite. If a lesson depends on a concept not
    yet taught in the course, either teach it in a chunk first or add a short
    "you should already know: X, Y" checklist and point to
    `lessons/0000-prereq-diagnostic.html` or the relevant earlier lesson.
+
+### What `mastery.js` does at runtime (write questions that survive it)
+- **Options are shuffled on every visit.** Never write "both of the above", "option A", or
+  anything that depends on position. Author `data-correct` against the order in the HTML;
+  the engine tracks each option's original letter.
+- **Intuition questions are commit-first.** The options stay hidden until the learner writes
+  at least six words in their own words. So an intuition stem must be answerable *without*
+  seeing options: ask "why", "what breaks if", or "picture X — what happens", never
+  "which of these…". What they write is saved (`sd-answers-v1`) and shown to the teacher in
+  the review report when they miss the question.
+- **Length tells defeat the point.** Keep options within ~30% of each other in length, and
+  don't make the correct one systematically the longest or most qualified. Precise-sounding
+  distractors are fine; obviously absurd ones make the question free.
+- Every answered question lands on the SM-2-lite schedule and reappears in
+  `reference/review.html` (today's review, section exams, weak spots, drill).
+
+### After editing any lesson (required)
+1. `python3 tools/audit_lessons.py`: must report 0 issues (gates, intuition question per
+   gate, hidden chunks, `chunk-final`, unique concept ids, hints, option-length tells).
+2. `python3 tools/build_question_bank.py`: regenerates `reference/question-bank.js`.
+   Without it the review page still serves the old questions.
+Helpers: `tools/convert_lesson.py` (old single-quiz lesson → gated chunks from a spec),
+`tools/add_gate.py` (append questions to a chunk's gate), `tools/set_options.py`
+(replace a question's options by concept id, e.g. to fix length tells).
 
 ## Hard rules
 1. **Copy the exact `<style>` block from `lessons/_TEMPLATE.html` verbatim**

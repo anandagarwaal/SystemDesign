@@ -149,9 +149,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="yelp-review-uniqueness-constraint">
       <p class="stem">Why does leaving a review require deriving the user from the auth token instead of accepting a user_id in the request body?</p>
-      <button class="opt">Auth tokens are shorter and reduce request payload size</button>
-      <button class="opt">Request bodies cannot technically contain a user identifier field</button>
-      <button class="opt">Accepting a client-supplied user_id would let anyone post a review as someone else</button>
+      <button class="opt">Auth tokens are shorter and reduce the request payload size</button>
+      <button class="opt">Request bodies can't technically contain a user identifier</button>
+      <button class="opt">A client-sent user_id would let anyone review as someone else</button>
       <p class="fb">Trusting a client-supplied identity field is a forgeable input; the token is the only trustworthy source of "who is calling."</p>
       <p class="hint">This is the same rule the delivery framework states about API design generally.</p>
     </div>
@@ -253,7 +253,7 @@
       <p class="stem">What would break if the UNIQUE (business_id, user_id) constraint on reviews were removed?</p>
       <button class="opt">Reviews would no longer be sharded correctly by business_id</button>
       <button class="opt">The average rating could no longer be computed at all</button>
-      <button class="opt">One user could submit multiple reviews for the same business, skewing the rating</button>
+      <button class="opt">One user could post many reviews for a business, skewing it</button>
       <p class="fb">The constraint stops a single user from inflating or deflating a business's average by reviewing it repeatedly.</p>
       <p class="hint">Reread the Data Model intro paragraph's two modeling choices.</p>
     </div>
@@ -309,17 +309,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="c" data-concept="yelp-search-service-separation-reason">
       <p class="stem">Why a separate search service instead of querying Postgres directly?</p>
-      <button class="opt">Postgres cannot technically store geographic coordinate columns</button>
-      <button class="opt">A separate service is required before any load balancer can be used</button>
-      <button class="opt">Search needs geo, text and category ranking together at high QPS, scaled independently of writes</button>
+      <button class="opt">Postgres can't technically store geographic coordinate columns</button>
+      <button class="opt">A separate service is needed before any load balancer works</button>
+      <button class="opt">Geo + text + category ranking at high QPS, scaled apart from writes</button>
       <p class="fb">Isolating search lets it use Elasticsearch and scale reads independently of the review-write path.</p>
       <p class="hint">Reread the pushback right after the High-Level Design table.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="yelp-async-review-write-tradeoff">
       <p class="stem">The review-write flow returns 201 immediately and updates the average asynchronously. What would happen if it updated the average synchronously instead?</p>
-      <button class="opt">Nothing would change; synchronous and asynchronous updates have identical latency</button>
-      <button class="opt">Every review write would incur extra latency waiting on the rating and index update</button>
-      <button class="opt">The review could no longer be stored durably in Postgres at all</button>
+      <button class="opt">Nothing — sync and async updates have identical latency</button>
+      <button class="opt">Each write would wait on the rating and index updates</button>
+      <button class="opt">The review could no longer be stored durably in Postgres</button>
       <p class="fb">Making the write wait on the aggregate/index update would slow down the rare write path for no benefit, since eventual consistency is acceptable.</p>
       <p class="hint">Reread the "Review-write flow" paragraph under High-Level Design.</p>
     </div>
@@ -401,8 +401,8 @@
     </div>
     <div class="q" data-correct="a" data-concept="yelp-geohash-boxscan-rejection">
       <p class="stem">Why is a naive "index lat and long separately" box scan rejected?</p>
-      <button class="opt">The database can only use one range index well and scans a huge stripe of the other</button>
-      <button class="opt">Floating point coordinates can never be stored in a database column</button>
+      <button class="opt">The DB uses one range index well and scans a huge stripe of the other</button>
+      <button class="opt">Floating-point coordinates can never be stored in a database column</button>
       <button class="opt">Box scans always return businesses outside the requested radius</button>
       <p class="fb">Two independent range conditions can't both use an index efficiently; the DB scans a large stripe.</p>
       <p class="hint">Reread the "Naive box scan" row in Deep Dive 1's table.</p>
@@ -484,9 +484,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="yelp-location-minimization-why">
       <p class="stem">Why do logs and caches store only a coarse geohash of a search location, not the exact lat/long?</p>
-      <button class="opt">Exact coordinates take up too many bytes for a logging system to handle</button>
-      <button class="opt">A coarse geohash is enough to debug and cache, while limiting exposure of precise location</button>
-      <button class="opt">Elasticsearch cannot index precise floating point coordinates at all</button>
+      <button class="opt">Exact coordinates take too many bytes for logging to handle</button>
+      <button class="opt">A coarse cell is enough to debug and cache, and exposes less</button>
+      <button class="opt">Elasticsearch cannot index precise floating-point coordinates</button>
       <p class="fb">Data minimization: keep only the precision needed for the job (debugging, cache keys), reducing sensitive-location exposure.</p>
       <p class="hint">Reread the Privacy section's "Location minimization" sentence.</p>
     </div>
@@ -540,7 +540,16 @@
       <p class="fb">Search query CPU on Elasticsearch is the named first bottleneck; more replicas and regional shards absorb the load.</p>
       <p class="hint">Reread the "First bottleneck" sentence under the 10× scaling table.</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="c" data-concept="yelp-regional-shard-why">
+        <p class="stem">Why does sharding the search index by region cut query CPU?</p>
+        <button class="opt">Regional shards store fewer reviews, so each document is smaller</button>
+        <button class="opt">Regional shards can be cached on the CDN, unlike a global index</button>
+        <button class="opt">A 'near me' query then hits one shard instead of fanning out to all</button>
+        <button class="opt">Regional shards remove the need for any geospatial index at all</button>
+        <p class="fb">Proximity queries are naturally local. Align shards with locality so each query touches one shard.</p>
+        <p class="hint">How many shards does a query for coffee in Brooklyn need to ask in each design?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -571,17 +580,17 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="yelp-cache-rounding-why-final">
       <p class="stem">Search-cache keys round the query location to a geohash cell. What would break if the cache instead keyed on raw lat/long floats?</p>
-      <button class="opt">Nothing; raw floats and rounded cells hit the cache at the same rate</button>
-      <button class="opt">Nearly every query would be a cache miss since raw coordinates are almost never identical</button>
-      <button class="opt">Elasticsearch would be unable to accept float-based cache keys as input</button>
+      <button class="opt">Nothing — raw floats and rounded cells hit the cache equally often</button>
+      <button class="opt">Nearly every query would miss, since raw floats almost never repeat</button>
+      <button class="opt">Elasticsearch would refuse float-based cache keys as its input</button>
       <p class="fb">Raw floats basically never repeat exactly, so a cache keyed on them never gets hits; rounding to a cell makes repeat queries collide.</p>
       <p class="hint">Reread the sentence "Rounding the geo key to a cell is the trick..." in Deep Dive 3.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="yelp-cdc-staleness-tradeoff-final">
       <p class="stem">Elasticsearch is kept in sync with Postgres via async CDC rather than a synchronous dual write. What does this trade away, and why is it acceptable?</p>
-      <button class="opt">Momentary staleness between DB and search index, acceptable since the NFRs allow eventual consistency</button>
-      <button class="opt">Durability of the review itself, since Postgres is no longer the source of truth</button>
-      <button class="opt">Write throughput, since CDC forces every write to block on indexing</button>
+      <button class="opt">Brief DB-to-index staleness, which the NFRs explicitly allow</button>
+      <button class="opt">Durability of the review, since Postgres stops being the truth</button>
+      <button class="opt">Write throughput, since CDC makes every write wait on indexing</button>
       <p class="fb">Async CDC means search results can briefly lag the database, which the NFRs explicitly allow in exchange for a simple, decoupled write path.</p>
       <p class="hint">Reread the "Keeping ES in sync" box in Deep Dive 4.</p>
     </div>

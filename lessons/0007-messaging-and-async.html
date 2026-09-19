@@ -136,9 +136,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="messaging-queue-not-capacity">
         <p class="stem">Why does an ever-growing queue mean the queue "isn't the fix," even though messages aren't being lost?</p>
-        <button class="opt">A queue only smooths temporary bursts; sustained growth means consumers are permanently too slow to keep up</button>
-        <button class="opt">Queues silently drop messages once they pass a certain depth, so nothing is really safe</button>
-        <button class="opt">Growing queues always indicate a misconfigured partition key on the topic</button>
+        <button class="opt">It only smooths bursts; steady growth means consumers are too slow</button>
+        <button class="opt">Queues silently drop messages past a certain depth, so none are safe</button>
+        <button class="opt">A growing queue always means a misconfigured topic partition key</button>
         <p class="fb">Buffering absorbs a temporary mismatch between producer and consumer rate. If the gap is permanent, the backlog only grows, and the real fix is more consumer capacity or backpressure, not a bigger buffer.</p>
         <p class="hint">Reread the staff callout: "a queue is just obscuring the problem" — obscuring what, exactly?</p>
       </div>
@@ -182,9 +182,9 @@
       <div class="q" data-type="intuition" data-correct="b" data-concept="messaging-queue-deletes-why">
         <p class="stem">Why does a message queue delete a message after one worker consumes it, while a log keeps it around?</p>
         <button class="opt">Queues run out of disk space far faster than logs do, by design</button>
-        <button class="opt">A queue models a to-do list where each task should be done exactly once by one worker; a log models a ledger meant to be read many times by many readers</button>
-        <button class="opt">Deleting after consumption is an arbitrary historical accident with no design reason</button>
-        <button class="opt">Logs are only used for debugging so they never need deletion</button>
+        <button class="opt">A queue is a to-do list done once; a log is a ledger read by many</button>
+        <button class="opt">Deleting after consumption is a historical accident, not a design</button>
+        <button class="opt">Logs are only used for debugging, so they never need any deletion</button>
         <p class="fb">The two data structures encode different intents: a queue's job is "get this task done once," so keeping it after that is pointless; a log's job is "record what happened," so multiple independent readers each need their own view of the same history.</p>
         <p class="hint">Compare the "mental model" row in the table: to-do list versus ledger.</p>
       </div>
@@ -225,10 +225,10 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="messaging-keyless-events-order">
         <p class="stem">What would you expect to happen to cross-event ordering if events are published without any partition key at all?</p>
-        <button class="opt">Ordering would be perfectly preserved globally across the whole topic</button>
-        <button class="opt">The broker would refuse to accept any keyless events</button>
-        <button class="opt">Events spread round-robin across partitions, so ordering across different events is lost</button>
-        <button class="opt">All keyless events would automatically land on a single dedicated partition</button>
+        <button class="opt">Ordering would be perfectly preserved globally across the topic</button>
+        <button class="opt">The broker would refuse to accept any events without a key</button>
+        <button class="opt">Events spread across partitions, so cross-event order is lost</button>
+        <button class="opt">All keyless events would land on one dedicated partition</button>
         <p class="fb">Without a key, the producer has no reason to route related events to the same partition, so they scatter round-robin — fine for throughput, but you lose any cross-event ordering guarantee.</p>
         <p class="hint">Reread the "Ordering" bullet — it explicitly contrasts keyed events against "keyless events."</p>
       </div>
@@ -267,9 +267,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="messaging-at-most-once-why-lossy">
         <p class="stem">Why does at-most-once ("ack first, then process") risk losing messages, while at-least-once doesn't?</p>
-        <button class="opt">If the worker crashes after acking but before finishing the work, the broker believes the job is done and never redelivers it</button>
-        <button class="opt">At-most-once delivery always uses a slower network protocol that drops packets more often</button>
-        <button class="opt">At-most-once is only a theoretical semantic that no real broker actually implements</button>
+        <button class="opt">A crash after the ack but before the work means it's never redelivered</button>
+        <button class="opt">At-most-once always uses a slower network protocol that drops packets</button>
+        <button class="opt">At-most-once is a theoretical semantic that no real broker implements</button>
         <p class="fb">Acking is the broker's signal to forget the message. Ack before the work finishes, and a crash in between silently drops the task with no redelivery, since the broker already marked it handled.</p>
         <p class="hint">Compare the order of operations in the table: "ack first, then process" versus "process, then ack."</p>
       </div>
@@ -303,9 +303,9 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="messaging-outbox-purpose">
         <p class="stem">What specific inconsistency does the outbox pattern prevent?</p>
-        <button class="opt">Writing to the DB, then crashing before the matching event is ever published</button>
-        <button class="opt">A consumer group falling permanently behind the producer's write rate</button>
-        <button class="opt">A single hot partition key overwhelming one Kafka broker</button>
+        <button class="opt">Committing to the DB, then crashing before the event is published</button>
+        <button class="opt">A consumer group falling permanently behind the producer's rate</button>
+        <button class="opt">A single hot partition key overwhelming one Kafka broker node</button>
         <p class="fb">Writing the event to an outbox table in the same DB transaction guarantees the event and the state change succeed or fail together; a relay or CDC then reliably publishes it afterward.</p>
         <p class="hint">Reread the outbox bullet — it names the exact failure mode it avoids in quotes.</p>
       </div>
@@ -355,19 +355,19 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="messaging-partition-key-final">
         <p class="stem">If you drop the partition key and let events scatter round-robin, what capability specifically do you lose, and why?</p>
-        <button class="opt">Cross-event ordering, because same-key routing is exactly what made related events land in one ordered partition</button>
-        <button class="opt">Message durability, because keyless messages skip disk persistence entirely</button>
-        <button class="opt">Consumer group isolation, because groups can no longer read the topic independently</button>
-        <button class="opt">Retention windows, because keyless topics cannot configure how long messages are kept</button>
+        <button class="opt">Cross-event ordering — same-key routing put related events in order</button>
+        <button class="opt">Durability — keyless messages skip disk persistence on the broker</button>
+        <button class="opt">Group isolation — groups can no longer read the topic independently</button>
+        <button class="opt">Retention — keyless topics can't configure how long data is kept</button>
         <p class="fb">Ordering within Kafka comes from same-key events hashing to the same partition. Remove the key and events spread round-robin across partitions, so any guarantee about the order of related events disappears — durability, consumer-group isolation, and retention are unrelated to keying.</p>
         <p class="hint">Recall why userId as a partition key gives per-user ordering in the first place.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="d" data-concept="messaging-async-tradeoff-final">
         <p class="stem">A junior engineer proposes making every write path async "for resilience." What's the staff-level pushback?</p>
-        <button class="opt">Async is always strictly better, so there is never a valid pushback to give</button>
-        <button class="opt">Async paths are forbidden by definition from ever touching payments or user-facing writes</button>
-        <button class="opt">Queues eliminate the need for idempotency, so resilience comes for free</button>
-        <button class="opt">Async trades an immediate result for eventual consistency and added complexity, so it should only be used where the work is genuinely deferrable</button>
+        <button class="opt">Async is always strictly better, so there is no valid pushback to give</button>
+        <button class="opt">Async paths are forbidden from ever touching payments or user writes</button>
+        <button class="opt">Queues remove the need for idempotency, so resilience comes for free</button>
+        <button class="opt">Async swaps an instant result for eventual state; use it only if deferrable</button>
         <p class="fb">Async isn't free: you add a moving part, must reason about duplicates and ordering, and the caller only gets "we're on it." Reach for it only when the work can genuinely wait, not as a reflexive resilience upgrade.</p>
         <p class="hint">Recall the "tradeoff is honesty" paragraph in the first section — async costs something even as it buys decoupling.</p>
       </div>

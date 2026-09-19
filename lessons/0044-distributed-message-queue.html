@@ -153,16 +153,16 @@
       <div class="q" data-correct="b" data-concept="distributed-mq-at-least-once">
         <p class="stem">Why design for at-least-once delivery, knowing duplicates are possible?</p>
         <button class="opt">Exactly-once delivery is simpler and always correct</button>
-        <button class="opt">Exactly-once is impossible; idempotent consumers tolerate duplicates safely</button>
+        <button class="opt">Exactly-once is impossible; idempotent consumers cope</button>
         <button class="opt">Duplicates never happen if the network is reliable</button>
         <p class="fb">A consumer crash after processing but before acking is indistinguishable from lost acks. Idempotency is the answer.</p>
         <p class="hint">If a message is processed successfully but the delete-ack message is lost, what happens?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="distributed-mq-visibility-nfr">
         <p class="stem">Why is the visibility timeout concept so central to SQS-style queue design?</p>
-        <button class="opt">It enables at-least-once by hiding messages while in-flight, so crashes trigger redelivery</button>
-        <button class="opt">It prevents any message from ever being processed more than once</button>
-        <button class="opt">It makes the queue run faster by removing failed consumers immediately</button>
+        <button class="opt">It hides in-flight messages, so a crash leads to redelivery</button>
+        <button class="opt">It prevents any message from being processed more than once</button>
+        <button class="opt">It speeds the queue up by dropping failed consumers at once</button>
         <p class="fb">Visibility timeout is what makes at-least-once work: if no delete arrives before timeout, the message comes back.</p>
         <p class="hint">Without visibility timeout, what would happen if a consumer crashed mid-processing?</p>
       </div>
@@ -202,9 +202,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="distributed-mq-backlog-storage">
         <p class="stem">Why plan storage for a "backlog burst" (consumer down, messages pile up) instead of steady-state?</p>
-        <button class="opt">Storage is unlimited so the burst never matters</button>
-        <button class="opt">Peak buffering (outage scenario) exceeds average; undersizing means message loss</button>
-        <button class="opt">Backlog is the same as steady-state, just with different numbers</button>
+        <button class="opt">Storage is unlimited, so the burst never matters</button>
+        <button class="opt">Outage buffering exceeds average; undersizing loses data</button>
+        <button class="opt">Backlog is the same as steady state, with other numbers</button>
         <p class="fb">At 100k/s, an hour of buffering is 360M messages. Plan for the tail scenario or lose data.</p>
         <p class="hint">If your consumer crashes for 10 minutes at 100k msg/s, how many messages accumulate?</p>
       </div>
@@ -252,17 +252,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="b" data-concept="distributed-mq-receipt-handle">
         <p class="stem">Why is the receipt handle essential for at-least-once with redelivery?</p>
-        <button class="opt">It enables the first consumer to delete the message any time</button>
-        <button class="opt">It prevents a stale consumer's delete from removing a message that was redelivered to another consumer</button>
-        <button class="opt">It makes the queue faster by skipping deletion checks</button>
+        <button class="opt">It lets the first consumer delete the message at any time</button>
+        <button class="opt">A stale consumer can't delete a message redelivered to another</button>
+        <button class="opt">It makes the queue faster by skipping all deletion checks</button>
         <p class="fb">If consumer A times out but consumer B receives the message, A's old delete must not kill B's delivery. Handles are per-delivery.</p>
         <p class="hint">What would happen if you deleted by message ID instead of per-delivery handle?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="distributed-mq-separate-receive-delete">
         <p class="stem">Why separate receive (which hides the message) from delete (which removes it)?</p>
-        <button class="opt">It enables redelivery if processing fails; hiding gives the consumer time before timeout</button>
-        <button class="opt">Combining them would make the queue faster but less reliable</button>
-        <button class="opt">Separation is just an API convention with no functional impact</button>
+        <button class="opt">Failed processing leads to redelivery; hiding buys work time</button>
+        <button class="opt">Combining them would be faster but somewhat less reliable</button>
+        <button class="opt">Separation is an API convention with no functional impact</button>
         <p class="fb">Receive + timeout = a grace period to process and delete. If delete never comes, redelivery happens. That's the at-least-once contract.</p>
         <p class="hint">If receive deleted immediately, how would you know when to redeliver?</p>
       </div>
@@ -322,17 +322,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="c" data-concept="distributed-mq-message-lifecycle">
         <p class="stem">The message lifecycle in this queue is:</p>
-        <button class="opt">Created and deleted on the same receive call</button>
-        <button class="opt">Always visible and never hidden from consumers</button>
-        <button class="opt">Visible → in-flight (timeout-hidden) → deleted, or back to visible on timeout</button>
+        <button class="opt">Created and deleted on the very same receive call</button>
+        <button class="opt">Always visible, never hidden from any consumer</button>
+        <button class="opt">Visible → in-flight → deleted, or visible again on timeout</button>
         <p class="fb">That three-state model is the entire design; it makes redelivery after crashes automatic.</p>
         <p class="hint">Can a message go back to visible after being in-flight? Why or why not?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="distributed-mq-hld-crash-recovery">
         <p class="stem">How does the three-state lifecycle automatically recover from a consumer crash?</p>
-        <button class="opt">If crash occurs during processing, timeout expires and message reverts to visible for another consumer</button>
-        <button class="opt">Crashes are prevented by the broker automatically restarting consumers</button>
-        <button class="opt">The queue tracks which consumer crashed and never assigns to that consumer again</button>
+        <button class="opt">The timeout expires and the message becomes visible to others</button>
+        <button class="opt">The broker prevents crashes by restarting consumers automatically</button>
+        <button class="opt">The queue remembers the crashed consumer and skips it thereafter</button>
         <p class="fb">The timeout is the recovery mechanism. No delete = automatic redelivery when the timeout fires.</p>
         <p class="hint">If visibility timeout is 30s and a consumer crashes at 10s, what happens at 31s?</p>
       </div>
@@ -453,17 +453,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="distributed-mq-semantics-pick">
         <p class="stem">Between at-most-once, at-least-once, and exactly-once, which is viable across a network?</p>
-        <button class="opt">Only at-least-once for delivery; exactly-once only for the effect via idempotency</button>
-        <button class="opt">Exactly-once is always achievable with the right algorithm</button>
-        <button class="opt">At-most-once is the safest choice for all use cases</button>
+        <button class="opt">At-least-once delivery; exactly-once effect via idempotency</button>
+        <button class="opt">Exactly-once, with the right algorithm, is always achievable</button>
+        <button class="opt">At-most-once, which is the safest choice for all use cases</button>
         <p class="fb">Network partitions are real; you can't guarantee delivery AND prevent duplicates. Idempotency tolerates the duplicates.</p>
         <p class="hint">If an ack is lost in flight, will the sender retry or not?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="distributed-mq-dlq-purpose">
         <p class="stem">Why is a dead-letter queue essential for at-least-once with retries?</p>
-        <button class="opt">It lets consumers ignore messages they don't like</button>
-        <button class="opt">It prevents a poison message from looping forever and starving the queue</button>
-        <button class="opt">It guarantees that every message will eventually be processed</button>
+        <button class="opt">It lets consumers ignore any messages they don't like</button>
+        <button class="opt">A poison message can't loop forever and starve the queue</button>
+        <button class="opt">It guarantees every message is eventually processed</button>
         <p class="fb">Without a DLQ, one malformed message redelivers infinitely. After maxReceiveCount, it moves to the DLQ for inspection.</p>
         <p class="hint">If a message is always rejected by your processing logic, what would happen without a DLQ?</p>
       </div>
@@ -527,17 +527,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="b" data-concept="distributed-mq-durability-slol">
         <p class="stem">What is the core SLO that drives broker replication and disk layout?</p>
-        <button class="opt">Send availability must be 99% or better</button>
-        <button class="opt">Zero loss of acknowledged messages (durability, not availability)</button>
+        <button class="opt">Send availability must be 99% or better at all times</button>
+        <button class="opt">Zero loss of acknowledged messages, above availability</button>
         <button class="opt">Consumers must always receive every message instantly</button>
         <p class="fb">Durability is the cardinal SLO. Losing a message after ack is unforgivable; brief unavailability is tolerable.</p>
         <p class="hint">What happens if a producer's ack is sent but then the broker crashes?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="distributed-mq-observability-gap">
         <p class="stem">Why measure redelivery rate and receive-count distribution in observability?</p>
-        <button class="opt">Rising redeliveries signal crashing consumers or visibility timeouts set too short</button>
-        <button class="opt">Redelivery rate has no correlation to actual system health</button>
-        <button class="opt">You should only measure successful sends, never failures</button>
+        <button class="opt">Rising redeliveries mean crashing consumers or short timeouts</button>
+        <button class="opt">Redelivery rate has no correlation with actual system health</button>
+        <button class="opt">Only successful sends should be measured, never the failures</button>
         <p class="fb">Redelivery is a symptom. Detect it early so you can adjust timeouts or consumer health before poisoned messages accumulate.</p>
         <p class="hint">If redelivery rate jumps from 1% to 10%, what are two possible root causes?</p>
       </div>
@@ -583,16 +583,16 @@
       <div class="q" data-correct="c" data-concept="distributed-mq-scale-bottleneck">
         <p class="stem">At 10× scale, what is the first architectural bottleneck?</p>
         <button class="opt">The front-end tier runs out of capacity instantly</button>
-        <button class="opt">Metadata store can no longer track partition maps</button>
-        <button class="opt">Per-message in-flight bookkeeping on hot partitions; partition and batch to relieve it</button>
+        <button class="opt">The metadata store can no longer track partition maps</button>
+        <button class="opt">In-flight bookkeeping on hot partitions; partition and batch</button>
         <p class="fb">Tracking visibility per message in memory becomes expensive; batching and dynamic repartitioning solve it.</p>
         <p class="hint">If you're tracking in-flight status for 10M messages/s, how much memory is that?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="distributed-mq-cost-replication">
         <p class="stem">Why does cross-AZ replication traffic dominate the cost?</p>
         <button class="opt">Compute is inherently more expensive than network bandwidth</button>
-        <button class="opt">Every message is replicated N times across AZs; at scale that's the dominant line item</button>
-        <button class="opt">Network egress is cheaper than compute, so replication is a savings</button>
+        <button class="opt">Each message is copied N times across AZs, dominating the bill</button>
+        <button class="opt">Egress is cheaper than compute, so replication saves money</button>
         <p class="fb">Durability requires replication. At 300k msg/s with 1KB each, 2× replication is 600 MB/s egress. That's expensive at scale.</p>
         <p class="hint">300k msg/s × 1KB × 2 copies across AZs = how many bytes per second?</p>
       </div>
@@ -612,33 +612,33 @@
       <span class="gate-lbl">Comprehensive check</span>
       <div class="q" data-correct="c" data-concept="distributed-mq-core-signal">
         <p class="stem">The core L6 insight into queue design is:</p>
-        <button class="opt">Picking the fastest data structure to store messages</button>
-        <button class="opt">Using replication for availability like every other system</button>
-        <button class="opt">Receive hides (doesn't delete); timeout triggers redelivery; idempotent consumers tolerate duplicates</button>
+        <button class="opt">Picking the fastest data structure to store the messages</button>
+        <button class="opt">Using replication for availability, like every other system</button>
+        <button class="opt">Receive hides; timeout redelivers; idempotent consumers cope</button>
         <p class="fb">That three-part design is what makes at-least-once delivery work. Everything else is refinement.</p>
         <p class="hint">What is the difference between receiving and deleting a message?</p>
       </div>
       <div class="q" data-correct="a" data-concept="distributed-mq-visible-state">
         <p class="stem">A message in an SQS-like queue can be in which states?</p>
-        <button class="opt">Visible, in-flight (hidden), deleted; or back to visible on timeout</button>
-        <button class="opt">Only created or deleted — no intermediate state</button>
-        <button class="opt">Only visible if the consumer has crashed recently</button>
+        <button class="opt">Visible, in-flight, deleted — or visible again on timeout</button>
+        <button class="opt">Only created or deleted, with no intermediate state at all</button>
+        <button class="opt">Only visible when the consumer has crashed recently</button>
         <p class="fb">The three-state model is the entire design; it makes crash recovery automatic.</p>
         <p class="hint">Can a message transition from in-flight back to visible? When?</p>
       </div>
       <div class="q" data-correct="b" data-concept="distributed-mq-queue-vs-log">
         <p class="stem">A queue (SQS) vs a log (Kafka): the key difference is:</p>
-        <button class="opt">Queues are replicated; logs are not</button>
-        <button class="opt">Queues delete on ack; logs retain with per-group offsets for replay</button>
-        <button class="opt">Logs are faster than queues</button>
+        <button class="opt">Queues are replicated, while logs are never replicated</button>
+        <button class="opt">Queues delete on ack; logs retain with per-group offsets</button>
+        <button class="opt">Logs are simply faster than queues in every workload</button>
         <p class="fb">Queues are for distributing work (delete when done); logs are for streaming and replay.</p>
         <p class="hint">If a message is delivered and the consumer crashes, what happens in each?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="distributed-mq-why-quorum">
         <p class="stem">Why is a write quorum (not a simple replica) required before acking a send?</p>
-        <button class="opt">If any replica can be the sole survivor, losing 2 of 3 means losing data in a partition</button>
-        <button class="opt">Quorum is just a fancy name; any replication works equally well</button>
-        <button class="opt">Quorum reduces the durability NFR below 11 nines</button>
+        <button class="opt">With one sole copy, losing a node in a partition loses the data</button>
+        <button class="opt">Quorum is just a fancy name; any replication works just as well</button>
+        <button class="opt">Quorum lowers the durability NFR to below eleven nines</button>
         <p class="fb">Write quorum ensures any N-F surviving replicas can rebuild the truth. Otherwise a single failure could be the survivor.</p>
         <p class="hint">If 3 replicas and replica 1 fails, is the data that only lived on replica 1 lost?</p>
       </div>

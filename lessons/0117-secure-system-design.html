@@ -59,6 +59,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -73,13 +87,40 @@
     <strong>Why this lesson, for your mission:</strong> Most candidates treat security as "we'll add HTTPS and call it done." At L6/L7 — and especially for fintech, healthcare, or any system handling money or PII — the interviewer wants a threat-aware design: defense in depth, least privilege, encryption in transit <em>and</em> at rest, and a plan for the OWASP-class attacks. This lesson gives you a reusable security checklist you can layer onto any case study, plus the secure-cloud-architecture vocabulary (VPCs, secrets, zero trust) that signals you've shipped systems people try to break.
   </div>
 
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 4</p>
+
   <h2>The mindset: think like an attacker</h2>
   <p>Secure design starts by asking <b>"what could go wrong, and who benefits?"</b> for each component — a lightweight <b>threat model</b>. A handy frame is <b>STRIDE</b>: Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege.<a href="#c2" class="cite">[2]</a> Two principles run through everything:</p>
   <ul>
     <li><b>Defense in depth:</b> never rely on one control. If the firewall fails, network segmentation, auth checks, and encryption should each still limit the blast radius.<a href="#c2" class="cite">[2]</a></li>
     <li><b>Least privilege:</b> every user, service, and credential gets the <em>minimum</em> access needed. A compromised image-thumbnail service should not be able to read the payments database.<a href="#c2" class="cite">[2]</a></li>
   </ul>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="sec-defense-in-depth">
+        <p class="stem">What does 'defense in depth' mean?</p>
+        <button class="opt">Put all security effort into one very strong perimeter firewall</button>
+        <button class="opt">Encrypt data twice so that one broken key does not expose it</button>
+        <button class="opt">Layer independent controls so one failing still limits the damage</button>
+        <button class="opt">Audit every service in depth once a year for known vulnerabilities</button>
+        <p class="fb">No single control is trusted to hold; each layer (segmentation, authz, encryption) independently limits blast radius.</p>
+        <p class="hint">Reread the first bullet under 'The mindset'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="sec-least-priv-blast">
+        <p class="stem">An attacker fully compromises your thumbnail service. What single principle decides whether they can now read payment data?</p>
+        <button class="opt">Least privilege — whether that service's credentials can reach it</button>
+        <button class="opt">TLS everywhere — whether its traffic to other services is encrypted</button>
+        <button class="opt">Input validation — whether it sanitized the images it was handed</button>
+        <button class="opt">Rate limiting — whether its outbound requests are throttled enough</button>
+        <p class="fb">Once compromised, the attacker IS the service. What they can touch equals what the service's identity is allowed to touch.</p>
+        <p class="hint">Think blast radius: after compromise, the attacker has exactly the service's permissions.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 4</p>
   <h2>The layered checklist</h2>
   <table>
     <thead><tr><th>Layer</th><th>What to secure</th></tr></thead>
@@ -105,7 +146,40 @@
       <li><b>Sensitive data exposure:</b> unencrypted PII or weak password hashing. Block with encryption at rest and argon2/bcrypt.</li>
     </ul>
   </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="sec-idor">
+        <p class="stem">A user changes <code>/invoices/1001</code> to <code>/invoices/1002</code> and sees someone else's invoice. What is this, and the fix?</p>
+        <button class="opt">XSS — encode the invoice output before rendering it in the page</button>
+        <button class="opt">Broken access control — check ownership on every object server-side</button>
+        <button class="opt">CSRF — require a CSRF token on every GET request to the endpoint</button>
+        <button class="opt">SSRF — allow-list the internal URLs the invoice service can reach</button>
+        <p class="fb">IDOR is broken access control, OWASP's #1: authentication proved WHO they are, but nobody checked they may see THIS object.</p>
+        <p class="hint">The user was logged in. What check was missing?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="sec-password-hash-slow">
+        <p class="stem">Why are bcrypt/argon2 better than SHA-256 for passwords, even though SHA-256 is 'more secure'?</p>
+        <button class="opt">SHA-256 is broken, so attackers can reverse any hash it produces</button>
+        <button class="opt">bcrypt output is longer, so it cannot fit into rainbow tables</button>
+        <button class="opt">bcrypt encrypts the password, so you can decrypt it for resets</button>
+        <button class="opt">They are deliberately slow, so a stolen DB can't be brute-forced fast</button>
+        <p class="fb">SHA-256 is designed to be fast — billions/sec on a GPU. Password hashes are designed to be slow (and salted) so guessing is expensive.</p>
+        <p class="hint">What does an attacker who stole the hash table do next — and how fast can they do it?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="sec-sqli-mechanism">
+        <p class="stem">Why does a parameterized query stop SQL injection when escaping strings often fails?</p>
+        <button class="opt">It encrypts the user input before it is sent to the database</button>
+        <button class="opt">It rejects any input containing quotes, semicolons or dashes</button>
+        <button class="opt">Input travels as data, separate from the SQL, so it can't become code</button>
+        <button class="opt">It runs the query with a read-only user that cannot drop tables</button>
+        <p class="fb">Injection = data crossing into the code channel. Parameters never go through the parser as SQL text, so there's no boundary to escape.</p>
+        <p class="hint">Injection means input 'becomes code'. Where does a bound parameter go — the SQL text, or somewhere else?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 4</p>
   <h2>Secure cloud architecture</h2>
   <p>For the "secure cloud" framing specifically: design from the network outward. A <b>VPC</b> with public subnets (just the ALB/NAT) and private subnets (app + data tiers) is the spine; <b>security groups</b> and NACLs enforce who-talks-to-whom; a <b>bastion / SSM</b> replaces direct SSH; <b>KMS</b> manages encryption keys with rotation; <b>IAM roles</b> (not long-lived access keys) grant scoped, temporary credentials to each service. The modern endpoint is <b>zero trust</b>: trust nothing by network location — every request is authenticated and authorized even inside the perimeter, often via mTLS between services.<a href="#c2" class="cite">[2]</a></p>
 
@@ -116,43 +190,73 @@
 
   <h2>In the interview</h2>
   <p>Don't deliver a security monologue up front — weave it in. When you place the database, add "encrypted at rest, in a private subnet." When you design auth, mention least-privilege and server-side authz on every object. When money or PII appears, name the specific controls (argon2, KMS, tokenization, audit logs). If asked to "do security properly," walk the layers top-down — network → transport → identity → app → data → secrets → monitoring — and for each name one concrete control and the attack it stops. Closing with "and I'd threat-model the critical flows with STRIDE" signals maturity.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="sec-zero-trust">
+        <p class="stem">Why does zero trust authenticate calls even between two services inside the same private subnet?</p>
+        <button class="opt">Private subnets are reachable from the internet by default</button>
+        <button class="opt">Being inside the network is no proof — an attacker may be inside too</button>
+        <button class="opt">TLS certificates expire unless they are exercised on every call</button>
+        <button class="opt">Cloud providers require mTLS for all traffic inside a single VPC</button>
+        <p class="fb">Perimeter models assume 'inside = trusted'; one compromised host then reaches everything. Zero trust drops network location as a credential.</p>
+        <p class="hint">What happens under perimeter security once an attacker gets onto one internal host?</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. What does the principle of least privilege require?</p>
-      <button class="opt">Encrypting every network connection with TLS by default</button>
-      <button class="opt">Logging every security event to a tamper-evident store</button>
-      <button class="opt">Granting each user and service only the access it needs</button>
-      <button class="opt">Adding multiple independent layers of defensive controls</button>
-      <p class="fb">Least privilege limits blast radius: a compromised component can only reach the minimal set of resources it was explicitly granted.</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="c" data-concept="sec-least-privilege-final">
+        <p class="stem">What does the principle of least privilege require?</p>
+        <button class="opt">Encrypting every network connection with TLS by default</button>
+        <button class="opt">Logging every security event to a tamper-evident store</button>
+        <button class="opt">Granting each user and service only the access it needs</button>
+        <button class="opt">Adding multiple independent layers of defensive controls</button>
+        <p class="fb">Least privilege limits blast radius: a compromised component can only reach the minimal set of resources it was explicitly granted.</p>
+        <p class="hint">Reread the 'Least privilege' bullet.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="sec-sql-injection-final">
+        <p class="stem">How do you prevent SQL injection?</p>
+        <button class="opt">Use parameterized queries and validate all untrusted input</button>
+        <button class="opt">Encrypt the database files at rest with managed KMS keys</button>
+        <button class="opt">Place the database inside a private VPC subnet only</button>
+        <button class="opt">Hash all stored passwords with argon2 instead of SHA-1</button>
+        <p class="fb">Parameterized queries keep input as data, never code; the other controls are valuable but address different threats.</p>
+        <p class="hint">Reread the Injection bullet in the OWASP box.</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="sec-idor-final">
+        <p class="stem">What is broken access control (IDOR)?</p>
+        <button class="opt">A server tricked into fetching an internal metadata URL</button>
+        <button class="opt">A script injected into a victim's browser via a form field</button>
+        <button class="opt">A malicious site triggering an authenticated state change</button>
+        <button class="opt">Reaching another user's data by changing an object id</button>
+        <p class="fb">It's the top OWASP risk: the fix is a server-side authorization check on every object access, not just on the listing endpoint.</p>
+        <p class="hint">Reread the Broken access control bullet.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="sec-password-hash-final">
+        <p class="stem">Why store passwords with bcrypt or argon2?</p>
+        <button class="opt">They encrypt passwords so they can be decrypted on login</button>
+        <button class="opt">They are slow, salted hashes that resist brute-forcing</button>
+        <button class="opt">They compress the hash so the database stays small</button>
+        <button class="opt">They let any service verify the token without a lookup</button>
+        <p class="fb">Password hashing must be deliberately slow and salted; fast hashes like SHA-1 let an attacker brute-force a leaked table cheaply.</p>
+        <p class="hint">Reread the 'Data at rest' row.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="sec-ssrf-transfer">
+        <p class="stem">Your 'import from URL' feature fetches any URL a user gives. What's the specific danger?</p>
+        <button class="opt">SSRF — they point it at internal endpoints like cloud metadata</button>
+        <button class="opt">XSS — they return a script that runs inside your server process</button>
+        <button class="opt">CSRF — they trick another user's browser into running the import</button>
+        <button class="opt">IDOR — they change the import id to read someone else's imports</button>
+        <p class="fb">The server fetches from INSIDE your network with its own identity, so user-chosen URLs can reach internal services. Allow-list destinations, block private ranges.</p>
+        <p class="hint">Who makes the outbound request, and from where in the network?</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">2. How do you prevent SQL injection?</p>
-      <button class="opt">Use parameterized queries and validate all untrusted input</button>
-      <button class="opt">Encrypt the database files at rest with managed KMS keys</button>
-      <button class="opt">Place the database inside a private VPC subnet only</button>
-      <button class="opt">Hash all stored passwords with argon2 instead of SHA-1</button>
-      <p class="fb">Parameterized queries keep input as data, never code; the other controls are valuable but address different threats.</p>
-    </div>
-    <div class="q" data-correct="d">
-      <p class="stem">3. What is broken access control (IDOR)?</p>
-      <button class="opt">A server tricked into fetching an internal metadata URL</button>
-      <button class="opt">A script injected into a victim's browser via a form field</button>
-      <button class="opt">A malicious site triggering an authenticated state change</button>
-      <button class="opt">Reaching another user's data by changing an object id</button>
-      <p class="fb">It's the top OWASP risk: the fix is a server-side authorization check on every object access, not just on the listing endpoint.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. Why store passwords with bcrypt or argon2?</p>
-      <button class="opt">They encrypt passwords so they can be decrypted on login</button>
-      <button class="opt">They are slow, salted hashes that resist brute-forcing</button>
-      <button class="opt">They compress the hash so the database stays small</button>
-      <button class="opt">They let any service verify the token without a lookup</button>
-      <p class="fb">Password hashing must be deliberately slow and salted; fast hashes like SHA-1 let an attacker brute-force a leaked table cheaply.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Threat-model the <a href="0037-payment-system.html">payment system</a> with STRIDE and list mitigations." · "Walk me through a secure VPC layout for a three-tier app." · "How would an attacker exploit SSRF against cloud metadata, and how do I block it?"
@@ -174,21 +278,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

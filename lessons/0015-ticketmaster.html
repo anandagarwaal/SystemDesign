@@ -152,8 +152,8 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="ticketmaster-two-regimes-why">
       <p class="stem">Why is it safe to run two different consistency regimes (AP and CP) inside one system instead of picking one for everything?</p>
-      <button class="opt">Each path's correctness requirement only applies to that path's own data, so a stale search result never risks a double-sold seat</button>
-      <button class="opt">CP and AP are actually the same guarantee under a different name</button>
+      <button class="opt">Each path's guarantee covers its own data; stale search can't double-sell</button>
+      <button class="opt">CP and AP are actually the same guarantee under two different names</button>
       <button class="opt">Postgres automatically converts AP reads into CP reads internally</button>
       <p class="fb">Browse failures (stale seat map) and booking failures (double sale) have completely different costs, so each path gets the model that matches its own risk.</p>
       <p class="hint">Reread the staff callout box on "two consistency regimes."</p>
@@ -189,17 +189,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="ticketmaster-contention-not-throughput">
       <p class="stem">If orders average only ~6 per second, why is this system hard at all?</p>
-      <button class="opt">Because storage of 500 GB/year is difficult to provision</button>
-      <button class="opt">Because ~10M users can target the same ~50k seats within minutes during an on-sale</button>
-      <button class="opt">Because search latency requirements are stricter than for any other case study</button>
+      <button class="opt">Provisioning 500 GB/year of storage is difficult</button>
+      <button class="opt">~10M users target the same ~50k seats in minutes</button>
+      <button class="opt">Its search latency target is stricter than any other</button>
       <p class="fb">Average load is tiny; the real problem is concurrent contention on a small hot set of rows during a spike, not raw throughput.</p>
       <p class="hint">Reread the capacity pushback box.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="ticketmaster-admission-control-why">
       <p class="stem">Why does fixing the admit rate at ~150 users/s protect the database regardless of how many people are waiting?</p>
-      <button class="opt">Because Redis automatically rejects any request above 150/s system-wide</button>
-      <button class="opt">Because the waiting room deletes excess users from the queue instead of holding them</button>
-      <button class="opt">Because the database only ever sees the fixed trickle passed through admission, no matter how large the queue behind it grows</button>
+      <button class="opt">Redis automatically rejects any request above 150/s system-wide</button>
+      <button class="opt">The waiting room deletes excess users instead of holding them</button>
+      <button class="opt">The DB only sees the fixed admitted trickle, however long the queue</button>
       <p class="fb">The queue absorbs unbounded demand; only the admitted trickle reaches the booking core, so DB load stays constant regardless of queue size.</p>
       <p class="hint">Reread the "Admit rate" row's design implication in the capacity table.</p>
     </div>
@@ -245,16 +245,16 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="ticketmaster-partial-unique-index-backstop">
       <p class="stem">What is the purpose of the partial unique index on <code>booking_tickets(ticket_id)</code> for confirmed bookings?</p>
-      <button class="opt">It guarantees the database refuses a second sale even if every cache and lock failed</button>
+      <button class="opt">The DB refuses a second sale even if every cache and lock failed</button>
       <button class="opt">It speeds up search queries against the events index</button>
-      <button class="opt">It replaces the need for a Redis hold entirely</button>
+      <button class="opt">It replaces the need for any Redis seat hold entirely</button>
       <p class="fb">The database constraint is the last line of defense: correctness lives in Postgres itself, independent of Redis or app-layer logic.</p>
       <p class="hint">Reread the Data Model section's opening sentence.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="ticketmaster-redis-ttl-vs-status-column-why">
       <p class="stem">Why does a Redis key with a TTL beat a plain status column for representing a seat hold?</p>
       <button class="opt">Redis keys are always faster to query than any Postgres column</button>
-      <button class="opt">The TTL expires automatically with no sweeper job needed, while a status column needs a background process or inline check to notice expiry</button>
+      <button class="opt">A TTL expires by itself; a status column needs a sweeper or check</button>
       <button class="opt">Status columns cannot represent more than two possible values</button>
       <p class="fb">Ephemeral state (a 10-minute hold) is naturally modeled by something that expires on its own — a column requires extra machinery to detect the same event.</p>
       <p class="hint">Reread the Data Model pushback box on "why not just a status column."</p>
@@ -306,17 +306,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="ticketmaster-shared-primary-risk">
       <p class="stem">Why can't browse and booking share the same database path?</p>
-      <button class="opt">Postgres cannot serve reads and writes from the same table at all</button>
-      <button class="opt">Browse is AP and spiky; sharing a primary could let seat-map refreshes starve booking transactions during an on-sale</button>
-      <button class="opt">Elasticsearch requires a fully separate Postgres instance to function</button>
+      <button class="opt">Postgres can't serve reads and writes from one table</button>
+      <button class="opt">Spiky seat-map reads could starve booking transactions</button>
+      <button class="opt">Elasticsearch needs its own separate Postgres instance</button>
       <p class="fb">Booking's correctness-critical writes must not compete with browse's high-volume, latency-insensitive reads on the same primary.</p>
       <p class="hint">Reread the High-Level Design pushback box.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="ticketmaster-hld-write-path-isolation-why">
       <p class="stem">Why does only the Booking Service write ticket status, while Event and Search services only read?</p>
-      <button class="opt">It is an arbitrary team ownership decision with no technical reason</button>
-      <button class="opt">Elasticsearch cannot accept writes from more than one service</button>
-      <button class="opt">Restricting writes to one service keeps the correctness-critical path narrow and auditable, and lets every other path scale freely without risking a double sale</button>
+      <button class="opt">It's an arbitrary team-ownership decision with no technical reason</button>
+      <button class="opt">Elasticsearch can't accept writes from more than a single service</button>
+      <button class="opt">One writer keeps the critical path narrow; others scale freely</button>
       <p class="fb">A single writer for ticket status means the double-booking guarantee only has to be enforced in one place, and every read-side service can scale independently without touching that guarantee.</p>
       <p class="hint">Reread the High-Level Design table and its note about only the Booking Service writing ticket status.</p>
     </div>
@@ -429,9 +429,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="ticketmaster-ttl-no-process-why">
       <p class="stem">Why is "expiry that requires no process to run" specifically called out as the staff-level insight in Deep Dive 2?</p>
-      <button class="opt">Because processes are always slower than data structures in every system</button>
-      <button class="opt">A background sweeper is itself a new failure mode you must monitor and alert on; a TTL or lazy check has nothing that can fail to run</button>
-      <button class="opt">Because Redis cannot run any background jobs under any circumstances</button>
+      <button class="opt">Processes are always slower than data structures in every system</button>
+      <button class="opt">A sweeper is a new failure mode; a TTL has nothing that can stall</button>
+      <button class="opt">Redis cannot run any background jobs under any circumstances</button>
       <p class="fb">Choosing a mechanism with fewer moving parts eliminates an entire class of incident (the sweeper silently failing and leaving seats stuck).</p>
       <p class="hint">Reread the Deep Dive 2 staff callout box.</p>
     </div>
@@ -497,17 +497,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="ticketmaster-occ-conflict-signal">
       <p class="stem">What does a nonzero rate of confirm-time OCC conflicts most directly signal?</p>
-      <button class="opt">Redis holds let two users through to confirm the same seat, which is a bug signal</button>
-      <button class="opt">The waiting room admit rate is set too low</button>
-      <button class="opt">The CDN cache hit ratio has dropped below target</button>
+      <button class="opt">Holds let two users reach confirm on one seat — a bug</button>
+      <button class="opt">The waiting room admit rate is configured too low</button>
+      <button class="opt">The CDN cache hit ratio has dropped below its target</button>
       <p class="fb">The Observability table states this directly: OCC conflicts greater than zero mean the Redis hold layer let a race through.</p>
       <p class="hint">Reread the Observability table's "Booking funnel metrics" row.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="ticketmaster-payment-tokenization-why">
       <p class="stem">Why does tokenizing card data with the payment provider keep Ticketmaster mostly out of PCI scope?</p>
-      <button class="opt">PCI compliance only applies to companies that sell physical goods</button>
-      <button class="opt">Tokenization makes card data travel faster over the network</button>
-      <button class="opt">If raw card data never touches Ticketmaster's systems, the strict compliance requirements attach to the provider instead</button>
+      <button class="opt">PCI compliance applies only to companies selling physical goods</button>
+      <button class="opt">Tokenization makes card data travel faster across the network</button>
+      <button class="opt">Raw cards never touch our systems, so PCI scope sits with the provider</button>
       <p class="fb">Compliance scope follows where sensitive data is actually handled — offloading storage and processing of card numbers to the provider narrows what Ticketmaster itself must certify.</p>
       <p class="hint">Reread the Privacy section's "Payments" sentence.</p>
     </div>
@@ -554,17 +554,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="ticketmaster-10x-unchanged-core">
       <p class="stem">At 100M users for one on-sale, what happens to the booking core itself?</p>
-      <button class="opt">It doesn't change, because admission control keeps its load constant</button>
-      <button class="opt">It must be re-architected with a distributed lock service</button>
-      <button class="opt">It needs 10x more Postgres primaries per event</button>
+      <button class="opt">Unchanged: admission control keeps its load constant</button>
+      <button class="opt">Re-architected around a distributed lock service</button>
+      <button class="opt">It needs 10× more Postgres primaries per event</button>
       <p class="fb">The waiting room absorbs the growth; the admit rate to the booking core stays the same regardless of queue size.</p>
       <p class="hint">Reread the cost pushback box on "100M users for one on-sale."</p>
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="ticketmaster-event-id-shard-key-why">
       <p class="stem">Why does <code>event_id</code> work well as the natural shard key for scaling Postgres to 10x concurrent on-sales?</p>
-      <button class="opt">Because event_id values are always sequential integers</button>
-      <button class="opt">Bookings never span events, so each event's data and transactions can live entirely on one shard without cross-shard coordination</button>
-      <button class="opt">Because Elasticsearch requires the same shard key as Postgres</button>
+      <button class="opt">event_id values are always sequential integers, so ranges are easy</button>
+      <button class="opt">Bookings never span events, so each event lives on one shard</button>
+      <button class="opt">Elasticsearch requires the same shard key that Postgres uses</button>
       <p class="fb">A shard key is only clean if the unit of transactional work never crosses shards — bookings are always scoped to one event, so event_id satisfies that.</p>
       <p class="hint">Reread the Scaling 10x table's Postgres row and the "what forces a redesign" sentence about cross-event bookings.</p>
     </div>
@@ -576,6 +576,18 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Ticketmaster needs different guarantees on different paths. Browse and search are AP: CDN, cache, read replicas and Elasticsearch. Booking is CP: a seat is held with a Redis TTL key that expires on its own, and confirmation is an optimistic update in Postgres, so a seat can never sell twice. Average load is tiny, but an on-sale is ~2M req/s against 50k seats, so a virtual waiting room admits users at a rate the database can handle. At 10× only the waiting room scales. Payment fees dwarf infrastructure cost.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="tm-waiting-room-why">
+        <p class="stem">Average load is tiny, yet an on-sale brings ~2M req/s for 50k seats. Why is a waiting room the fix rather than a bigger database?</p>
+        <button class="opt">The database can't store more than 50k rows for any single event</button>
+        <button class="opt">Only 50k can win anyway; admit users at a rate the booking path can serve</button>
+        <button class="opt">A waiting room makes seat holds strongly consistent across regions</button>
+        <button class="opt">Bigger databases can't use Redis TTL keys to hold selected seats</button>
+        <p class="fb">Demand is 40× supply. Scaling the DB to absorb doomed requests is waste; admission control shapes load to what the CP path can handle.</p>
+        <p class="hint">How many of the 2M requests can possibly succeed?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -618,9 +630,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="ticketmaster-final-belt-suspenders-why">
       <p class="stem">Why does the design keep an OCC check in Postgres even though Redis already enforces the hold with SET NX?</p>
-      <button class="opt">So that a total Redis outage degrades the experience but still cannot cause a double sale</button>
-      <button class="opt">Because Postgres transactions are always faster than Redis operations</button>
-      <button class="opt">Because Redis cannot store a TTL longer than a few seconds</button>
+      <button class="opt">A total Redis outage then degrades UX but can't cause a double sale</button>
+      <button class="opt">Postgres transactions are always faster than Redis operations</button>
+      <button class="opt">Redis cannot store a TTL longer than a few seconds on any key</button>
       <p class="fb">Redis is an optimization layered on top of a database that is itself correct — losing Redis loses convenience, not correctness.</p>
       <p class="hint">Deep Dive 1's "Belt and suspenders" bullet.</p>
     </div>

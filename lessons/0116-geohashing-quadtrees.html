@@ -59,6 +59,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -73,9 +87,36 @@
     <strong>Why this lesson, for your mission:</strong> Proximity is one of the most common interview themes — Uber, Yelp, Tinder, a heat map, a food-delivery dispatch all hinge on "what's near this point?" The trap is that a B-tree on <code>(lat, lng)</code> can't answer it efficiently, and saying "I'll compute distance to every row" fails instantly at scale. A staff candidate names a real geospatial index — geohash, quadtree, or H3 — and explains the 2D-to-1D trick and the edge cases. This lesson hands you that vocabulary and the one tricky failure mode (boundary neighbors) interviewers love to probe.
   </div>
 
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 4</p>
+
   <h2>Why a normal index fails</h2>
   <p>A B-tree indexes <em>one</em> ordered dimension. You can index <code>lat</code> or <code>lng</code>, but a near-me query needs both <em>together</em>: a box around a point. Filtering <code>lat BETWEEN … AND lng BETWEEN …</code> uses at most one index and still scans a wide stripe of the planet, then computes distance to everything in it.<a href="#c2" class="cite">[2]</a> The core problem: <b>2D locality doesn't map onto 1D order</b> — two points can be close on Earth but far apart in any single-column sort. Geospatial indexes exist to encode 2D proximity into something a database <em>can</em> index efficiently.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="geo-btree-stripe">
+        <p class="stem">Picture an index on <code>lat</code> only, answering 'within 1 km of me'. What region does the index narrow you to?</p>
+        <button class="opt">A small square around the user, so very few rows are checked</button>
+        <button class="opt">A thin band circling the entire globe at the user's latitude</button>
+        <button class="opt">Only the user's own city, since latitude implies the location</button>
+        <button class="opt">Nothing at all — a latitude index cannot be used for ranges</button>
+        <p class="fb">lat BETWEEN x AND y is a horizontal stripe around the planet. Every longitude inside that stripe must still be scanned.</p>
+        <p class="hint">Draw lat BETWEEN 37.77 AND 37.79 on a world map. Is it a box or a stripe?</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="geo-core-problem">
+        <p class="stem">What is the core reason a B-tree can't answer 'near me' efficiently?</p>
+        <button class="opt">B-trees can only index integers and coordinates are decimals</button>
+        <button class="opt">B-trees are too slow once a table passes a million location rows</button>
+        <button class="opt">B-trees cannot store two columns inside one composite index</button>
+        <button class="opt">It orders one dimension, but closeness in 2D isn't 1D order</button>
+        <p class="fb">Two points close on Earth can be far apart in any single-column sort. Geo indexes encode 2D closeness into something sortable.</p>
+        <p class="hint">Reread the last two sentences of 'Why a normal index fails'.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 4</p>
   <h2>Geohashing — 2D into a 1D string</h2>
   <p>A <b>geohash</b> recursively divides the world into a grid and encodes a lat/lng into a short base-32 string.<a href="#c1" class="cite">[1]</a> The mechanism:</p>
   <ul>
@@ -93,7 +134,40 @@
       <li><b>Hot spots / skew:</b> a fixed-grid cell over Times Square holds millions of points while a rural cell holds three. Fixed grids don't adapt to density — which is exactly what quadtrees fix.</li>
     </ul>
   </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="geo-prefix-proximity">
+        <p class="stem">Two geohashes are <code>9q8yy</code> and <code>9q8yz</code>. What does their 4-character shared prefix tell you?</p>
+        <button class="opt">Both points lie inside the same cell, 9q8y</button>
+        <button class="opt">Both points are exactly 4 km apart from one another</button>
+        <button class="opt">Both points lie on the same line of latitude</button>
+        <button class="opt">Nothing, since geohash prefixes are random</button>
+        <p class="fb">Each extra character subdivides the cell. Sharing a prefix means both sit in that prefix's cell.</p>
+        <p class="hint">Each character = one more level of subdivision. What is 9q8y?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="geo-boundary-picture">
+        <p class="stem">You're at the very east edge of cell <code>9q8yy</code>; a café is 10 m east. Why might a prefix query on <code>9q8yy</code> miss it?</p>
+        <button class="opt">The café's geohash is longer, so it cannot match the query prefix</button>
+        <button class="opt">Geohashes are only accurate to 5 km, so nearby points look far</button>
+        <button class="opt">It is in the next cell over, whose string can differ from yours</button>
+        <button class="opt">Prefix queries only return points to the west of the query cell</button>
+        <p class="fb">Cell borders are arbitrary lines. Neighbours across a border get different strings. Fix: query your cell + 8 neighbours, then re-rank by true distance.</p>
+        <p class="hint">Draw the cell as a square with you on its right edge. Where is the café?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="geo-length-radius">
+        <p class="stem">You need a 500 m search radius. Why not just use 9-character geohashes (~5 m cells)?</p>
+        <button class="opt">Longer geohashes can't be stored in a sorted set or string index</button>
+        <button class="opt">You'd need thousands of tiny cells to cover the circle — pick ~radius</button>
+        <button class="opt">Nine-character hashes collide, mapping different places together</button>
+        <button class="opt">Short hashes are more accurate, so longer ones lose information</button>
+        <p class="fb">Choose a cell size near the radius (6–7 chars) so cell + 8 neighbours covers the circle with few range scans; then filter precisely.</p>
+        <p class="hint">How many 5 m squares does it take to tile a 1 km-wide circle?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 4</p>
   <h2>Quadtrees — a grid that adapts to density</h2>
   <p>A <b>quadtree</b> is a tree where each node represents a square region and splits into <b>four quadrants</b> only when it exceeds a capacity (say 100 points).<a href="#c2" class="cite">[2]</a> Dense areas (a city) subdivide deeply into tiny cells; sparse areas (an ocean) stay as one big node. A near-me query descends the tree to the leaves overlapping your search box — <code>O(log n)</code> and naturally <b>load-balanced by density</b>, since every leaf holds a bounded number of points. The cost is that it's a dynamic in-memory structure that must be rebuilt/rebalanced as points move, vs. a geohash string you can drop in any database column.</p>
   <p>Two more you should name: <b>R-trees</b> (used by PostGIS / Postgres <code>GiST</code> indexes — index bounding boxes, great for polygons and ranges, not just points)<a href="#c2" class="cite">[2]</a> and Uber's <b>H3</b> (hexagonal grid — hexagons have uniform distance to all neighbors, avoiding the corner-vs-edge distortion of squares).</p>
@@ -114,43 +188,82 @@
 
   <h2>In the interview</h2>
   <p>For any proximity feature (<a href="0020-yelp.html">Yelp</a>, <a href="0029-uber.html">Uber</a>, Tinder, heat maps, dispatch): (1) call out that a plain index can't do 2D range; (2) pick <b>geohash</b> as the simple default — "encode each location, store in Redis/an indexed column, prefix-query the cell"; (3) immediately add "and the 8 neighboring cells, then re-rank by true distance" to handle boundaries; (4) if density skew or moving objects come up, upgrade to a <b>quadtree</b> (adaptive) or mention <b>PostGIS R-trees</b> / <b>H3</b>. That progression — name the problem, simple index, edge case, density upgrade — is a clean breadth-then-depth answer.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="geo-quadtree-density">
+        <p class="stem">Why does a quadtree handle Times Square better than a fixed geohash grid?</p>
+        <button class="opt">Its cells split where points are dense, so each leaf stays small</button>
+        <button class="opt">It stores points on disk, so dense cells don't overflow memory</button>
+        <button class="opt">It uses hexagons, which give equal distance to every neighbor</button>
+        <button class="opt">It ignores density, so Times Square is treated like a farm</button>
+        <p class="fb">Split-on-capacity means leaf size tracks density: tiny leaves in cities, huge ones over oceans — bounded work per leaf.</p>
+        <p class="hint">Reread the quadtree paragraph — when does a node split?</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="geo-quadtree-cost">
+        <p class="stem">What's the main cost of a quadtree compared to a geohash column?</p>
+        <button class="opt">It can only answer point queries, never radius or box queries</button>
+        <button class="opt">It needs a special GPU to traverse the tree levels quickly</button>
+        <button class="opt">It's an in-memory structure you must rebalance as points move</button>
+        <button class="opt">It gives wrong answers near the boundaries of its quadrants</button>
+        <p class="fb">A geohash is just a string any DB can index/shard; a quadtree is a live structure you maintain and rebuild.</p>
+        <p class="hint">Look at the 'Watch out for' column of the table.</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why can't a standard B-tree answer "find points near me"?</p>
-      <button class="opt">B-trees cannot store floating-point latitude values at all</button>
-      <button class="opt">B-trees require the table to fit entirely in main memory</button>
-      <button class="opt">It orders one dimension, but proximity needs both together</button>
-      <button class="opt">B-trees only support exact-match lookups, never any ranges</button>
-      <p class="fb">A B-tree sorts a single dimension; 2D nearness doesn't reduce to a single-column order, so a box query degrades to scanning a wide stripe.</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="geo-btree-2d-final">
+        <p class="stem">Why can't a standard B-tree answer "find points near me"?</p>
+        <button class="opt">B-trees cannot store floating-point latitude values at all</button>
+        <button class="opt">B-trees require the table to fit entirely in main memory</button>
+        <button class="opt">It orders one dimension, but proximity needs both together</button>
+        <button class="opt">B-trees only support exact-match lookups, never any ranges</button>
+        <p class="fb">A B-tree sorts a single dimension; 2D nearness doesn't reduce to a single-column order, so a box query degrades to scanning a wide stripe.</p>
+        <p class="hint">Reread 'Why a normal index fails'.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="geo-prefix-property-final">
+        <p class="stem">What property makes geohashes useful for proximity?</p>
+        <button class="opt">A longer shared prefix means the two points are closer</button>
+        <button class="opt">Every geohash cell always holds the same number of points</button>
+        <button class="opt">Adjacent points always share their entire geohash string</button>
+        <button class="opt">The hash length shrinks automatically as density increases</button>
+        <p class="fb">Geohashing interleaves lat/lng bits so nearby points share long prefixes, turning a near-me query into an indexable prefix range scan.</p>
+        <p class="hint">Reread the 'magic property' bullet.</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="geo-boundary-final">
+        <p class="stem">How do you handle the geohash boundary problem?</p>
+        <button class="opt">Increase the hash length until every cell holds one point</button>
+        <button class="opt">Switch the database to a B-tree on latitude only instead</button>
+        <button class="opt">Compute the exact distance to every row in the table</button>
+        <button class="opt">Query the target cell plus its 8 neighbors, then re-rank</button>
+        <p class="fb">Adjacent points can fall in different-prefix cells, so you union the 3×3 grid of cells and sort by true distance to avoid missing close points.</p>
+        <p class="hint">Reread 'The boundary problem' box.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="geo-quadtree-adaptive-final">
+        <p class="stem">What advantage does a quadtree have over a fixed geohash grid?</p>
+        <button class="opt">It stores locations as a simple string in any column</button>
+        <button class="opt">It subdivides only dense regions, balancing leaf size</button>
+        <button class="opt">It never needs rebalancing when points move around</button>
+        <button class="opt">It requires no tree traversal to answer a near query</button>
+        <p class="fb">A quadtree splits a cell into four only when it's full, so dense areas get fine cells and leaves hold a bounded count — adapting to density.</p>
+        <p class="hint">Reread 'Quadtrees — a grid that adapts to density'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="geo-moving-drivers">
+        <p class="stem">Uber drivers move every 4 s. Why is a geohash in Redis often preferred over a quadtree here?</p>
+        <button class="opt">Quadtrees cannot index points that have a latitude below zero</button>
+        <button class="opt">Redis sorts geohashes randomly, spreading the write load evenly</button>
+        <button class="opt">Geohash cells adapt to density, while quadtree cells are fixed</button>
+        <button class="opt">An update is just a new score, with no tree to split or rebalance</button>
+        <p class="fb">High churn favours the dumb structure: moving a point is one sorted-set write, whereas a quadtree would constantly split/merge nodes.</p>
+        <p class="hint">What work does each structure do when a point moves across a cell?</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">2. What property makes geohashes useful for proximity?</p>
-      <button class="opt">A longer shared prefix means the two points are closer</button>
-      <button class="opt">Every geohash cell always holds the same number of points</button>
-      <button class="opt">Adjacent points always share their entire geohash string</button>
-      <button class="opt">The hash length shrinks automatically as density increases</button>
-      <p class="fb">Geohashing interleaves lat/lng bits so nearby points share long prefixes, turning a near-me query into an indexable prefix range scan.</p>
-    </div>
-    <div class="q" data-correct="d">
-      <p class="stem">3. How do you handle the geohash boundary problem?</p>
-      <button class="opt">Increase the hash length until every cell holds one point</button>
-      <button class="opt">Switch the database to a B-tree on latitude only instead</button>
-      <button class="opt">Compute the exact distance to every row in the table</button>
-      <button class="opt">Query the target cell plus its 8 neighbors, then re-rank</button>
-      <p class="fb">Adjacent points can fall in different-prefix cells, so you union the 3×3 grid of cells and sort by true distance to avoid missing close points.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. What advantage does a quadtree have over a fixed geohash grid?</p>
-      <button class="opt">It stores locations as a simple string in any column</button>
-      <button class="opt">It subdivides only dense regions, balancing leaf size</button>
-      <button class="opt">It never needs rebalancing when points move around</button>
-      <button class="opt">It requires no tree traversal to answer a near query</button>
-      <p class="fb">A quadtree splits a cell into four only when it's full, so dense areas get fine cells and leaves hold a bounded count — adapting to density.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Design the nearby-driver lookup for <a href="0029-uber.html">Uber</a> end to end with geohashing." · "Show me exactly how the 8-neighbor query is computed and unioned." · "When would you choose a quadtree or H3 over a geohash, and why?"
@@ -172,21 +285,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

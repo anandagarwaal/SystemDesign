@@ -131,9 +131,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="cassandra-denormalization-why">
         <p class="stem">Why does query-first modeling push you toward duplicating data across many tables instead of normalizing?</p>
-        <button class="opt">Cassandra can only look up rows by partition key, so each distinct query needs its own table shaped for that lookup</button>
-        <button class="opt">Duplicated data is required to satisfy Cassandra's foreign-key constraints</button>
-        <button class="opt">Normalization is disallowed by the Apache license Cassandra ships under</button>
+        <button class="opt">Lookups need the partition key, so each query needs its own table</button>
+        <button class="opt">Duplicated data is required to satisfy Cassandra's foreign keys</button>
+        <button class="opt">Normalization is disallowed by the license Cassandra ships under</button>
         <p class="fb">With no joins and no lookup path except partition key, a query that needs a different access pattern needs its own table with the right key — hence deliberate duplication.</p>
         <p class="hint">Think about what happens if two different queries need to read the same fact but neither can join.</p>
       </div>
@@ -169,17 +169,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="cassandra-lsm-write-path-why">
         <p class="stem">What would break if Cassandra tried to update a row in place instead of appending a newer version?</p>
-        <button class="opt">Nothing would change since SSTables are already mutable on disk</button>
-        <button class="opt">Reads would become faster since only one version would ever exist</button>
-        <button class="opt">Writes would need a disk seek to locate and mutate the old value, losing the sequential-append speed advantage</button>
+        <button class="opt">Nothing changes, since SSTables are already mutable on disk</button>
+        <button class="opt">Reads would get faster, since only one version would exist</button>
+        <button class="opt">Each write would need a seek, losing the append speed advantage</button>
         <p class="fb">In-place update needs a seek to find the existing record. Append-only avoids that seek entirely, which is the whole source of write speed.</p>
         <p class="hint">Compare a sequential append to a random-access disk seek — which one is the slow operation being avoided?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="cassandra-compaction-why">
         <p class="stem">Why does Cassandra need compaction at all, given writes never touch existing SSTables?</p>
-        <button class="opt">Because never overwriting scatters one row's data and tombstones across many SSTables that must eventually be merged</button>
-        <button class="opt">Because compaction is what assigns tokens to nodes on the ring</button>
-        <button class="opt">Because commit logs would otherwise grow forever with no way to truncate them</button>
+        <button class="opt">Never overwriting scatters a row and its tombstones over many SSTables</button>
+        <button class="opt">Compaction is the process that assigns tokens to nodes on the ring</button>
+        <button class="opt">Commit logs would otherwise grow forever with no way to truncate</button>
         <p class="fb">Append-only writes trade immediate cost for a deferred bill: scattered versions across SSTables that compaction later merges and cleans up.</p>
         <p class="hint">Reread the line "the cost of never overwrite is..." — what does it say gets scattered?</p>
       </div>
@@ -212,16 +212,16 @@
       <div class="q" data-type="intuition" data-correct="b" data-concept="cassandra-vnodes-why">
         <p class="stem">Why do vnodes make adding or removing a node less disruptive than one big token range per node would?</p>
         <button class="opt">Vnodes eliminate the need for consistent hashing entirely</button>
-        <button class="opt">Many small token ranges spread across all nodes mean a topology change reshuffles many small slices instead of one huge contiguous block</button>
-        <button class="opt">Vnodes remove the need for gossip since nodes no longer need to track each other's state</button>
+        <button class="opt">Changes reshuffle many small slices, not one huge block</button>
+        <button class="opt">Vnodes remove the need for gossip between the nodes</button>
         <p class="fb">Splitting each node's ownership into many small ranges means rebalancing work distributes across the whole cluster instead of dumping a giant slab onto neighbors.</p>
         <p class="hint">Think about what "one big token range per node" would mean for the neighbor node when a node leaves.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="cassandra-gossip-why">
         <p class="stem">Why does Cassandra use gossip instead of a central coordinator to track node liveness?</p>
         <button class="opt">Gossip is faster than any direct network call could ever be</button>
-        <button class="opt">A central coordinator would replace the leaderless write path with a leader</button>
-        <button class="opt">A central liveness tracker would become a single point of failure, defeating the leaderless, no-bottleneck design</button>
+        <button class="opt">A central coordinator would turn the leaderless writes into a leader</button>
+        <button class="opt">A central liveness tracker would be a single point of failure</button>
         <p class="fb">The whole point of leaderless design is no single component whose failure stalls the cluster; gossip spreads liveness knowledge peer to peer instead.</p>
         <p class="hint">Ask what a "central coordinator" would look like if it went down — does that match "no single bottleneck"?</p>
       </div>
@@ -258,17 +258,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="cassandra-quorum-read-repair-why">
         <p class="stem">Why does R+W &gt; N mathematically guarantee a read sees the latest acknowledged write?</p>
-        <button class="opt">Because any read set and any write set of those sizes must share at least one common replica that holds the newest value</button>
-        <button class="opt">Because the coordinator always contacts every replica regardless of the consistency level</button>
-        <button class="opt">Because hinted handoff replays every write to every node before any read is allowed</button>
+        <button class="opt">Sets of those sizes must share a replica holding the newest value</button>
+        <button class="opt">The coordinator always contacts every replica, whatever the level</button>
+        <button class="opt">Hinted handoff replays every write to every node before any read</button>
         <p class="fb">Pigeonhole logic: if R+W exceeds the total number of copies N, the two sets can't both avoid overlapping, so at least one queried replica must have the latest write.</p>
         <p class="hint">Think about set overlap — if you pick more than N replicas total across two groups from N copies, what must happen?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="cassandra-lww-clock-skew-why">
         <p class="stem">Why is last-write-wins risky specifically when writers run on different machines?</p>
-        <button class="opt">LWW only works on a single machine and fails immediately on any cluster</button>
-        <button class="opt">Wall clocks across machines can drift, so a timestamp that looks later may not reflect the true order of events</button>
-        <button class="opt">Multiple machines can't generate timestamps at all without a central clock server</button>
+        <button class="opt">LWW only works on one machine and fails at once on any cluster</button>
+        <button class="opt">Clocks drift, so a 'later' timestamp may not be the true order</button>
+        <button class="opt">Machines can't generate timestamps without a central clock server</button>
         <p class="fb">LWW trusts the timestamp, not true event order. Clock skew between nodes can flip which write "wins," silently dropping the actually-later change.</p>
         <p class="hint">Reread "the clock problem" paragraph — what specifically can go wrong with wall clocks on separate machines?</p>
       </div>
@@ -322,9 +322,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="cassandra-interview-order-why">
         <p class="stem">Why does the recommended interview order put the data model before the LSM engine, and the engine before tuning consistency?</p>
-        <button class="opt">Each step depends on the previous one: you can't discuss reads/writes without a schema, and you can't tune consistency levels without knowing how replicas store data</button>
+        <button class="opt">Each builds on the last: schema, then storage, then consistency</button>
         <button class="opt">Interviewers always ask questions in exactly that fixed order</button>
-        <button class="opt">The order is arbitrary and any order scores the same</button>
+        <button class="opt">The order is arbitrary, and any order scores exactly the same</button>
         <p class="fb">The arc mirrors dependency: justify the pick, then the nouns (data model), then how they're stored (engine), then how storage's replication trade-offs get tuned (consistency).</p>
         <p class="hint">Ask: could you meaningfully explain R+W&gt;N to someone who doesn't yet know what a replica or partition is?</p>
       </div>
@@ -349,25 +349,25 @@
       </div>
       <div class="q" data-correct="a" data-concept="cassandra-partition-key-final">
         <p class="stem">What must every Cassandra query name in order to find a row at all?</p>
-        <button class="opt">The partition key</button>
+        <button class="opt">The table's partition key</button>
         <button class="opt">A foreign key to another table</button>
-        <button class="opt">A secondary index on any column</button>
+        <button class="opt">A secondary index on a column</button>
         <p class="fb">With no joins and no generic WHERE, the partition key is the only lookup path into the data.</p>
         <p class="hint">Reread chunk 1's schema-knobs box — which key part is described as "every query must name it"?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="cassandra-quorum-final-why">
         <p class="stem">Why does choosing QUORUM/QUORUM at N=3 give read-your-writes, while ONE/ONE does not?</p>
         <button class="opt">QUORUM always contacts every single replica in the cluster</button>
-        <button class="opt">ONE/ONE is actually slower because it waits for more nodes</button>
-        <button class="opt">2+2 exceeds 3, forcing read and write replica sets to overlap; 1+1 does not exceed 3, so they can miss each other</button>
+        <button class="opt">ONE/ONE is actually slower, because it waits for more nodes</button>
+        <button class="opt">2+2 > 3 forces overlap; 1+1 doesn't, so sets can miss</button>
         <p class="fb">The quorum rule is arithmetic: R+W&gt;N forces overlap and freshness; smaller sums leave a gap where a read can miss the latest write.</p>
         <p class="hint">Do the arithmetic for both cases against N=3 — which sum exceeds N and which doesn't?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="cassandra-tombstone-hotpartition-tradeoff">
         <p class="stem">Why do hot partitions and tombstone buildup both trace back to the same design choice — hashing to a partition key and never overwriting in place?</p>
-        <button class="opt">They don't share a cause; they're unrelated bugs in different subsystems</button>
-        <button class="opt">Both are side effects of Cassandra's core trade-offs: uneven key access concentrates load on one node, and append-only writes accumulate deletion markers until compaction clears them</button>
-        <button class="opt">Both only happen when replication factor is set to one</button>
+        <button class="opt">They don't share a cause; they're unrelated bugs in two subsystems</button>
+        <button class="opt">Both follow from hashing to one key and appending instead of overwriting</button>
+        <button class="opt">Both only happen when the replication factor is set to exactly one</button>
         <p class="fb">Hot partitions come from the partitioning scheme's dependence on even key access; tombstones come from the LSM engine's append-only nature. Different mechanisms, same architectural root: trade-offs made for write speed and horizontal scale.</p>
         <p class="hint">Trace each problem back to a chunk: hot partitions to chunk 1's schema knobs, tombstones to chunk 2's compaction section.</p>
       </div>

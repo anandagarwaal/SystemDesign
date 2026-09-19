@@ -154,9 +154,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="robinhood-nfr-split-why">
         <p class="stem">Why must the price path and the order path get opposite consistency guarantees instead of one uniform standard?</p>
-        <button class="opt">A dropped tick is harmless since the next one supersedes it, but a dropped or duplicate order is a real financial loss</button>
-        <button class="opt">Prices change too slowly to need any consistency guarantee at all in practice</button>
-        <button class="opt">Regulators require every subsystem in a brokerage to share one uniform guarantee</button>
+        <button class="opt">A dropped tick is superseded; a dropped or doubled order loses money</button>
+        <button class="opt">Prices change too slowly to need any consistency guarantee at all</button>
+        <button class="opt">Regulators require every brokerage subsystem to share one guarantee</button>
         <p class="fb">Lossy-but-fast serves prices well; the order path needs zero tolerance for loss or duplication because real money moves.</p>
         <p class="hint">Look at the boxed sentence: what does "lossy" cost you on prices versus on orders?</p>
       </div>
@@ -195,9 +195,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="robinhood-scale-vs-correctness-why">
         <p class="stem">The capacity numbers reveal the price path is a scale problem and the order path is a correctness problem. Why does that distinction matter for the architecture?</p>
-        <button class="opt">It doesn't matter, since both problems get solved by adding more servers</button>
-        <button class="opt">Each problem needs a different kind of engineering investment, so the two paths should use different machinery entirely</button>
-        <button class="opt">Correctness problems always require more hardware than scale problems do</button>
+        <button class="opt">It doesn't matter — both problems are solved by adding servers</button>
+        <button class="opt">Each needs a different kind of engineering, so separate machinery</button>
+        <button class="opt">Correctness problems always need more hardware than scale ones</button>
         <p class="fb">Scale problems are solved by horizontal fan-out and conflation; correctness problems are solved by transactions, idempotency, and auditability — mixing the two designs wastes effort on the wrong risk.</p>
         <p class="hint">Ask what kind of fix actually solves "billions of messages" versus what kind of fix solves "never lose an order."</p>
       </div>
@@ -244,17 +244,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="robinhood-idempotency-key-api">
         <p class="stem">What does the client send with POST /v1/orders to make retries safe?</p>
-        <button class="opt">A client-generated idempotency_key that dedupes duplicate submissions</button>
-        <button class="opt">A server-generated execution_id created after the order fills</button>
-        <button class="opt">A timestamp header used only for analytics purposes</button>
+        <button class="opt">A client-generated idempotency key that dedupes retries</button>
+        <button class="opt">A server-generated execution id created after the fill</button>
+        <button class="opt">A timestamp header that is used only for analytics</button>
         <p class="fb">A duplicate idempotency_key returns 409 with the original order instead of creating a new one.</p>
         <p class="hint">Look at the POST /v1/orders row in the API table.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="robinhood-positions-derived-why">
         <p class="stem">Why is the positions table described as "materialized" rather than the source of truth for holdings?</p>
-        <button class="opt">Positions must be manually re-entered by compliance staff every day</button>
-        <button class="opt">Redis cannot store integers, so positions live only in Postgres as text</button>
-        <button class="opt">A position is a computed fold over ledger entries, so it can always be rebuilt if it drifts</button>
+        <button class="opt">Compliance staff must re-enter positions by hand every day</button>
+        <button class="opt">Redis can't store integers, so positions live in Postgres as text</button>
+        <button class="opt">A position is a fold over ledger entries and can always be rebuilt</button>
         <p class="fb">Treating positions as a cache over the ledger, not independent truth, is what makes them safe to recompute after any bug or outage.</p>
         <p class="hint">Reread the intro sentence to the Data Model section about what positions are "a materialized fold of."</p>
       </div>
@@ -324,9 +324,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="robinhood-shared-nothing-why">
         <p class="stem">What would go wrong if the price pipeline and the order pipeline shared the same message queue and consistency model?</p>
-        <button class="opt">The order path would inherit the price path's lossy, best-effort delivery, risking silently dropped trades</button>
+        <button class="opt">Orders would inherit the price path's lossy delivery and drop trades</button>
         <button class="opt">Nothing changes, since both paths already use Kafka underneath</button>
-        <button class="opt">Prices would suddenly require idempotency keys they don't otherwise need</button>
+        <button class="opt">Prices would suddenly need idempotency keys they otherwise don't</button>
         <p class="fb">Sharing infrastructure built for lossy fan-out would let an order get dropped the same way a stale tick is — acceptable for quotes, catastrophic for money.</p>
         <p class="hint">Reread the staff-signal box: what's the one thing it says never to let happen?</p>
       </div>
@@ -380,8 +380,8 @@
       <div class="q" data-type="intuition" data-correct="b" data-concept="robinhood-idempotency-why-not-lock">
         <p class="stem">Why solve the double-buy problem with a client-generated idempotency key rather than simply disabling the Buy button after one tap?</p>
         <button class="opt">Disabling buttons is technically impossible in modern mobile apps</button>
-        <button class="opt">A UI-only fix doesn't protect against a client retry after a real network timeout, which the server must still dedupe</button>
-        <button class="opt">Idempotency keys are required by law for all financial transactions regardless of the failure mode</button>
+        <button class="opt">A UI fix can't stop a retry after a real timeout; the server must</button>
+        <button class="opt">Idempotency keys are legally required for every financial transaction</button>
         <p class="fb">The button-disable is a UX nicety; the actual failure mode is a timed-out request that the client legitimately retries, and only a server-side unique key catches that.</p>
         <p class="hint">Think about what happens on a network timeout, not a double-tap — who retries, and how does the server tell it apart from a new order?</p>
       </div>
@@ -429,10 +429,10 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="robinhood-alt-b-tradeoff-why">
         <p class="stem">Why is full event sourcing on a log (Alternative B) not the chosen approach despite its replay and audit advantages?</p>
-        <button class="opt">Kafka cannot store financial data under any regulatory framework</button>
-        <button class="opt">Event sourcing is strictly worse than Postgres in every measurable way</button>
-        <button class="opt">It adds operational complexity and harder uniqueness guarantees that aren't needed at retail-broker order volume</button>
-        <button class="opt">Alternative B is only usable for read-heavy systems, not write-heavy ones</button>
+        <button class="opt">Kafka can't store financial data under any regulatory framework</button>
+        <button class="opt">Event sourcing is strictly worse than Postgres in every way</button>
+        <button class="opt">More ops and harder uniqueness, unneeded at retail order volume</button>
+        <button class="opt">Alternative B is only usable for read-heavy, not write-heavy, systems</button>
         <p class="fb">Order volume here is modest, so the simplest provably-correct option (one SQL ledger) wins; B pays off only at much higher volume or many downstream consumers.</p>
         <p class="hint">Reread the "Pick A" justification line right after the alternatives table.</p>
       </div>
@@ -505,10 +505,10 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="robinhood-append-only-security-why">
         <p class="stem">Why does making ledger tables append-only (no UPDATE/DELETE) help defend against insider tampering, beyond just aiding audits?</p>
-        <button class="opt">An insider with write access can add new events but cannot silently rewrite or erase past history</button>
-        <button class="opt">Append-only tables are automatically encrypted at rest by every database engine</button>
-        <button class="opt">It prevents any employee from ever reading the ledger's contents</button>
-        <button class="opt">It replaces the need for authentication on internal database connections</button>
+        <button class="opt">An insider can add events but can't silently rewrite the past</button>
+        <button class="opt">Append-only tables are auto-encrypted at rest by every engine</button>
+        <button class="opt">It stops any employee from ever reading the ledger's contents</button>
+        <button class="opt">It replaces authentication on internal database connections</button>
         <p class="fb">Removing UPDATE/DELETE grants means the only way to alter recorded history is to add a new, separately-logged compensating event — tampering leaves a trail instead of vanishing.</p>
         <p class="hint">Think about what "no UPDATE/DELETE grants" specifically prevents versus what encryption or auditing alone would prevent.</p>
       </div>
@@ -560,17 +560,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="c" data-concept="robinhood-shard-key-account">
         <p class="stem">If the ledger ever needs to shard at far higher order volume, what's the natural shard key?</p>
-        <button class="opt">Symbol, since price data is already partitioned that way</button>
-        <button class="opt">Order status, grouping all filled orders separately from open ones</button>
-        <button class="opt">Account_id, since orders, events, ledger and positions are all per-account</button>
+        <button class="opt">Symbol, since price data is partitioned that way</button>
+        <button class="opt">Order status, grouping filled orders apart from open</button>
+        <button class="opt">account_id — orders, ledger and positions are per-account</button>
         <p class="fb">Sharding by account_id avoids cross-shard transactions since everything for one account stays together.</p>
         <p class="hint">Reread the "Ledger Postgres" row's "Knob turned" column.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="robinhood-10x-price-only-why">
         <p class="stem">Why does 10× scale mostly stress the price path's gateways and not the order ledger's core design?</p>
-        <button class="opt">Connections and message fan-out grow linearly with users, while order volume stays a correctness problem a single well-sized primary can absorb for a long time</button>
-        <button class="opt">The order ledger is stateless so it automatically scales without any changes</button>
-        <button class="opt">Price data is small so it never actually needs more gateways at 10x</button>
+        <button class="opt">Fan-out grows with users; orders stay a job for one well-sized primary</button>
+        <button class="opt">The order ledger is stateless, so it scales with no changes at all</button>
+        <button class="opt">Price data is small, so it never really needs more gateways at 10×</button>
         <p class="fb">Price fan-out scales with users and hot symbols, quickly outrunning fixed infrastructure; order volume, even at 10x, is still modest against what one strongly-consistent primary can handle.</p>
         <p class="hint">Compare the "At 10x" column for WebSocket gateways versus Ledger Postgres.</p>
       </div>
@@ -620,10 +620,10 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="robinhood-final-one-decision">
         <p class="stem">If you had to name the single judgement call that defines a staff-level answer to this whole problem, what is it?</p>
-        <button class="opt">Choosing WebSockets over Server-Sent Events for the connection tier</button>
-        <button class="opt">Recognizing these are two systems with opposite guarantees and refusing to unify their code paths or consistency model</button>
+        <button class="opt">Choosing WebSockets over SSE for the price connection tier</button>
+        <button class="opt">Seeing two systems with opposite guarantees and never unifying them</button>
         <button class="opt">Picking Postgres over a NoSQL database for storing orders</button>
-        <button class="opt">Deciding to skip capacity estimation because the numbers are obvious</button>
+        <button class="opt">Skipping capacity estimation because the numbers are obvious</button>
         <p class="fb">Every deep dive, the data model split, and the alternatives table all trace back to treating prices and orders as fundamentally different problems from the first minute.</p>
         <p class="hint">Reread the staff-level signal box in the High-Level Design chunk.</p>
       </div>

@@ -77,6 +77,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -106,6 +120,9 @@
     <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
+
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 8</p>
 
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
@@ -145,7 +162,31 @@
   (Replication &amp; CAP)</a> — for money you pick C over A on the write path.</p>
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Correctness beats everything: a balance must never go wrong. Let me size throughput and contention.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="wallet-nfr-order">
+        <p class="stem">What's the NFR priority order for a wallet?</p>
+        <button class="opt">Latency, then availability, then durability, then correctness</button>
+        <button class="opt">Availability, then latency, then correctness, then durability</button>
+        <button class="opt">Correctness, then durability, then availability, then latency</button>
+        <button class="opt">Durability, then latency, then correctness, then availability</button>
+        <p class="fb">Better to reject a transfer than let a balance go wrong — the inverse of a feed.</p>
+        <p class="hint">Reread the NFR intro sentence.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="wallet-c-over-a">
+        <p class="stem">Why pick C over A on the money *write* path but not on balance *reads*?</p>
+        <button class="opt">A stale read shown to a user is harmless; a stale read that gates a debit overspends</button>
+        <button class="opt">Reads are more frequent, so consistency on reads would be too expensive to afford</button>
+        <button class="opt">Writes go to replicas and reads go to the primary, so the rules must be inverted</button>
+        <button class="opt">Regulators require consistent writes but explicitly allow reads to be inconsistent</button>
+        <p class="fb">Showing $100 when it's $95 self-corrects. Letting two debits both see $100 creates money that doesn't exist.</p>
+        <p class="hint">What's the damage from a stale value in each case?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Estimate only the numbers that change the design.</p>
@@ -169,7 +210,31 @@
     <p><b>Staff answer:</b> A mutable balance can't be audited or reconciled, and concurrent updates can lose money. Hot wallets like merchants make contention the real problem.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Aggregate writes are modest; per-account contention on hot wallets is the issue. Let me define entities.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="wallet-contention-not-qps">
+        <p class="stem">Aggregate load is only ~4k writes/s. What actually makes this hard?</p>
+        <button class="opt">The ledger grows too fast for any SQL database to keep up</button>
+        <button class="opt">Replication lag across regions makes balances disagree</button>
+        <button class="opt">Idempotency keys take too long to look up at peak times</button>
+        <button class="opt">Many concurrent writes to the same hot account's balance</button>
+        <p class="fb">4k/s spread across 100M accounts is trivial; 4k/s against one merchant's row is a lock queue.</p>
+        <p class="hint">Is the load spread evenly across accounts?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="wallet-append-only-why">
+        <p class="stem">Why do 7-year, never-mutated records force an append-only ledger over a balance column?</p>
+        <button class="opt">Balance columns can't be stored for longer than one year</button>
+        <button class="opt">A mutated column erases history; you can't re-derive or audit it</button>
+        <button class="opt">Append-only storage is cheaper per row than updated rows</button>
+        <button class="opt">Regulators forbid storing balances as numbers in a database</button>
+        <p class="fb">An UPDATE destroys the previous value. Only the sequence of entries lets you prove any past balance.</p>
+        <p class="hint">After UPDATE balance = 95, can you prove what it was last March?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p>Three entities carry the weight. The caller's identity comes from the auth token, never the request body.</p>
@@ -212,7 +277,31 @@
     <p><b>Staff answer:</b> Summing a ledger on every read is expensive. The balance plus a version is updated in the same transaction as ledger entries and can always be rebuilt from them.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “The balance is a cache of an append-only ledger. Now a transfer end to end.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="wallet-balance-cache">
+        <p class="stem">What is the account's balance row, conceptually?</p>
+        <button class="opt">A cached snapshot of the ledger, always re-derivable from entries</button>
+        <button class="opt">The source of truth, with the ledger as an optional audit log</button>
+        <button class="opt">A value computed nightly by batch from the payment processor</button>
+        <button class="opt">A client-side estimate that the server corrects on each read</button>
+        <p class="fb">Ledger = truth; balance + version = optimization updated in the same transaction.</p>
+        <p class="hint">Reread the Data Model intro.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="wallet-check-constraint">
+        <p class="stem">Why add <code>CHECK (balance_minor >= 0)</code> if the application already checks funds?</p>
+        <button class="opt">It lets the database compute interest on the balance</button>
+        <button class="opt">It makes balance reads faster by pruning the index</button>
+        <button class="opt">A DB-level backstop: any code-path bug still can't overdraw</button>
+        <button class="opt">It stops the idempotency key from being reused</button>
+        <p class="fb">Defense in depth for invariants: the DB rejects the commit even if a race or bug slipped past the app check.</p>
+        <p class="hint">What if a new code path forgets the funds check?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Component Diagram</h2>
 <pre class="diagram">
@@ -254,7 +343,22 @@
     <p><b>Staff answer:</b> A retried transfer must return the original result without debiting twice; the key is also stored with a unique constraint inside the transaction as a backstop.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: the ledger, atomic transfers, balance concurrency and reconciliation.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="wallet-no-dual-write">
+        <p class="stem">Why is a same-shard wallet transfer easier than a payment through an external processor?</p>
+        <button class="opt">Wallet transfers never need idempotency keys at all</button>
+        <button class="opt">Both sides live in our DB, so one ACID transaction covers them</button>
+        <button class="opt">Wallet transfers are smaller, so they never need locking</button>
+        <button class="opt">External processors guarantee exactly-once, wallets can't</button>
+        <p class="fb">No dual-write problem: debit and credit commit atomically together. Difficulty shifts to concurrency and idempotency.</p>
+        <p class="hint">How many systems must agree for a same-shard transfer to commit?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
 
@@ -355,7 +459,49 @@
     <p><b>Staff answer:</b> In one ACID transaction, lock the sender row (SELECT … FOR UPDATE) or use a conditional update (balance ≥ amount, version = v), then write both ledger entries. The loser fails cleanly or retries.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, including KYC and fraud.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="wallet-double-spend-picture">
+        <p class="stem">Balance $100. Two $80 sends run concurrently with plain reads. Walk the race.</p>
+        <button class="opt">The second send fails because the database sees two writers</button>
+        <button class="opt">Both succeed and the balance ends at $20, since writes merge</button>
+        <button class="opt">Both read $100, both pass the check, both debit — balance −$60</button>
+        <button class="opt">One send waits automatically, because reads always take locks</button>
+        <p class="fb">Check-then-act with no lock or version: both checks pass on the same stale value. Lock the row or use UPDATE … WHERE version = N.</p>
+        <p class="hint">Draw two timelines: read, check, write. Where do they interleave?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="wallet-lock-vs-optimistic">
+        <p class="stem">Why use optimistic versioning for most wallets but pessimistic locks for a hot merchant?</p>
+        <button class="opt">Under heavy contention, optimistic retries mostly fail and spin</button>
+        <button class="opt">Optimistic locking is illegal for accounts over a set balance</button>
+        <button class="opt">Pessimistic locks are faster in every situation, so use them always</button>
+        <button class="opt">Merchants need eventual consistency, which only locks provide</button>
+        <p class="fb">Optimistic = cheap when conflicts are rare. When they're constant, most attempts lose and retry — queueing (locks) is more efficient.</p>
+        <p class="hint">What fraction of optimistic attempts succeed when 50 writers hit one row at once?</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="wallet-saga-cross-shard">
+        <p class="stem">How does a cross-shard transfer stay safe without one transaction?</p>
+        <button class="opt">Two-phase commit across every shard, holding all locks globally</button>
+        <button class="opt">Writing the credit first, then debiting the sender afterward</button>
+        <button class="opt">Letting reconciliation fix any mismatch at the end of the day</button>
+        <button class="opt">Hold on sender → credit receiver → confirm; compensate on failure</button>
+        <p class="fb">Saga: reserve funds first (so no double-spend), then credit, then confirm; a compensating entry refunds on failure.</p>
+        <p class="hint">Reread Deep Dive 2's second paragraph.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="wallet-exactly-once-eq">
+        <p class="stem">'Effectively exactly-once' = at-least-once + what?</p>
+        <button class="opt">Two-phase commit between the client and the server</button>
+        <button class="opt">Idempotent processing keyed on the client's idempotency key</button>
+        <button class="opt">A global clock so duplicates carry identical timestamps</button>
+        <button class="opt">Rejecting all retries sent within one minute of the first</button>
+        <p class="fb">You can't stop duplicates arriving; you can make them no-ops.</p>
+        <p class="hint">Reread Deep Dive 4's 'Exactly-once'.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -407,7 +553,31 @@
     <p><b>Staff answer:</b> Device binding and step-up MFA for new payees, velocity limits, KYC tiers that cap balances, and a real-time risk score before transfers settle.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="wallet-reconciliation-alert">
+        <p class="stem">Which monitoring alert pages both finance and engineering immediately?</p>
+        <button class="opt">Balance reads getting slower than the p99 target</button>
+        <button class="opt">A spike in optimistic conflict retries on hot accounts</button>
+        <button class="opt">Any reconciliation mismatch or non-zero-sum transfer</button>
+        <button class="opt">Push notification receipts failing to be delivered</button>
+        <p class="fb">Money created or destroyed is the one unacceptable failure. The target is zero.</p>
+        <p class="hint">Which SLO has a target of exactly zero?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="wallet-insider">
+        <p class="stem">How does an append-only ledger defend against an insider editing a balance?</p>
+        <button class="opt">Insiders cannot log into the production database at all</button>
+        <button class="opt">Balances are encrypted, so an insider can't see them</button>
+        <button class="opt">Every change is emailed to the customer automatically</button>
+        <button class="opt">A direct edit breaks the sum of entries, so reconciliation flags it</button>
+        <p class="fb">Balance must equal Σ entries. Changing either side without a matching counterpart shows up as drift; corrections must be dual-approved compensating entries.</p>
+        <p class="hint">What does reconciliation compare?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = ~1B users, ~40k writes/s at peak, ~6 TB/month of ledger.</p>
@@ -444,40 +614,70 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A digital wallet is a double-entry ledger with a cached balance. Every money movement writes balanced, immutable debit and credit entries. A transfer checks an idempotency key, then in one ACID transaction on the sharded ledger database locks or conditionally updates the sender's balance version, writes both entries and updates the balances. Double-spending and negative balances become impossible. Cross-shard transfers use holds and a saga. Daily reconciliation proves ledger totals against bank settlements. At 10× we add shards by account.</p></div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="wallet-hot-merchant-fix">
+        <p class="stem">A merchant gets 2,000 credits/sec to one account row. What's the 10× fix?</p>
+        <button class="opt">Split into bucketed sub-accounts, and sum them when reading</button>
+        <button class="opt">Move the merchant to eventual consistency with no ledger</button>
+        <button class="opt">Increase the row lock timeout so fewer credits fail</button>
+        <button class="opt">Cache the merchant's balance in Redis and skip the ledger</button>
+        <p class="fb">Spread the hot row into N sub-balances (like a sharded counter); the true balance is their sum.</p>
+        <p class="hint">How do you remove contention on a single counter? (Lesson 48.)</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. In a correct wallet design, the authoritative source of a user's balance is:</p>
-      <button class="opt">A single mutable balance column updated on each write</button>
-      <button class="opt">An append-only double-entry ledger of every movement</button>
-      <button class="opt">A cached value in Redis refreshed on a fixed timer</button>
-      <p class="fb">The balance is derived from the immutable ledger; the snapshot/cache is only an optimization.</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="wallet-ledger-truth-final">
+        <p class="stem">In a correct wallet design, the authoritative source of a user's balance is:</p>
+        <button class="opt">A single mutable balance column updated on each write</button>
+        <button class="opt">An append-only double-entry ledger of every movement</button>
+        <button class="opt">A cached value in Redis refreshed on a fixed timer</button>
+        <p class="fb">The balance is derived from the immutable ledger; the snapshot/cache is only an optimization.</p>
+        <p class="hint">Reread Deep Dive 1.</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="wallet-atomic-transfer-final">
+        <p class="stem">A P2P transfer must debit the sender and credit the receiver as:</p>
+        <button class="opt">Two independent writes retried until both of them land</button>
+        <button class="opt">One credit now and a debit deferred to a nightly batch</button>
+        <button class="opt">One atomic unit so both commit together or neither does</button>
+        <button class="opt">One debit only, since the credit can be inferred later</button>
+        <p class="fb">All-or-nothing: same-shard uses one ACID transaction; cross-shard uses a saga with compensation.</p>
+        <p class="hint">Reread Deep Dive 2.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="wallet-concurrency-final">
+        <p class="stem">Two transfers from one wallet run at once and overspend it. The fix is:</p>
+        <button class="opt">Lock the row or use a version check so writes serialize</button>
+        <button class="opt">Read the balance from a replica to spread the load out</button>
+        <button class="opt">Cache the balance so both requests see the same number</button>
+        <p class="fb">Pessimistic <code>FOR UPDATE</code> or optimistic version checks stop the lost-update double-spend race.</p>
+        <p class="hint">Reread Deep Dive 3.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="wallet-idempotency-final">
+        <p class="stem">A client retries the same transfer after a timeout. What prevents a double-send?</p>
+        <button class="opt">A faster retry path so the original request finishes first</button>
+        <button class="opt">An idempotency key that returns the first stored result</button>
+        <button class="opt">A larger timeout so the client simply waits much longer</button>
+        <p class="fb">A conditional insert on the key makes the retry return the original outcome instead of moving money again.</p>
+        <p class="hint">Reread Deep Dive 2's last paragraph.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="wallet-transfer-inventory">
+        <p class="stem">Designing concert-ticket inventory. Which wallet idea transfers most directly?</p>
+        <button class="opt">Double-entry entries, because tickets need debits and credits</button>
+        <button class="opt">Reconciliation, because ticket counts must net to zero</button>
+        <button class="opt">Check-and-decrement in one transaction with a lock or version</button>
+        <button class="opt">Hold periods on card-funded balances before cash-out</button>
+        <p class="fb">'Don't let two buyers both see 1 seat left' is the same check-then-act race as double-spend.</p>
+        <p class="hint">Which wallet bug looks like 'two buyers get the last seat'?</p>
+      </div>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. A P2P transfer must debit the sender and credit the receiver as:</p>
-      <button class="opt">Two independent writes retried until both of them land</button>
-      <button class="opt">One credit now and a debit deferred to a nightly batch</button>
-      <button class="opt">One atomic unit so both commit together or neither does</button>
-      <button class="opt">One debit only, since the credit can be inferred later</button>
-      <p class="fb">All-or-nothing: same-shard uses one ACID transaction; cross-shard uses a saga with compensation.</p>
-    </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Two transfers from one wallet run at once and overspend it. The fix is:</p>
-      <button class="opt">Lock the row or use a version check so writes serialize</button>
-      <button class="opt">Read the balance from a replica to spread the load out</button>
-      <button class="opt">Cache the balance so both requests see the same number</button>
-      <p class="fb">Pessimistic <code>FOR UPDATE</code> or optimistic version checks stop the lost-update double-spend race.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. A client retries the same transfer after a timeout. What prevents a double-send?</p>
-      <button class="opt">A faster retry path so the original request finishes first</button>
-      <button class="opt">An idempotency key that returns the first stored result</button>
-      <button class="opt">A larger timeout so the client simply waits much longer</button>
-      <p class="fb">A conditional insert on the key makes the retry return the original outcome instead of moving money again.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic — push on it:
@@ -505,21 +705,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

@@ -193,9 +193,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="chatgpt-qps-vs-gpu-count">
         <p class="stem">Why does a modest 23k messages/sec average translate into tens of thousands of GPUs?</p>
-        <button class="opt">Each message holds a GPU slot for 10-30 seconds, so many messages are in flight simultaneously even at modest arrival rate</button>
-        <button class="opt">GPUs are ten times less powerful than the estimate assumes, inflating the fleet size</button>
-        <button class="opt">23k messages/sec was actually an underestimate of the true arrival rate</button>
+        <button class="opt">Each message holds a GPU 10–30 s, so many are in flight at once</button>
+        <button class="opt">GPUs are ten times weaker than the estimate assumes, inflating it</button>
+        <button class="opt">23k messages/sec underestimates the true arrival rate by far</button>
         <p class="fb">Arrival rate times the seconds each request occupies a GPU gives concurrency; long-lived streams multiply a modest QPS into roughly 1M simultaneous generations.</p>
         <p class="hint">Reread the interviewer pushback box's staff answer.</p>
       </div>
@@ -257,9 +257,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="chatgpt-kv-prefix-cache-purpose">
         <p class="stem">What is the KV/prefix cache in GPU memory for, and why key it by prompt-prefix hash?</p>
-        <button class="opt">It stores the final assistant message so Cassandra writes are batched later</button>
-        <button class="opt">It replaces the history store entirely, removing the need for Cassandra</button>
-        <button class="opt">It lets a worker reuse already-computed attention state for a repeated prompt prefix, avoiding recomputation on affinity-routed requests</button>
+        <button class="opt">It stores final replies so Cassandra writes can be batched later</button>
+        <button class="opt">It replaces the history store, removing the need for Cassandra</button>
+        <button class="opt">It reuses computed attention state for a repeated prompt prefix</button>
         <p class="fb">Keying by prompt-prefix hash lets requests sharing a system prompt or earlier turns route to a worker that already computed that prefix's KV state, saving GPU work.</p>
         <p class="hint">Reread the "KV / prefix cache" row's access pattern column.</p>
       </div>
@@ -321,9 +321,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="chatgpt-api-gpu-separation-why">
         <p class="stem">Why does routing traffic straight from the API tier to GPU workers, with no queue, hurt this system specifically?</p>
-        <button class="opt">A traffic spike would hit the scarce, expensive GPUs directly, with no buffer to batch, prioritize, or apply backpressure</button>
-        <button class="opt">The API tier cannot technically make outbound calls to any backend without going through a queue</button>
-        <button class="opt">SSE connections require a queue in order to be held open at all</button>
+        <button class="opt">Spikes hit scarce GPUs directly, with no batching or backpressure</button>
+        <button class="opt">The API tier can't make outbound calls to backends without a queue</button>
+        <button class="opt">SSE connections need a queue in order to be held open at all</button>
         <p class="fb">The queue exists precisely so bursts don't hit the expensive, finite GPU fleet directly — removing it makes the priciest resource in the system absorb load spikes raw.</p>
         <p class="hint">Reread the pushback box on why the chat API server is separate from GPU workers.</p>
       </div>
@@ -375,9 +375,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="chatgpt-continuous-batching-mechanism">
         <p class="stem">Why does continuous batching raise tokens/sec/GPU compared to fixed-batch processing?</p>
-        <button class="opt">New requests join the running batch and finished ones are evicted per token, so the GPU rarely sits idle waiting for a batch to complete</button>
-        <button class="opt">Continuous batching runs each request on a dedicated GPU, avoiding any sharing overhead</button>
-        <button class="opt">It reduces the total number of tokens the model needs to generate per response</button>
+        <button class="opt">Requests join and leave per token, so the GPU rarely sits idle</button>
+        <button class="opt">Each request runs on its own dedicated GPU, avoiding sharing</button>
+        <button class="opt">It reduces the number of tokens the model generates per reply</button>
         <p class="fb">Fixed batching wastes GPU cycles waiting for the slowest sequence in a batch to finish; continuous batching keeps the GPU saturated by streaming requests in and out token-by-token.</p>
         <p class="hint">Reread the "Batching is the whole game" box, first paragraph.</p>
       </div>
@@ -440,9 +440,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="chatgpt-why-manage-at-queue">
         <p class="stem">Why does the design manage overload at the queue rather than by provisioning more GPUs to meet peak demand?</p>
-        <button class="opt">Queues are technically required by the SSE protocol regardless of cost</button>
-        <button class="opt">GPUs cannot be added to a running fleet without a full system restart</button>
-        <button class="opt">GPUs are the most expensive resource, so over-provisioning for rare peaks wastes far more money than graceful queueing does</button>
+        <button class="opt">Queues are technically required by the SSE protocol regardless</button>
+        <button class="opt">GPUs can't be added to a running fleet without a full restart</button>
+        <button class="opt">GPUs are the priciest resource; overprovisioning for peaks wastes most</button>
         <p class="fb">Since idle GPU time is the most expensive kind of waste in this system, absorbing peak demand with queueing and backpressure is cheaper than always having enough GPUs to never queue.</p>
         <p class="hint">Reread the opening line of "Cost &amp; capacity management."</p>
       </div>
@@ -508,17 +508,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="b" data-concept="chatgpt-observability-logs-exclude-prompts">
         <p class="stem">Why do operational logs and traces exclude prompt and completion content?</p>
-        <button class="opt">Log storage is billed per byte and prompts are considered too large to store</button>
-        <button class="opt">Chat content is highly sensitive, so minimizing what lands in operational logs limits exposure</button>
-        <button class="opt">The tracing system cannot technically capture streamed text content</button>
+        <button class="opt">Log storage is billed per byte and prompts are too large to keep</button>
+        <button class="opt">Chat content is highly sensitive, so keep it out of ops logs</button>
+        <button class="opt">The tracing system can't technically capture streamed text</button>
         <p class="fb">Privacy minimization keeps prompts and completions out of logs and traces, since chat content can carry health, legal, or other sensitive information.</p>
         <p class="hint">Reread the Observability table's "Logs &amp; traces" row alongside the Privacy section's "Minimization" point.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="chatgpt-cross-user-leakage-risk">
         <p class="stem">Why is the KV/prefix cache specifically called out as a cross-user data leakage risk?</p>
-        <button class="opt">If cache entries aren't scoped per tenant, a routing bug could reuse another user's cached private prompt context</button>
-        <button class="opt">The prefix cache is stored unencrypted on public object storage by default</button>
-        <button class="opt">Prefix caching only works when all users share literally the same account</button>
+        <button class="opt">Unscoped entries let a routing bug reuse another user's context</button>
+        <button class="opt">The prefix cache sits unencrypted on public object storage</button>
+        <button class="opt">Prefix caching only works when all users share one account</button>
         <p class="fb">Because the cache is keyed by prompt-prefix hash and shared across the fleet for efficiency, without per-tenant scoping a routing bug could serve one user's cached context to another.</p>
         <p class="hint">Reread the Security table's "Cross-user data leakage" row.</p>
       </div>
@@ -576,9 +576,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="chatgpt-dominant-cost-driver">
         <p class="stem">Why do GPUs account for over 99% of monthly spend rather than storage or networking?</p>
-        <button class="opt">Storage and networking are provided free by cloud vendors for AI workloads</button>
-        <button class="opt">Each GPU is expensive and must run continuously to serve long streaming generations, while conversation text is small and cheap to store</button>
-        <button class="opt">The cost table intentionally omits real storage and networking costs</button>
+        <button class="opt">Cloud vendors provide storage and networking free for AI workloads</button>
+        <button class="opt">GPUs are pricey and run nonstop; conversation text is tiny to store</button>
+        <button class="opt">The cost table intentionally omits real storage and network costs</button>
         <p class="fb">Text history is a few KB per turn, trivially cheap at scale, while tens of thousands of GPUs running continuously dwarf every other line item.</p>
         <p class="hint">Reread "Dominant driver" in Cost of Running and the capacity estimation box's note on storage being cheap.</p>
       </div>
@@ -625,9 +625,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="chatgpt-what-if-no-batching">
         <p class="stem">What would you expect if the GPU fleet dropped continuous batching and processed one request per GPU at a time?</p>
-        <button class="opt">Effective throughput per GPU would collapse, since idle cycles waiting on one sequence could no longer be filled by other in-flight requests</button>
-        <button class="opt">Nothing would change materially, since batching is a minor efficiency tweak</button>
-        <button class="opt">Time-to-first-token would improve because there is no batch to wait for</button>
+        <button class="opt">Throughput per GPU collapses — idle cycles can't be filled</button>
+        <button class="opt">Nothing material changes; batching is a minor efficiency tweak</button>
+        <button class="opt">Time-to-first-token improves, since no batch must be waited on</button>
         <p class="fb">Batching exists precisely to keep GPUs saturated across many concurrent streams; without it, the fleet would need many more GPUs to serve the same concurrency, and TTFT under load would worsen, not improve.</p>
         <p class="hint">Reread "Batching is the whole game" and the capacity estimation's GPU throughput math.</p>
       </div>

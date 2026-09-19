@@ -154,9 +154,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="news-aggregator-availability-over-consistency-why">
       <p class="stem">Why does the NFR table pick availability over consistency for reads?</p>
-      <button class="opt">Users prefer a slightly stale feed over an error page, so serving cached content beats failing a request</button>
-      <button class="opt">Consistency is technically impossible to achieve in a read-heavy system</button>
-      <button class="opt">Article content changes so often that consistency has no meaning here</button>
+      <button class="opt">Users prefer a slightly stale feed to an error page</button>
+      <button class="opt">Consistency is impossible in any read-heavy system</button>
+      <button class="opt">Articles change so often that consistency is meaningless</button>
       <p class="fb">The whole architecture (cache-served feed, queue-buffered ingestion) rests on this priority: a stale answer served is better than a failed request.</p>
       <p class="hint">Reread the Non-Functional Requirements table's "Why it shapes design" column for read availability.</p>
     </div>
@@ -189,17 +189,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="news-aggregator-read-write-ratio">
       <p class="stem">Roughly how do read QPS and write QPS compare for this system?</p>
-      <button class="opt">They are roughly equal, since every article read triggers a write</button>
-      <button class="opt">Reads outnumber writes by roughly 1000x</button>
-      <button class="opt">Writes outnumber reads because ingestion runs continuously</button>
+      <button class="opt">About equal, since each article read triggers a write</button>
+      <button class="opt">Reads outnumber writes by roughly a thousand to one</button>
+      <button class="opt">Writes outnumber reads, since ingestion never stops</button>
       <p class="fb">~12k read QPS versus ~15-25 write QPS is the ratio that justifies splitting ingestion from serving.</p>
       <p class="hint">Reread the capacity box's bolded closing sentence.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="news-aggregator-queue-buffer-why">
       <p class="stem">Why buffer ingestion in a queue instead of writing straight to the database?</p>
       <button class="opt">Queues are always cheaper to run than a database write path</button>
-      <button class="opt">Databases cannot accept more than a few writes per second ever</button>
-      <button class="opt">Breaking-news bursts spike far above the average write rate, and a queue absorbs the spike so workers can autoscale on lag</button>
+      <button class="opt">Databases can never accept more than a few writes per second</button>
+      <button class="opt">News bursts spike far above average; the queue absorbs them</button>
       <p class="fb">The queue decouples the arrival rate of raw items from the processing rate, so a burst doesn't overwhelm downstream stores or hurt reads.</p>
       <p class="hint">Reread the capacity pushback box.</p>
     </div>
@@ -260,9 +260,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="news-aggregator-cluster-not-article-why">
       <p class="stem">Why does the feed cache store one canonical article per cluster instead of one entry per raw article?</p>
-      <button class="opt">Postgres cannot store more than one row per event</button>
-      <button class="opt">Without clustering, a breaking story published by 40 outlets would flood the feed with 40 near-identical cards</button>
-      <button class="opt">Clusters are cheaper to compute than storing individual articles</button>
+      <button class="opt">Postgres cannot store more than one row per news event</button>
+      <button class="opt">Otherwise one story from 40 outlets floods the feed with 40 cards</button>
+      <button class="opt">Clusters are cheaper to compute than storing single articles</button>
       <p class="fb">The load-bearing modeling choice is clustering at write time so the read path serves one card per real-world event, not per raw fetch.</p>
       <p class="hint">Reread the Data Model section's opening sentence about the "load-bearing modeling choice."</p>
     </div>
@@ -352,7 +352,7 @@
       <p class="stem">If the entire ingestion pipeline goes down, why do reads keep working?</p>
       <button class="opt">Reads and writes share no infrastructure at all, by coincidence</button>
       <button class="opt">The feed service automatically restarts the ingestion pipeline</button>
-      <button class="opt">The feed service only reads from the already-populated cache/index, which doesn't depend on the pipeline being currently healthy</button>
+      <button class="opt">Feeds read the already-built cache/index, not the live pipeline</button>
       <p class="fb">Serving reads from a precomputed store means the read path's dependency is "data exists," not "the pipeline is running right now" — exactly the availability-over-consistency tradeoff made concrete.</p>
       <p class="hint">Reread the staff callout's last two sentences about ingestion being down.</p>
     </div>
@@ -426,9 +426,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="news-aggregator-breaking-news-degrade-why">
       <p class="stem">During a breaking-news spike, why does the system serve slightly stale cached feeds instead of erroring?</p>
-      <button class="opt">Because availability was prioritized over consistency, a lagging pipeline should degrade gracefully rather than take reads down</button>
-      <button class="opt">Because stale data is always preferred to fresh data regardless of context</button>
-      <button class="opt">Because the CDN forces every response to be a fixed number of hours old</button>
+      <button class="opt">Availability beats consistency, so a lagging pipeline degrades gently</button>
+      <button class="opt">Stale data is always preferred to fresh data in every context</button>
+      <button class="opt">The CDN forces every response to be a fixed number of hours old</button>
       <p class="fb">This is the availability-over-consistency NFR made operational — a lagging queue slows freshness, but the feed service keeps answering from what it already has.</p>
       <p class="hint">Reread the "Freshness vs. cost" deep dive's closing sentence on graceful degradation.</p>
     </div>
@@ -494,16 +494,16 @@
     <div class="q" data-correct="c" data-concept="news-aggregator-es-fallback-signal">
       <p class="stem">A rising Elasticsearch fallback rate on feed reads most directly signals what?</p>
       <button class="opt">The CDN is misconfigured and dropping traffic</button>
-      <button class="opt">Kafka consumer lag has grown beyond the alert threshold</button>
-      <button class="opt">The Redis feed cache is failing to stay populated, so more requests miss and fall back</button>
+      <button class="opt">Kafka consumer lag has passed its alert threshold</button>
+      <button class="opt">The Redis feed cache isn't staying populated</button>
       <p class="fb">The Observability table states this explicitly: rising ES fallback means cache population is failing.</p>
       <p class="hint">Reread the Observability table's "Serving metrics (RED)" row.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="news-aggregator-affinity-minimization-why">
       <p class="stem">Why does the privacy design store coarse category weights for personalization instead of a full per-article reading log?</p>
-      <button class="opt">A per-article log is far more sensitive and unnecessary since coarse weights give enough signal for re-ranking</button>
-      <button class="opt">Category weights are technically required by the ranking algorithm and reading logs are not usable at all</button>
-      <button class="opt">Storing any user data is illegal so only aggregated data can exist</button>
+      <button class="opt">A per-article log is far more sensitive, and coarse weights suffice</button>
+      <button class="opt">Ranking requires category weights; reading logs can't be used at all</button>
+      <button class="opt">Storing any user data is illegal, so only aggregates may exist</button>
       <p class="fb">Data minimization keeps only what the re-rank step actually needs, reducing the blast radius of what reading history could reveal.</p>
       <p class="hint">Reread the Privacy section's Minimization sentence.</p>
     </div>
@@ -552,17 +552,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="news-aggregator-10x-first-bottleneck">
       <p class="stem">At 10x scale, what breaks first?</p>
-      <button class="opt">Near-dup clustering, since candidate comparisons grow with article volume</button>
-      <button class="opt">The CDN, which cannot scale past its current capacity</button>
-      <button class="opt">The feed API's cursor pagination format</button>
+      <button class="opt">Near-dup clustering, as comparisons grow with volume</button>
+      <button class="opt">The CDN, which cannot scale beyond current capacity</button>
+      <button class="opt">The feed API's cursor-based pagination format</button>
       <p class="fb">The Scaling 10x section names near-dup clustering as the first bottleneck, scaled by LSH band sharding.</p>
       <p class="hint">Reread the "First bottleneck" sentence under Scaling 10x.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="news-aggregator-cdn-dominant-cost-why">
       <p class="stem">Why is CDN delivery the dominant cost driver rather than the fetch/processing workers?</p>
-      <button class="opt">CDN pricing is always higher per request than compute pricing regardless of volume</button>
-      <button class="opt">Fetch workers only run once a day so their cost is negligible by design</button>
-      <button class="opt">Read volume (billions of feed loads) vastly exceeds write volume (millions of articles), and cost scales with the operation you do the most</button>
+      <button class="opt">CDN requests always cost more than compute, whatever the volume</button>
+      <button class="opt">Fetch workers run only once a day, so their cost is negligible</button>
+      <button class="opt">Billions of feed loads dwarf millions of articles; cost follows reads</button>
       <p class="fb">The same ~1000x read/write ratio from capacity estimation shows up again in the cost breakdown — the read path dominates spend because it dominates volume.</p>
       <p class="hint">Reread the Cost of Running section's "Dominant driver" sentence.</p>
     </div>
@@ -574,6 +574,18 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A news aggregator is a read-heavy system fed by a bursty ingestion pipeline. A scheduler polls ~100k sources adaptively into a queue; workers dedup, cluster and rank articles so the same story appears once. Rankings are precomputed per category and served from cache with cursor pagination at ~30k QPS peak, with a light per-user re-rank. The queue isolates breaking-news spikes from reads, and freshness under 30 minutes is a monitored SLO. At 10× we add workers, partitions and archiving, and cost is dominated by CDN delivery.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="news-queue-isolates-spikes">
+        <p class="stem">Why does the ingestion queue matter most during breaking news?</p>
+        <button class="opt">It absorbs the ingest burst so ranking work never slows reader traffic</button>
+        <button class="opt">It guarantees each article is shown to readers in strict time order</button>
+        <button class="opt">It replaces the cache, so readers always see the very latest story</button>
+        <button class="opt">It lets the scheduler stop polling sources while the spike lasts</button>
+        <p class="fb">Bursty writes and steady heavy reads are decoupled: the queue soaks up the spike; reads keep hitting precomputed caches.</p>
+        <p class="hint">Which side spikes during breaking news, and what must stay unaffected?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -608,9 +620,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="news-aggregator-final-ranking-tradeoff-why">
       <p class="stem">Why does the hybrid ranking approach (precompute global, re-rank a small top-N) beat computing full personalized ranking at read time?</p>
-      <button class="opt">Full personalization is technically impossible to implement in any system</button>
-      <button class="opt">Computing full personalized ranking per request would blow the 200ms latency budget at 30k QPS, while re-ranking a small slice is cheap</button>
-      <button class="opt">Precomputed rankings are always more accurate than any read-time computation</button>
+      <button class="opt">Full personalization is technically impossible in any system</button>
+      <button class="opt">Full per-request ranking blows 200 ms at 30k QPS; a slice is cheap</button>
+      <button class="opt">Precomputed rankings are always more accurate than read-time ones</button>
       <p class="fb">The read path budget is fixed and small; amortizing heavy scoring at ingest across all readers is what makes the latency target achievable.</p>
       <p class="hint">Deep dive 2's tradeoff table.</p>
     </div>
@@ -618,7 +630,7 @@
       <p class="stem">What single design decision connects the NFR choice, the queue, and the graceful-degradation behavior during breaking news?</p>
       <button class="opt">All three are unrelated coincidences of the architecture</button>
       <button class="opt">All three exist purely to reduce infrastructure cost</button>
-      <button class="opt">Availability over consistency: the read path is decoupled from ingestion health, so it can serve a slightly stale answer instead of failing</button>
+      <button class="opt">Availability first: reads are decoupled from ingestion</button>
       <p class="fb">The NFR sets the priority, the queue implements the decoupling, and graceful degradation during spikes is that priority playing out under load.</p>
       <p class="hint">Trace the phrase "availability over consistency" across the NFR table, the staff callout, and the freshness deep dive.</p>
     </div>

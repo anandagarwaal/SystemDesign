@@ -59,6 +59,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -73,13 +87,40 @@
     <strong>Why this lesson, for your mission:</strong> Almost every L6/L7 design starts with a client, a load balancer, and a fleet of stateless app servers — the LB is the first box you draw and the one interviewers probe hardest. A senior candidate says "put a load balancer here" and moves on. A staff candidate says <em>which layer</em> (L4 vs L7), <em>why</em> (do you need to route on URL or terminate TLS, or just spray packets fast?), picks an algorithm with a reason, and then — unprompted — points out that the load balancer is itself a single point of failure and explains how they'd make it redundant. This lesson gives you that full mental model so the LB stops being a black box you wave at and becomes a place you can show depth.
   </div>
 
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 5</p>
+
   <h2>What load balancing is</h2>
   <p>A <b>load balancer (LB)</b> is a reverse proxy that sits between clients and a pool of backend servers and distributes incoming traffic across them.<a href="#c1" class="cite">[1]</a> It exists to deliver two things you can't get from a single machine: <b>scalability</b> (spread load so you can add servers horizontally instead of buying a bigger one) and <b>availability</b> (if one backend dies, route around it so users never notice).<a href="#c1" class="cite">[1]</a></p>
 
   <p>Two roles matter beyond just spreading traffic. First, the LB is a <b>single entry point</b>: clients connect to one stable address (a DNS name or virtual IP), and the LB hides the fleet behind it. You can add, remove, deploy, or restart backends without clients knowing — they only ever see the LB.<a href="#c1" class="cite">[1]</a> Second, the LB runs <b>health checks</b>: it periodically probes each backend and removes any that fail from rotation, sending new requests only to healthy nodes.<a href="#c2" class="cite">[2]</a> Spreading traffic across a pool that includes a dead server isn't load balancing — it's load balancing plus an outage. The health check is what turns a list of servers into a self-healing pool.</p>
 
   <p>Because the LB owns the entry point, it's also the natural home for cross-cutting concerns: TLS termination, basic rate limiting, and routing — which is exactly where the L4-vs-L7 distinction comes in.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="lb-two-goals">
+        <p class="stem">What two properties does a load balancer give you that a single machine cannot?</p>
+        <button class="opt">Lower storage cost per request and stronger data consistency</button>
+        <button class="opt">Encrypted traffic at rest and automatic database replication</button>
+        <button class="opt">Horizontal scalability and availability when a backend dies</button>
+        <button class="opt">Faster disk reads and automatic schema migration on deploys</button>
+        <p class="fb">Spread load so you scale out by adding servers, and route around dead servers so users never notice.</p>
+        <p class="hint">Reread the first paragraph: the LB exists to deliver two things. Neither is about storage.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="lb-health-check-why">
+        <p class="stem">Picture a round-robin LB over 4 servers with health checks turned OFF, and one server crashes. What do users see?</p>
+        <button class="opt">Nothing — the LB notices the crash and skips that server anyway</button>
+        <button class="opt">About one in four requests fails until someone removes the node</button>
+        <button class="opt">Every request fails, because the pool is now considered broken</button>
+        <button class="opt">Requests slow down but all succeed, since the LB retries silently</button>
+        <p class="fb">Without health checks, rotation keeps sending 1/N of traffic to the dead node. The health check is what makes the pool self-healing.</p>
+        <p class="hint">Round robin just walks the list. Who tells it that a server in the list is dead?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 5</p>
   <h2>L4 vs L7 — the distinction that matters</h2>
   <p>Load balancers operate at one of two layers of the network stack (see <a href="0002-networking-and-apis.html">Networking &amp; APIs, Lesson 2</a>). This is the single most important thing to get right in an interview, because it determines what the LB <em>can</em> and <em>can't</em> do.</p>
 
@@ -107,7 +148,40 @@
       <li><b>Common real setup:</b> an L4 LB at the very edge for raw scale, fronting an L7 layer (or per-region L7 LBs) that does the smart HTTP routing — breadth at L4, depth at L7.</li>
     </ul>
   </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="lb-l4-sees">
+        <p class="stem">What does a Layer-4 load balancer look at when choosing a backend?</p>
+        <button class="opt">Only IP address and port of the connection, never the payload</button>
+        <button class="opt">The URL path and Host header of each individual HTTP request</button>
+        <button class="opt">The session cookie, so it can pin each user to one backend</button>
+        <button class="opt">The request body, so it can route writes and reads separately</button>
+        <p class="fb">L4 works on TCP/UDP connections: it picks a backend when the connection opens and forwards packets blindly.</p>
+        <p class="hint">Transport layer = connections and ports. Anything HTTP-shaped belongs to the other layer.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="lb-l7-why-costlier">
+        <p class="stem">Why is an L7 load balancer inherently more expensive per request than an L4 one?</p>
+        <button class="opt">It must keep a copy of every backend's data in its own memory</button>
+        <button class="opt">It must run health checks far more often than an L4 balancer</button>
+        <button class="opt">It must open a new database connection for every request it sees</button>
+        <button class="opt">It must terminate the connection and parse each request to route it</button>
+        <p class="fb">To route on content it has to decrypt (TLS) and parse HTTP — CPU work L4 never does because it never looks inside.</p>
+        <p class="hint">Ask: what does L7 need to KNOW to route by URL, and what work does it take to learn that?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="lb-websocket-l4">
+        <p class="stem">You're fronting a fleet of WebSocket chat servers. Why is L7 content routing mostly wasted here?</p>
+        <button class="opt">WebSockets cannot be encrypted, so TLS termination is not possible</button>
+        <button class="opt">WebSocket servers hold no state, so any backend can take any frame</button>
+        <button class="opt">After the upgrade it is one long connection, so there is nothing per-request to route</button>
+        <button class="opt">L7 balancers refuse to forward any traffic that is not plain HTTP/1.1</button>
+        <p class="fb">A WebSocket is one long-lived connection; once it's pinned there are no further routing decisions, so L4's cheap connection pinning fits.</p>
+        <p class="hint">How many routing decisions happen over the life of one WebSocket connection?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 5</p>
   <h2>Balancing algorithms</h2>
   <p>Once the LB knows the healthy pool, it needs a rule for picking <em>which</em> backend gets the next request. The common ones, in order of how often they come up:</p>
 
@@ -129,7 +203,40 @@
   <div class="box">
     <b>Prefer stateless backends over sticky sessions.</b> Stickiness is a crutch: it pins users to a node, so a deploy or crash drops their session, and load skews toward whoever holds the heavy sessions. The staff-default is to make app servers <b>stateless</b> — push session state into a shared store (Redis) or a signed token — so <em>any</em> backend can serve <em>any</em> request and plain round robin just works. Reach for stickiness only when you truly can't externalize state.
   </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="lb-least-conn-when">
+        <p class="stem">Which algorithm should you choose when some requests take 10 ms and others take 10 s?</p>
+        <button class="opt">Round robin, because it spreads requests evenly by count alone</button>
+        <button class="opt">Least connections, because it steers new work away from busy nodes</button>
+        <button class="opt">IP hash, because the same client always lands on the same server</button>
+        <button class="opt">Weighted round robin, because beefier boxes get a larger share</button>
+        <p class="fb">Least-connections tracks live load; round robin ignores it and can stack slow requests on one node.</p>
+        <p class="hint">Which algorithm actually looks at how busy each server is RIGHT NOW?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="lb-modulo-hash-remap">
+        <p class="stem">Picture hash(ip) % 4 routing, then one server dies so it becomes % 3. Roughly what happens to client→server mappings?</p>
+        <button class="opt">Most clients now map to a different server, so caches and sessions reset</button>
+        <button class="opt">Only the clients on the dead server move; everyone else stays in place</button>
+        <button class="opt">No mappings change, because the hash of each IP address is unchanged</button>
+        <button class="opt">Exactly one third of clients move, spread evenly across the survivors</button>
+        <p class="fb">Changing the modulus reshuffles almost every key (~75% here). Consistent hashing moves only the dead node's share.</p>
+        <p class="hint">Try a few numbers: 5%4 vs 5%3, 6%4 vs 6%3, 7%4 vs 7%3. How many stay put?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="lb-stateless-over-sticky">
+        <p class="stem">Why is 'make app servers stateless' the staff default rather than sticky sessions?</p>
+        <button class="opt">Stateless servers use less memory, which is the main cost driver</button>
+        <button class="opt">Sticky sessions are unsupported by every managed cloud load balancer</button>
+        <button class="opt">Stateless servers never need health checks or connection draining</button>
+        <button class="opt">Any server can serve any request, so deploys, crashes and skew stop mattering</button>
+        <p class="fb">Stickiness couples a user to one node: a deploy or crash loses their session and load skews. Externalized state makes plain round robin work.</p>
+        <p class="hint">Reread the 'Prefer stateless backends' box — what goes wrong when a sticky node restarts?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 5</p>
   <h2>Scaling &amp; availability — including the LB itself</h2>
   <p>Health checks (above) handle a backend dying. But the LB introduces its own risk, and this is the deep-dive interviewers love.</p>
 
@@ -157,43 +264,82 @@
 
   <h2>In the interview</h2>
   <p>When you place a load balancer, deliver it in this arc: (1) <b>say why</b> — "stateless app servers behind an LB so I can scale horizontally and survive a node failure." (2) <b>Pick the layer with a reason</b> — L7 for HTTP routing + TLS termination, L4 for raw throughput or WebSockets. (3) <b>Name an algorithm</b> tied to the workload — round robin for uniform requests, least-connections for variable ones. (4) <b>Pre-empt the SPOF</b> — "the LB itself is redundant: active-active behind anycast, or a managed multi-AZ LB." (5) If the design is multi-region, <b>add GSLB/GeoDNS</b> for cross-region routing and failover. That's breadth-then-depth: a fast justified placement, then 60% depth on layer choice, statelessness, and the LB's own availability.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="lb-draining">
+        <p class="stem">What does connection draining do during a deploy?</p>
+        <button class="opt">Moves the node's in-memory sessions onto another healthy backend</button>
+        <button class="opt">Closes every open connection at once so the node restarts quickly</button>
+        <button class="opt">Stops new requests to the node while in-flight requests finish</button>
+        <button class="opt">Sends duplicate copies of requests to both old and new versions</button>
+        <p class="fb">Deregistration delay: no new work, finish current work, then remove — that's what makes zero-downtime deploys possible.</p>
+        <p class="hint">The goal is 'no user sees an error'. Which option lets in-flight work complete?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="lb-spof-reasoning">
+        <p class="stem">You added an LB so backend failures are invisible. Why does that make the LB itself your biggest availability risk?</p>
+        <button class="opt">LBs crash far more often than application servers do in practice</button>
+        <button class="opt">You moved every request through one box, so its failure is total</button>
+        <button class="opt">Health checks put so much load on the LB that it tends to overload</button>
+        <button class="opt">Backends can no longer be reached directly once an LB is in front</button>
+        <p class="fb">Concentrating all traffic in one component turns it into the single point of failure — hence active-passive VIP, active-active + anycast, or managed multi-AZ.</p>
+        <p class="hint">What fraction of traffic passes through the LB? What happens to that traffic if it dies?</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. What can an L7 load balancer do that an L4 one cannot?</p>
-      <button class="opt">Forward packets to a chosen backend without ever parsing them</button>
-      <button class="opt">Balance non-HTTP protocols such as raw database or game traffic</button>
-      <button class="opt">Route on the request URL or header and terminate TLS at the edge</button>
-      <button class="opt">Pin a long-lived TCP connection to one backend for its lifetime</button>
-      <p class="fb">L7 terminates the connection and reads the HTTP request, so it can route by URL/header/cookie and terminate TLS — L4 only sees IP and port.</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="c" data-concept="lb-l7-capabilities-final">
+        <p class="stem">What can an L7 load balancer do that an L4 one cannot?</p>
+        <button class="opt">Forward packets to a chosen backend without ever parsing them</button>
+        <button class="opt">Balance non-HTTP protocols such as raw database or game traffic</button>
+        <button class="opt">Route on the request URL or header and terminate TLS at the edge</button>
+        <button class="opt">Pin a long-lived TCP connection to one backend for its lifetime</button>
+        <p class="fb">L7 terminates the connection and reads the HTTP request, so it can route by URL/header/cookie and terminate TLS — L4 only sees IP and port.</p>
+        <p class="hint">Revisit the L4 vs L7 table: 'Routes by' and 'TLS' rows.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="lb-consistent-hash-affinity-final">
+        <p class="stem">Why prefer consistent hashing over <code>hash(ip) % N</code> for affinity?</p>
+        <button class="opt">Changing the server count remaps only a small fraction of keys</button>
+        <button class="opt">Hashing the client address spreads traffic far more uniformly</button>
+        <button class="opt">It lets the balancer read the request body before choosing a node</button>
+        <button class="opt">It removes the need to run periodic health checks on the backends</button>
+        <p class="fb">With modulo hashing, changing N remaps nearly every key (dropping all caches/sessions); consistent hashing only moves keys near the changed node — same as Lesson 5.</p>
+        <p class="hint">Reread 'Hashing, sticky sessions, and the link to Lesson 5'.</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="lb-least-conn-vs-rr-final">
+        <p class="stem">When does <b>least connections</b> beat plain <b>round robin</b>?</p>
+        <button class="opt">When every backend runs on identical hardware and equal weight</button>
+        <button class="opt">When the client must always reach the same backend repeatedly</button>
+        <button class="opt">When the balancer needs to route requests purely by the URL path</button>
+        <button class="opt">When request durations vary widely so some servers stay busier</button>
+        <p class="fb">Round robin ignores live load; with highly variable request times it can pile slow requests onto a busy node, so least-connections steers around them.</p>
+        <p class="hint">Reread the round robin vs least connections paragraph.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="lb-spof-final">
+        <p class="stem">Why is a single load balancer a problem you must address?</p>
+        <button class="opt">It cannot terminate TLS, so every backend must decrypt traffic</button>
+        <button class="opt">All traffic flows through it, so if it dies the whole service is</button>
+        <button class="opt">It forces every backend server to hold sticky in-memory sessions</button>
+        <button class="opt">It can only ever balance traffic inside one single cloud region</button>
+        <p class="fb">The LB hides backend failures but becomes the single point of failure itself; you make it redundant (active-passive, active-active + anycast, or a managed multi-AZ LB).</p>
+        <p class="hint">Reread 'The load balancer is a single point of failure'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="lb-gslb-transfer">
+        <p class="stem">Your service runs in us-east and eu-west. The eu-west region goes dark. Which layer of load balancing saves European users?</p>
+        <button class="opt">Global LB via GeoDNS, which stops handing out the dead region's address</button>
+        <button class="opt">The in-region L7 balancer, which reroutes requests using the URL path</button>
+        <button class="opt">Connection draining, which lets in-flight European requests finish</button>
+        <button class="opt">Least-connections, which notices the region has zero active sessions</button>
+        <p class="fb">In-region LBs die with the region. Only a layer above them — GSLB/GeoDNS — can steer clients to the surviving region.</p>
+        <p class="hint">Everything in-region is gone. What sits ABOVE the regional LBs?</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">2. Why prefer consistent hashing over <code>hash(ip) % N</code> for affinity?</p>
-      <button class="opt">Changing the server count remaps only a small fraction of keys</button>
-      <button class="opt">Hashing the client address spreads traffic far more uniformly</button>
-      <button class="opt">It lets the balancer read the request body before choosing a node</button>
-      <button class="opt">It removes the need to run periodic health checks on the backends</button>
-      <p class="fb">With modulo hashing, changing N remaps nearly every key (dropping all caches/sessions); consistent hashing only moves keys near the changed node — same as Lesson 5.</p>
-    </div>
-    <div class="q" data-correct="d">
-      <p class="stem">3. When does <b>least connections</b> beat plain <b>round robin</b>?</p>
-      <button class="opt">When every backend runs on identical hardware and equal weight</button>
-      <button class="opt">When the client must always reach the same backend repeatedly</button>
-      <button class="opt">When the balancer needs to route requests purely by the URL path</button>
-      <button class="opt">When request durations vary widely so some servers stay busier</button>
-      <p class="fb">Round robin ignores live load; with highly variable request times it can pile slow requests onto a busy node, so least-connections steers around them.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. Why is a single load balancer a problem you must address?</p>
-      <button class="opt">It cannot terminate TLS, so every backend must decrypt traffic</button>
-      <button class="opt">All traffic flows through it, so if it dies the whole service is</button>
-      <button class="opt">It forces every backend server to hold sticky in-memory sessions</button>
-      <button class="opt">It can only ever balance traffic inside one single cloud region</button>
-      <p class="fb">The LB hides backend failures but becomes the single point of failure itself; you make it redundant (active-passive, active-active + anycast, or a managed multi-AZ LB).</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Draw the full request path for an HTTPS API with TLS terminated at an L7 LB fronted by an L4 edge — where does each thing happen?" · "Walk me through exactly how an active-passive LB pair fails over a virtual IP, and how anycast differs." · "When would you accept sticky sessions instead of externalizing state to Redis, and what breaks on deploy?"
@@ -216,21 +362,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

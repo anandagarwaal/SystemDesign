@@ -177,17 +177,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="kafka-partition-ordering-why-per-partition-only">
         <p class="stem">Why is Kafka ordered only within a partition, and not across the whole topic?</p>
-        <button class="opt">Kafka's engineers simply never implemented cross-partition ordering</button>
-        <button class="opt">Partitions are independently-written, independently-consumed logs, so serializing order across all of them would kill the parallelism that partitions exist to provide</button>
-        <button class="opt">Cross-partition ordering is guaranteed but only for topics with a single consumer</button>
+        <button class="opt">Kafka's engineers simply never got around to building global ordering</button>
+        <button class="opt">Partitions are independent logs; global order would kill the parallelism</button>
+        <button class="opt">Cross-partition order is guaranteed, but only with a single consumer</button>
         <p class="fb">Ordering requires a single sequential writer/reader path. Spreading a topic across partitions is what gives parallel throughput — global order would force everything back through one lane.</p>
         <p class="hint">Reread "unit of parallelism" — parallelism and a single global order are in tension.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="kafka-hot-key-what-breaks">
         <p class="stem">What breaks if a producer keys 90% of traffic to the same value (e.g. one giant customer's <code>user_id</code>)?</p>
-        <button class="opt">That key's records all land on one partition, so throughput for that key is capped at what a single consumer can process</button>
-        <button class="opt">Kafka automatically splits the hot key's records across all partitions to compensate</button>
-        <button class="opt">The producer throws an error and refuses to send any more records for that key</button>
+        <button class="opt">That key all lands on one partition, capped at one consumer</button>
+        <button class="opt">Kafka automatically splits the hot key across all partitions</button>
+        <button class="opt">The producer errors and refuses to send more for that key</button>
         <p class="fb">The key deterministically hashes to one partition. Concentration is the price of per-key ordering — one consumer, one partition, one throughput ceiling.</p>
         <p class="hint">Reread the sentence right after "cost of ordering is concentration."</p>
       </div>
@@ -216,26 +216,26 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="kafka-at-least-once-default-recall">
         <p class="stem">What is the "sane default" delivery approach for most Kafka consumers?</p>
-        <button class="opt">At-least-once: process the record, then commit the offset, with an idempotent handler</button>
-        <button class="opt">At-most-once: commit the offset before processing starts</button>
-        <button class="opt">Exactly-once for every downstream, including external databases</button>
-        <button class="opt">No offset commits at all, replaying from the start each run</button>
+        <button class="opt">Process, then commit the offset; keep the handler idempotent</button>
+        <button class="opt">Commit the offset first, before processing even starts</button>
+        <button class="opt">Exactly-once for every downstream, external DBs included</button>
+        <button class="opt">Never commit offsets; replay from the start on each run</button>
         <p class="fb">At-least-once plus an idempotent handler is the practical default; exactly-once is narrower and Kafka-to-Kafka only.</p>
         <p class="hint">Reread the sentence starting "At-least-once is the sane default."</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="kafka-exactly-once-boundary-why">
         <p class="stem">Why does "exactly-once" stop being true once a consumer writes to an external database instead of another Kafka topic?</p>
-        <button class="opt">External databases are always too slow to keep up with Kafka's throughput</button>
-        <button class="opt">Exactly-once was never real; it's a marketing term with no technical basis</button>
-        <button class="opt">Kafka's atomic transaction only covers Kafka offsets and Kafka output records — a write to an outside system isn't part of that transaction, so a retry after a crash can duplicate it</button>
+        <button class="opt">External databases are always too slow to keep up with Kafka</button>
+        <button class="opt">Exactly-once was never real; it's pure marketing with no basis</button>
+        <button class="opt">Kafka's transaction covers only Kafka; outside writes can repeat</button>
         <p class="fb">The transactional guarantee is scoped to what Kafka itself coordinates. Anything outside that boundary needs its own idempotency, same as any distributed write.</p>
         <p class="hint">Reread "the honest framing" sentence at the end of the delivery-semantics paragraph.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="kafka-rebalance-flapping-why-bad">
         <p class="stem">Why do frequent rebalances hurt throughput more than a single, rare rebalance would?</p>
-        <button class="opt">Rebalances permanently delete a percentage of the topic's data each time</button>
-        <button class="opt">Every rebalance briefly pauses consumption while partitions are reassigned, so repeated rebalances mean repeated stalls instead of one</button>
-        <button class="opt">Rebalances only affect producers, not consumers, so they shouldn't matter to throughput at all</button>
+        <button class="opt">Each rebalance permanently deletes some of the topic's data</button>
+        <button class="opt">Every rebalance pauses consumption, so many means many stalls</button>
+        <button class="opt">Rebalances only affect producers, so throughput is unaffected</button>
         <p class="fb">Each rebalance has a pause cost. A flapping consumer (crashing, restarting, missing heartbeats) triggers that cost over and over.</p>
         <p class="hint">Reread "During a rebalance, consumption briefly pauses."</p>
       </div>
@@ -278,9 +278,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="kafka-poison-message-why-blocks-partition">
         <p class="stem">Why does one "poison" message stuck in a Kafka partition block every message behind it, when a task queue wouldn't have this problem?</p>
-        <button class="opt">Progress in a partition is a single offset — you can't skip ahead to the next record while the one at the current offset fails, unlike a queue with per-message acks that lets other messages proceed</button>
-        <button class="opt">Kafka deletes the entire partition automatically whenever any one message fails to process</button>
-        <button class="opt">Poison messages are actually impossible in Kafka because every record is validated before it's appended</button>
+        <button class="opt">Progress is one offset, so you can't skip a failing record</button>
+        <button class="opt">Kafka deletes the whole partition whenever any message fails</button>
+        <button class="opt">Poison messages can't exist, since Kafka validates every record</button>
         <p class="fb">A task queue acks/retries per message independently. Kafka's unit of progress is the offset, so a stuck consumer at offset N can't move to N+1 without deciding what to do about N.</p>
         <p class="hint">Reread "progress is a single offset per partition."</p>
       </div>
@@ -321,17 +321,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="kafka-task-queue-vs-stream-final">
         <p class="stem">A candidate proposes Kafka for a background job system needing per-job retry and a dead-letter queue. What's the staff-level pushback?</p>
-        <button class="opt">No pushback — Kafka natively supports per-message retry and DLQs just like SQS</button>
-        <button class="opt">Kafka tracks one offset per partition with no native per-message ack/retry, so a stuck job blocks everything behind it — use RabbitMQ or SQS instead</button>
-        <button class="opt">Kafka would work, but only if you add more partitions to the topic</button>
+        <button class="opt">None — Kafka natively has per-message retry and DLQs like SQS</button>
+        <button class="opt">No per-message ack, so a stuck job blocks the rest; use a queue</button>
+        <button class="opt">Kafka works fine, as long as you add more partitions to the topic</button>
         <p class="fb">This is the stream-vs-task-queue distinction: Kafka's progress model is per-partition offsets, not per-message acknowledgement.</p>
         <p class="hint">Reread "The trap: using Kafka as a job queue."</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="kafka-key-choice-tradeoff-final">
         <p class="stem">A producer keys records by <code>user_id</code> to preserve per-user order. What tradeoff does this choice accept?</p>
-        <button class="opt">A skewed distribution of user activity creates a hot partition, capping that user's throughput at one consumer</button>
-        <button class="opt">Keying by <code>user_id</code> disables replication for that topic entirely</button>
-        <button class="opt">Keying has no downside; it only ever improves both ordering and throughput simultaneously</button>
+        <button class="opt">Skewed users create a hot partition, capped at one consumer</button>
+        <button class="opt">Keying by user_id disables replication for that whole topic</button>
+        <button class="opt">Keying has no downside; it only ever improves order and speed</button>
         <p class="fb">Ordering and parallelism trade off at the key level: same key means same partition means one consumer's worth of throughput ceiling for that key.</p>
         <p class="hint">Reread the "cost of ordering is concentration" idea from the internals chunk.</p>
       </div>

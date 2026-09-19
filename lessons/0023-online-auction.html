@@ -162,7 +162,7 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="online-auction-single-system-failure-mode">
       <p class="stem">What would go wrong if a senior candidate built one unified system to serve both bids and live viewing?</p>
-      <button class="opt">It would either slow bid writes with viewer load or weaken bid consistency to make reads scale</button>
+      <button class="opt">Viewer load slows bids, or bid consistency is weakened to scale reads</button>
       <button class="opt">Nothing, since bids and views happen at completely different times</button>
       <button class="opt">The system would need no database at all, only an in-memory queue</button>
       <p class="fb">Bids demand linearizable single-key writes; viewers demand massive cheap fan-out. A shared system trades one requirement off against the other, which is exactly the "senior tries to make one system do both" trap named in the staff callout.</p>
@@ -196,9 +196,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="b" data-concept="online-auction-shard-by-auction-id">
       <p class="stem">Why does the capacity estimate conclude "shard by auction_id" rather than by bidder_id?</p>
-      <button class="opt">Bidder IDs are harder to hash evenly than auction IDs across shards</button>
-      <button class="opt">Contention always happens within a single auction, never across auctions, so co-locating each auction's bids avoids cross-shard coordination</button>
-      <button class="opt">Auction IDs are always smaller numbers so they compress better on disk</button>
+      <button class="opt">Bidder ids are harder to hash evenly across shards than auction ids</button>
+      <button class="opt">Contention is always within one auction, so co-locate its bids</button>
+      <button class="opt">Auction ids are smaller numbers, so they compress better on disk</button>
       <p class="fb">A bid never spans auctions, so the compare-and-set never needs to touch two shards if data is sharded by auction_id — sharding by bidder_id would scatter one auction's contention across shards.</p>
       <p class="hint">Reread the "Concurrent auctions" row's design implication.</p>
     </div>
@@ -249,7 +249,16 @@
       <p class="fb">The Data Model section states this directly: the outbox row in the same transaction prevents "bid committed but broadcast lost."</p>
       <p class="hint">Reread the Data Model intro paragraph, second sentence.</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="d" data-concept="auction-row-serialization">
+        <p class="stem">Why keep highest_bid, status and version on the auction row itself?</p>
+        <button class="opt">So the bid history can be deleted after the auction ends</button>
+        <button class="opt">So the row can be cached on the CDN between bids</button>
+        <button class="opt">So bidders can read the highest bid without authentication</button>
+        <button class="opt">So a bid and the close contend on one key and one CAS decides</button>
+        <p class="fb">One serialization point: a compare-and-set on the auction row makes 'higher bid wins, nothing after close' atomic.</p>
+        <p class="hint">Where do a late bid and the close timer collide?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-4" hidden>
@@ -298,9 +307,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="c" data-concept="online-auction-split-bid-broadcast-service">
       <p class="stem">What breaks if the Bid Service and the Broadcast Service were merged into one process?</p>
-      <button class="opt">Auctions would no longer be able to close automatically at end time</button>
-      <button class="opt">The database would no longer be able to store bid history</button>
-      <button class="opt">A surge of viewers on a hot auction could slow down or contend with bid acceptance</button>
+      <button class="opt">Auctions could no longer close automatically at end time</button>
+      <button class="opt">The database could no longer store the full bid history</button>
+      <button class="opt">A viewer surge on a hot auction could slow bid acceptance</button>
       <p class="fb">The pushback answer is explicit: splitting them means a viewer surge can't slow bid acceptance — merging reintroduces exactly that coupling.</p>
       <p class="hint">Reread the pushback: "Why separate the bid service from the broadcast fleet?"</p>
     </div>
@@ -426,9 +435,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="online-auction-occ-retry-tradeoff">
       <p class="stem">Why do OCC retries spike specifically in an auction's final seconds rather than staying constant throughout?</p>
-      <button class="opt">Bid rate itself spikes near close (sniping), so more concurrent writers collide on the same row at once</button>
-      <button class="opt">The database silently switches to a slower storage engine near the end time</button>
-      <button class="opt">OCC retries are unrelated to bid rate and instead depend only on time of day</button>
+      <button class="opt">Sniping spikes bids near close, so more writers hit the same row</button>
+      <button class="opt">The database switches to a slower storage engine near end time</button>
+      <button class="opt">OCC retries depend only on time of day, not on the bid rate</button>
       <p class="fb">Contention scales with concurrent writers on one row; capacity estimation shows bid rate can jump ~20× near close, so more optimistic writers collide and lose the race, forcing retries.</p>
       <p class="hint">Connect the capacity estimate's "hot auction close" row with approach A's listed weakness in the Alternatives table.</p>
     </div>
@@ -491,9 +500,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="c" data-concept="online-auction-pseudonym-privacy-why">
       <p class="stem">Why show bidders pseudonymously to other users instead of hiding the bid amount too?</p>
-      <button class="opt">Bid amounts are not personal data so nothing about them needs protection</button>
-      <button class="opt">Hiding amounts would violate the strong-consistency requirement on bids</button>
-      <button class="opt">The auction's competitive function needs a visible price signal; only the bidder's identity is the sensitive part</button>
+      <button class="opt">Bid amounts aren't personal data, so nothing needs protecting</button>
+      <button class="opt">Hiding amounts would violate the strong consistency on bids</button>
+      <button class="opt">The price signal is the product; only identity is sensitive</button>
       <p class="fb">Privacy minimization keeps what the function needs (the amount, to drive competitive bidding) while stripping what it doesn't need (identity), consistent with data minimization.</p>
       <p class="hint">Reread the Privacy section's "Display" and "Minimization" sentences.</p>
     </div>
@@ -534,6 +543,27 @@
     <p><b>Staff answer:</b> Holding viewer WebSockets, not processing bids. Use cached snapshots or SSE for quiet auctions and reserve sockets for auctions near close.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Summary:”</p>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="auction-cost-driver">
+        <p class="stem">What dominates the auction system's cost?</p>
+        <button class="opt">Processing bids in Postgres with OCC</button>
+        <button class="opt">Holding millions of viewer sockets open</button>
+        <button class="opt">Running the close-timer delay workers</button>
+        <button class="opt">Storing item images in object store</button>
+        <p class="fb">Sockets, not bids: ~$24k of ~$40k. Reserve sockets for auctions near close; serve quiet ones via cached snapshots/SSE.</p>
+        <p class="hint">Which line item is the largest?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="auction-redesign-multi-item">
+        <p class="stem">Why would combinatorial auctions (one bid spanning many items) force a redesign?</p>
+        <button class="opt">They require WebSockets instead of SSE for every viewer</button>
+        <button class="opt">They produce too many bids for the delay queue to handle</button>
+        <button class="opt">One bid spans many rows, breaking per-auction ordering</button>
+        <button class="opt">They need a separate CDN for every single item image</button>
+        <p class="fb">Correctness came from each auction's single row being the serialization point, sharded by auction_id. A bid across many rows needs cross-shard atomicity.</p>
+        <p class="hint">What made each bid safe today, and does that still hold if a bid spans shards?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -572,17 +602,17 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="online-auction-shard-key-choice-final">
       <p class="stem">If the system instead sharded by bidder_id rather than auction_id, what would break?</p>
-      <button class="opt">Nothing, since bidder_id and auction_id are functionally interchangeable keys</button>
-      <button class="opt">A single auction's bids would scatter across shards, forcing cross-shard coordination on every compare-and-set</button>
-      <button class="opt">The system would no longer be able to store bid history at all</button>
+      <button class="opt">Nothing — bidder_id and auction_id are interchangeable shard keys</button>
+      <button class="opt">One auction's bids would scatter, making every CAS cross-shard</button>
+      <button class="opt">The system could no longer store any bid history at all</button>
       <p class="fb">Contention is per auction; sharding by auction_id keeps every contending write on one shard. Sharding by bidder_id would split one auction's writes across many shards and break the single serialization point.</p>
       <p class="hint">Revisit chunk 2's capacity estimate and the sharding implication.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="online-auction-broadcast-coalesce-why-final">
       <p class="stem">Why does the design coalesce broadcast updates to ~5/s per auction instead of pushing every accepted bid immediately?</p>
-      <button class="opt">A hot auction's raw per-bid fan-out to 100k viewers would multiply into a message-volume explosion</button>
-      <button class="opt">Coalescing is required because WebSockets cannot deliver more than 5 messages per second</button>
-      <button class="opt">Coalescing makes bid writes themselves atomic and race-free</button>
+      <button class="opt">Raw per-bid fan-out to 100k viewers explodes the message volume</button>
+      <button class="opt">WebSockets can't deliver more than 5 messages per second anyway</button>
+      <button class="opt">Coalescing is what makes the bid writes atomic and race-free</button>
       <p class="fb">The capacity estimate shows one hot auction at 1,000 bids/s × 100k watchers would be 100M msgs/s if uncoalesced; coalescing to ~5/s cuts that by 200×.</p>
       <p class="hint">Revisit chunk 2's "Viewer fan-out" row.</p>
     </div>

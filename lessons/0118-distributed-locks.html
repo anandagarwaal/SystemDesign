@@ -59,6 +59,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -73,6 +87,9 @@
     <strong>Why this lesson, for your mission:</strong> Contention problems are everywhere in interviews — "only one worker should send this reminder," "two booking servers must not sell the same seat," "run this cron on exactly one node." The naive answer is "use a distributed lock," but a staff candidate knows that distributed locks are <em>leaky</em>: they need a TTL to survive crashes, the TTL creates a correctness hole, and the real fix is often a fencing token or avoiding the lock entirely. Knowing when NOT to reach for one is as valuable as knowing how to build it.
   </div>
 
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 4</p>
+
   <h2>The problem &amp; why a TTL is mandatory</h2>
   <p>A <b>distributed lock</b> lets multiple machines coordinate so that only one holds a named resource at a time. The minimal recipe with Redis is an atomic conditional set:</p>
   <p><code>SET lock:resource &lt;owner_id&gt; NX PX 30000</code> — set the key only if absent (<code>NX</code>), with a 30-second expiry (<code>PX</code>).<a href="#c1" class="cite">[1]</a> If it succeeds you hold the lock; to release, you delete the key — but <em>only if you still own it</em> (check owner id in a Lua script, so you don't delete someone else's lock).</p>
@@ -86,7 +103,40 @@
       <li><b>Implication:</b> the protected resource must be able to check the token. If it can't, the lock cannot be made safe under pauses — design around it.</li>
     </ul>
   </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="lock-set-nx-px">
+        <p class="stem">What does <code>SET lock:x owner NX PX 30000</code> do?</p>
+        <button class="opt">Overwrites the key with the owner id and keeps it forever</button>
+        <button class="opt">Sets the key only if absent, expiring it after 30 seconds</button>
+        <button class="opt">Reads the key and blocks for 30 seconds until it is free</button>
+        <button class="opt">Deletes the key if the owner id matches, else it waits</button>
+        <p class="fb">NX = only if not exists (acquire), PX = millisecond expiry (liveness).</p>
+        <p class="hint">NX and PX each mean one thing — reread the recipe line.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="lock-ttl-liveness">
+        <p class="stem">Why is a TTL mandatory even though it causes the safety hole?</p>
+        <button class="opt">Redis refuses to store any key that has no expiry attached to it</button>
+        <button class="opt">Without it, two clients could both acquire the lock at the same time</button>
+        <button class="opt">Without it, a crashed holder keeps the lock forever and wedges everyone</button>
+        <button class="opt">It makes lock acquisition faster because Redis can evict it sooner</button>
+        <p class="fb">TTL buys liveness: a dead holder's lock eventually disappears. The price is that a merely-slow holder can lose the lock while still working.</p>
+        <p class="hint">Imagine the holder's machine loses power. Who ever deletes the key?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="lock-fencing-why">
+        <p class="stem">Picture A (token 33) paused past its TTL while B (token 34) writes. Why does fencing make A's late write harmless?</p>
+        <button class="opt">The storage rejects any write whose token is below the highest seen</button>
+        <button class="opt">The lock service kills client A's process as soon as its TTL expires</button>
+        <button class="opt">Client A checks the lock again before writing and notices it is gone</button>
+        <button class="opt">Tokens make the TTL long enough that no pause can ever outlast it</button>
+        <p class="fb">Correctness moves from timing (which you can't control) to a check at the resource. A can't check reliably itself — it might pause right after checking.</p>
+        <p class="hint">Why wouldn't 'A re-checks before writing' work? A could pause right AFTER checking.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 4</p>
   <h2>Where the lock should live</h2>
   <table>
     <thead><tr><th>Backend</th><th>How</th><th>Trade-off</th></tr></thead>
@@ -98,7 +148,31 @@
     </tbody>
   </table>
   <p><b>ZooKeeper/etcd locks</b> (see <a href="0106-zookeeper-etcd.html">Lesson 106</a>) are the gold standard because the coordination layer is consensus-backed and the <em>ephemeral node</em> tied to the client's session disappears automatically if the client dies — no arbitrary TTL guesswork, and natural fencing via the sequence number.<a href="#c3" class="cite">[3]</a> Redis locks are the pragmatic choice when "mostly once" is acceptable and speed matters.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="d" data-concept="lock-zk-ephemeral">
+        <p class="stem">Why are ZooKeeper/etcd locks the safest choice?</p>
+        <button class="opt">They keep the lock in RAM, so it is faster than any Redis lock</button>
+        <button class="opt">They need no network round trip, so pauses cannot affect them</button>
+        <button class="opt">They let every client hold the lock, then merge their writes</button>
+        <button class="opt">Consensus-backed, and the ephemeral node vanishes if the client dies</button>
+        <p class="fb">Consensus gives linearizable state; session-tied ephemeral nodes auto-release; sequence numbers give natural fencing.</p>
+        <p class="hint">Reread the paragraph under the table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="lock-redis-failover">
+        <p class="stem">Single-Redis lock: A acquires on the primary, then the primary dies before replicating. What happens?</p>
+        <button class="opt">Nothing — the lock is safe because replicas copy every write at once</button>
+        <button class="opt">The promoted replica has no lock key, so B can acquire it too</button>
+        <button class="opt">Both A and B are blocked until the old primary comes back online</button>
+        <button class="opt">Redis converts the lock into a fencing token automatically on failover</button>
+        <p class="fb">Async replication means the new primary may never have seen A's key — two holders. That's why single-Redis locks aren't safe for strict mutual exclusion.</p>
+        <p class="hint">Is Redis replication synchronous? What does the replica know at the moment of promotion?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 4</p>
   <h2>Often you shouldn't lock at all</h2>
   <p>The strongest move is frequently to <b>avoid the distributed lock</b>:</p>
   <ul>
@@ -115,43 +189,73 @@
 
   <h2>In the interview</h2>
   <p>When contention appears: (1) ask whether the operation can just be made <b>idempotent</b> or guarded by a <b>DB constraint / optimistic lock</b> — prefer those. (2) If you truly need a lock, sketch <code>SET NX PX</code> with an owner id and a Lua-checked release, and <b>say the TTL is required for liveness</b>. (3) Pre-empt the bug: "a pause past the TTL allows two holders, so I'll use fencing tokens or a ZooKeeper ephemeral-node lock for strict correctness." (4) For singleton jobs, say <b>leader election</b>. That arc — avoid it, then build it safely, then name the failure mode — is exactly the depth they want.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="lock-avoid-transfer">
+        <p class="stem">'Two servers must not both sell seat 12A.' What's usually better than a distributed lock?</p>
+        <button class="opt">A Redis lock on the seat with a 5 minute TTL and no fencing token</button>
+        <button class="opt">Running only one server so there is never any contention at all</button>
+        <button class="opt">A conditional DB update like UPDATE … WHERE status='free' — one winner</button>
+        <button class="opt">Letting both sell it and refunding one buyer after the fact</button>
+        <p class="fb">The database already serializes writes on the row; a conditional update or unique constraint picks exactly one winner with no extra infra and no TTL hole.</p>
+        <p class="hint">Reread 'Often you shouldn't lock at all' — which tool is specifically called out for double-booking?</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why must a distributed lock have a TTL?</p>
-      <button class="opt">To make acquiring the lock faster than a database write</button>
-      <button class="opt">To let multiple clients share the lock at the same time</button>
-      <button class="opt">So a crashed holder's lock auto-releases instead of deadlocking</button>
-      <button class="opt">To guarantee that only one client ever sees the resource</button>
-      <p class="fb">Without expiry, a holder that dies before releasing wedges the resource forever; the TTL guarantees the lock eventually frees up (liveness).</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="c" data-concept="lock-ttl-purpose-final">
+        <p class="stem">Why must a distributed lock have a TTL?</p>
+        <button class="opt">To make acquiring the lock faster than a database write</button>
+        <button class="opt">To let multiple clients share the lock at the same time</button>
+        <button class="opt">So a crashed holder's lock auto-releases instead of deadlocking</button>
+        <button class="opt">To guarantee that only one client ever sees the resource</button>
+        <p class="fb">Without expiry, a holder that dies before releasing wedges the resource forever; the TTL guarantees the lock eventually frees up (liveness).</p>
+        <p class="hint">Reread 'The problem & why a TTL is mandatory'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="lock-ttl-hole-final">
+        <p class="stem">What is the core safety hole created by the TTL?</p>
+        <button class="opt">A pause past the TTL lets two clients both hold the lock</button>
+        <button class="opt">The lock key grows unbounded and exhausts Redis memory</button>
+        <button class="opt">Clients must poll continuously, overloading the lock server</button>
+        <button class="opt">The lock can never be released early before it expires</button>
+        <p class="fb">If a holder stalls (GC, network) longer than the TTL, the lock expires and another client acquires it — now two clients act, risking corruption.</p>
+        <p class="hint">Reread the first bullet of the fencing-token box.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="lock-fencing-final">
+        <p class="stem">How does a fencing token make a lock safe?</p>
+        <button class="opt">It encrypts the lock value so only the owner can read it</button>
+        <button class="opt">It extends the TTL automatically while work is in progress</button>
+        <button class="opt">It replicates the lock across a majority of Redis nodes</button>
+        <button class="opt">The resource rejects writes carrying a stale, lower token</button>
+        <p class="fb">Each grant gets an increasing token; the resource only accepts the highest seen, so a stale holder's late write is refused regardless of timing.</p>
+        <p class="hint">Reread the second bullet of the fencing-token box.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="lock-alternative-final">
+        <p class="stem">What's often the best alternative to a distributed lock?</p>
+        <button class="opt">A longer TTL so the lock effectively never expires at all</button>
+        <button class="opt">Idempotency or an optimistic conditional database update</button>
+        <button class="opt">Polling the lock key from every server once per second</button>
+        <button class="opt">Storing the lock in application memory on each node</button>
+        <p class="fb">If the operation is idempotent or a unique constraint / version check can pick a single winner, you avoid the lock's timing pitfalls entirely.</p>
+        <p class="hint">Reread 'Often you shouldn't lock at all'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="lock-no-fence-resource">
+        <p class="stem">The protected resource is a third-party email API that can't check tokens. What follows?</p>
+        <button class="opt">Fencing still works because the lock service checks tokens itself</button>
+        <button class="opt">A longer TTL fixes it, since pauses rarely exceed a few seconds</button>
+        <button class="opt">Redlock across five nodes makes the lock safe without any tokens</button>
+        <button class="opt">The lock can't be made fully safe, so design for idempotent sends</button>
+        <p class="fb">Fencing needs the resource to enforce it. If it can't, mutual exclusion under pauses is impossible — use idempotency keys or accept occasional duplicates.</p>
+        <p class="hint">Reread the 'Implication' bullet in the fencing box.</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">2. What is the core safety hole created by the TTL?</p>
-      <button class="opt">A pause past the TTL lets two clients both hold the lock</button>
-      <button class="opt">The lock key grows unbounded and exhausts Redis memory</button>
-      <button class="opt">Clients must poll continuously, overloading the lock server</button>
-      <button class="opt">The lock can never be released early before it expires</button>
-      <p class="fb">If a holder stalls (GC, network) longer than the TTL, the lock expires and another client acquires it — now two clients act, risking corruption.</p>
-    </div>
-    <div class="q" data-correct="d">
-      <p class="stem">3. How does a fencing token make a lock safe?</p>
-      <button class="opt">It encrypts the lock value so only the owner can read it</button>
-      <button class="opt">It extends the TTL automatically while work is in progress</button>
-      <button class="opt">It replicates the lock across a majority of Redis nodes</button>
-      <button class="opt">The resource rejects writes carrying a stale, lower token</button>
-      <p class="fb">Each grant gets an increasing token; the resource only accepts the highest seen, so a stale holder's late write is refused regardless of timing.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. What's often the best alternative to a distributed lock?</p>
-      <button class="opt">A longer TTL so the lock effectively never expires at all</button>
-      <button class="opt">Idempotency or an optimistic conditional database update</button>
-      <button class="opt">Polling the lock key from every server once per second</button>
-      <button class="opt">Storing the lock in application memory on each node</button>
-      <p class="fb">If the operation is idempotent or a unique constraint / version check can pick a single winner, you avoid the lock's timing pitfalls entirely.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Design exactly-once reminder sending without a distributed lock." · "Walk the GC-pause scenario step by step and show how fencing tokens save it." · "When is a ZooKeeper lock worth the extra infra over a Redis one?"
@@ -174,21 +278,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

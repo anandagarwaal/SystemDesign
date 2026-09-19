@@ -325,17 +325,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="email-service-queue-purpose">
       <p class="stem">Why does SMTP Ingress write to a durable queue before the Mailbox Service processes a message?</p>
-      <button class="opt">So filtering, spam scoring, and indexing can retry independently without losing mail</button>
-      <button class="opt">So the sender's MTA never has to wait for any acknowledgement at all</button>
-      <button class="opt">So attachments can be compressed before the queue accepts them</button>
+      <button class="opt">Filtering, spam and indexing retry without losing mail</button>
+      <button class="opt">The sender's MTA never waits for any acknowledgement</button>
+      <button class="opt">Attachments get compressed before the queue accepts them</button>
       <p class="fb">The queue decouples acceptance from downstream processing, so a crash in one stage replays rather than drops mail.</p>
       <p class="hint">Reread the pushback box right after the component diagram.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="email-service-read-path-why">
       <p class="stem">Why does the read path fetch metadata first and hydrate the body blob only when a message is opened?</p>
-      <button class="opt">Object storage cannot serve reads faster than a few requests per second</button>
-      <button class="opt">Metadata and bodies must always live in the same physical server</button>
-      <button class="opt">Listing a folder only needs small hot metadata; fetching heavy cold bytes for every unopened message would waste bandwidth and latency</button>
+      <button class="opt">Object storage can't serve more than a few reads per second</button>
+      <button class="opt">Metadata and bodies must live on the same physical server</button>
+      <button class="opt">Folder lists need small metadata; bodies load only when opened</button>
       <p class="fb">Lazy hydration means a folder listing of hundreds of messages stays a cheap metadata scan instead of pulling megabytes nobody asked to see yet.</p>
       <p class="hint">Think about what a user actually needs to render an inbox list versus reading one specific email.</p>
     </div>
@@ -479,17 +479,17 @@ user42 / "acme"     → [m17, m412]</pre>
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="c" data-concept="email-service-dedup-refcount">
       <p class="stem">Why does content-addressed attachment storage need a reference count per blob?</p>
-      <button class="opt">To rank attachments by popularity for a recommendation feature</button>
-      <button class="opt">To encrypt each blob with a per-recipient unique key</button>
-      <button class="opt">To know it's safe to delete a shared blob only once no message references it anymore</button>
+      <button class="opt">To rank attachments by popularity for recommendations</button>
+      <button class="opt">To encrypt each blob with a unique per-recipient key</button>
+      <button class="opt">To delete a shared blob only once nothing references it</button>
       <p class="fb">Many messages can point at one deduped blob; garbage-collect only at refcount zero, or another user's copy breaks.</p>
       <p class="hint">Picture one attachment shared by 200 messages — what happens if the first recipient deletes their copy naively?</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="email-service-per-user-index-why">
       <p class="stem">What would break if mail search used one global inverted index shared across all users instead of one index per user?</p>
-      <button class="opt">A query could leak or need filtering against other users' private mail, and popular terms would concentrate load on shared shards</button>
-      <button class="opt">Nothing would break; a global index is strictly better for every workload</button>
-      <button class="opt">Global indexes cannot store more than one million terms total</button>
+      <button class="opt">Queries could leak other users' mail, and hot terms load shared shards</button>
+      <button class="opt">Nothing breaks; one global index is strictly better for every workload</button>
+      <button class="opt">Global indexes cannot store more than one million terms in total</button>
       <button class="opt">Content-addressed storage would stop deduplicating attachments</button>
       <p class="fb">Privacy requires queries to never cross mailbox boundaries; per-user partitioning enforces that structurally and keeps each index small.</p>
       <p class="hint">Think about what a shared "invoice" posting list across all 1B users would need to filter on every single query.</p>
@@ -556,17 +556,17 @@ user42 / "acme"     → [m17, m412]</pre>
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="email-service-authz-scope">
       <p class="stem">In the authorization model, what can the Search Service access?</p>
-      <button class="opt">Every user's index partition, to support cross-mailbox admin search</button>
+      <button class="opt">Every user's index, for cross-mailbox admin search</button>
       <button class="opt">Only the requesting user's own index partition</button>
-      <button class="opt">Only attachments, never message text</button>
+      <button class="opt">Only attachments, never the message text itself</button>
       <p class="fb">Services communicate over mTLS, but the search service is scoped to read only the calling user's partition — the same privacy boundary as the per-user index.</p>
       <p class="hint">Check the Authentication &amp; Authorization table's "Services" row.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="email-service-async-spam-why">
       <p class="stem">Why does spam classification run asynchronously after the durable queue write, rather than before accepting the message?</p>
-      <button class="opt">Spam classifiers are illegal to run before a message is durably stored</button>
-      <button class="opt">Running it before storage would make attachments impossible to deduplicate</button>
-      <button class="opt">Scoring on the accept path would slow or risk losing every inbound message if the classifier is slow or evolving</button>
+      <button class="opt">Spam classifiers are illegal to run before durable storage</button>
+      <button class="opt">Running it first would make attachment dedup impossible</button>
+      <button class="opt">A slow classifier on the accept path would stall or lose mail</button>
       <p class="fb">Accepting first and scoring off the hot path protects the durability guarantee and lets classifiers change without touching delivery.</p>
       <p class="hint">Think about what happens to the durability NFR if acceptance blocked on a slow or buggy classifier.</p>
     </div>
@@ -620,9 +620,9 @@ user42 / "acme"     → [m17, m412]</pre>
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="email-service-cost-driver-why">
       <p class="stem">Why does storing everything forever, not peak SMTP throughput, dominate the monthly cost?</p>
-      <button class="opt">SMTP servers are the most expensive line item in the reference price sheet by far</button>
-      <button class="opt">Attachments accumulate for the lifetime of every mailbox, while compute for ingest is sized only to peak traffic and shrinks with dedup and tiering</button>
-      <button class="opt">Search indexes cost more per byte than any other component in the system</button>
+      <button class="opt">SMTP servers are the priciest line on the price sheet by far</button>
+      <button class="opt">Attachments pile up for life; ingest compute is sized to peak</button>
+      <button class="opt">Search indexes cost more per byte than any other component</button>
       <p class="fb">Compute cost caps out at peak load, but ~1B users keeping mail forever means stored bytes grow monotonically — the cost table confirms storage as the largest line item.</p>
       <p class="hint">Compare the dollar figures in the cost table: which line item is largest, and why does it keep growing over time while compute doesn't?</p>
     </div>
@@ -634,6 +634,18 @@ user42 / "acme"     → [m17, m412]</pre>
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>An email service separates immutable messages from mutable per-user metadata. Inbound SMTP is accepted only after a durable write, then spam-scored and delivered through queues. Bodies and content-addressed attachments go to blob storage with dedup and cold tiering, while mailbox entries (labels, flags, pointers) live in a user-sharded store. Each user has a private full-text index updated asynchronously, and clients sync deltas from a change log. Outbound mail goes through queued MTAs with retries and sender authentication. At 10× we add shards and ingress capacity.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="email-immutable-vs-mutable">
+        <p class="stem">Why separate immutable message bodies from mutable per-user metadata?</p>
+        <button class="opt">Bodies must be encrypted, but metadata can be stored in plain text</button>
+        <button class="opt">Bodies are big, write-once and dedupable; labels/flags change constantly</button>
+        <button class="opt">Metadata must be stored in blob storage for cheap cold tiering</button>
+        <button class="opt">Bodies change when users edit drafts, so they need their own store</button>
+        <p class="fb">Different shapes, different stores: blobs with content-addressed dedup and cold tiering vs small, hot, frequently-updated rows.</p>
+        <p class="hint">How often does an email body change after delivery vs its 'read' flag?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -679,16 +691,16 @@ user42 / "acme"     → [m17, m412]</pre>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="email-service-durability-handoffs-final">
       <p class="stem">What would happen to the "never lose a message" guarantee if any hop (accept, queue, deliver) acknowledged before its write was durable?</p>
-      <button class="opt">Nothing changes; acknowledgement timing is unrelated to durability</button>
-      <button class="opt">Search results would become stale, but no mail would ever be lost</button>
-      <button class="opt">A crash at that hop could lose the message after the sender was already told it succeeded</button>
+      <button class="opt">Nothing — ack timing is unrelated to durability</button>
+      <button class="opt">Search goes stale, but no mail is ever lost</button>
+      <button class="opt">A crash there loses mail already reported as sent</button>
       <p class="fb">The durability bar is won at hand-offs: acking before a durable write creates a window where a crash silently drops mail the sender believes was delivered.</p>
       <p class="hint">Picture the server crashing one millisecond after it acknowledges but before its write reaches disk.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="email-service-cursor-sync-final">
       <p class="stem">What breaks if a mobile client's stored sync cursor is dropped and it asks the server for "changes since cursor 0"?</p>
-      <button class="opt">The server has no way to compute a small delta from that stale cursor, so it must fall back to a full resync of the mailbox</button>
-      <button class="opt">The server silently returns an empty change list and the client shows no mail</button>
+      <button class="opt">No delta can be computed, so it must fully resync the mailbox</button>
+      <button class="opt">The server silently returns no changes and shows no mail</button>
       <button class="opt">The search index rebuilds itself automatically to compensate</button>
       <p class="fb">Delta sync only works relative to a known state; an invalid or too-old cursor has no small diff to compute, so the system falls back to a full resync.</p>
       <p class="hint">Revisit Deep Dive 5 — what does "modseq &gt; client cursor" require the cursor to actually be?</p>

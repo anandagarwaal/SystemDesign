@@ -59,6 +59,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -72,6 +86,9 @@
   <div class="mission">
     <strong>Why this lesson, for your mission:</strong> Many interviews let you name concrete services, and doing so crisply signals you've shipped real systems. But the trap is name-dropping without understanding — saying "Lambda" without knowing the cold-start cost, or "S3" without the consistency model. This lesson maps the core AWS building blocks to the <em>generic concepts</em> you've already learned (blob store, queue, KV store, CDN) and flags the one gotcha per service interviewers probe. The goal: speak cloud fluently while reasoning from fundamentals.
   </div>
+
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 3</p>
 
   <h2>The building blocks, mapped to concepts</h2>
   <table>
@@ -98,7 +115,40 @@
       <li><b>S3 is not a filesystem:</b> it's an object store — no in-place edits, no real directories (prefixes only), list operations can be slow, and it's eventually consistent for some operations historically (now strong read-after-write). Use it for blobs, not as a database or a POSIX disk.<a href="#c1" class="cite">[1]</a></li>
     </ul>
   </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="aws-sqs-visibility">
+        <p class="stem">In SQS, what makes a message reappear if a worker crashes mid-processing?</p>
+        <button class="opt">The visibility timeout expires and the message becomes visible</button>
+        <button class="opt">SNS re-publishes the message to every subscribed queue again</button>
+        <button class="opt">Kinesis replays the shard from the last checkpointed offset</button>
+        <button class="opt">The dead-letter queue pushes it back after a fixed delay</button>
+        <p class="fb">A received message is hidden, not deleted. If it isn't deleted before the visibility timeout ends, it reappears for another worker — at-least-once delivery.</p>
+        <p class="hint">Reread the SQS row: 'visibility timeout + DLQ'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="aws-lambda-when">
+        <p class="stem">Why is Lambda a poor fit for a steady 5k req/s, p99-sensitive API but a great fit for thumbnailing uploads?</p>
+        <button class="opt">Lambda cannot talk to databases, and thumbnailing needs no database</button>
+        <button class="opt">Lambda only supports asynchronous triggers, never synchronous calls</button>
+        <button class="opt">Cold starts and per-call pricing hurt steady hot paths; spiky work loves them</button>
+        <button class="opt">Lambda runs in only one region, so a global API cannot rely on it</button>
+        <p class="fb">Pay-per-use and auto-scale win for bursty/idle workloads; for steady high throughput a warm fleet is cheaper and avoids cold-start tail latency.</p>
+        <p class="hint">Think about the shape of the traffic in each case — flat vs bursty — and what a cold start does to p99.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="aws-s3-not-fs">
+        <p class="stem">A teammate wants to store a 2 GB log file in S3 and append one line per second to it. What's wrong?</p>
+        <button class="opt">S3 objects are capped at 1 GB, so the file will not fit at all</button>
+        <button class="opt">Objects can't be edited in place — each append rewrites the whole object</button>
+        <button class="opt">S3 is only eventually consistent, so appended lines would be lost</button>
+        <button class="opt">Every append triggers a CloudFront cache invalidation, which is costly</button>
+        <p class="fb">S3 is an object store: whole-object PUTs, no in-place edits, prefixes not directories. Batch lines into new objects instead.</p>
+        <p class="hint">Reread 'S3 is not a filesystem' in the gotchas box.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 3</p>
   <h2>A reference architecture, in AWS terms</h2>
   <p>A typical web app maps cleanly: <b>CloudFront</b> (CDN) → <b>ALB</b> (load balancer) → app servers on <b>ECS/EKS</b> or <b>Lambda</b> (compute) → <b>Aurora</b> (relational truth) + <b>DynamoDB</b> (high-scale KV) + <b>ElastiCache</b> (cache); async work flows through <b>SQS/SNS</b> or <b>Kinesis</b>; blobs live in <b>S3</b>; metrics and alarms in <b>CloudWatch</b>; secrets in <b>Secrets Manager</b>; identity via <b>IAM</b> roles. Every box is a generic component you already know — AWS just gives it a brand name and runs it for you.</p>
 
@@ -109,43 +159,73 @@
 
   <h2>In the interview</h2>
   <p>Lead with the generic component, then optionally the AWS name: "a blob store — say S3 — for the videos, fronted by a CDN like CloudFront." This keeps you portable (the interviewer may prefer GCP/Azure or pure concepts) while showing fluency. Reach for managed services to justify <em>not</em> building undifferentiated infrastructure ("I'll use SQS rather than running my own broker"). And when you name a service, drop its one trade-off unprompted — that's the difference between buzzword bingo and engineering judgment. With that, you've completed the deep-dive track; head back to the case studies and put these blocks to work.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="aws-generic-first">
+        <p class="stem">The interviewer says 'assume no AWS'. What should survive from your design?</p>
+        <button class="opt">Nothing — the design must be redone around open-source products</button>
+        <button class="opt">Only the CDN, because other clouds have no equivalent to CloudFront</button>
+        <button class="opt">Only the relational database, since every other part is AWS-specific</button>
+        <button class="opt">Everything — each box was a generic component that merely had a brand</button>
+        <p class="fb">The reference architecture is CDN → LB → compute → DB/cache/queue/blob. Those concepts are portable; the brand names are not the design.</p>
+        <p class="hint">Reread the reference-architecture paragraph's last sentence.</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. What is the main performance gotcha with AWS Lambda?</p>
-      <button class="opt">It cannot scale beyond a few concurrent invocations</button>
-      <button class="opt">It charges a flat monthly fee regardless of usage</button>
-      <button class="opt">Cold starts add latency when a function spins up from idle</button>
-      <button class="opt">It can only be triggered by a single event source type</button>
-      <p class="fb">Idle functions must initialize a runtime on first call, adding latency; it's great for spiky work but weaker for steady low-latency paths.</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="c" data-concept="aws-lambda-cold-start-final">
+        <p class="stem">What is the main performance gotcha with AWS Lambda?</p>
+        <button class="opt">It cannot scale beyond a few concurrent invocations</button>
+        <button class="opt">It charges a flat monthly fee regardless of usage</button>
+        <button class="opt">Cold starts add latency when a function spins up from idle</button>
+        <button class="opt">It can only be triggered by a single event source type</button>
+        <p class="fb">Idle functions must initialize a runtime on first call, adding latency; it's great for spiky work but weaker for steady low-latency paths.</p>
+        <p class="hint">Reread the Lambda gotcha in 'The two gotchas interviewers love'.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="aws-s3-generic-final">
+        <p class="stem">Which generic component is Amazon S3?</p>
+        <button class="opt">An object / blob store for large unstructured files</button>
+        <button class="opt">A relational database with full SQL transactions</button>
+        <button class="opt">An in-memory cache for sub-millisecond key reads</button>
+        <button class="opt">A POSIX filesystem supporting in-place file edits</button>
+        <p class="fb">S3 stores immutable objects under flat key prefixes with high durability — not a filesystem or a database; use pre-signed URLs for direct access.</p>
+        <p class="hint">Look at the S3 row of the mapping table.</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="aws-sqs-vs-sns-final">
+        <p class="stem">What's the difference between SQS and SNS?</p>
+        <button class="opt">SQS streams ordered events with replay; SNS stores blobs</button>
+        <button class="opt">SQS is a relational DB; SNS is a key-value cache layer</button>
+        <button class="opt">SQS runs serverless code; SNS load-balances HTTP traffic</button>
+        <button class="opt">SQS is a pull work queue; SNS is push pub/sub fanout</button>
+        <p class="fb">Consumers pull from an SQS queue (one consumer per message), while SNS pushes each message to many subscribers — often SNS→SQS fanout.</p>
+        <p class="hint">Compare the SQS and SNS rows of the table.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="aws-generic-before-brand-final">
+        <p class="stem">Why lead with the generic component before the AWS name?</p>
+        <button class="opt">Because AWS service names change too often to rely on</button>
+        <button class="opt">It shows portable reasoning and survives a no-AWS rule</button>
+        <button class="opt">Because managed services are always cheaper to operate</button>
+        <button class="opt">It lets you skip explaining any trade-offs at all</button>
+        <p class="fb">Naming the concept first ("a blob store, e.g. S3") keeps the answer cloud-agnostic and proves you understand the role, not just the brand.</p>
+        <p class="hint">Reread 'In the interview'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="aws-sns-sqs-fanout">
+        <p class="stem">An 'order placed' event must reach billing, email and analytics, each at its own pace, surviving consumer outages. Which pattern?</p>
+        <button class="opt">SNS topic fanning out to one SQS queue per consumer service</button>
+        <button class="opt">A single SQS queue that all three services read from together</button>
+        <button class="opt">Direct Lambda-to-Lambda calls chained billing → email → analytics</button>
+        <button class="opt">Writing the event to S3 and having each service list the bucket</button>
+        <p class="fb">SNS gives fan-out; a queue per consumer gives each one durable buffering and independent pace. One shared SQS queue would split events between consumers, not copy them.</p>
+        <p class="hint">With ONE queue, does each message reach all three consumers or just one?</p>
+      </div>
     </div>
-    <div class="q" data-correct="a">
-      <p class="stem">2. Which generic component is Amazon S3?</p>
-      <button class="opt">An object / blob store for large unstructured files</button>
-      <button class="opt">A relational database with full SQL transactions</button>
-      <button class="opt">An in-memory cache for sub-millisecond key reads</button>
-      <button class="opt">A POSIX filesystem supporting in-place file edits</button>
-      <p class="fb">S3 stores immutable objects under flat key prefixes with high durability — not a filesystem or a database; use pre-signed URLs for direct access.</p>
-    </div>
-    <div class="q" data-correct="d">
-      <p class="stem">3. What's the difference between SQS and SNS?</p>
-      <button class="opt">SQS streams ordered events with replay; SNS stores blobs</button>
-      <button class="opt">SQS is a relational DB; SNS is a key-value cache layer</button>
-      <button class="opt">SQS runs serverless code; SNS load-balances HTTP traffic</button>
-      <button class="opt">SQS is a pull work queue; SNS is push pub/sub fanout</button>
-      <p class="fb">Consumers pull from an SQS queue (one consumer per message), while SNS pushes each message to many subscribers — often SNS→SQS fanout.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. Why lead with the generic component before the AWS name?</p>
-      <button class="opt">Because AWS service names change too often to rely on</button>
-      <button class="opt">It shows portable reasoning and survives a no-AWS rule</button>
-      <button class="opt">Because managed services are always cheaper to operate</button>
-      <button class="opt">It lets you skip explaining any trade-offs at all</button>
-      <p class="fb">Naming the concept first ("a blob store, e.g. S3") keeps the answer cloud-agnostic and proves you understand the role, not just the brand.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — push on the hard parts. Try: "Map a full design for <a href="0033-youtube.html">YouTube</a> onto concrete AWS services with one trade-off each." · "When is Lambda the wrong choice, and what do I use instead?" · "Translate this AWS architecture into pure generic components for a GCP interviewer."
@@ -167,21 +247,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

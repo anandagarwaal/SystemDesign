@@ -149,16 +149,16 @@
       <div class="q" data-correct="a" data-concept="inventory-fr-scope">
         <p class="stem">Which of these is explicitly pushed out of scope for the core inventory ledger?</p>
         <button class="opt">Demand forecasting and supplier ordering</button>
-        <button class="opt">Reserving stock for an order and later releasing the hold</button>
-        <button class="opt">Adjusting stock at a warehouse via receiving or picking</button>
+        <button class="opt">Reserving stock for an order, then releasing it</button>
+        <button class="opt">Adjusting stock via receiving or picking</button>
         <p class="fb">Forecasting and supplier ordering consume the ledger's data but don't define its core write/read operations, so they're explicitly scoped out.</p>
         <p class="hint">Reread the sentence right before the functional-requirements table.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="inventory-partition-key-why">
         <p class="stem">Why does the staff-level signal reject a single global lock or global sequence number for this system?</p>
-        <button class="opt">Because global locks are technically impossible to implement in any database</button>
-        <button class="opt">Because global sequence numbers are more expensive to store than local ones</button>
-        <button class="opt">Because correctness only needs to be strict within one (warehouse, SKU) pair, so a global lock would serialize unrelated writes that never physically conflict</button>
+        <button class="opt">Global locks are technically impossible in every database</button>
+        <button class="opt">Global sequence numbers cost more to store than local ones</button>
+        <button class="opt">Only each (warehouse, SKU) pair must be strict, not all</button>
         <p class="fb">A forklift in Dallas and one in Seattle never touch the same unit — forcing them through one global lock adds contention that doesn't reflect any real conflict.</p>
         <p class="hint">Reread the staff-signal box — what does "the partition key do the work" mean?</p>
       </div>
@@ -198,9 +198,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="inventory-vs-flashsale-contention">
         <p class="stem">Why is this workload "nothing like the single-SKU flash-sale spike" even though the daily movement count is large?</p>
-        <button class="opt">Because writes are spread across ~2/s per warehouse on average, so no single warehouse-SKU pair ever sees flash-sale-level concurrent contention</button>
-        <button class="opt">Because inventory systems never process more than one write per day per SKU</button>
-        <button class="opt">Because flash sales only ever affect a single warehouse, unlike inventory management</button>
+        <button class="opt">~2 writes/s per warehouse — no pair sees flash-sale contention</button>
+        <button class="opt">Inventory systems never process more than one write per SKU daily</button>
+        <button class="opt">Flash sales only ever affect one warehouse, unlike inventory systems</button>
         <p class="fb">A flash sale slams one row with a massive concurrent spike; inventory spreads ~2 writes/s across many warehouse-SKU pairs, so per-row contention stays low even at large aggregate volume.</p>
         <p class="hint">Compare the per-warehouse write rate row to what a flash sale's single hot SKU would look like.</p>
       </div>
@@ -247,17 +247,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="c" data-concept="inventory-source-of-truth-entity">
         <p class="stem">Which entity is the source of truth, and which is the derived, cached aggregate?</p>
-        <button class="opt">Reservation is truth; StockMovement is derived</button>
-        <button class="opt">StockLevel is truth; StockMovement is derived</button>
-        <button class="opt">StockMovement is truth; StockLevel is a materialized, cached aggregate of it</button>
+        <button class="opt">Reservation is truth; movement is derived</button>
+        <button class="opt">StockLevel is truth; movement is derived</button>
+        <button class="opt">Movement is truth; StockLevel is its cache</button>
         <p class="fb">The append-only movement log is the durable fact; stock_levels is just a fast-read projection rebuildable by replaying movements.</p>
         <p class="hint">Reread the sentence right after the entity list.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="inventory-mutable-vs-log-why">
         <p class="stem">Why keep both a mutable stock_levels row and an immutable movement log, instead of just one?</p>
-        <button class="opt">Because Postgres cannot serve fast reads from any append-only table</button>
-        <button class="opt">The log is the audit and recovery mechanism that can rebuild the mutable row exactly if it ever drifts, while the mutable row alone gives no way to detect or repair drift</button>
-        <button class="opt">Because reservations legally require two separate physical tables</button>
+        <button class="opt">Postgres can't serve fast reads from any append-only table</button>
+        <button class="opt">The log can detect and rebuild a drifting row; the row alone can't</button>
+        <button class="opt">Reservations legally require two separate physical tables</button>
         <p class="fb">If stock_levels were the only record, a bug could corrupt it with no way to check or fix it. The log lets you replay history to verify or rebuild the aggregate.</p>
         <p class="hint">Reread the pushback answer at the end of this chunk.</p>
       </div>
@@ -312,17 +312,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="inventory-cdc-single-fanout-point">
         <p class="stem">In the HLD, what is the single fan-out point that both the cache updater and the real-time push consume from?</p>
-        <button class="opt">The CDC-driven Kafka change feed off the ledger's commit log</button>
-        <button class="opt">A direct HTTP call from the Inventory Service to every subscriber</button>
+        <button class="opt">The CDC-driven Kafka feed off the ledger's commit log</button>
+        <button class="opt">Direct HTTP calls from the service to every subscriber</button>
         <button class="opt">A nightly batch export of the stock_levels table</button>
         <p class="fb">Both the cache updater and the real-time fan-out are independent consumers of the same Kafka change feed produced by CDC.</p>
         <p class="hint">Reread the flow paragraph — "Two consumers fan out independently" from what?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="inventory-cdc-vs-dualwrite-why">
         <p class="stem">Why does reading the database's commit log via CDC avoid a failure mode that publishing the event directly from the write path would not?</p>
-        <button class="opt">Because Kafka is faster than any direct HTTP call could ever be</button>
-        <button class="opt">Because CDC removes the need for an Idempotency-Key on the original write</button>
-        <button class="opt">A direct publish-after-commit is a dual-write that can succeed on one side and fail on the other, silently desyncing clients; CDC's event stream can never diverge from what was actually committed</button>
+        <button class="opt">Kafka is faster than any direct HTTP call could ever be</button>
+        <button class="opt">CDC removes the need for an Idempotency-Key on the write</button>
+        <button class="opt">Publish-after-commit can half-fail; CDC can't diverge from commits</button>
         <p class="fb">Dual writes have no atomicity between the two operations. Tailing the commit log guarantees the event stream matches exactly what was durably written.</p>
         <p class="hint">Reread the pushback answer at the end of this chunk.</p>
       </div>
@@ -416,25 +416,25 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="c" data-concept="inventory-occ-pick">
         <p class="stem">Which concurrency mechanism is the staff pick for the stock_levels row, and why?</p>
-        <button class="opt">Pessimistic row lock, because contention per row is extremely high</button>
-        <button class="opt">CRDT commutative merge, because warehouses are usually disconnected</button>
-        <button class="opt">Optimistic concurrency control, because per-row write rates are low so retry-on-conflict beats holding a lock</button>
+        <button class="opt">Pessimistic row locks, since per-row contention is very high</button>
+        <button class="opt">CRDT merges, since warehouses are usually offline from each other</button>
+        <button class="opt">Optimistic concurrency — low per-row rates make retries cheap</button>
         <p class="fb">At ~2 writes/s/warehouse, OCC gives full correctness without paying lock-hold latency for contention that rarely happens.</p>
         <p class="hint">Reread "The staff pick — and why" box in Deep Dive 1.</p>
       </div>
       <div class="q" data-correct="a" data-concept="inventory-shard-by-warehouse">
         <p class="stem">Why shard by warehouse_id rather than sku_id?</p>
-        <button class="opt">Writes are physically local to one warehouse; sharding by sku_id would scatter every warehouse's routine writes across all shards</button>
-        <button class="opt">sku_id values are not unique across warehouses</button>
-        <button class="opt">Postgres cannot shard on any column except warehouse_id</button>
+        <button class="opt">Writes are local per warehouse; sku_id would scatter each one's writes</button>
+        <button class="opt">sku_id values are not unique across the different warehouses</button>
+        <button class="opt">Postgres cannot shard on any column other than warehouse_id</button>
         <p class="fb">A forklift's scan only ever touches its own warehouse's rows — warehouse_id sharding keeps that write single-shard; sku_id sharding would turn it into a cross-shard operation.</p>
         <p class="hint">Reread the paragraph right after the "Shard by warehouse_id" box.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="inventory-event-sourcing-why">
         <p class="stem">What would break if stock_levels were mutated directly with no append-only movement log behind it?</p>
-        <button class="opt">Nothing — a mutable counter alone is functionally identical to an event-sourced ledger</button>
-        <button class="opt">A bug, bad retry, or partial failure could silently corrupt the count with no way to detect, audit, or repair it — the log is what makes drift detectable and replayable</button>
-        <button class="opt">The Kafka change feed would run faster without a log to tail</button>
+        <button class="opt">Nothing — a mutable counter is functionally the same as a ledger</button>
+        <button class="opt">Silent corruption could never be detected, audited or repaired</button>
+        <button class="opt">The Kafka change feed would run faster with no log to tail</button>
         <p class="fb">Without the log, there's no independent record to replay and compare against — any silent corruption becomes permanent and undetectable.</p>
         <p class="hint">Reread the opening sentence of Deep Dive 4.</p>
       </div>
@@ -499,17 +499,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="b" data-concept="inventory-drift-detection-mechanism">
         <p class="stem">How does the system catch a bug that silently under-counts stock across many warehouses?</p>
-        <button class="opt">A support ticket from a confused store manager is the primary detection method</button>
-        <button class="opt">A periodic reconciler replays the movement log independently and diffs it against the live aggregate per warehouse-SKU</button>
-        <button class="opt">The Inventory Service refuses all writes once storage exceeds a fixed threshold</button>
+        <button class="opt">A confused store manager's support ticket is the main signal</button>
+        <button class="opt">A reconciler replays the log and diffs it against each aggregate</button>
+        <button class="opt">The service refuses all writes once storage passes a threshold</button>
         <p class="fb">Independently replaying the log and comparing it to the cached aggregate surfaces drift as a measurable, correlated signal rather than relying on manual reports.</p>
         <p class="hint">Reread the final pushback answer in this chunk.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="inventory-scoped-alert-why">
         <p class="stem">Why does the "read availability 99.95% per warehouse" alert page at the scope of one warehouse shard rather than globally?</p>
-        <button class="opt">Because warehouse shards are isolated by the partitioning scheme, so an outage in one warehouse's shard doesn't affect the other 499 — a global alert would either miss a real localized incident or over-alert on isolated noise</button>
-        <button class="opt">Because global alerts are technically impossible to configure in any monitoring system</button>
-        <button class="opt">Because only one warehouse in the entire system is ever monitored at a time</button>
+        <button class="opt">Shards are isolated, so one warehouse outage must page on its own</button>
+        <button class="opt">Global alerts are technically impossible in any monitoring system</button>
+        <button class="opt">Only one warehouse in the whole system is monitored at any time</button>
         <p class="fb">Since sharding by warehouse_id isolates failures, the alert scope should match the actual blast radius — one warehouse's degradation shouldn't be diluted into or confused with a global signal.</p>
         <p class="hint">Recall Deep Dive 3's point about warehouse-isolated failures — apply that same idea to alerting.</p>
       </div>
@@ -559,17 +559,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="c" data-concept="inventory-10x-first-bottleneck">
         <p class="stem">At 10× scale, what is named as the first real bottleneck, rather than a simple "add more nodes" fix?</p>
-        <button class="opt">The Postgres shard count, since sharding cannot be increased further</button>
-        <button class="opt">The real-time gateway fleet, since WebSockets cannot scale horizontally</button>
-        <button class="opt">The aggregate builder's incremental-update throughput as SKU and warehouse counts both grow</button>
+        <button class="opt">Postgres shard count, which can't be raised any further</button>
+        <button class="opt">The real-time gateway fleet, as WebSockets can't scale out</button>
+        <button class="opt">The aggregate builder's incremental-update throughput</button>
         <p class="fb">Every other component scales by adding shards, partitions, or nodes along the same key; the aggregate builder is the first to need real engineering attention.</p>
         <p class="hint">Reread the "First bottleneck" sentence in the 10× section.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="inventory-10x-no-redesign-why">
         <p class="stem">Why does scaling to 10× warehouses require no structural redesign for shards, Kafka, or cache, but might for the aggregate?</p>
-        <button class="opt">Because shards, Kafka partitions, and cache nodes all scale horizontally along the same warehouse_id key that already exists, while the aggregate view's consistency model (eventually-consistent, not distributed-strong) is what a demand for sub-second global consistency would break</button>
-        <button class="opt">Because Kafka and Postgres both stop functioning correctly above 500 warehouses</button>
-        <button class="opt">Because the aggregate builder is the only component that does not use any partition key at all</button>
+        <button class="opt">All scale out on warehouse_id; only the aggregate's model would strain</button>
+        <button class="opt">Kafka and Postgres both stop working correctly above 500 warehouses</button>
+        <button class="opt">The aggregate builder is the only component with no partition key</button>
         <p class="fb">Horizontal components ride the same key that already partitions cleanly. The aggregate's redesign trigger is a stronger consistency requirement, not raw volume.</p>
         <p class="hint">Reread "What forces a redesign" at the end of the 10x table discussion.</p>
       </div>
@@ -622,8 +622,8 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="inventory-reservation-vs-movement-why">
         <p class="stem">A reservation and a movement are both changes to stock, yet the design keeps them as separate entities. What would break if a reservation were modeled as an ordinary movement instead?</p>
-        <button class="opt">Nothing — reservations and movements are functionally identical in every respect</button>
-        <button class="opt">A movement is an unconditional, durable fact; a reservation is a conditional hold that can expire and release. Collapsing them would remove the TTL/release semantics reservations need, corrupting the ledger with holds that were never actually fulfilled</button>
+        <button class="opt">Nothing — reservations and movements are identical in every respect</button>
+        <button class="opt">Holds expire and release; facts don't — merging corrupts the ledger</button>
         <button class="opt">Reservations would become impossible to store in Postgres at all</button>
         <button class="opt">The CDC pipeline would stop tailing the write-ahead log entirely</button>
         <p class="fb">Movements are durable facts about what happened; reservations are soft, expiring claims about what might happen. Treating an unfulfilled reservation as a permanent movement would falsely record stock as consumed.</p>

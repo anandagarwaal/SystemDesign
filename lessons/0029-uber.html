@@ -141,17 +141,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="uber-nfr-consistency-island">
       <p class="stem">Which NFR is the "strong-consistency island" in an otherwise availability-first system?</p>
-      <button class="opt">High write throughput for location pings</button>
-      <button class="opt">One driver must never be matched to two riders at once</button>
-      <button class="opt">Fare estimates must always reflect live traffic conditions</button>
+      <button class="opt">High write throughput for driver location pings</button>
+      <button class="opt">One driver must never be matched to two riders</button>
+      <button class="opt">Fare estimates must always reflect live traffic</button>
       <p class="fb">Everything except the match favors availability; the match itself must never double-assign a driver.</p>
       <p class="hint">Reread the "Consistency on a match" row in the NFR table.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="uber-geo-shard-why">
       <p class="stem">Why does the design geo-shard by city/region instead of one global shard?</p>
-      <button class="opt">A ride is intrinsically local, so a demand spike in one city shouldn't be able to degrade matching in another</button>
-      <button class="opt">Every country legally requires its ride data to stay within its own borders</button>
-      <button class="opt">Redis technically cannot hold more than one city's worth of driver positions per instance</button>
+      <button class="opt">Rides are local, so one city's spike can't degrade another's matching</button>
+      <button class="opt">Every country legally requires ride data to stay within its borders</button>
+      <button class="opt">Redis can't hold more than one city's driver positions per instance</button>
       <p class="fb">Rides never cross cities, so per-city sharding isolates load and failure to the region that caused it.</p>
       <p class="hint">Reread the "Per-city scalability" row in the NFR table.</p>
     </div>
@@ -194,9 +194,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="uber-ping-not-db-why">
       <p class="stem">Why would storing every location ping in a durable database be wrong even if you could afford the throughput?</p>
-      <button class="opt">Databases cannot technically store latitude and longitude as numeric fields</button>
-      <button class="opt">Ride records would then need to reference every historical position, bloating the schema</button>
-      <button class="opt">A position is stale within seconds, so durably persisting each one buys correctness you don't need</button>
+      <button class="opt">Databases can't store latitude and longitude as numeric fields</button>
+      <button class="opt">Rides would then reference every past position, bloating the schema</button>
+      <button class="opt">A position is stale in seconds; durably storing each buys nothing</button>
       <p class="fb">Positions are ephemeral by nature; paying for durability on data that expires in seconds is wasted cost.</p>
       <p class="hint">Reread the pushback: "why not store every location ping in a database?"</p>
     </div>
@@ -258,9 +258,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="uber-partial-unique-index-why">
       <p class="stem">Why does the rides table have a partial unique index on driver_id for active statuses, given the Redis lease already prevents double-assignment?</p>
-      <button class="opt">It's a durable backstop: even if the Redis lease misfires, the database itself refuses a second active ride for that driver</button>
-      <button class="opt">Postgres requires every foreign key column to also carry a unique constraint</button>
-      <button class="opt">It lets the query planner skip an index scan when looking up a driver's current ride</button>
+      <button class="opt">A durable backstop: the DB refuses a second active ride for a driver</button>
+      <button class="opt">Postgres requires every foreign-key column to carry a unique constraint</button>
+      <button class="opt">It lets the planner skip an index scan when finding a driver's ride</button>
       <p class="fb">Redis leases are fast but can fail; a DB-level constraint gives a second, durable line of defense against double-assignment.</p>
       <p class="hint">Reread the sentence right before the Data Model table.</p>
     </div>
@@ -309,17 +309,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="c" data-concept="uber-two-load-profiles">
       <p class="stem">Why does the HLD split the system into a request/match path and a location path?</p>
-      <button class="opt">REST APIs and WebSocket APIs must always be handled by physically separate services</button>
-      <button class="opt">Fare estimation and ride matching cannot share the same programming language</button>
-      <button class="opt">One path is a low-volume path needing correctness; the other is a high-throughput firehose needing raw speed</button>
+      <button class="opt">REST and WebSocket APIs must always run in separate services</button>
+      <button class="opt">Fare estimation and matching can't share a programming language</button>
+      <button class="opt">One path is low-volume and must be correct; one is a fast firehose</button>
       <p class="fb">Splitting them means a ping surge can't slow down matching, since the two profiles only meet at the geo index.</p>
       <p class="hint">Reread the pushback: "Why split location updates from ride requests?"</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="uber-only-meet-at-redis-why">
       <p class="stem">In the component diagram, why do the two load profiles meet only at Redis, not at the Rides DB?</p>
-      <button class="opt">Redis is the only component fast enough to answer nearest-driver queries at the ping write rate, while the DB only needs to hold the low-volume durable ride records</button>
-      <button class="opt">Rides DB writes and Redis writes are always executed by the same service instance</button>
-      <button class="opt">WebSocket connections are physically incapable of reaching a relational database</button>
+      <button class="opt">Only Redis can answer nearest-driver at ping rate; the DB holds rides</button>
+      <button class="opt">Rides DB and Redis writes are always done by the same service instance</button>
+      <button class="opt">WebSocket connections are physically unable to reach a relational DB</button>
       <p class="fb">The geo index absorbs the firehose and serves nearest-driver lookups; the DB is reserved for the much smaller durable ride writes.</p>
       <p class="hint">Reread the diagram caption: "Two load profiles meet only at Redis."</p>
     </div>
@@ -411,18 +411,18 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="uber-nx-ex-two-problems">
       <p class="stem">Why does the Redis <code>SET NX EX 10</code> claim collapse two problems into one primitive?</p>
-      <button class="opt">NX gives mutual exclusion (single winner) while the same TTL also serves as the offer timeout and crash-safe release</button>
-      <button class="opt">NX validates the rider's payment method while EX encrypts the driver's location at rest</button>
-      <button class="opt">NX replicates the key to every Redis shard while EX compresses the stored value</button>
+      <button class="opt">NX gives one winner; the same TTL is the offer timeout and crash release</button>
+      <button class="opt">NX validates the rider's payment; EX encrypts the driver's location</button>
+      <button class="opt">NX replicates the key to every Redis shard; EX compresses the value</button>
       <p class="fb">One atomic operation gives both compare-and-set exclusivity and a self-expiring offer window.</p>
       <p class="hint">Reread "The flow" paragraph in Deep Dive 2.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="uber-ephemeral-lock-why">
       <p class="stem">Why must the matching lock be ephemeral (TTL-based) rather than held until explicitly released?</p>
-      <button class="opt">Ephemeral locks are always faster to acquire than locks with no expiry</button>
-      <button class="opt">If the Matching Service instance crashes mid-claim, an ephemeral lock degrades to a short wait instead of permanently stranding the driver</button>
-      <button class="opt">Redis technically forbids any key from existing without an expiry set</button>
-      <button class="opt">A persistent lock would prevent the driver from ever accepting the ride</button>
+      <button class="opt">Ephemeral locks are always faster to acquire than non-expiring ones</button>
+      <button class="opt">A crashed claimer then costs a short wait, not a stranded driver</button>
+      <button class="opt">Redis technically forbids any key from existing without an expiry</button>
+      <button class="opt">A persistent lock would stop the driver ever accepting the ride</button>
       <p class="fb">Because the lease expires on its own, a crashed matcher's worst-case cost is a 10-second wait, not a stuck driver.</p>
       <p class="hint">Reread the staff-level signal box after Deep Dive 2's flow description.</p>
     </div>
@@ -488,16 +488,16 @@
     <div class="q" data-correct="c" data-concept="uber-gps-spoofing-mitigation">
       <p class="stem">Which mitigation targets a driver spoofing their GPS position to win rides unfairly?</p>
       <button class="opt">Signed fare tokens with server-side price recomputation</button>
-      <button class="opt">Risk scoring on login and step-up verification</button>
-      <button class="opt">Speed and teleport plausibility checks against cell/Wi-Fi signals</button>
+      <button class="opt">Risk scoring on login plus step-up identity verification</button>
+      <button class="opt">Speed and teleport plausibility checks against cell/Wi-Fi</button>
       <p class="fb">Plausibility checks catch physically impossible position jumps that a spoofed GPS feed would produce.</p>
       <p class="hint">Reread the Security table's "GPS spoofing" row.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="uber-privacy-visibility-window-why">
       <p class="stem">Why does a rider see the driver's live location only between match and drop-off, not before or after?</p>
-      <button class="opt">Location sharing should be scoped to the minimum window where it serves the ride, limiting exposure of precise location data outside that need</button>
-      <button class="opt">The geo index physically deletes a driver's location data the moment a trip is requested</button>
-      <button class="opt">WebSocket connections cannot remain open for longer than the duration of one trip</button>
+      <button class="opt">Share location only in the minimum window where the ride needs it</button>
+      <button class="opt">The geo index deletes a driver's location once a trip is requested</button>
+      <button class="opt">WebSocket connections can't stay open longer than a single trip</button>
       <p class="fb">Data minimization: precise location is sensitive, so it's shared only for as long as the legitimate need (matched trip) exists.</p>
       <p class="hint">Reread the Privacy section's "Exposure" sentence.</p>
     </div>
@@ -545,6 +545,27 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Uber splits a location firehose from a correctness-critical match path. Driver pings (~2M/s) update an in-memory geo index sharded by city and never touch a durable table. Ride requests query nearby available drivers, rank them by ETA from a self-hosted routing engine, and offer rides via an atomic lease whose TTL is the offer timeout, so a driver can't be double-assigned. Durable workflows track the ride state machine, and matched parties stream positions over WebSockets. At 10× we split cities into sub-regions and add nodes.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="uber-cost-driver">
+        <p class="stem">What dominates Uber's infrastructure cost?</p>
+        <button class="opt">Routing/ETA — each fare and ETA is a path query</button>
+        <button class="opt">Redis GEO shards storing driver locations by city</button>
+        <button class="opt">The rides database, sharded by each city</button>
+        <button class="opt">Kafka and S3 archiving of all location pings</button>
+        <p class="fb">~$200k of ~$400k. Cache ETAs between cell pairs by time bucket; contraction hierarchies.</p>
+        <p class="hint">Which line is half the bill?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="uber-subcity-shard">
+        <p class="stem">Why does matching get slow in the densest cities first?</p>
+        <button class="opt">Dense cities send fewer pings, so driver locations are stale</button>
+        <button class="opt">Dense cities use a different map projection that is slower</button>
+        <button class="opt">More candidates per request and more lease conflicts on the same drivers</button>
+        <button class="opt">Dense cities have longer trips, so routing takes more time</button>
+        <p class="fb">Density grows the candidate set and contention for the same nearby drivers. Split big cities into sub-regions.</p>
+        <p class="hint">In Manhattan, how many riders compete for the same handful of nearby drivers?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -587,9 +608,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="uber-final-durable-vs-ephemeral-principle">
       <p class="stem">What single principle explains why Rides live in Postgres but positions live in Redis with a TTL?</p>
-      <button class="opt">Data that must never be lost and is queried for correctness goes durable; data that's cheap to regenerate within seconds stays ephemeral</button>
-      <button class="opt">Postgres is reserved for data smaller than 1 KB per row, and Redis for anything larger</button>
-      <button class="opt">Whichever store the API Gateway was already connected to gets used for each entity</button>
+      <button class="opt">Must-never-lose data goes durable; cheap-to-regenerate stays ephemeral</button>
+      <button class="opt">Postgres holds rows under 1 KB, and Redis holds anything larger</button>
+      <button class="opt">Each entity uses whichever store the gateway was already connected to</button>
       <p class="fb">This is the "data-classification argument" the staff signal box calls out: durability follows whether the data can regenerate itself.</p>
       <p class="hint">Reread the staff-level signal box after Deep Dive 4.</p>
     </div>

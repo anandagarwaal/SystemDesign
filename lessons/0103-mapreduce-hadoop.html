@@ -136,9 +136,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="mapreduce-why-hash-partition-causes-skew">
         <p class="stem">Why does a single hot key under the default hash-partitioner slow down the whole job, even with thousands of machines idle?</p>
-        <button class="opt">It doesn't, because hash partitioning always spreads a single key's values evenly across all reducers</button>
-        <button class="opt">All values for one key must land on the same reducer, so a hot key piles work onto that one reducer while the rest sit idle</button>
-        <button class="opt">The NameNode blocks all reducers until the hot key's block finishes replicating three times</button>
+        <button class="opt">It doesn't — hashing spreads one key's values over all reducers</button>
+        <button class="opt">One key's values all go to one reducer, while the rest sit idle</button>
+        <button class="opt">The NameNode blocks reducers until the hot block is replicated</button>
         <p class="fb">Partitioning guarantees one key's values reach one reducer. A hot key means that one reducer alone carries a disproportionate load, and the job waits on its slowest task.</p>
         <p class="hint">Reread what the partitioner guarantees about where a key's values go, and what that means if one key dominates.</p>
       </div>
@@ -181,9 +181,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="mapreduce-why-combiner-needs-associative">
         <p class="stem">Why can a combiner safely pre-aggregate a sum but not safely pre-aggregate an average?</p>
-        <button class="opt">Sum is commutative and associative so partial sums combine correctly; a partial average discards the count needed to combine correctly later</button>
-        <button class="opt">Averages require sorting the values first, which combiners are not allowed to do</button>
-        <button class="opt">Combiners can only run on integer values, and averages always produce floating-point results</button>
+        <button class="opt">Partial sums combine; a partial average loses the count it needs</button>
+        <button class="opt">Averages must sort values first, which combiners may not do</button>
+        <button class="opt">Combiners only run on integers, and averages produce floats</button>
         <p class="fb">Partial averages lose the per-partition count, so combining two partial averages doesn't equal the true overall average. Sum only needs the operation to be associative and commutative.</p>
         <p class="hint">Think about what information a partial average throws away that a partial sum does not.</p>
       </div>
@@ -236,9 +236,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="mapreduce-why-reexecution-is-cheap">
         <p class="stem">Why can MapReduce simply re-run a failed task elsewhere instead of needing complex coordination to recover it?</p>
-        <button class="opt">Because every task's output is always cached in memory on three separate machines simultaneously</button>
-        <button class="opt">Because the master keeps a live in-memory replica of every task's partial output as it runs</button>
-        <button class="opt">Because map and reduce are deterministic pure functions over immutable input, so re-running one produces the identical answer</button>
+        <button class="opt">Every task's output is cached in memory on three machines at once</button>
+        <button class="opt">The master keeps a live in-memory copy of every task's output</button>
+        <button class="opt">Tasks are deterministic over immutable input, so reruns match</button>
         <p class="fb">Determinism plus immutable input means re-execution is a correctness-preserving retry, not a special case needing extra coordination.</p>
         <p class="hint">Reread what property of map/reduce functions makes re-execution "cheap" according to the lesson.</p>
       </div>
@@ -296,9 +296,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="hadoop-why-yarn-decoupling-matters">
         <p class="stem">Why did splitting resource management out into YARN matter beyond just running MapReduce more cleanly?</p>
-        <button class="opt">It made HDFS block replication unnecessary since YARN replicates containers instead</button>
-        <button class="opt">It let other compute engines like Spark and Flink share the same cluster, since scheduling was no longer tied to the MapReduce model</button>
-        <button class="opt">It eliminated the need for a NameNode by moving all metadata into YARN's ResourceManager</button>
+        <button class="opt">It made HDFS replication unnecessary, since YARN replicates instead</button>
+        <button class="opt">Spark and Flink could share the cluster once scheduling was generic</button>
+        <button class="opt">It removed the NameNode by moving metadata into the ResourceManager</button>
         <p class="fb">Decoupling scheduling from the compute model is what let multiple engines coexist on one Hadoop cluster instead of each needing its own.</p>
         <p class="hint">Reread what YARN being "one of the cluster managers Spark targets" implies about coupling.</p>
       </div>
@@ -359,16 +359,16 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="mapreduce-why-still-used-for-giant-onepass">
         <p class="stem">Why would a one-pass sort over 10&nbsp;PB of data (far bigger than cluster RAM) sometimes still favor classic MapReduce over Spark?</p>
-        <button class="opt">Spark's in-memory advantage only pays off across iterative multi-stage jobs; a single disk-bound pass over data that can't fit in memory anyway gains little from caching</button>
-        <button class="opt">MapReduce can hold the entire 10 PB dataset in cluster memory while Spark cannot</button>
-        <button class="opt">Spark is architecturally incapable of processing datasets larger than a few terabytes</button>
+        <button class="opt">Caching pays off across iterations; one disk-bound pass gains little</button>
+        <button class="opt">MapReduce can hold all 10 PB in cluster memory, while Spark cannot</button>
+        <button class="opt">Spark is architecturally unable to process more than a few TB</button>
         <p class="fb">Spark's speedup comes from reusing cached in-memory data across steps. A single pass over data larger than RAM doesn't get that benefit, so MapReduce's mature disk-spilling path is a reasonable fit.</p>
         <p class="hint">Reread "MapReduce still earns its keep when" for the one-pass, bigger-than-RAM case.</p>
       </div>
     </div>
   </section>
 
-  <section class="chunk" id="chunk-final">
+  <section class="chunk" id="chunk-final" hidden>
     <p class="chunk-label">6 of 6 — comprehensive check</p>
     <h2>Everything from this lesson</h2>
     <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is
@@ -426,9 +426,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="mapreduce-combiner-vs-reducebykey-final">
         <p class="stem">The lesson calls the MapReduce combiner "the direct ancestor of Spark's reduceByKey-over-groupByKey advice." Why is that comparison apt?</p>
-        <button class="opt">Both features are unrelated; the comparison is only a naming coincidence between the two systems</button>
-        <button class="opt">Both forbid any aggregation that isn't a simple count of records per key</button>
-        <button class="opt">Both pre-aggregate data on the source side before it crosses the network, shrinking what the shuffle has to move</button>
+        <button class="opt">They're unrelated; the comparison is only a naming coincidence</button>
+        <button class="opt">Both forbid any aggregation other than a count of records per key</button>
+        <button class="opt">Both pre-aggregate at the source, shrinking what the shuffle moves</button>
         <p class="fb">A combiner pre-aggregates on the map side before shuffle; reduceByKey does the same before a Spark shuffle. Same principle: shrink data before it crosses the network.</p>
         <p class="hint">Reread what a combiner does "before the shuffle" and compare it to what reduceByKey does in Spark.</p>
       </div>

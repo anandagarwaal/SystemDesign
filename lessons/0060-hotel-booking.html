@@ -154,9 +154,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="hotel-booking-why-split-consistency">
       <p class="stem">Why would forcing reservations to run through the same relaxed, cache-heavy path as search be dangerous?</p>
-      <button class="opt">A stale read could let two guests both believe the same room-night is free and both confirm it</button>
-      <button class="opt">Search traffic is too low in volume to justify a separate path from reservations</button>
-      <button class="opt">Reservations never need to read availability data before writing to it</button>
+      <button class="opt">A stale read could let two guests both confirm the same night</button>
+      <button class="opt">Search volume is too low to justify a separate path</button>
+      <button class="opt">Reservations never read availability before writing</button>
       <p class="fb">Search tolerating staleness is fine because a stale search result is just a bad browse experience; the same staleness in the booking write path is a double-booked room.</p>
       <p class="hint">Ask what a "stale" answer means concretely for a guest who is about to pay.</p>
     </div>
@@ -194,9 +194,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="hotel-booking-why-readwrite-ratio-matters">
       <p class="stem">Why does a ~1000:1 read-to-write ratio justify optimizing reads and writes independently, instead of one shared code path?</p>
-      <button class="opt">Writes are so rare they can be safely dropped without anyone noticing</button>
-      <button class="opt">Reads can tolerate looser guarantees at huge scale, while the rare write must stay correct even if it's slower</button>
-      <button class="opt">Reads and writes always require identical consistency guarantees in any system</button>
+      <button class="opt">Writes are so rare they can be dropped without anyone noticing</button>
+      <button class="opt">Reads can be loose at scale; the rare write must stay correct</button>
+      <button class="opt">Reads and writes always need identical consistency guarantees</button>
       <p class="fb">A shared path forces the rare-but-critical write to inherit either the read path's laxness (unsafe) or its own strictness onto every read (slow at scale). Splitting lets each optimize for what it actually needs.</p>
       <p class="hint">Think about what happens if the write path's correctness requirements leaked into every search request.</p>
     </div>
@@ -244,17 +244,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="hotel-booking-per-night-row-reason">
       <p class="stem">Why does availability use one row per listing per night, not a stored date range?</p>
-      <button class="opt">It turns "free for these dates?" into a keyed-row lookup instead of a range-overlap scan</button>
-      <button class="opt">It cuts total storage compared to storing one row per reservation range</button>
+      <button class="opt">'Free for these dates?' becomes keyed lookups, not overlap scans</button>
+      <button class="opt">It uses less storage than one row per reservation date range</button>
       <button class="opt">It removes the need for any index on the availability table</button>
       <p class="fb">Per-night rows make quoting, locking, and checking availability all read the same simple keyed structure.</p>
       <p class="hint">Reread the pushback: "why one row per night instead of date ranges?"</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="hotel-booking-why-exclusion-constraint-backstop">
       <p class="stem">The design adds a Postgres exclusion constraint on reservations even though the app already checks availability before booking. What breaks if that constraint were removed?</p>
-      <button class="opt">Nothing breaks; the constraint is purely for query performance, not correctness</button>
-      <button class="opt">Search results would become stale immediately without the constraint present</button>
-      <button class="opt">A bug or race in the application logic could still let two overlapping bookings slip through undetected</button>
+      <button class="opt">Nothing; the constraint only helps query performance</button>
+      <button class="opt">Search results would go stale immediately without it</button>
+      <button class="opt">An app bug or race could let overlapping bookings through</button>
       <p class="fb">Application-level checks can have bugs or races; the database constraint is the last line of defense that makes an overlapping booking physically impossible, independent of app code.</p>
       <p class="hint">Ask what "physically impossible even if every hold mechanism above it fails" is describing.</p>
     </div>
@@ -308,9 +308,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="hotel-booking-why-search-off-primary">
       <p class="stem">Why does keeping search off the reservation database matter, beyond just "it's a different store"?</p>
-      <button class="opt">A spike in browse traffic can't slow down or contend with the booking write path if they share no critical-path infrastructure</button>
-      <button class="opt">Elasticsearch is required by law to be a separate physical server from Postgres</button>
-      <button class="opt">Search queries and reservation writes use the exact same SQL syntax either way</button>
+      <button class="opt">A browse spike can't slow the booking write path at all</button>
+      <button class="opt">Elasticsearch must legally run on separate physical servers</button>
+      <button class="opt">Search and reservation writes use the same SQL syntax anyway</button>
       <p class="fb">Isolating the high-volume, latency-sensitive read path from the low-volume, correctness-critical write path means neither can starve the other of resources.</p>
       <p class="hint">Reread the pushback: "why keep search off the reservation database?"</p>
     </div>
@@ -412,9 +412,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="hotel-booking-why-atomic-multinight-hold">
       <p class="stem">A guest books a 3-night stay. Why must the Redis hold acquire all three night-keys atomically via one Lua script, rather than one key at a time?</p>
-      <button class="opt">Lua scripts are simply faster than issuing three separate Redis commands</button>
-      <button class="opt">Redis cannot store more than one key per listing at all</button>
-      <button class="opt">Acquiring keys one at a time could leave the guest holding some nights but not all, with no clean way to back out the partial hold</button>
+      <button class="opt">Lua scripts are simply faster than three separate Redis commands</button>
+      <button class="opt">Redis can't store more than one key per listing at all</button>
+      <button class="opt">One at a time, a guest could end up holding only some nights</button>
       <p class="fb">If night 1 and 2 succeed but night 3 is taken by a racing guest, a non-atomic acquire leaves a half-held stay; the all-or-nothing script prevents that partial, unrecoverable state.</p>
       <p class="hint">Picture two guests booking overlapping ranges where each is missing exactly one middle night.</p>
     </div>
@@ -487,10 +487,10 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="hotel-booking-why-address-hidden-until-booking">
       <p class="stem">Why does the design hide a listing's exact address until after a confirmed booking, rather than always showing it in search results?</p>
-      <button class="opt">Exact addresses take up too much storage space in the search index</button>
-      <button class="opt">Revealing the precise address to any anonymous searcher creates safety and off-platform-booking risks with no offsetting benefit before payment</button>
-      <button class="opt">Geo search cannot technically function using exact street addresses</button>
-      <button class="opt">Hosts are legally required to keep their addresses secret from all guests</button>
+      <button class="opt">Exact addresses take too much storage space in the search index</button>
+      <button class="opt">Showing it to anonymous searchers adds safety and bypass risk</button>
+      <button class="opt">Geo search can't technically work using exact street addresses</button>
+      <button class="opt">Hosts are legally required to keep addresses secret from guests</button>
       <p class="fb">An approximate location circle is enough to evaluate a listing; the exact address is sensitive PII with no need-to-know until a real booking exists.</p>
       <p class="hint">Reread the Privacy section's "exposure limits" sentence.</p>
     </div>
@@ -537,24 +537,24 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="c" data-concept="hotel-booking-tenx-first-bottleneck">
       <p class="stem">At 10×, what is named as the first bottleneck the team would actually hit?</p>
-      <button class="opt">Running out of possible geohash prefixes to assign to new listings</button>
-      <button class="opt">The exclusion constraint failing to scale past a fixed row count</button>
-      <button class="opt">Keeping search availability fresh during peak booking seasons via CDC and indexing volume</button>
+      <button class="opt">Running out of geohash prefixes for new listings</button>
+      <button class="opt">The exclusion constraint failing past a fixed row count</button>
+      <button class="opt">Keeping search availability fresh in peak season</button>
       <p class="fb">CDC/indexing volume is the first thing to strain; a full architecture change isn't forced until dynamic per-request pricing at ~100×.</p>
       <p class="hint">Reread the "First bottleneck" sentence right after the scaling table.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="hotel-booking-why-photos-dominate-cost">
       <p class="stem">The reservation core, which does all the hard consistency work, is cheap, while photo CDN egress is ~90% of cost. Why doesn't the harder engineering problem cost the most?</p>
-      <button class="opt">Reservations are low-volume keyed writes on small rows, while every browse serves many large images to a much bigger audience</button>
-      <button class="opt">Photo storage is billed at a much higher per-gigabyte rate than any database storage tier</button>
-      <button class="opt">Cost always tracks engineering difficulty directly, so this is an unusual exception with no clear cause</button>
+      <button class="opt">Bookings are small keyed writes; browsing serves big images to many</button>
+      <button class="opt">Photo storage is billed far higher per GB than database storage</button>
+      <button class="opt">Cost tracks engineering difficulty, so this is an odd exception</button>
       <p class="fb">Cost follows bytes moved times request volume, not difficulty. Millions of daily searches each pulling ~10 photos dwarfs the comparatively rare, small reservation writes.</p>
       <p class="hint">Reread the capacity numbers: read:write ratio and photos-per-view versus bookings-per-day.</p>
     </div>
   </div>
   </section>
 
-  <section class="chunk" id="chunk-8" hidden>
+  <section class="chunk" id="chunk-final" hidden>
   <p class="chunk-label">8 of 8</p>
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
@@ -600,17 +600,17 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="hotel-booking-one-problem-three-costumes-final">
       <p class="stem">This lesson claims double-booking, seat contention (Ticketmaster), and bid contention (auctions) are "one problem in three costumes." What is that shared underlying problem?</p>
-      <button class="opt">All three systems use the exact same database vendor under the hood</button>
-      <button class="opt">Multiple actors racing to claim exclusive ownership of one scarce, shared resource before anyone else does</button>
-      <button class="opt">All three systems are read-heavy and need the same caching strategy</button>
+      <button class="opt">All three systems use the same database vendor underneath</button>
+      <button class="opt">Many actors racing to claim one scarce, exclusive resource</button>
+      <button class="opt">All three are read-heavy and need the same caching strategy</button>
       <p class="fb">A room-night, a seat, and a winning bid are all a single unit that can go to only one party — the ladder of lock → status+TTL → status+OCC → Redis+TTL solves that same race everywhere it appears.</p>
       <p class="hint">Reread the staff-level signal box in Deep Dive 2 about recognizing patterns instead of inventing from scratch.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="hotel-booking-what-if-no-exclusion-final">
       <p class="stem">Suppose Redis holds are working correctly, but the Postgres exclusion constraint is silently dropped. What is the actual consequence?</p>
-      <button class="opt">A bug in the confirm transaction's OCC logic could now let two overlapping reservations become confirmed with nothing left to stop it</button>
-      <button class="opt">Nothing changes at all, since Redis alone is fully sufficient to prevent every double-booking</button>
-      <button class="opt">Search results would instantly become inconsistent with the availability calendar</button>
+      <button class="opt">An OCC bug in confirm could now let overlapping stays both confirm</button>
+      <button class="opt">Nothing changes, since Redis alone prevents every double-booking</button>
+      <button class="opt">Search results would instantly disagree with the availability calendar</button>
       <p class="fb">Redis holds reduce contention during the hold window, but the constraint is the final, database-enforced guarantee; removing it turns "belt and suspenders" into "belt only."</p>
       <p class="hint">Reread the "belt and suspenders" bullet in the staff-pick box of Deep Dive 2.</p>
     </div>

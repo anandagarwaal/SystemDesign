@@ -114,9 +114,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="mq-competing-consumers-why-drains-faster">
         <p class="stem">Why does adding more workers to a task queue drain the backlog faster, while adding more readers to a log doesn't "drain" anything?</p>
-        <button class="opt">Because a task queue's messages are each claimed and removed by exactly one worker, so more workers means more parallel deletions of the same backlog</button>
-        <button class="opt">Because logs are always slower hardware than queues, regardless of consumer count</button>
-        <button class="opt">Because task queues secretly duplicate every message for each worker</button>
+        <button class="opt">Each message is claimed and removed by one worker, in parallel</button>
+        <button class="opt">Logs always run on slower hardware than queues, whatever the load</button>
+        <button class="opt">Task queues secretly duplicate every message for each worker</button>
         <p class="fb">Competing consumers split one shared backlog; log readers each keep independent offsets over retained data, so there's no shared backlog to drain.</p>
         <p class="hint">Ask: in a log, does one consumer group reading a message remove it for another group?</p>
       </div>
@@ -152,9 +152,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="mq-ack-why-idempotent-handlers">
         <p class="stem">Why does RabbitMQ's ack-on-completion design force your consumer handler to be idempotent?</p>
-        <button class="opt">Because a consumer that dies before acking causes the broker to requeue and redeliver the same message, so it can be processed more than once</button>
-        <button class="opt">Because RabbitMQ always delivers every message twice by default as a safety feature</button>
-        <button class="opt">Because idempotency is required by the AMQP protocol specification for all handlers</button>
+        <button class="opt">A consumer dying before its ack gets the message redelivered</button>
+        <button class="opt">RabbitMQ always delivers every message twice as a safety feature</button>
+        <button class="opt">The AMQP protocol specification requires idempotent handlers</button>
         <p class="fb">At-least-once delivery means redelivery is a real possibility on any crash, so the same job may run twice — the handler must tolerate that.</p>
         <p class="hint">Trace what happens if the consumer crashes mid-job, before sending the ack.</p>
       </div>
@@ -188,17 +188,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="mq-visibility-timeout-tuning-tradeoff">
         <p class="stem">Why is setting the visibility timeout too short as dangerous as setting it too long?</p>
-        <button class="opt">There's no real tradeoff — a shorter timeout is always safer for the system</button>
-        <button class="opt">Too short causes duplicate processing on slow jobs, too long delays recovery from a crashed worker — both come from the timeout not matching real processing time</button>
-        <button class="opt">The timeout only affects billing cost, never correctness or latency</button>
+        <button class="opt">No real tradeoff — a shorter timeout is always the safer choice</button>
+        <button class="opt">Too short duplicates slow jobs; too long delays crash recovery</button>
+        <button class="opt">The timeout only affects billing, never correctness or latency</button>
         <p class="fb">The timeout is a guess at "how long should this job take." Guess low and slow jobs get redelivered mid-flight; guess high and a crash leaves the message stuck invisible.</p>
         <p class="hint">Think about the two failure directions named right after the definition: "too short" and "too long."</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="mq-sns-sqs-fanout-why-both">
         <p class="stem">Why does the canonical AWS fanout pattern use SNS plus SQS, instead of just SNS pushing directly to each service?</p>
-        <button class="opt">SNS cannot deliver to more than one subscriber at a time</button>
-        <button class="opt">SQS is required by AWS billing rules whenever SNS is used</button>
-        <button class="opt">Direct push has no buffer, so a slow or down subscriber loses the message; an SQS queue per subscriber adds durable buffering and retry on top of the broadcast</button>
+        <button class="opt">SNS can't deliver to more than one subscriber at a time</button>
+        <button class="opt">AWS billing rules require SQS whenever SNS is used</button>
+        <button class="opt">A queue per subscriber adds the buffering direct push lacks</button>
         <p class="fb">SNS alone gives you fanout but no persistence per subscriber. Putting an SQS queue behind each subscription gives each downstream service its own durable, retryable backlog.</p>
         <p class="hint">Ask what happens to a plain SNS push if the receiving service is down for five minutes.</p>
       </div>
@@ -247,7 +247,7 @@
       <div class="q" data-type="intuition" data-correct="b" data-concept="mq-simple-by-default-staff-signal">
         <p class="stem">Why does refusing to default to Kafka for every async need read as a staff-level signal, not a limitation?</p>
         <button class="opt">Kafka is objectively worse technology than SQS in every situation</button>
-        <button class="opt">Operating a retained, partitioned log has real ongoing cost that only pays off when you actually need replay or multiple independent readers, so picking the simplest sufficient tool shows judgement</button>
+        <button class="opt">A retained log has ongoing cost that pays off only with replay needs</button>
         <button class="opt">Interviewers penalize any mention of Kafka regardless of context</button>
         <p class="fb">The heuristic box says "Kafka — and only then." Staff signal is matching tool cost to actual requirement, not defaulting to the most powerful-sounding option.</p>
         <p class="hint">Reread the staff-level signal box — what does it say seniors do differently from staff here?</p>
@@ -264,9 +264,9 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-type="intuition" data-correct="c" data-concept="mq-dlq-why-isolates-poison-messages">
         <p class="stem">Why does a DLQ matter even though the underlying job is still failing and unresolved?</p>
-        <button class="opt">A DLQ automatically fixes the bug that caused the message to fail</button>
-        <button class="opt">A DLQ deletes the message permanently so no one has to think about it again</button>
-        <button class="opt">A DLQ moves a repeatedly-failing message out of the main queue so it stops consuming redelivery attempts and blocking the worker pool behind it, while preserving it for inspection</button>
+        <button class="opt">A DLQ automatically fixes the bug that made the message fail</button>
+        <button class="opt">A DLQ deletes the message forever so nobody thinks about it</button>
+        <button class="opt">It sidelines a repeat failure so it stops blocking the queue</button>
         <p class="fb">Without a DLQ, a poison message keeps getting redelivered and reprocessed, wasting worker capacity that healthy messages need. The DLQ isolates it without losing it.</p>
         <p class="hint">Reread the staff-level signal box — what does a DLQ isolate, and from what?</p>
       </div>
@@ -307,17 +307,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="mq-why-not-default-to-kafka-final">
         <p class="stem">A candidate proposes Kafka for a simple fire-and-forget email-sending job with no replay need. What's the staff-level pushback?</p>
-        <button class="opt">Nothing — Kafka works for every async use case so it's a safe universal default</button>
-        <button class="opt">Kafka is a retained, replayable log; a transient job with no replay need doesn't justify that operational cost — a task queue like SQS is the simpler, sufficient tool</button>
-        <button class="opt">Kafka should never be used in any system design interview</button>
+        <button class="opt">Nothing — Kafka works for every async case, a safe universal default</button>
+        <button class="opt">A replayable log isn't justified for jobs with no replay; use SQS</button>
+        <button class="opt">Kafka should never be proposed in any system design interview at all</button>
         <p class="fb">Simple-by-default: match the tool's cost to the actual requirement. Retention and replay are the exact feature you're not using here.</p>
         <p class="hint">Revisit the default-reach heuristic and staff-level signal box in chunk 4.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="mq-idempotency-why-required-final">
         <p class="stem">Both RabbitMQ acks and SQS visibility timeouts share one consequence for consumer code. What is it?</p>
-        <button class="opt">Both deliver at-least-once, so a crash or slow job can cause redelivery — consumer handlers must be idempotent to stay correct under duplicates</button>
-        <button class="opt">Both guarantee exactly-once delivery by default, so idempotency is never needed</button>
-        <button class="opt">Both require the consumer to poll a fixed number of times before giving up</button>
+        <button class="opt">Both are at-least-once, so handlers must tolerate redelivery</button>
+        <button class="opt">Both guarantee exactly-once by default, so idempotency is moot</button>
+        <button class="opt">Both require the consumer to poll a fixed number of times</button>
         <p class="fb">Ack-based redelivery in RabbitMQ and visibility-timeout-based redelivery in SQS are the same failure shape: a crash before confirmation causes a duplicate delivery.</p>
         <p class="hint">Compare the ack paragraph in chunk 2 with the visibility timeout paragraph in chunk 3 — what failure mode do they share?</p>
       </div>

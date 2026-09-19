@@ -145,16 +145,16 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="google-photos-blob-metadata-split">
       <p class="stem">Why does Photos store search tags, faces and embeddings as separate derived entities?</p>
-      <button class="opt">Wide-column stores cannot hold more than four columns per row</button>
-      <button class="opt">Models regenerate them later, and they carry different privacy rules than the photo</button>
+      <button class="opt">Wide-column stores can't hold more than four columns per row</button>
+      <button class="opt">Models regenerate them, and their privacy rules differ</button>
       <button class="opt">The client uploads them directly alongside the original bytes</button>
       <p class="fb">They're produced by models that improve over time and hold sensitive biometric-adjacent data, so keeping them separate and versioned lets you re-index and govern access independently.</p>
       <p class="hint">Reread the Core Entities table and the pushback right after the Data Model section.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="google-photos-availability-over-consistency">
       <p class="stem">The NFRs pick availability over consistency for search freshness. What would break if the design instead blocked the upload response until search indexing finished?</p>
-      <button class="opt">Every upload would wait on GPU inference, turning fast uploads into slow, model-bound requests</button>
-      <button class="opt">Nothing breaks; indexing time has no relationship to upload latency</button>
+      <button class="opt">Every upload would wait on GPU inference and become slow</button>
+      <button class="opt">Nothing — indexing time is unrelated to upload latency</button>
       <button class="opt">The blob store would run out of space immediately</button>
       <p class="fb">Coupling the response to indexing ties upload latency to unpredictable, bursty GPU work — exactly what the async pipeline exists to avoid.</p>
       <p class="hint">Think about what "seconds behind is fine, app being down is not" implies for where ML inference should sit.</p>
@@ -196,9 +196,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="google-photos-async-inference-why">
       <p class="stem">Why would running face and object detection synchronously during upload be the wrong call, even if the GPUs had capacity to spare?</p>
-      <button class="opt">It would be the right call — synchronous inference is strictly simpler</button>
-      <button class="opt">Upload latency would become coupled to model runtime, so a slow or overloaded model stalls every user's upload</button>
-      <button class="opt">Synchronous calls are not supported by any blob storage API</button>
+      <button class="opt">It's the right call — synchronous inference is strictly simpler</button>
+      <button class="opt">Upload latency would couple to model runtime and stall uploads</button>
+      <button class="opt">Synchronous calls aren't supported by any blob storage API</button>
       <p class="fb">Even with spare capacity, coupling user-facing latency to ML runtime removes your ability to degrade gracefully or scale the two workloads independently.</p>
       <p class="hint">Look at the interviewer pushback right above this gate.</p>
     </div>
@@ -253,17 +253,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="google-photos-partition-by-owner">
       <p class="stem">Why is nearly every table (media, tags, faces, embeddings) partitioned by owner_id?</p>
-      <button class="opt">So a query physically cannot see another user's photos, and the timeline is a single-partition scan</button>
-      <button class="opt">Because owner_id is always a smaller integer than media_id</button>
-      <button class="opt">Wide-column stores require every table to share the same partition key value</button>
+      <button class="opt">Queries can't reach others' photos, and a timeline is one scan</button>
+      <button class="opt">owner_id is always a smaller integer than media_id in practice</button>
+      <button class="opt">Wide-column stores require every table to share one partition key</button>
       <p class="fb">Owner-partitioning gives both cheap timeline scans and a hard privacy boundary in the same design choice.</p>
       <p class="hint">Reread the intro paragraph of the Data Model section.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="google-photos-presigned-upload-why">
       <p class="stem">What would break if clients uploaded photo bytes through the Media Service instead of directly to blob storage via a presigned URL?</p>
       <button class="opt">Nothing — the app tier has unlimited bandwidth by default</button>
-      <button class="opt">Metadata would no longer be queryable by owner</button>
-      <button class="opt">The app tier would need to absorb exabytes of upload bandwidth it was never sized for</button>
+      <button class="opt">Metadata could no longer be queried by its owner</button>
+      <button class="opt">The app tier would absorb upload bandwidth it wasn't sized for</button>
       <p class="fb">Presigned URLs route the huge, opaque bytes around the app tier entirely, keeping app servers focused on small structured metadata.</p>
       <p class="hint">Look at the "why upload directly to blob storage" pushback later in the lesson, and the metadata/blob split idea from Dropbox.</p>
     </div>
@@ -332,17 +332,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="google-photos-two-splits">
       <p class="stem">The HLD hinges on two splits. What are they?</p>
-      <button class="opt">Read replicas vs. write replicas, and SQL vs. NoSQL</button>
-      <button class="opt">Metadata vs. blob bytes, and synchronous ingest vs. asynchronous enrichment</button>
-      <button class="opt">Mobile clients vs. web clients, and CDN vs. no CDN</button>
+      <button class="opt">Read vs write replicas, and SQL vs NoSQL stores</button>
+      <button class="opt">Metadata vs bytes, and sync ingest vs async enrichment</button>
+      <button class="opt">Mobile vs web clients, and CDN vs no CDN at all</button>
       <p class="fb">The metadata/blob split (from Dropbox) keeps bytes off the app tier; the sync/async split keeps ML off the request path.</p>
       <p class="hint">Reread the opening paragraph of High-Level Design.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="google-photos-searchable-gap">
       <p class="stem">A photo appears in the timeline after stage 3 but isn't searchable until stage 5. Why is this gap acceptable rather than a bug?</p>
-      <button class="opt">The availability NFR treats a few seconds of search staleness as fine, but the app being unreachable is not</button>
-      <button class="opt">It isn't acceptable — this is a defect that should be fixed before launch</button>
-      <button class="opt">Search results are cached forever so the gap never actually appears to any user</button>
+      <button class="opt">Seconds of search staleness are fine; an unreachable app isn't</button>
+      <button class="opt">It isn't acceptable — it's a defect to fix before launch</button>
+      <button class="opt">Search results are cached forever, so no user ever sees the gap</button>
       <p class="fb">This gap is the direct payoff of choosing availability over strict consistency: uploads stay fast, and search catches up asynchronously.</p>
       <p class="hint">Connect this back to the NFR table's "Availability &gt; Consistency" row.</p>
     </div>
@@ -416,16 +416,16 @@
     <div class="q" data-correct="c" data-concept="google-photos-perceptual-hash-scope">
       <p class="stem">Why is perceptual hashing used for grouping near-duplicates, but never for storage dedup?</p>
       <button class="opt">Perceptual hashes take too long to compute at upload time</button>
-      <button class="opt">Storage dedup already uses perceptual hashes, so there's nothing left for it to do</button>
-      <button class="opt">Perceptual collisions are intentional and lossy, so using it for dedup risks silently dropping a distinct file</button>
+      <button class="opt">Storage dedup already uses them, leaving nothing else to do</button>
+      <button class="opt">Its collisions are lossy on purpose, so dedup could drop a file</button>
       <p class="fb">Cryptographic hashing dedups only byte-identical files safely; pHash is for grouping "looks similar" shots, where false collisions are tolerable.</p>
       <p class="hint">Reread the deep dive on client auto-sync and dedup.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="google-photos-vector-search-mechanism">
       <p class="stem">What would break if the image embedding and the text query embedding were produced by two unrelated, independently trained models?</p>
-      <button class="opt">Nearest-neighbor distance between the two vectors would be meaningless, since they wouldn't share a common space</button>
-      <button class="opt">Nothing breaks; any two embeddings of the same dimension are always comparable</button>
-      <button class="opt">The vector database would refuse to store vectors from more than one model</button>
+      <button class="opt">Distances would be meaningless, since they share no common space</button>
+      <button class="opt">Nothing — any two same-sized embeddings are always comparable</button>
+      <button class="opt">The vector database refuses to store vectors from two models</button>
       <p class="fb">Semantic search only works because one model maps both photos and text into the same vector space, making nearest-neighbor distance meaningful.</p>
       <p class="hint">Reread "Embeddings + vector DB for semantic search" in the ML deep dive.</p>
     </div>
@@ -491,17 +491,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="google-photos-face-privacy">
       <p class="stem">How does the design handle the fact that faces are sensitive biometric data?</p>
-      <button class="opt">Face embeddings are shared across all accounts to improve clustering accuracy</button>
-      <button class="opt">Face grouping is opt-in where required, embeddings stay per-owner, and disabling it deletes the data</button>
-      <button class="opt">Faces are stored unencrypted in a public index for faster lookup</button>
+      <button class="opt">Face embeddings are shared across accounts to improve clustering</button>
+      <button class="opt">Opt-in where required, per-owner embeddings, deleted on disable</button>
+      <button class="opt">Faces are stored unencrypted in a public index for fast lookup</button>
       <p class="fb">Opt-in consent, per-owner scoping, and deletion on opt-out are the concrete controls named in the Privacy section.</p>
       <p class="hint">Reread the Privacy section and the pushback right after it.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="google-photos-search-isolation-failure">
       <p class="stem">If the vector index were not partitioned per owner, what specific failure could occur during search?</p>
-      <button class="opt">A nearest-neighbor query could return another user's private photos in the results</button>
-      <button class="opt">Search would become impossible to run at all, with zero results ever returned</button>
-      <button class="opt">The CDN would refuse to cache any thumbnails</button>
+      <button class="opt">A nearest-neighbour query could return another user's photos</button>
+      <button class="opt">Search could no longer run at all, returning zero results</button>
+      <button class="opt">The CDN would refuse to cache any of the thumbnails</button>
       <p class="fb">Without per-owner partitioning or a post-ANN ownership filter, nearest-neighbor search could leak cross-user results — exactly the leakage named as a security threat.</p>
       <p class="hint">Reread "Scope search to the owner" and the Security table's cross-user leakage row.</p>
     </div>
@@ -551,8 +551,8 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="google-photos-10x-bottleneck">
       <p class="stem">At 10× scale, what is named as the first bottleneck to hit?</p>
-      <button class="opt">GPU capacity for backfills when a new model requires re-embedding the whole library</button>
-      <button class="opt">The number of REST endpoints the API can expose</button>
+      <button class="opt">GPU capacity for backfills when a new model re-embeds everything</button>
+      <button class="opt">The number of REST endpoints the API is able to expose</button>
       <button class="opt">The maximum row size supported by the wide-column store</button>
       <p class="fb">Re-embedding a library at 10× scale needs a burst of GPU capacity far above steady-state inference needs.</p>
       <p class="hint">Reread the "First bottleneck" line under Scaling 10×.</p>
@@ -560,15 +560,15 @@
     <div class="q" data-type="intuition" data-correct="b" data-concept="google-photos-10x-forces-redesign">
       <p class="stem">Why would adding a "search all photos shared with you across many owners" feature force an architecture change, when 10× more users doesn't?</p>
       <button class="opt">It wouldn't — both are handled by simply adding more shards</button>
-      <button class="opt">It breaks the clean per-owner partitioning that every other read path relies on</button>
-      <button class="opt">Cross-owner search requires no changes since owners already share one global index</button>
+      <button class="opt">It breaks the per-owner partitioning every read path relies on</button>
+      <button class="opt">Cross-owner search needs no change, since owners share an index</button>
       <p class="fb">10× is a matter of adding shards/replicas within the same per-owner model; cross-owner search demands a fundamentally different index shape.</p>
       <p class="hint">Compare this to the "what forces a redesign" line under Scaling 10×, and the per-owner theme running through the Data Model.</p>
     </div>
   </div>
   </section>
 
-  <section class="chunk" id="chunk-final">
+  <section class="chunk" id="chunk-final" hidden>
   <p class="chunk-label">Final check</p>
   <h2>Everything from this lesson</h2>
   <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up. This block also seeds the spaced-review schedule.</p>
@@ -612,17 +612,17 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="google-photos-final-two-splits-why">
       <p class="stem">Both the metadata/blob split and the sync/async split exist for a similar underlying reason. What is it?</p>
-      <button class="opt">They both reduce the total number of lines of code in the Media Service</button>
-      <button class="opt">Each keeps a slow, resource-heavy operation (huge bytes, GPU inference) off the fast, latency-sensitive request path</button>
+      <button class="opt">They both reduce the lines of code in the Media Service</button>
+      <button class="opt">Each keeps slow heavy work off the fast request path</button>
       <button class="opt">They both eliminate the need for any database at all</button>
       <p class="fb">Both splits are instances of the same principle: isolate what's slow or heavy from what must stay fast, so one never blocks the other.</p>
       <p class="hint">Compare the opening paragraph of High-Level Design to the capacity-estimation pushback on inline inference.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="google-photos-final-privacy-partition">
       <p class="stem">Owner-based partitioning shows up in the data model, search, and privacy sections alike. What single property does it guarantee across all three?</p>
-      <button class="opt">One user's query or data access can never structurally reach another user's photos</button>
+      <button class="opt">One user's access can never structurally reach another's photos</button>
       <button class="opt">Every owner gets exactly the same amount of storage quota</button>
-      <button class="opt">Partitioning makes the vector index unnecessary</button>
+      <button class="opt">Partitioning by owner makes the vector index unnecessary</button>
       <p class="fb">Partitioning by owner is the single mechanism doing triple duty: cheap timeline scans, isolated vector search, and a hard privacy boundary.</p>
       <p class="hint">Trace "owner_id" through the Data Model, the ML deep dive's "scope search to the owner," and the Security table's cross-user leakage row.</p>
     </div>

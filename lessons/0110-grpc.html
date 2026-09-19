@@ -59,6 +59,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -73,10 +87,37 @@
     <strong>Why this lesson, for your mission:</strong> At L6/L7 "we'll use gRPC between services" is only a starting move. The interviewer wants to know <em>why</em> it's faster than JSON-over-REST (binary Protobuf on HTTP/2, not magic), what its streaming modes buy you, and — the real depth — why long-lived HTTP/2 connections wreck naive L4 load balancing and what you do about it. Naming that load-balancing problem before you're asked is the signal that reads as staff.<a href="#c1" class="cite">[1]</a>
   </div>
 
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 5</p>
+
   <h2>What it is</h2>
   <p>gRPC is a high-performance, open-source <b>RPC (Remote Procedure Call)</b> framework: you call a method on a remote server as if it were a local function, and gRPC handles serialization, transport, and the round trip.<a href="#c2" class="cite">[2]</a> Two design choices define it. First, the contract is written in <b>Protocol Buffers (Protobuf)</b> — a language-neutral interface definition language (IDL) — and a code generator emits typed client and server <b>stubs</b> in your language.<a href="#c2" class="cite">[2]</a> Second, the wire transport is <b>HTTP/2</b>, which gives it multiplexing, streaming, and header compression for free.<a href="#c3" class="cite">[3]</a></p>
   <p>The net effect: a strongly-typed, versioned contract; a compact binary payload; and full-duplex streaming over a single connection. That combination is why gRPC became the default for the chatty east-west traffic <em>between</em> microservices in large fleets, where JSON's verbosity and the cost of one-connection-per-request actually add up.<a href="#c1" class="cite">[1]</a> It builds directly on the transport choices from <a href="../lessons/0009-key-technologies-tour.html">Lesson 09</a>.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="c" data-concept="grpc-two-choices">
+        <p class="stem">Which two design choices define gRPC?</p>
+        <button class="opt">JSON payloads and a GraphQL schema for each service</button>
+        <button class="opt">WebSocket transport and a JSON Schema contract file</button>
+        <button class="opt">A Protobuf contract with codegen, and HTTP/2 transport</button>
+        <button class="opt">XML envelopes (SOAP) and a UDDI service registry</button>
+        <p class="fb">Protobuf IDL → typed stubs; HTTP/2 → multiplexing and streaming.</p>
+        <p class="hint">Reread the first paragraph of 'What it is'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="grpc-why-east-west">
+        <p class="stem">Why does gRPC's advantage show up between microservices more than at the public edge?</p>
+        <button class="opt">Internal calls are huge in volume and you control both ends of them</button>
+        <button class="opt">Browsers already compress JSON, so gRPC adds nothing at the edge</button>
+        <button class="opt">Public APIs must use UDP, which gRPC cannot run on at all</button>
+        <button class="opt">Microservices can't parse JSON, so they need a binary format</button>
+        <p class="fb">Per-call savings multiply by east-west volume, and owning both ends makes a strict shared contract practical.</p>
+        <p class="hint">Where do the per-call savings get multiplied the most, and where can you ship the .proto to every caller?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 5</p>
   <h2>Internals — the part that earns depth</h2>
 
   <h3>Protobuf: the IDL and the binary wire format</h3>
@@ -120,7 +161,49 @@
     <li><b>Metadata:</b> key-value pairs (carried as HTTP/2 headers) for auth tokens, tracing IDs, etc. — the gRPC analog of HTTP headers.<a href="#c2" class="cite">[2]</a></li>
     <li><b>Status codes:</b> a fixed enum (<code>OK</code>, <code>NOT_FOUND</code>, <code>DEADLINE_EXCEEDED</code>, <code>UNAVAILABLE</code>…) — a uniform error vocabulary across languages, unlike REST's reuse of HTTP status codes.<a href="#c6" class="cite">[6]</a></li>
   </ul>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="grpc-tags-evolution">
+        <p class="stem">Why must you never reuse or renumber a Protobuf field tag?</p>
+        <button class="opt">Tags are hashed into the payload's checksum on the wire</button>
+        <button class="opt">Tags are the field's identity on the wire; old readers would misread</button>
+        <button class="opt">The compiler refuses to build a schema with a changed tag</button>
+        <button class="opt">Renumbering doubles the message size because of varints</button>
+        <p class="fb">Names never travel — only tags. Reuse tag 2 for a new meaning and an old client decodes it as the old field.</p>
+        <p class="hint">What actually travels on the wire to identify a field — the name or the number?</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="grpc-varint">
+        <p class="stem">Why is <code>{"age":150}</code> ~11 bytes in JSON but ~3 in Protobuf?</p>
+        <button class="opt">Protobuf compresses the payload with gzip before sending</button>
+        <button class="opt">Protobuf drops fields whose value equals the default value</button>
+        <button class="opt">JSON must be UTF-16 encoded, which doubles every character</button>
+        <button class="opt">No key text travels, and the number is a varint, not digits</button>
+        <p class="fb">One byte for tag+wire type, then 150 as a 2-byte varint. JSON ships the key string, quotes, braces, and ASCII digits.</p>
+        <p class="hint">List what JSON sends that Protobuf doesn't.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="grpc-multiplex-picture">
+        <p class="stem">Picture 100 concurrent calls from service A to service B. How do HTTP/1.1 and HTTP/2 differ?</p>
+        <button class="opt">Both need 100 sockets; HTTP/2 just compresses each one's headers</button>
+        <button class="opt">HTTP/1.1 uses one socket; HTTP/2 needs one socket per request</button>
+        <button class="opt">HTTP/1.1 needs ~100 sockets; HTTP/2 runs 100 streams on one</button>
+        <button class="opt">Both multiplex on one socket; HTTP/2 only adds binary framing</button>
+        <p class="fb">HTTP/1.1 = one in-flight request per connection. HTTP/2 interleaves independent streams on a single TCP connection.</p>
+        <p class="hint">Reread 'HTTP/2: multiplexing and streaming'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="grpc-deadline-why">
+        <p class="stem">Service A → B → C → D. Why propagate one absolute deadline instead of letting each hop set its own timeout?</p>
+        <button class="opt">Downstream hops stop work the caller no longer waits for</button>
+        <button class="opt">Deadlines let every hop retry forever without any cost</button>
+        <button class="opt">Absolute deadlines let hops skip authentication checks</button>
+        <button class="opt">Per-hop timeouts can't be expressed in the Protobuf IDL</button>
+        <p class="fb">If A gives up at 200 ms, B/C/D continuing is pure waste and can cascade into overload. A shared deadline makes everyone fail fast together.</p>
+        <p class="hint">A has already timed out. What are C and D still doing?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 5</p>
   <h2>gRPC vs REST</h2>
   <p>This is the comparison the interviewer is actually after. They are not rivals so much as tools for different edges of the system.</p>
   <table>
@@ -145,7 +228,22 @@
       <li>This is the gotcha that separates "I used gRPC" from "I've run gRPC in production."</li>
     </ul>
   </div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="grpc-l4-trap-picture">
+        <p class="stem">You scale gRPC backends from 4 to 8 behind an L4 LB. Why do the 4 new ones sit nearly idle?</p>
+        <button class="opt">L4 balancers are unable to health-check any gRPC backend</button>
+        <button class="opt">Clients keep their long-lived connections pinned to the old 4</button>
+        <button class="opt">New backends must first download every .proto from the others</button>
+        <button class="opt">HTTP/2 caps each client to talking with at most four backends</button>
+        <p class="fb">L4 decides per connection, once. gRPC reuses one connection for everything, so no new connections → no traffic to new nodes. Fix: L7/Envoy, client-side LB, or connection recycling.</p>
+        <p class="hint">When does an L4 balancer make its choice, and how often does a gRPC client open a new connection?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 5</p>
   <h2>When NOT to use it</h2>
   <table>
     <thead><tr><th>Avoid gRPC when…</th><th>Because…</th></tr></thead>
@@ -164,43 +262,64 @@
 
   <h2>In the interview</h2>
   <p>When you draw arrows between internal services, justify the protocol in one line ("gRPC for east-west — typed contracts and a compact binary payload at high call volume") and keep REST/GraphQL at the public edge.<a href="#c1" class="cite">[1]</a> Be ready for the two predictable follow-ups: <em>"Why is it faster than REST?"</em> (binary Protobuf + HTTP/2 multiplexing, not magic) and <em>"How do you load-balance it?"</em> (L7/Envoy or client-side LB, because long-lived HTTP/2 connections fool L4).<a href="#c8" class="cite">[8]</a> Mentioning deadlines propagating to bound cascading latency, or streaming for a feed, signals hands-on depth. Don't pitch gRPC for the browser path — that's the tell that you've only read about it.</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="grpc-when-not-transfer">
+        <p class="stem">A public weather API used by hobbyists from browsers and curl. gRPC or REST?</p>
+        <button class="opt">gRPC, because the binary format saves hobbyists bandwidth</button>
+        <button class="opt">gRPC, because typed stubs are easy for anyone to generate</button>
+        <button class="opt">gRPC via gRPC-Web, so browsers get compact binary payloads</button>
+        <button class="opt">REST — browser-native, curl-debuggable, and CDN-cacheable</button>
+        <p class="fb">Public, browser-facing, read-heavy and cacheable: every 'avoid gRPC when' row applies.</p>
+        <p class="hint">Check each row of the 'When NOT to use it' table against this API.</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why is a Protobuf payload smaller than the equivalent JSON?</p>
-      <button class="opt">It compresses the entire JSON text with a gzip pass first</button>
-      <button class="opt">It sends field names but drops every value below a limit</button>
-      <button class="opt">It sends numeric field tags and varints, never key text</button>
-      <button class="opt">It strips whitespace yet keeps the readable string format</button>
-      <p class="fb">Protobuf encodes fields by integer tag plus varint values — field-name strings never travel, so bytes shrink.</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="c" data-concept="grpc-protobuf-size-final">
+        <p class="stem">Why is a Protobuf payload smaller than the equivalent JSON?</p>
+        <button class="opt">It compresses the entire JSON text with a gzip pass first</button>
+        <button class="opt">It sends field names but drops every value below a limit</button>
+        <button class="opt">It sends numeric field tags and varints, never key text</button>
+        <button class="opt">It strips whitespace yet keeps the readable string format</button>
+        <p class="fb">Protobuf encodes fields by integer tag plus varint values — field-name strings never travel, so bytes shrink.</p>
+        <p class="hint">Reread 'Why it's smaller and faster'.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="grpc-http2-multiplex-final">
+        <p class="stem">What does HTTP/2 multiplexing give gRPC over HTTP/1.1?</p>
+        <button class="opt">It encrypts each request with a separate per-stream TLS key</button>
+        <button class="opt">It runs many concurrent streams over one shared connection</button>
+        <button class="opt">It converts each binary frame back into readable JSON text</button>
+        <button class="opt">It caches every response automatically at the nearest proxy</button>
+        <p class="fb">HTTP/2 multiplexes independent streams on a single long-lived connection, removing one-request-per-socket limits.</p>
+        <p class="hint">Reread 'HTTP/2: multiplexing and streaming'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="grpc-l4-lb-final">
+        <p class="stem">Why do long-lived gRPC connections break naive L4 load balancing?</p>
+        <button class="opt">A backend is picked once at connect, so requests pile up there</button>
+        <button class="opt">A backend rejects every stream after the first request returns</button>
+        <button class="opt">A backend rotates its address faster than clients can resolve</button>
+        <button class="opt">A backend drops the connection whenever a new replica appears</button>
+        <p class="fb">L4 balances at connect time; with one pinned connection, requests aren't spread — use L7/Envoy or client-side LB.</p>
+        <p class="hint">Reread 'The load-balancing trap' box.</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="grpc-vs-rest-final">
+        <p class="stem">When is REST the better choice over gRPC for an interface?</p>
+        <button class="opt">For internal high-volume calls between two backend services</button>
+        <button class="opt">For bidirectional streaming between two trusted internal nodes</button>
+        <button class="opt">For a polyglot fleet needing one strict generated contract</button>
+        <button class="opt">For a public browser-facing API needing ubiquity and caching</button>
+        <p class="fb">Browsers lack native gRPC and HTTP caching wants REST; public edges favor REST while gRPC stays internal.</p>
+        <p class="hint">Reread 'When NOT to use it'.</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. What does HTTP/2 multiplexing give gRPC over HTTP/1.1?</p>
-      <button class="opt">It encrypts each request with a separate per-stream TLS key</button>
-      <button class="opt">It runs many concurrent streams over one shared connection</button>
-      <button class="opt">It converts each binary frame back into readable JSON text</button>
-      <button class="opt">It caches every response automatically at the nearest proxy</button>
-      <p class="fb">HTTP/2 multiplexes independent streams on a single long-lived connection, removing one-request-per-socket limits.</p>
-    </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Why do long-lived gRPC connections break naive L4 load balancing?</p>
-      <button class="opt">A backend is picked once at connect, so requests pile up there</button>
-      <button class="opt">A backend rejects every stream after the first request returns</button>
-      <button class="opt">A backend rotates its address faster than clients can resolve</button>
-      <button class="opt">A backend drops the connection whenever a new replica appears</button>
-      <p class="fb">L4 balances at connect time; with one pinned connection, requests aren't spread — use L7/Envoy or client-side LB.</p>
-    </div>
-    <div class="q" data-correct="d">
-      <p class="stem">4. When is REST the better choice over gRPC for an interface?</p>
-      <button class="opt">For internal high-volume calls between two backend services</button>
-      <button class="opt">For bidirectional streaming between two trusted internal nodes</button>
-      <button class="opt">For a polyglot fleet needing one strict generated contract</button>
-      <button class="opt">For a public browser-facing API needing ubiquity and caching</button>
-      <p class="fb">Browsers lack native gRPC and HTTP caching wants REST; public edges favor REST while gRPC stays internal.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this deep dive — drill me. Try: "Quiz me on how Protobuf field tags enable backward-compatible schema evolution." · "Walk me through exactly how I'd load-balance gRPC in a Kubernetes fleet." · "Give me a FAANG prompt and push me on when I'd pick gRPC vs REST vs GraphQL per edge."
@@ -228,21 +347,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

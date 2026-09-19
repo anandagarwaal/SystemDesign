@@ -154,9 +154,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="recsys-interaction-loop-why">
       <p class="stem">Why does logging user interactions make this a "pipeline," not a CRUD app?</p>
-      <button class="opt">Because interactions are simply deleted after being displayed once</button>
-      <button class="opt">Because interactions feed back into training, closing a loop that improves the model over time</button>
-      <button class="opt">Because CRUD apps never store any data about what a user clicked</button>
+      <button class="opt">Interactions are simply deleted after being displayed once</button>
+      <button class="opt">Interactions feed training, closing a loop that improves the model</button>
+      <button class="opt">CRUD apps never store any data about what a user clicked</button>
       <p class="fb">The system isn't just serving static data — interaction → training data → updated model → better recs is a continuous loop, which is what makes it a pipeline.</p>
       <p class="hint">Look at FR #3 — what happens to interactions after they're logged?</p>
     </div>
@@ -253,9 +253,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="recsys-embedding-ann-why">
       <p class="stem">Why store dense embeddings for both users and items instead of just tagging items with categories?</p>
-      <button class="opt">Embeddings take up less disk space than a category string ever could</button>
-      <button class="opt">Categories are illegal to store under most privacy regulations today</button>
-      <button class="opt">A vector similarity search (ANN) generalizes past hand-picked categories and runs in milliseconds</button>
+      <button class="opt">Embeddings take less disk space than any category string</button>
+      <button class="opt">Categories are illegal to store under most privacy laws</button>
+      <button class="opt">ANN over vectors generalizes past categories in milliseconds</button>
       <p class="fb">Embeddings let you compute similarity as a nearest-neighbor search that captures learned relationships a fixed taxonomy can't, and ANN indexes make that search fast at scale.</p>
       <p class="hint">Reread the pushback box right above — what does dot-product similarity let an ANN index do?</p>
     </div>
@@ -359,9 +359,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="c" data-concept="recsys-two-stage-tradeoff">
       <p class="stem">Why can't a single model handle both candidate generation and ranking?</p>
-      <button class="opt">Two-tower models are patented and cannot be reused for ranking tasks</button>
-      <button class="opt">Ranking models are not allowed to read from an ANN index at all</button>
-      <button class="opt">A model precise enough to rank well is too slow to run millions of times per request</button>
+      <button class="opt">Two-tower models are patented and can't be reused for ranking</button>
+      <button class="opt">Ranking models are not allowed to read from an ANN index</button>
+      <button class="opt">A precise ranker is too slow to run millions of times per request</button>
       <p class="fb">A model good enough to rank is too expensive at 10M-item scale; a model fast enough to score 10M items is too weak to rank well — hence splitting recall (cheap) from precision (expensive).</p>
       <p class="hint">Reread "Why two stages and not one big model?" box above.</p>
     </div>
@@ -511,7 +511,16 @@
       <p class="fb">Recommendation systems are built on behavioral profiling, which regulators scrutinize — minimizing identifiable data reduces the sensitivity of what's stored and processed.</p>
       <p class="hint">Reread the Privacy section's "Minimization" sentence.</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="c" data-concept="recsys-skew-silent">
+        <p class="stem">Why is training/serving skew called out as a 'silent' failure?</p>
+        <button class="opt">It only happens during nightly training, when nobody is watching</button>
+        <button class="opt">It causes the service to return errors that are hidden from users</button>
+        <button class="opt">The model still returns scores — just worse ones — with no errors</button>
+        <button class="opt">It affects only new users, who don't report problems</button>
+        <p class="fb">If online features are computed differently from training, predictions degrade quietly. Log online features and compare to offline recomputation.</p>
+        <p class="hint">Does a model with slightly wrong inputs crash, or just predict worse?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-8" hidden>
@@ -553,6 +562,27 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>18 · Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A recommendation system is a two-stage funnel with an offline/online split. Offline pipelines train models, compute user and item embeddings and build an ANN index. Online, a stateless service retrieves ~500 candidates from several sources (ANN, co-engagement, popular), fetches fresh features from a feature store, ranks candidates with a heavier model within ~100 ms, then applies filters and diversity rules. Interactions stream back as features and training data. Cold start uses content embeddings and exploration. At 10× we add ranker capacity.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="recsys-preranker">
+        <p class="stem">Ranking inference is ~80% of cost. Why is a cheap pre-ranker the lever?</p>
+        <button class="opt">It replaces the GPU model entirely with a lookup table</button>
+        <button class="opt">It cuts candidates before the heavy model, which costs per candidate</button>
+        <button class="opt">It caches every user's recommendations for a full day</button>
+        <button class="opt">It moves ranking to the client's phone to save servers</button>
+        <p class="fb">Heavy ranking cost ∝ candidates × requests. A light model trims 500 → 100 so the GPU sees far fewer.</p>
+        <p class="hint">What does the heavy model's cost scale with?</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="recsys-first-bottleneck">
+        <p class="stem">What's the first bottleneck at 10×?</p>
+        <button class="opt">The event pipeline's Kafka</button>
+        <button class="opt">The feature store's memory</button>
+        <button class="opt">The ANN index's vectors</button>
+        <button class="opt">GPU ranking inference</button>
+        <p class="fb">GPU inference scales with traffic × candidates; it's the biggest line and the first wall.</p>
+        <p class="hint">Reread 'First bottleneck'.</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>

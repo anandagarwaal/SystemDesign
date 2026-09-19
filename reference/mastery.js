@@ -1,8 +1,13 @@
 // Shared spaced-repetition + chunk-gating engine for System Design lessons.
-// One file, reused by every lesson via <script src="../reference/mastery.js"></script>.
-// Storage key: sd-mastery-v1 -> { [conceptId]: { ef, interval, due, reps, lapses } }
+// One file, reused by every lesson via <script src="../reference/mastery.js"></script>
+// and by reference/review.html.
+// Storage keys:
+//   sd-mastery-v1  -> { [conceptId]: { ef, interval, due, reps, lapses, last } }
+//   sd-progress-v1 -> [ "lessons/NNNN-x.html", ... ]  (lessons completed; shared with index.html)
 (function(global){
   var KEY = 'sd-mastery-v1';
+  var PROGRESS_KEY = 'sd-progress-v1';
+  var DAY = 86400000;
 
   function loadAll(){
     try { return JSON.parse(localStorage.getItem(KEY) || '{}'); }
@@ -13,6 +18,9 @@
   }
 
   // SM-2-lite: grade is 0 (wrong / needed a retry) or 1 (correct first try).
+  // A correct answer before the concept is due doesn't stretch the interval —
+  // rereading a lesson the same day shouldn't count as spaced retrieval.
+  // A miss always counts, whenever it happens.
   function review(conceptId, grade){
     var state = loadAll();
     var c = state[conceptId] || { ef: 2.5, interval: 0, reps: 0, lapses: 0, due: 0 };
@@ -22,14 +30,15 @@
       c.reps = 0;
       c.interval = 1; // see it again tomorrow
       c.ef = Math.max(1.3, c.ef - 0.2);
-    } else {
+      c.due = now + DAY;
+    } else if (c.reps === 0 || now >= c.due){
       c.reps += 1;
       if (c.reps === 1) c.interval = 1;
       else if (c.reps === 2) c.interval = 3;
       else c.interval = Math.round(c.interval * c.ef);
       c.ef = Math.min(2.8, c.ef + 0.05);
+      c.due = now + c.interval * DAY;
     }
-    c.due = now + c.interval * 86400000;
     c.last = now;
     state[conceptId] = c;
     saveAll(state);
@@ -45,29 +54,135 @@
       .sort(function(a,b){ return state[a].due - state[b].due; });
   }
 
+  // Concepts missed at least once and not yet re-learned to a 3-day interval.
+  function weak(){
+    var state = loadAll();
+    return Object.keys(state)
+      .filter(function(id){ return state[id].lapses > 0 && state[id].interval < 3; })
+      .sort(function(a,b){ return state[b].lapses - state[a].lapses; });
+  }
+
   function status(conceptId){
     var state = loadAll();
     return state[conceptId] || null;
   }
 
-  global.SDMastery = { review: review, due: due, status: status, loadAll: loadAll };
+  function loadProgress(){
+    try { return JSON.parse(localStorage.getItem(PROGRESS_KEY) || '[]'); }
+    catch(e){ return []; }
+  }
+  function markLessonDone(key){
+    var done = loadProgress();
+    if (done.indexOf(key) === -1){
+      done.push(key);
+      try { localStorage.setItem(PROGRESS_KEY, JSON.stringify(done)); } catch(e){}
+    }
+  }
+
+  // The learner's own-words answers to intuition questions, kept so the
+  // review report can show the teacher *how* they were thinking on a miss.
+  var ANSWERS_KEY = 'sd-answers-v1';
+  function saveAnswer(conceptId, text, correct){
+    try {
+      var all = JSON.parse(localStorage.getItem(ANSWERS_KEY) || '{}');
+      all[conceptId] = { text: text.slice(0, 600), correct: !!correct, when: Date.now() };
+      var ids = Object.keys(all).sort(function(a, b){ return all[b].when - all[a].when; });
+      ids.slice(300).forEach(function(id){ delete all[id]; }); // keep the most recent 300
+      localStorage.setItem(ANSWERS_KEY, JSON.stringify(all));
+    } catch(e){}
+  }
+  function loadAnswers(){
+    try { return JSON.parse(localStorage.getItem(ANSWERS_KEY) || '{}'); } catch(e){ return {}; }
+  }
+
+  function shuffleInPlace(a){
+    for (var i = a.length - 1; i > 0; i--){ var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+
+  // Intuition questions: write the answer in your own words before the options
+  // appear. Generating the idea first is the point; it also makes surface cues
+  // in the options (length, wording) useless as a shortcut.
+  var MIN_WORDS = 6;
+  function commitFirst(container, beforeEl, opts, onReveal){
+    opts.forEach(function(o){ o.style.display = 'none'; });
+    var box = document.createElement('div');
+    box.className = 'sd-commit';
+    box.innerHTML = '<textarea rows="3" placeholder="In your own words: why? Picture the mechanism. (Options appear after you commit.)"></textarea>' +
+      '<button type="button" class="sd-commit-btn" disabled>Commit my answer → show options</button>' +
+      '<span class="sd-commit-note">Write at least a full sentence. Recall first, then check.</span>';
+    container.insertBefore(box, beforeEl);
+    var ta = box.querySelector('textarea'), btn = box.querySelector('button');
+    ta.addEventListener('input', function(){
+      btn.disabled = ta.value.trim().split(/\s+/).filter(Boolean).length < MIN_WORDS;
+    });
+    btn.addEventListener('click', function(){
+      ta.readOnly = true; btn.remove();
+      box.querySelector('.sd-commit-note').textContent = 'Your answer. Now pick the option that matches your reasoning, and compare.';
+      opts.forEach(function(o){ o.style.display = ''; });
+      onReveal(ta.value.trim());
+    });
+  }
+
+  function injectStyle(){
+    if (document.getElementById('sd-mastery-style')) return;
+    var st = document.createElement('style');
+    st.id = 'sd-mastery-style';
+    st.textContent = '.sd-commit{margin:.4rem 0 .6rem}' +
+      '.sd-commit textarea{width:100%;box-sizing:border-box;font:inherit;font-family:-apple-system,BlinkMacSystemFont,sans-serif;font-size:.9rem;' +
+      'padding:.55rem .7rem;border:1px solid #e3ddd0;border-radius:6px;background:#fffefb;resize:vertical}' +
+      '.sd-commit textarea[readonly]{background:#f3ece1;color:#1a1a1a}' +
+      '.sd-commit-btn{margin-top:.4rem;font-family:-apple-system,sans-serif;font-size:.82rem;font-weight:600;padding:.4rem .8rem;border-radius:6px;' +
+      'border:1px solid #1f4d3f;background:#1f4d3f;color:#fff;cursor:pointer}' +
+      '.sd-commit-btn:disabled{opacity:.45;cursor:default}' +
+      '.sd-commit-note{display:block;font-family:-apple-system,sans-serif;font-size:.75rem;color:#6b6356;margin-top:.3rem}';
+    document.head.appendChild(st);
+  }
+
+  global.SDMastery = { review: review, due: due, weak: weak, status: status, loadAll: loadAll,
+                       loadProgress: loadProgress, markLessonDone: markLessonDone,
+                       saveAnswer: saveAnswer, loadAnswers: loadAnswers,
+                       commitFirst: commitFirst, injectStyle: injectStyle, shuffle: shuffleInPlace };
 
   // ---- Chunk gating ----------------------------------------------------
-  // Wires up <section class="chunk" data-chunk="N" id="chunk-N"> blocks so
-  // chunk N+1 stays hidden until every .gate-q inside chunk N is answered
-  // correctly. Wrong answers show a hint and re-enable the question; no
-  // free pass. Intuition questions (data-type="intuition") are required
-  // exactly like recall questions — no shortcutting past them.
+  // Wires up <section class="chunk" id="chunk-N"> blocks so chunk N+1 stays
+  // hidden until every .q inside chunk N's .gate is answered correctly.
+  // Wrong answers show a hint and leave the question open; no free pass.
+  // Intuition questions (data-type="intuition") are required exactly like
+  // recall questions — no shortcutting past them.
+  function lessonKey(){
+    var m = location.pathname.match(/lessons\/[^\/]+\.html$/);
+    return m ? m[0] : null;
+  }
+
   function wireChunks(){
     var chunks = Array.prototype.slice.call(document.querySelectorAll('.chunk'));
     if (!chunks.length) return;
+    injectStyle();
+    var key = lessonKey();
+
+    function reveal(idx, scroll){
+      var next = chunks[idx + 1];
+      if (next){
+        next.removeAttribute('hidden');
+        if (scroll) next.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        // A chunk with no gate has nothing to pass: open the one after it too.
+        if (!next.querySelector('.gate .q')) reveal(idx + 1, false);
+      } else {
+        if (key) markLessonDone(key);
+        showComplete();
+        document.dispatchEvent(new CustomEvent('sd:lesson-complete'));
+      }
+    }
 
     chunks.forEach(function(chunk, idx){
-      var isFirst = idx === 0;
-      if (!isFirst) chunk.setAttribute('hidden', '');
+      if (idx !== 0) chunk.setAttribute('hidden', '');
+    });
+    if (!chunks[0].querySelector('.gate .q')) reveal(0, false);
 
+    chunks.forEach(function(chunk, idx){
       var gate = chunk.querySelector('.gate');
-      if (!gate) { return; }
+      if (!gate) return;
       var questions = Array.prototype.slice.call(gate.querySelectorAll('.q'));
       var solved = new Set();
 
@@ -77,19 +192,33 @@
         var fb = q.querySelector('.fb');
         var hint = q.querySelector('.hint');
         var conceptId = q.dataset.concept || (chunk.id + '-q' + questions.indexOf(q));
+        var written = null;
 
-        opts.forEach(function(opt, i){
+        // Remember each option's authored letter, then shuffle the display
+        // order so a reread can't be passed by remembering "it was b".
+        opts.forEach(function(opt, i){ opt.dataset.letter = ['a','b','c','d'][i]; });
+        shuffleInPlace(opts.slice()).forEach(function(opt){ q.insertBefore(opt, fb || null); });
+        opts = Array.prototype.slice.call(q.querySelectorAll('.opt'));
+
+        if (q.dataset.type === 'intuition'){
+          commitFirst(q, opts[0], opts, function(text){ written = text; });
+        }
+
+        opts.forEach(function(opt){
           opt.addEventListener('click', function(){
-            var letter = ['a','b','c','d'][i];
+            var letter = opt.dataset.letter;
+            if (written !== null && !q.dataset.saved){
+              SDMastery.saveAnswer(conceptId, written, letter === correct && !q.dataset.missed);
+              q.dataset.saved = '1';
+            }
             if (letter === correct){
               opts.forEach(function(o){ o.disabled = true; o.classList.remove('wrong'); });
               opt.classList.add('correct');
               if (fb) fb.classList.add('show');
               if (hint) hint.classList.remove('show');
-              var firstTry = !q.dataset.missed;
-              SDMastery.review(conceptId, firstTry ? 1 : 0);
+              SDMastery.review(conceptId, q.dataset.missed ? 0 : 1);
               solved.add(q);
-              maybeUnlock();
+              if (solved.size === questions.length) reveal(idx, true);
             } else {
               opt.classList.add('wrong');
               q.dataset.missed = '1';
@@ -99,18 +228,35 @@
           });
         });
       });
-
-      function maybeUnlock(){
-        if (solved.size !== questions.length) return;
-        var next = chunks[idx + 1];
-        if (next){
-          next.removeAttribute('hidden');
-          next.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        } else {
-          document.dispatchEvent(new CustomEvent('sd:lesson-complete'));
-        }
-      }
     });
+
+    // Rereading a finished lesson: offer to open every chunk without re-gating.
+    if (key && loadProgress().indexOf(key) !== -1){
+      var bar = document.createElement('p');
+      bar.className = 'locked-note';
+      bar.innerHTML = 'You finished this lesson before. <a href="#" id="sd-unlock">Show every section</a> to reread, ' +
+        'or work through the checks again for retrieval practice.';
+      chunks[0].parentNode.insertBefore(bar, chunks[0]);
+      document.getElementById('sd-unlock').addEventListener('click', function(e){
+        e.preventDefault();
+        chunks.forEach(function(c){ c.removeAttribute('hidden'); });
+        bar.remove();
+      });
+    }
+  }
+
+  function showComplete(){
+    if (document.getElementById('sd-complete')) return;
+    var last = document.querySelector('.chunk:last-of-type') || document.querySelectorAll('.chunk')[document.querySelectorAll('.chunk').length - 1];
+    var box = document.createElement('div');
+    box.id = 'sd-complete';
+    box.className = 'staff';
+    box.innerHTML = '<span class="tag">Lesson complete</span>' +
+      'Every question you answered here is now on your spaced-review schedule. ' +
+      'Misses come back tomorrow; solid answers come back in 1, 3, then ~7+ days. ' +
+      'Start your next session with <a href="../reference/review.html">today’s review</a> before any new lesson, ' +
+      'and when you finish a whole section, take its <a href="../reference/review.html#exam">cumulative section exam</a>.';
+    last.parentNode.insertBefore(box, last.nextSibling);
   }
 
   document.addEventListener('DOMContentLoaded', wireChunks);

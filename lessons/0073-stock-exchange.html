@@ -77,6 +77,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -96,6 +110,9 @@
     <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
+
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 8</p>
 
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
@@ -128,7 +145,31 @@
   </div>
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Determinism, fairness and microsecond latency are stricter than almost anything else. Let me size the per-order budget.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="exch-framing-sentence">
+        <p class="stem">What's the one sentence that frames the entire exchange design?</p>
+        <button class="opt">Shard the order book across many databases, one per symbol range</button>
+        <button class="opt">A single-threaded in-memory state machine, durable via a replayed log</button>
+        <button class="opt">A queue feeding a worker pool that matches orders concurrently</button>
+        <button class="opt">A strongly consistent SQL cluster with serializable transactions</button>
+        <p class="fb">Hot path = pure in-memory deterministic core; durability and HA = append-only input log + replay.</p>
+        <p class="hint">Reread 'The one sentence that frames everything'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="exch-jitter-defect">
+        <p class="stem">Why is latency *jitter* treated as a defect, not just average latency?</p>
+        <button class="opt">Jitter makes the database lose writes during bursts</button>
+        <button class="opt">Jitter makes market data arrive out of sequence order</button>
+        <button class="opt">Jitter only matters for batch auctions, not continuous trading</button>
+        <button class="opt">Unpredictable timing makes queue position unfair and unreplayable</button>
+        <p class="fb">Participants compete on predictability; a random 200 µs stall reorders who wins. Determinism and fairness demand tight tails.</p>
+        <p class="hint">If two orders arrive 1 µs apart and one hits a GC pause, who ends up first?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Estimate only the numbers that <em>change a decision</em>. For an exchange, two do: the per-order time budget and the market-data fan-out.</p>
@@ -146,7 +187,31 @@
     <p><b>Staff answer:</b> A database write per order costs milliseconds; the budget is microseconds. Journal commands sequentially and keep the book in memory, recovering by replay.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “~1 µs of CPU per order means no network or disk in the matching loop. Let me define entities.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="exch-1us-budget">
+        <p class="stem">~1M orders/sec on one core gives ~1 µs per order. What does that rule out?</p>
+        <button class="opt">Any disk write, network hop, lock or GC pause inside the loop</button>
+        <button class="opt">Using integer prices instead of floating point for each order</button>
+        <button class="opt">Keeping the order book in memory rather than on local disk</button>
+        <button class="opt">Assigning a sequence number to each order before matching</button>
+        <p class="fb">A disk fsync is ~100 µs, a network hop tens of µs. Only in-memory, lock-free, single-threaded work fits in 1 µs.</p>
+        <p class="hint">Compare 1 µs to the latency numbers for disk and network from Lesson 8.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="exch-20gb-fits">
+        <p class="stem">Why does '~20 GB total book' matter as much as the latency budget?</p>
+        <button class="opt">It means the book must be sharded across many servers</button>
+        <button class="opt">It means a columnar database is the right hot-path store</button>
+        <button class="opt">It fits in one server's RAM, so no DB is needed on the hot path</button>
+        <button class="opt">It proves market data must be compressed before sending</button>
+        <p class="fb">Small working set + tiny time budget together justify deleting the database from the critical path.</p>
+        <p class="hint">Could the whole thing live in one machine's memory?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p><b>Entities:</b> <code>Order</code> (id, symbol, side, price, qty, type, TIF, sequence number), <code>OrderBook</code> (per symbol: two sorted sides of resting orders), <code>Trade</code> (a match: aggressor + resting order, price, qty, timestamp), and an append-only <code>EventLog</code> of every accepted command in arrival order. Participant identity comes from the authenticated session, never the message body.</p>
@@ -180,7 +245,31 @@
     <p><b>Staff answer:</b> Replaying the same ordered commands through a deterministic engine rebuilds the exact book, enabling recovery, hot standbys and audit.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Order books per symbol and an append-only event log. Now the funnel into one deterministic core.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="exch-integer-ticks">
+        <p class="stem">Why are prices stored as integer ticks, never floating point?</p>
+        <button class="opt">Integers take less memory, which is the main constraint here</button>
+        <button class="opt">Floats can round differently, breaking exact, replayable matching</button>
+        <button class="opt">Regulators require all prices to be sent as whole dollars</button>
+        <button class="opt">Floating point cannot represent any price below one dollar</button>
+        <p class="fb">0.1 + 0.2 ≠ 0.3 in binary floats. Exactness is required for both correctness and byte-identical replay.</p>
+        <p class="hint">Would two replicas computing with floats always agree on whether 10.01 ≥ 10.01?</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="exch-cancel-o1">
+        <p class="stem">How does the book cancel an order by id in O(1)?</p>
+        <button class="opt">It scans the price level's list from the head until it finds it</button>
+        <button class="opt">It rebuilds the entire price level without the canceled order</button>
+        <button class="opt">It marks the order canceled and removes it at end of the day</button>
+        <button class="opt">A hash map id → node, then unlink it from its doubly-linked list</button>
+        <p class="fb">Hash locates, doubly-linked list unlinks in O(1) — no scanning.</p>
+        <p class="hint">Reread the Data Model's hash index note.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Component Diagram</h2>
 <pre class="diagram">
@@ -228,7 +317,31 @@
     <p><b>Staff answer:</b> Locks and thread scheduling add jitter and non-determinism. One thread per symbol group processing a sequenced command stream is faster and replayable.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: the order book, single-threaded replay, market data and risk checks.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="exch-log-before-match">
+        <p class="stem">The order is 'durable the instant it's in the log — before it's matched'. Why is that enough?</p>
+        <button class="opt">The engine is deterministic, so replaying the log rebuilds the same book</button>
+        <button class="opt">The log is also the order book, so nothing else needs to be stored</button>
+        <button class="opt">Matching is instant, so there is no window where a crash can occur</button>
+        <button class="opt">Participants resend any order that did not get matched in time</button>
+        <p class="fb">state(n) = apply(state(n-1), log[n]). Keep the log, and state is recoverable — event sourcing.</p>
+        <p class="hint">If you have every input in order and a pure function, what can you reconstruct?</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="exch-standby">
+        <p class="stem">How does a hot standby stay at exactly the primary's state?</p>
+        <button class="opt">It copies the primary's memory snapshot every few milliseconds</button>
+        <button class="opt">It reads the primary's trades from market data and applies them</button>
+        <button class="opt">It replays the same sequenced log through the same deterministic code</button>
+        <button class="opt">It shares memory with the primary over a high-speed interconnect</button>
+        <p class="fb">State-machine replication: identical inputs, identical deterministic logic → identical state.</p>
+        <p class="hint">Reread the High availability paragraph in Deep Dive 2.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dive 1 — The in-memory limit order book &amp; price-time priority</h2>
   <p>The order book is, per symbol, two sorted collections: <b>bids</b> (buyers, sorted high→low) and <b>asks</b> (sellers, sorted low→high). A <b>limit order book</b> holds resting orders that aren't yet matchable; a marketable order "crosses the spread" and trades immediately.</p>
@@ -294,7 +407,49 @@
     <p><b>Staff answer:</b> A sequencer journals and replicates each command before matching. Standbys consume the same sequenced stream and replay it deterministically, so failover resumes at an exact sequence number.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, with regulatory controls.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="exch-price-time-picture">
+        <p class="stem">Asks: 50 @ $10.00 (A, older), 50 @ $10.00 (B), 100 @ $10.01. A buy for 80 @ $10.01 arrives. What fills?</p>
+        <button class="opt">80 from the $10.01 ask, since it matches the buyer's limit exactly</button>
+        <button class="opt">40 from A and 40 from B, split pro-rata at the $10.00 level</button>
+        <button class="opt">50 from B and 30 from A, since newer orders are more active</button>
+        <button class="opt">50 from A, then 30 from B — best price first, then oldest first</button>
+        <p class="fb">Best price ($10.00) first; within it, time priority (A before B). Nothing reaches $10.01.</p>
+        <p class="hint">Step 1: which price level is best for a buyer? Step 2: within that level, who was first?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="exch-why-not-threads">
+        <p class="stem">Why not match one hot symbol on 8 threads for 8× throughput?</p>
+        <button class="opt">Eight threads would need eight copies of the order book in RAM</button>
+        <button class="opt">One book is inherently serial — locks add contention and random order</button>
+        <button class="opt">Operating systems cannot schedule threads fast enough for trading</button>
+        <button class="opt">Multithreading only helps workloads that are reading from disk</button>
+        <p class="fb">Every match mutates the same best price. Parallelism means locks, and lock acquisition order is nondeterministic → unfair, unreplayable.</p>
+        <p class="hint">Can two threads both consume the best ask at the same time without coordinating?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="exch-multicast-fairness">
+        <p class="stem">Why is unicast market data *unfair*, not just inefficient?</p>
+        <button class="opt">Unicast packets are larger, so distant firms get less data</button>
+        <button class="opt">Unicast needs TCP, which drops packets for slower clients</button>
+        <button class="opt">Whoever is first in the send loop always hears news first</button>
+        <button class="opt">Unicast leaks each subscriber's identity to all the others</button>
+        <p class="fb">Sending 5,000 copies in sequence gives a systematic head start. Multicast = one send, everyone at once.</p>
+        <p class="hint">With 5,000 sends in a loop, how much later does subscriber #5,000 get it?</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="exch-risk-where">
+        <p class="stem">Where do pre-trade risk checks run, and why there?</p>
+        <button class="opt">At the gateway before the sequencer, so rejects never enter the log</button>
+        <button class="opt">Inside the matching thread, so they see the freshest book state</button>
+        <button class="opt">After matching, so bad trades can be reversed if needed</button>
+        <button class="opt">In a database, so each participant's limits stay durable</button>
+        <p class="fb">Filter at ingress with in-memory integer counters: the engine's input stays clean and its loop stays fast.</p>
+        <p class="hint">Reread Deep Dive 4's 'Where to put it'.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -346,7 +501,22 @@
     <p><b>Staff answer:</b> Pre-trade risk checks at the gateway (price bands, max size, rate limits, credit), kill switches per participant, and market-wide circuit breakers.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="exch-state-hash">
+        <p class="stem">Why periodically compare state hashes of primary and standbys at the same sequence number?</p>
+        <button class="opt">To detect a hacker who changed the matching engine's binary</button>
+        <button class="opt">To catch silent divergence (non-determinism) before failover</button>
+        <button class="opt">To compress the book for the snapshot service's late joiners</button>
+        <button class="opt">To measure how far behind the market-data publisher has fallen</button>
+        <p class="fb">Replication only works if determinism holds. A hash mismatch means a failover would promote a different market.</p>
+        <p class="hint">What would happen if a standby had silently diverged and then got promoted?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = 10× order messages (quote traffic grows faster than trades) and more symbols.</p>
@@ -384,43 +554,73 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A stock exchange is a deterministic state machine. Gateways authenticate participants and run pre-trade risk checks. A sequencer assigns a total order to commands, journals and replicates them, and feeds single-threaded matching engines that each hold in-memory order books for a symbol group with price-time priority. Each engine matches in microseconds and emits trades and book deltas. Standbys replay the same stream for failover at an exact sequence, and market data goes out over UDP multicast so participants get equal latency. At 10× we repartition symbols across more engines.</p></div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="exch-multileg-redesign">
+        <p class="stem">Why do cross-symbol atomic orders force a redesign?</p>
+        <button class="opt">They need floating-point prices to express the spread between legs</button>
+        <button class="opt">They cannot be expressed in the FIX order protocol at all</button>
+        <button class="opt">They make market data too large to fit in multicast packets</button>
+        <button class="opt">They break per-symbol independence that lets engines be partitioned</button>
+        <p class="fb">Scaling works because each symbol's book is independent. An order spanning books on different engines needs cross-engine atomicity.</p>
+        <p class="hint">How do you scale today? What assumption does that rely on?</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why does the matching engine run on a single thread with no database on the hot path?</p>
-      <button class="opt">Because a single global lock around the order book is simpler to reason about than sharding</button>
-      <button class="opt">Because regulators require that every order be written to durable disk before it can be matched</button>
-      <button class="opt">Because the book fits in RAM and a ~1µs budget rules out disk, locks, and nondeterministic threads</button>
-      <button class="opt">Because matching is embarrassingly parallel and one thread per symbol gives the best throughput</button>
-      <p class="fb">The active book (~20GB) fits in memory and the per-order budget (~1µs) is too small for any I/O, lock, or thread race — so one in-memory thread wins.</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="exch-single-thread-final">
+        <p class="stem">Why does the matching engine run on a single thread with no database on the hot path?</p>
+        <button class="opt">Because a single global lock around the order book is simpler to reason about than sharding</button>
+        <button class="opt">Because regulators require that every order be written to durable disk before it can be matched</button>
+        <button class="opt">Because the book fits in RAM and a ~1µs budget rules out disk, locks, and nondeterministic threads</button>
+        <button class="opt">Because matching is embarrassingly parallel and one thread per symbol gives the best throughput</button>
+        <p class="fb">The active book (~20GB) fits in memory and the per-order budget (~1µs) is too small for any I/O, lock, or thread race — so one in-memory thread wins.</p>
+        <p class="hint">Reread Deep Dive 2's table.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="exch-price-time-final">
+        <p class="stem">Under price-time priority, how is an incoming marketable buy order matched?</p>
+        <button class="opt">Against the largest resting sell order first, then splitting any remainder evenly across the rest</button>
+        <button class="opt">Against the lowest-priced sells first, and within a price the earliest-arriving resting order first</button>
+        <button class="opt">Against the newest resting sell order first, since recent quotes best reflect the current fair price</button>
+        <button class="opt">Against a randomly chosen resting sell at the best price to guarantee fairness among the sellers</button>
+        <p class="fb">Best price wins first; ties at a price level are broken by arrival time (FIFO) — that is exactly price-time priority.</p>
+        <p class="hint">Reread Deep Dive 1.</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="exch-log-replay-final">
+        <p class="stem">How does the design provide durability and high availability without a per-order database write?</p>
+        <button class="opt">By writing the full order book to a replicated SQL database after every single match completes</button>
+        <button class="opt">By sharding the order book across many nodes so any one node failing loses only its own shard</button>
+        <button class="opt">By caching recent orders in memory and flushing them to disk in a batch once per trading day</button>
+        <button class="opt">By sequencing all input into an append-only log and replaying it into deterministic hot replicas</button>
+        <p class="fb">Log-first commit plus state-machine replication: replicas replay the same ordered log to identical state, so failover loses nothing.</p>
+        <p class="hint">Reread 'Durability without a database'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="exch-determinism-final">
+        <p class="stem">Why is determinism in the matching engine treated as non-negotiable, not just nice-to-have?</p>
+        <button class="opt">It underpins fairness, recovery, and replica consistency at once — losing it breaks all three together</button>
+        <button class="opt">It lets the engine skip sequence numbers because identical inputs never produce any duplicate outputs</button>
+        <button class="opt">It allows the matching thread to read the wall clock freely without affecting any downstream replay</button>
+        <button class="opt">It removes the need for a market-data feed because clients can recompute the book from their orders</button>
+        <p class="fb">One defined order = fairness; replay reproduces state exactly = recovery; identical replicas = HA. A clock read or hash-iteration race kills all three.</p>
+        <p class="hint">Reread 'Why determinism is non-negotiable'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="exch-transfer-game">
+        <p class="stem">A multiplayer game server must be replayable for anti-cheat and fail over without losing state. Which idea transfers?</p>
+        <button class="opt">Sequence all player inputs into a log fed to a deterministic simulation</button>
+        <button class="opt">Store every game state change in a serializable SQL transaction</button>
+        <button class="opt">Use UDP multicast so every player gets identical graphics</button>
+        <button class="opt">Run pre-trade risk checks on each player's inventory items</button>
+        <p class="fb">Any 'replayable + failover-able' state machine is the same pattern: sequenced input log + deterministic apply.</p>
+        <p class="hint">What made the exchange replayable? Does a game need anything different?</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. Under price-time priority, how is an incoming marketable buy order matched?</p>
-      <button class="opt">Against the largest resting sell order first, then splitting any remainder evenly across the rest</button>
-      <button class="opt">Against the lowest-priced sells first, and within a price the earliest-arriving resting order first</button>
-      <button class="opt">Against the newest resting sell order first, since recent quotes best reflect the current fair price</button>
-      <button class="opt">Against a randomly chosen resting sell at the best price to guarantee fairness among the sellers</button>
-      <p class="fb">Best price wins first; ties at a price level are broken by arrival time (FIFO) — that is exactly price-time priority.</p>
-    </div>
-    <div class="q" data-correct="d">
-      <p class="stem">3. How does the design provide durability and high availability without a per-order database write?</p>
-      <button class="opt">By writing the full order book to a replicated SQL database after every single match completes</button>
-      <button class="opt">By sharding the order book across many nodes so any one node failing loses only its own shard</button>
-      <button class="opt">By caching recent orders in memory and flushing them to disk in a batch once per trading day</button>
-      <button class="opt">By sequencing all input into an append-only log and replaying it into deterministic hot replicas</button>
-      <p class="fb">Log-first commit plus state-machine replication: replicas replay the same ordered log to identical state, so failover loses nothing.</p>
-    </div>
-    <div class="q" data-correct="a">
-      <p class="stem">4. Why is determinism in the matching engine treated as non-negotiable, not just nice-to-have?</p>
-      <button class="opt">It underpins fairness, recovery, and replica consistency at once — losing it breaks all three together</button>
-      <button class="opt">It lets the engine skip sequence numbers because identical inputs never produce any duplicate outputs</button>
-      <button class="opt">It allows the matching thread to read the wall clock freely without affecting any downstream replay</button>
-      <button class="opt">It removes the need for a market-data feed because clients can recompute the book from their orders</button>
-      <p class="fb">One defined order = fairness; replay reproduces state exactly = recovery; identical replicas = HA. A clock read or hash-iteration race kills all three.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this one — push on it. Try: "Walk me through exactly what happens to in-flight orders when the primary matching engine crashes and a replica is promoted." Or: "How would a cancel/replace race a fill, and how does the single-threaded log resolve it deterministically?" Or: "Compare price-time priority vs. pro-rata matching and when an exchange would choose each."
@@ -445,21 +645,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

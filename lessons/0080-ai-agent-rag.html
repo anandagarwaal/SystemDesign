@@ -149,8 +149,8 @@
     <div class="q" data-correct="a" data-concept="rag-scope-black-box">
       <p class="stem">What is explicitly out of scope for this design, treated as a black box instead?</p>
       <button class="opt">The LLM and embedding model themselves</button>
-      <button class="opt">The retrieval and orchestration layer around the model</button>
-      <button class="opt">The citation payload returned alongside each answer</button>
+      <button class="opt">The retrieval and orchestration layer</button>
+      <button class="opt">The citation payload returned with answers</button>
       <p class="fb">Lesson 39 owns serving the LLM; this lesson's interesting system is retrieval + orchestration around it.</p>
       <p class="hint">Reread the scope note right after the functional requirements table.</p>
     </div>
@@ -187,9 +187,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="b" data-concept="rag-qps-vs-tokens-why">
       <p class="stem">QPS is only ~60 average, yet the pushback box calls this system hard. Why?</p>
-      <button class="opt">Because the vector database cannot handle even 60 queries per second reliably</button>
-      <button class="opt">Because cost and latency are dominated by thousands of tokens and seconds of generation per turn, not request count</button>
-      <button class="opt">Because 60 QPS actually exceeds the capacity of any stateless orchestrator tier</button>
+      <button class="opt">The vector DB can't reliably handle even 60 queries per second</button>
+      <button class="opt">Thousands of tokens and seconds of generation per turn dominate</button>
+      <button class="opt">60 QPS already exceeds any stateless orchestrator tier's capacity</button>
       <p class="fb">The bottleneck isn't request volume — it's the per-turn cost of context tokens and multi-second LLM generation, so design effort goes to retrieval quality and caching, not QPS scaling.</p>
       <p class="hint">Reread the pushback box right after the capacity estimation.</p>
     </div>
@@ -251,7 +251,16 @@
       <p class="fb">Vectors from different embedding models aren't comparable. Versioning lets you migrate without corrupting similarity search with mixed spaces.</p>
       <p class="hint">Reread the paragraph right before the data model table.</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="a" data-concept="rag-acl-in-vector">
+        <p class="stem">Why store tenant and ACL groups alongside each vector, not just in Postgres?</p>
+        <button class="opt">So the query can filter and never surface forbidden chunks</button>
+        <button class="opt">So the embeddings end up smaller and cheaper to store</button>
+        <button class="opt">So the LLM can decide which chunks the user may see</button>
+        <button class="opt">So the vector index can be used as the source of truth</button>
+        <p class="fb">If filtering happens after top-k, forbidden chunks can crowd out allowed ones — or leak. Filter inside the ANN query.</p>
+        <p class="hint">What goes wrong if you retrieve top-10 first and filter by ACL afterwards?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-4" hidden>
@@ -313,9 +322,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="a" data-concept="rag-rerank-why">
       <p class="stem">Why does the design retrieve top-k with ANN and then rerank, instead of reranking all candidates directly?</p>
-      <button class="opt">ANN is cheap and recall-oriented over the whole index; the reranker is precise but expensive, so it only runs on a small candidate set</button>
-      <button class="opt">Reranking cannot run on GPU hardware, so it must follow a CPU-only retrieval step</button>
-      <button class="opt">ANN retrieval always returns exactly five results, which is too few to skip reranking</button>
+      <button class="opt">ANN is cheap recall over everything; the costly reranker sees a few</button>
+      <button class="opt">Reranking can't run on GPUs, so it must follow a CPU-only step</button>
+      <button class="opt">ANN always returns exactly five results, too few to skip reranking</button>
       <p class="fb">A cross-encoder reranker scoring 100M chunks directly would be far too slow. Two-stage retrieval gets cheap recall first, then spends precision only on ~100 candidates.</p>
       <p class="hint">Reread the pushback box on reranking after HLD.</p>
     </div>
@@ -435,9 +444,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="rag-agent-loop-when-why">
       <p class="stem">Why does the staff signal say to prefer single-pass RAG over an agent loop by default?</p>
-      <button class="opt">Agent loops are incompatible with the Model Context Protocol's schema format</button>
-      <button class="opt">An unneeded loop adds latency, cost, and failure modes for a task that only needed one retrieval and one generation</button>
-      <button class="opt">Single-pass RAG always produces more accurate citations than any agent loop</button>
+      <button class="opt">Agent loops are incompatible with the MCP schema format</button>
+      <button class="opt">An unneeded loop adds latency, cost and failure for one lookup</button>
+      <button class="opt">Single-pass RAG always gives more accurate citations than loops</button>
       <p class="fb">Most questions don't need multi-step tool use. Reaching for the loop anyway is over-engineering — simple-by-default is the judgement call being tested.</p>
       <p class="hint">Reread the second staff-signal box, on the agent loop.</p>
     </div>
@@ -513,9 +522,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="b" data-concept="rag-acl-enforcement-why">
       <p class="stem">Why must document ACLs be enforced as a vector DB metadata filter rather than trusted to the model's judgement?</p>
-      <button class="opt">Metadata filters are the only way to compute cosine similarity efficiently</button>
-      <button class="opt">The model must never see content a user isn't permitted to view, and only the retrieval layer can guarantee that before stuffing the prompt</button>
-      <button class="opt">Metadata filters are required to keep the semantic cache warm across tenants</button>
+      <button class="opt">Metadata filters are the only efficient way to compute cosine similarity</button>
+      <button class="opt">Only retrieval can guarantee the model never sees forbidden content</button>
+      <button class="opt">Metadata filters are needed to keep the semantic cache warm for tenants</button>
       <p class="fb">Once forbidden content is in the prompt, the model could leak it regardless of instructions. Access control has to happen at retrieval, before the model ever sees the text.</p>
       <p class="hint">Reread the AuthZ table row about retrieval on behalf of the user.</p>
     </div>

@@ -129,9 +129,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="clickhouse-oltp-olap-tradeoff-why">
         <p class="stem">If column layout is so much better for scans, why doesn't every database just use it?</p>
-        <button class="opt">Column layout makes single-row reads/writes slow, since one row's fields now live scattered across separate files</button>
-        <button class="opt">Column layout is strictly worse in every way and only survives due to legacy tooling</button>
-        <button class="opt">Column layout requires more expensive hardware than row layout to run at all</button>
+        <button class="opt">Single-row reads and writes get slow, as one row spans many files</button>
+        <button class="opt">Column layout is strictly worse and survives only on legacy tooling</button>
+        <button class="opt">Column layout needs pricier hardware than row layout just to run</button>
         <p class="fb">The inversion that helps scans hurts point access: fetching one whole row now means touching every column file. That's why OLTP keeps rows together.</p>
         <p class="hint">Think about the OLTP access pattern in the table: "a few rows, all their columns." What does splitting columns apart cost that query?</p>
       </div>
@@ -175,9 +175,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="clickhouse-vectorization-needs-columnar-why">
         <p class="stem">Why couldn't a row-oriented engine simply bolt on vectorized (batch) execution to get the same speedup?</p>
-        <button class="opt">Vectorization only works on encrypted data, and row stores rarely encrypt columns</button>
-        <button class="opt">A row-at-a-time layout has no contiguous same-type array to batch; the CPU can't pipeline mixed-type tuples the same way</button>
-        <button class="opt">Vectorization requires a sparse index, which row stores are physically unable to build</button>
+        <button class="opt">Vectorization only works on encrypted data, which rows rarely are</button>
+        <button class="opt">Rows give no contiguous same-type array for the CPU to batch</button>
+        <button class="opt">Vectorization needs a sparse index that row stores can't build</button>
         <p class="fb">Vectorized execution needs a contiguous, single-type array to run tight branch-free loops over. A row's fields are mixed types stored together, so there's no such array to batch.</p>
         <p class="hint">The lesson calls columnar layout "the prerequisite" for vectorization — ask what a batch actually needs to be to pipeline well.</p>
       </div>
@@ -223,9 +223,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="clickhouse-why-point-updates-expensive">
         <p class="stem">Why are point updates/deletes expensive on MergeTree, when they're cheap on a B-tree row store?</p>
-        <button class="opt">MergeTree doesn't support a WHERE clause, so it can't locate the row to change</button>
-        <button class="opt">MergeTree keeps all data in memory only, so any change requires a full reload from disk</button>
-        <button class="opt">Parts are immutable once written; changing one row means rewriting/merging whole parts instead of editing in place</button>
+        <button class="opt">MergeTree doesn't support WHERE, so it can't locate the row</button>
+        <button class="opt">MergeTree keeps data only in memory, so edits need a full reload</button>
+        <button class="opt">Parts are immutable, so one row change rewrites whole parts</button>
         <p class="fb">There's no in-place mutation slot like a B-tree page. An "update" has to be handled asynchronously via mutations or merge-time collapsing of parts, which is inherently heavier than flipping bytes on one page.</p>
         <p class="hint">Reread "Sorted parts" — inserts never touch existing data. What does that immutability cost you when you want to change one already-written row?</p>
       </div>
@@ -283,9 +283,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="clickhouse-druid-vs-warehouse-why">
         <p class="stem">A dashboard needs thousands of concurrent users hitting it with sub-second latency on live-streaming data. Why would you reach for Druid/Pinot over a cloud warehouse here, even though both are OLAP?</p>
-        <button class="opt">Warehouses spin compute up per query and optimize for big batch jobs, not thousands of low-latency concurrent lookups; Druid/Pinot are built to ingest streams and serve that exact high-QPS pattern</button>
-        <button class="opt">Warehouses cannot store columnar data at all, so they are disqualified regardless of query pattern</button>
-        <button class="opt">Druid/Pinot are always cheaper than a warehouse for any workload size</button>
+        <button class="opt">Warehouses suit big batch jobs; Druid/Pinot serve high-QPS live queries</button>
+        <button class="opt">Warehouses can't store columnar data, so they're ruled out entirely</button>
+        <button class="opt">Druid and Pinot are always cheaper than a warehouse at any size</button>
         <p class="fb">The warehouse's storage/compute split is elastic but adds per-query latency and cost, which is fine for spiky batch work and wrong for an always-on, low-latency, high-concurrency serving path.</p>
         <p class="hint">Reread "vs Snowflake/BigQuery" — what does the storage/compute split cost you in latency, and who is it built for instead?</p>
       </div>
@@ -325,8 +325,8 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-type="intuition" data-correct="b" data-concept="clickhouse-staff-signal-grounding">
         <p class="stem">Why does grounding the ClickHouse pick in workload shape ("aggregations over an append-only stream") read as staff, versus just naming the product?</p>
-        <button class="opt">Naming the workload shape is required by the interview rubric as a checkbox, independent of understanding</button>
-        <button class="opt">It proves you reasoned from the access pattern to the storage engine, so you can also correctly reject it when the workload shape changes</button>
+        <button class="opt">The rubric demands the workload shape as a checkbox, nothing more</button>
+        <button class="opt">It shows you reasoned from access pattern, so you'd reject it too</button>
         <button class="opt">It takes longer to say, which fills more of the allotted time</button>
         <p class="fb">Reasoning from the workload shape is what lets you also know when NOT to use it (e.g. the OLTP pivot) — a name-drop alone doesn't transfer to a new scenario.</p>
         <p class="hint">Reread the staff callout — what's the difference between "I'll use ClickHouse" and the fuller quoted sentence?</p>
@@ -360,17 +360,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="clickhouse-final-vectorization-requires-columnar">
         <p class="stem">Why is vectorized execution described as a "package deal" with columnar layout rather than an independent feature?</p>
-        <button class="opt">Because ClickHouse's license bundles the two features together commercially</button>
-        <button class="opt">Because vectorized execution was invented before columnar storage and later merged in</button>
-        <button class="opt">Because vectorization needs a contiguous same-type batch to pipeline, and only columnar layout produces that batch naturally</button>
+        <button class="opt">ClickHouse's license bundles the two features commercially</button>
+        <button class="opt">Vectorization came first and was later merged into columns</button>
+        <button class="opt">Vectorization needs same-type batches, which columns provide</button>
         <p class="fb">A row store has no contiguous single-type array to hand the CPU; columnar layout is the prerequisite that makes the batch-processing trick possible at all.</p>
         <p class="hint">Reread "Vectorized execution" in chunk 2 — what shape of data does a vectorized loop need to run efficiently?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="clickhouse-final-oltp-boundary-recognition">
         <p class="stem">A ClickHouse-backed dashboard design gets a follow-up: "now let a user edit their own profile row." What should you do?</p>
-        <button class="opt">Keep using ClickHouse for the edit, since it's already the system's database</button>
-        <button class="opt">Recognize the workload shifted to a point update by key, and route it to a transactional OLTP store instead</button>
-        <button class="opt">Refuse the requirement, since MergeTree cannot ever store user profile data</button>
+        <button class="opt">Keep using ClickHouse, since it's already the system's database</button>
+        <button class="opt">It's now a keyed point update — route it to an OLTP store</button>
+        <button class="opt">Refuse it, since MergeTree can never store profile data at all</button>
         <p class="fb">Point updates by primary key are OLTP work. Recognizing the boundary and routing to the right store is itself the signal, per the "don't propose it for OLTP" guidance.</p>
         <p class="hint">Reread "Don't propose it for OLTP" in the interview-guidance chunk.</p>
       </div>

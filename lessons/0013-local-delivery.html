@@ -154,9 +154,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="gopuff-browse-vs-checkout-consistency-why">
       <p class="stem">Why can browse and checkout safely use different consistency models on the same underlying inventory?</p>
-      <button class="opt">Checkout re-validates against the leader, so a stale browse read is corrected before money changes hands</button>
+      <button class="opt">Checkout re-validates on the leader, fixing a stale browse before payment</button>
       <button class="opt">Browse and checkout never touch the same inventory rows at all</button>
-      <button class="opt">Inventory counts are recomputed fresh on every single browse request anyway</button>
+      <button class="opt">Inventory counts are recomputed fresh on every browse request anyway</button>
       <p class="fb">Browse is allowed to lie a little because checkout is the gate: it re-checks the real quantity and aborts on conflict, so staleness upstream never causes an oversell.</p>
       <p class="hint">Reread the NFR table's note on the "deliberate split" between availability and checkout.</p>
     </div>
@@ -189,17 +189,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="gopuff-read-write-qps-gap">
       <p class="stem">Roughly how do browse QPS and order QPS compare?</p>
-      <button class="opt">Browse is roughly 170x the order QPS, since checks fan out per purchase</button>
-      <button class="opt">Browse and orders run at almost exactly the same QPS</button>
-      <button class="opt">Orders run higher QPS because every browse leads to one order</button>
+      <button class="opt">Browse runs ~170× order QPS, since many checks precede a purchase</button>
+      <button class="opt">Browse and orders run at almost exactly the same QPS as each other</button>
+      <button class="opt">Orders run higher QPS, because every browse leads to an order</button>
       <p class="fb">~20k browse QPS versus ~115 order QPS — the fan-out (10 checks per purchase, 5% conversion) inflates reads far past writes.</p>
       <p class="hint">Reread the capacity box's two bolded QPS numbers.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="gopuff-precompute-dc-reachability-why">
       <p class="stem">Why does the pushback answer precompute DC reachability per geohash cell instead of routing live on every browse call?</p>
-      <button class="opt">Live routing is more accurate so it should always be preferred at any QPS</button>
-      <button class="opt">Precomputing removes the need for a database entirely</button>
-      <button class="opt">At 20k QPS, a per-request routing call is too slow and expensive to run on the hot path</button>
+      <button class="opt">Live routing is more accurate, so it should win at any QPS</button>
+      <button class="opt">Precomputing it removes the need for any database entirely</button>
+      <button class="opt">At 20k QPS, a routing call per request is too slow and costly</button>
       <p class="fb">Precomputing turns an expensive per-request routing RPC into a cached lookup, which is the only way the read path survives 20k QPS.</p>
       <p class="hint">Look at the pushback box right above — what does the "staff answer" trade off?</p>
     </div>
@@ -254,15 +254,15 @@
     <div class="q" data-correct="c" data-concept="gopuff-inventory-per-dc-why">
       <p class="stem">Why keep Inventory rows per distribution center instead of one global count?</p>
       <button class="opt">Global counts are always slower to query than per-DC counts</button>
-      <button class="opt">Postgres cannot sum quantities across more than one row</button>
-      <button class="opt">A global count could sell stock that isn't deliverable from any DC near the customer</button>
+      <button class="opt">Postgres cannot sum quantities across more than a single row</button>
+      <button class="opt">A global count could sell stock no nearby DC can deliver</button>
       <p class="fb">Customers are served by physical centers; availability must be scoped to what a reachable DC actually holds, not a fleet-wide total.</p>
       <p class="hint">Reread the Data Model pushback box.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="gopuff-check-constraint-why">
       <p class="stem">What would break if the <code>CHECK (qty &gt;= 0)</code> constraint were removed from the inventory table?</p>
-      <button class="opt">Nothing — the serializable transaction alone is already sufficient without it</button>
-      <button class="opt">A buggy or malicious caller bypassing normal checkout logic could push inventory negative, oversell ing</button>
+      <button class="opt">Nothing — the serializable transaction alone already suffices</button>
+      <button class="opt">A caller bypassing checkout logic could push stock below zero</button>
       <button class="opt">Browse queries would stop returning any results at all</button>
       <p class="fb">The constraint is the last line of defense: even a bug in the transaction logic can't push a row negative, because the database itself rejects it.</p>
       <p class="hint">Reread the Data Model intro sentence about the "load-bearing constraint."</p>
@@ -326,9 +326,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="gopuff-hld-replica-leader-split-why">
       <p class="stem">What would happen to browse latency at 20k QPS if both browse and orders read/wrote the same single Postgres leader?</p>
-      <button class="opt">Nothing changes, since Postgres has no limit on concurrent connections</button>
-      <button class="opt">Orders would become inconsistent while browse stays fast</button>
-      <button class="opt">The leader would become the bottleneck for both paths, since it's also handling every serializable order transaction</button>
+      <button class="opt">Nothing changes, since Postgres has no concurrent connection limit</button>
+      <button class="opt">Orders would become inconsistent while browse stays perfectly fast</button>
+      <button class="opt">The leader becomes the bottleneck for both browse and orders</button>
       <p class="fb">The whole point of splitting reads to replicas and writes to the leader is that 20k QPS of browse reads would otherwise contend with order transactions on one machine.</p>
       <p class="hint">Look at the diagram caption describing "the consistency seam drawn literally."</p>
     </div>
@@ -428,8 +428,8 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="gopuff-serializable-vs-lock-why">
       <p class="stem">Why does a serializable transaction beat a distributed lock per item for preventing oversell here?</p>
-      <button class="opt">It gets the same correctness with a simpler mechanism, and avoids lock-expiry failure modes that add latency</button>
-      <button class="opt">Distributed locks are always faster than any database transaction</button>
+      <button class="opt">Same correctness, simpler, and no lock-expiry failure modes</button>
+      <button class="opt">Distributed locks are always faster than any DB transaction</button>
       <button class="opt">A distributed lock can never prevent overselling in any system</button>
       <p class="fb">Row-level conditional updates in a single transaction give the same guarantee without introducing a separate lock service with its own timeout and failure modes.</p>
       <p class="hint">Reread the last pushback box in this section, about distributed locks.</p>
@@ -493,15 +493,15 @@
     <div class="q" data-correct="c" data-concept="gopuff-serialization-failure-metric">
       <p class="stem">What does a rising serialization-failure rate on the orders metric tell you?</p>
       <button class="opt">The Redis cache has gone stale beyond its TTL</button>
-      <button class="opt">The Travel-Time RPC is timing out</button>
-      <button class="opt">Concurrent order transactions are contending on the same inventory rows</button>
+      <button class="opt">The Travel-Time RPC calls are timing out</button>
+      <button class="opt">Concurrent orders contend on the same stock rows</button>
       <p class="fb">Serialization failures are the direct signal of transactions conflicting on the same rows — the contention gauge for checkout.</p>
       <p class="hint">Reread the Observability table's note next to "Metrics (RED)."</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="gopuff-precise-location-minimization-why">
       <p class="stem">Why round coordinates before they hit browse logs or cache keys, but keep precise lat/lng on the order record?</p>
-      <button class="opt">Browse only needs coarse location to find nearby DCs, while delivery genuinely requires the exact address</button>
-      <button class="opt">Precise coordinates are always illegal to store under any privacy law</button>
+      <button class="opt">Browse needs only coarse location; delivery needs the exact address</button>
+      <button class="opt">Precise coordinates are illegal to store under every privacy law</button>
       <button class="opt">Coarse coordinates make the Redis cache keys smaller in every case</button>
       <p class="fb">Data minimization means collecting only what a given function needs — browse's function is approximate proximity, delivery's function needs the exact drop-off point.</p>
       <p class="hint">Reread the Privacy section's Minimization sentence.</p>
@@ -557,8 +557,8 @@
     <div class="q" data-type="intuition" data-correct="c" data-concept="gopuff-10x-bottleneck-why">
       <p class="stem">At 10x scale, why does write contention hit a single region's leader before browse read capacity becomes the problem?</p>
       <button class="opt">Browse traffic actually shrinks as order volume grows tenfold</button>
-      <button class="opt">Read replicas cannot be added past a fixed hard limit of three</button>
-      <button class="opt">Reads scale out easily via more replicas and cache shards, but all orders in one region still serialize through one leader</button>
+      <button class="opt">Read replicas can't be added beyond a hard limit of three</button>
+      <button class="opt">Reads scale out; all of a region's orders hit one leader</button>
       <p class="fb">Stateless services and replicas scale horizontally with more nodes; a single-leader write path does not, so write contention in dense metros is the first wall.</p>
       <p class="hint">Reread the "First bottleneck" sentence under Scaling 10x.</p>
     </div>
@@ -570,6 +570,18 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Local delivery splits along a consistency seam. Browse availability is a read-heavy join of nearby DCs and inventory, precomputed per geohash cell and cached with a minute of staleness to serve ~20k QPS. Checkout is a low-volume (~115/s), strongly consistent transaction that conditionally decrements inventory on the primary, so we never oversell. Partitioning by region keeps transactions local, and at 10× we add regional leaders and cache shards without changing the design. I'd next add delivery slot capacity and driver assignment.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="local-delivery-consistency-seam">
+        <p class="stem">The summary says local delivery 'splits along a consistency seam.' What sits on each side?</p>
+        <button class="opt">Writes are eventually consistent; reads are strongly consistent</button>
+        <button class="opt">Inventory is cached forever; checkout reads from the cache too</button>
+        <button class="opt">Browse is cached and ~1 min stale; checkout is a strong conditional decrement</button>
+        <button class="opt">Both browse and checkout must be strongly consistent to avoid oversell</button>
+        <p class="fb">Browsing tolerates staleness (a wrong 'in stock' costs little); checkout must never oversell, so it's a transaction on the primary.</p>
+        <p class="hint">Where would staleness cause real harm — seeing availability, or buying it?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -596,15 +608,15 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="gopuff-final-consistency-seam-why">
       <p class="stem">Why is it safe for browse to be eventually consistent while checkout is strongly consistent, in the same system?</p>
-      <button class="opt">It isn't actually safe; the lesson treats this as an acceptable known bug</button>
-      <button class="opt">Browse and checkout use completely separate item catalogs</button>
-      <button class="opt">Checkout re-validates the true state and aborts on conflict, so a stale browse read can never cause a real oversell</button>
+      <button class="opt">It isn't safe; the lesson accepts it as a known, tolerated bug</button>
+      <button class="opt">Browse and checkout use two completely separate item catalogs</button>
+      <button class="opt">Checkout re-validates and aborts on conflict, so no real oversell</button>
       <p class="fb">The two consistency models compose because checkout is the final gate — staleness upstream is corrected downstream before anything commits.</p>
       <p class="hint">Reread the staff-level signal callout in the deep dives chunk.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="gopuff-final-partition-key-choice-why">
       <p class="stem">What would break if inventory were partitioned by item_id instead of by region (zip3)?</p>
-      <button class="opt">A location-scoped browse query would need to fan out across many partitions instead of just one or two</button>
+      <button class="opt">A location-scoped browse would fan out across many partitions</button>
       <button class="opt">Nothing changes, since both keys give identical query patterns</button>
       <button class="opt">Checkout transactions would no longer need to be serializable</button>
       <p class="fb">Access is location-scoped (nearby DCs), so partitioning by region keeps a query local; partitioning by item_id would scatter a single browse query across every partition.</p>

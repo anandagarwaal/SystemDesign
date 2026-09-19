@@ -149,9 +149,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="web-crawler-dedup-first-class">
         <p class="stem">Why does the lesson call dedup a "first-class requirement, not a nicety"?</p>
-        <button class="opt">Because search engines contractually require deduplicated content only</button>
-        <button class="opt">Because re-fetching and re-storing duplicates wastes fetch budget, storage, and politeness capacity at billions of pages</button>
-        <button class="opt">Because duplicate pages are illegal to store under most content licenses</button>
+        <button class="opt">Search engines contractually require only deduplicated content</button>
+        <button class="opt">Duplicates burn fetch budget, storage and politeness at scale</button>
+        <button class="opt">Storing duplicate pages is illegal under most content licenses</button>
         <p class="fb">At web scale, wasted fetches are wasted rate-limit budget on a domain and wasted PB of storage — dedup protects the resources every other NFR depends on.</p>
         <p class="hint">Think about what a wasted fetch costs you when politeness already caps your rate per domain.</p>
       </div>
@@ -182,17 +182,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="web-crawler-storage-object-store">
         <p class="stem">Why does the ~20 PB of raw page content go to object storage rather than a database?</p>
-        <button class="opt">A database is not built to hold petabytes of large, mostly-write-once blobs cheaply</button>
-        <button class="opt">Object storage is the only place that supports per-domain rate limiting</button>
-        <button class="opt">Databases cannot store binary data such as raw HTML at all</button>
+        <button class="opt">Databases can't cheaply hold petabytes of write-once blobs</button>
+        <button class="opt">Only object storage supports per-domain rate limiting</button>
+        <button class="opt">Databases cannot store binary data such as raw HTML</button>
         <p class="fb">At 20 PB, blob storage (S3) is the cheap, durable fit; the metadata DB stays small and query-shaped.</p>
         <p class="hint">Look at the "Content storage" row's design implication.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="web-crawler-throughput-coordination-limited">
         <p class="stem">The staff pushback says throughput is "limited by coordination, not CPU." What does that mean concretely?</p>
-        <button class="opt">The fetcher machines are too slow individually to ever reach the target rate</button>
-        <button class="opt">Object storage write bandwidth caps the crawl regardless of fetcher count</button>
-        <button class="opt">Per-domain politeness limits and juggling billions of URLs across domains cap speed before raw compute does</button>
+        <button class="opt">Each fetcher machine is individually too slow to reach the target rate</button>
+        <button class="opt">Object storage write bandwidth caps the crawl, whatever the fetchers</button>
+        <button class="opt">Per-domain politeness and URL juggling cap speed before CPU does</button>
         <p class="fb">Even with idle CPU on every fetcher, you still can't exceed ~1 req/s against any one domain — the ceiling is politeness and frontier coordination, not processing power.</p>
         <p class="hint">Reread the pushback: what two things does it name as the actual bottleneck?</p>
       </div>
@@ -257,9 +257,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="web-crawler-frontier-hash-domain-partition">
         <p class="stem">Why must the frontier be partitioned by hash(domain) specifically, rather than any arbitrary partition key like hash(url)?</p>
-        <button class="opt">So every URL of a domain lands in one partition, letting per-domain politeness be enforced without cross-machine coordination</button>
-        <button class="opt">Because hash(domain) produces more uniformly-sized partitions than hash(url) does</button>
-        <button class="opt">Because DNS lookups are cached per partition and hash(url) would break that cache</button>
+        <button class="opt">One domain's URLs share a partition, so politeness needs no coordination</button>
+        <button class="opt">hash(domain) produces more uniformly sized partitions than hash(url)</button>
+        <button class="opt">DNS is cached per partition, and hash(url) would break that cache</button>
         <p class="fb">Partitioning by domain groups all of one host's URLs together, so a single worker can track and enforce the rate limit locally — hash(url) would scatter one domain's URLs everywhere, making politeness a distributed coordination problem.</p>
         <p class="hint">Ask: what would break about enforcing "1 req/s per domain" if a domain's URLs were spread across every partition?</p>
       </div>
@@ -325,17 +325,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="c" data-concept="web-crawler-data-flow-loop">
         <p class="stem">What makes the web crawler's data flow "a loop" rather than a straight pipeline?</p>
-        <button class="opt">The fetcher re-downloads the same URL repeatedly until it succeeds</button>
-        <button class="opt">The frontier retries every failed fetch a fixed number of times</button>
-        <button class="opt">Novel outbound links discovered while parsing a page get enqueued back into the frontier</button>
+        <button class="opt">The fetcher re-downloads one URL until it succeeds</button>
+        <button class="opt">The frontier retries each failed fetch a fixed number of times</button>
+        <button class="opt">New outbound links found in a page go back into the frontier</button>
         <p class="fb">Store + Enqueue feeds newly discovered URLs back into the Frontier, so the output of processing one page becomes input for the next cycle.</p>
         <p class="hint">Look at the last arrow in the Data Flow box — where does it point?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="web-crawler-stateless-workers-resumable">
         <p class="stem">If every fetcher and parser box is stateless, what would break if a fetcher crashed mid-fetch?</p>
-        <button class="opt">The whole crawl would need to restart from the seed URLs</button>
-        <button class="opt">Nothing durable is lost — the URL simply stays in the queue and another worker picks it up</button>
-        <button class="opt">The metadata DB would lose its record of already-crawled URLs</button>
+        <button class="opt">The whole crawl would have to restart from the seed URLs</button>
+        <button class="opt">Nothing — the URL stays queued and another worker takes it</button>
+        <button class="opt">The metadata DB would lose its record of crawled URLs</button>
         <p class="fb">Because all durable state lives in the queue, metadata DB, and S3 (not on the worker), a dead worker just means its in-flight URL reappears for another worker.</p>
         <p class="hint">Reread the "recurring move" sentence right after the HLD table.</p>
       </div>
@@ -421,17 +421,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="web-crawler-dns-bottleneck">
         <p class="stem">Why is DNS resolution, not raw fetch throughput, often the real bottleneck for a single crawl thread?</p>
-        <button class="opt">Each new hostname needs a fresh DNS lookup, and classic measurements found this consuming up to ~70% of a thread's time</button>
-        <button class="opt">DNS servers only accept one query per second worldwide, throttling every crawler equally</button>
-        <button class="opt">robots.txt files must be re-fetched via DNS on every single page request</button>
+        <button class="opt">Every new hostname needs a lookup; it once ate ~70% of thread time</button>
+        <button class="opt">DNS servers accept only one query per second worldwide for crawlers</button>
+        <button class="opt">robots.txt must be re-fetched through DNS on every single page fetch</button>
         <p class="fb">DNS lookups dominate elapsed time per thread; caching aggressively and spreading across resolvers is the mitigation, which is why it's named as a bottleneck before CPU.</p>
         <p class="hint">Reread the first bullet under Deep Dive 4.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="web-crawler-visibility-timeout-resumability">
         <p class="stem">What would break about resumability if the frontier queue had no visibility timeout (i.e. dequeued messages were deleted immediately)?</p>
-        <button class="opt">Nothing — visibility timeouts only affect priority ordering, not resumability</button>
-        <button class="opt">A worker crash mid-fetch would silently lose that URL forever, since nothing would put it back in the queue</button>
-        <button class="opt">DNS caching would stop working without a visibility timeout</button>
+        <button class="opt">Nothing — visibility timeouts only affect priority, not resumability</button>
+        <button class="opt">A crash mid-fetch would lose that URL forever; nothing re-queues it</button>
+        <button class="opt">DNS caching would stop working without a visibility timeout set</button>
         <p class="fb">The visibility timeout is what makes a dequeued-but-unconfirmed URL reappear after a worker dies — remove it and a crash mid-fetch permanently drops that URL.</p>
         <p class="hint">Reread the "Resumability" bullet under Deep Dive 4 — what mechanism makes a dead worker's URLs reappear?</p>
       </div>
@@ -495,9 +495,9 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="b" data-concept="web-crawler-ssrf-mitigation">
         <p class="stem">How does the design prevent the crawler from being tricked into hitting internal/private networks (SSRF)?</p>
-        <button class="opt">By disabling DNS resolution entirely and only crawling by raw IP</button>
-        <button class="opt">By blocking private/link-local IP ranges after DNS resolution and re-checking on every redirect</button>
-        <button class="opt">By requiring every crawled site to present a valid TLS certificate</button>
+        <button class="opt">Disable DNS resolution entirely and crawl only by raw IP address</button>
+        <button class="opt">Block private/link-local IPs after DNS and on every redirect</button>
+        <button class="opt">Require every crawled site to present a valid TLS certificate</button>
         <p class="fb">DNS rebinding and redirects can point a URL at an internal address after the fact, so private ranges must be blocked post-resolution and re-checked on each redirect hop.</p>
         <p class="hint">Look at the SSRF row in the Security table.</p>
       </div>
@@ -564,16 +564,16 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="web-crawler-cost-warc-batching-trap">
         <p class="stem">Why would skipping WARC batching (one S3 object per page instead) blow up the cost estimate specifically?</p>
-        <button class="opt">Because unbatched files can't be compressed at all</button>
-        <button class="opt">Because S3 charges a flat monthly fee per object regardless of size</button>
-        <button class="opt">Because PUT requests are billed per-request, so billions of tiny PUTs adds roughly $100k versus a handful of batched writes</button>
+        <button class="opt">Unbatched files can't be compressed at all before upload</button>
+        <button class="opt">S3 charges a flat monthly fee per object, whatever its size</button>
+        <button class="opt">PUTs are billed per request: billions of tiny PUTs add ~$100k</button>
         <p class="fb">The cost section names this explicitly: one-object-per-page would add ~$100k in PUT request charges per crawl — batching into large WARC files removes nearly all of that.</p>
         <p class="hint">Reread "Two expensive traps avoided by design" in the Cost of Running section.</p>
       </div>
     </div>
   </section>
 
-  <section class="chunk" id="chunk-final">
+  <section class="chunk" id="chunk-final" hidden>
     <p class="chunk-label">Final check</p>
     <h2>Everything from this lesson</h2>
     <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also
@@ -615,9 +615,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="web-crawler-staff-signal-synthesis">
         <p class="stem">A candidate says "I'll just use a queue and a database." What's missing to reach the staff bar on this design?</p>
-        <button class="opt">Nothing — a queue and a database fully solve web-scale crawling</button>
+        <button class="opt">Nothing — a queue plus a database fully solve web-scale crawling</button>
         <button class="opt">Only the choice of programming language for the fetcher fleet</button>
-        <button class="opt">Naming the politeness/priority axes on the frontier, splitting dedup into URL vs content mechanisms, and framing the system as a resumable pipeline with DNS as a proactive bottleneck</button>
+        <button class="opt">Frontier politeness/priority, two-level dedup, resumability, DNS</button>
         <p class="fb">The staff callout names exactly these three moves — generic "a queue and a database" is the senior-level answer; staff differentiates by the specifics and by naming bottlenecks unprompted.</p>
         <p class="hint">Reread the staff-level signal box under Deep Dive 4.</p>
       </div>

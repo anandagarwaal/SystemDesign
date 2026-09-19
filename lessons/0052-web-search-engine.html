@@ -159,9 +159,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="search-tension-latency-corpus">
       <p class="stem">Why does "tens of billions of documents" force the index to live mostly in memory rather than on disk?</p>
-      <button class="opt">A 200 ms budget leaves no time to scan or seek across a corpus that large on disk</button>
-      <button class="opt">Disks cannot physically store more than a few million records total</button>
-      <button class="opt">In-memory storage is required by law for search engines</button>
+      <button class="opt">200 ms leaves no time to seek across a corpus that big on disk</button>
+      <button class="opt">Disks can't physically store more than a few million records</button>
+      <button class="opt">In-memory storage is legally required for all search engines</button>
       <p class="fb">The latency-vs-corpus-size tension is the whole ballgame: RAM access is fast enough to fit the budget, disk generally is not at this scale.</p>
       <p class="hint">Look at the "two tensions to name up front" box.</p>
     </div>
@@ -203,8 +203,8 @@
     <div class="q" data-type="intuition" data-correct="c" data-concept="search-replicas-vs-shards">
       <p class="stem">Why doesn't adding more replicas alone solve the corpus-size problem?</p>
       <button class="opt">Replicas make each individual query cheaper to score</button>
-      <button class="opt">Replicas remove the need for an inverted index entirely</button>
-      <button class="opt">Replicas copy the same data, they don't hold more distinct documents</button>
+      <button class="opt">Replicas remove the need for an inverted index at all</button>
+      <button class="opt">Replicas copy the same data rather than adding more</button>
       <p class="fb">Replicas scale read throughput for a fixed dataset; fitting a bigger corpus requires more shards (more distinct partitions), not more copies of the same ones.</p>
       <p class="hint">Reread the interviewer pushback right after the capacity table.</p>
     </div>
@@ -259,8 +259,8 @@
     <div class="q" data-type="intuition" data-correct="b" data-concept="search-immutable-segments-why">
       <p class="stem">Why are index segments built as immutable, atomically-swapped units instead of updated in place?</p>
       <button class="opt">Immutable data is required for GDPR compliance</button>
-      <button class="opt">Serving can keep reading the old segment safely until the new one is fully ready to swap in</button>
-      <button class="opt">It makes the lexicon smaller on disk</button>
+      <button class="opt">Serving reads the old segment until the new one swaps</button>
+      <button class="opt">It makes the lexicon noticeably smaller on disk</button>
       <p class="fb">Atomic swap avoids ever serving a half-built index — readers see either the old complete segment or the new complete one, never a partial state.</p>
       <p class="hint">Look at the Data Model intro sentence about "built offline and swapped in atomically."</p>
     </div>
@@ -327,9 +327,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="search-pagerank-batch-why">
       <p class="stem">Why is PageRank computed in batch over the whole link graph rather than per query?</p>
-      <button class="opt">It is a query-independent, global signal that only changes slowly, so precomputing it once amortizes the cost across every future query</button>
+      <button class="opt">It's global and changes slowly, so compute it once for all queries</button>
       <button class="opt">PageRank must be recalculated for every query to stay accurate</button>
-      <button class="opt">Batch computation is required because PageRank cannot use the link graph</button>
+      <button class="opt">Batch is needed because PageRank can't use the link graph live</button>
       <p class="fb">PageRank depends only on link structure, not on the query, so it is precomputed and joined at rank time instead of being recomputed per request.</p>
       <p class="hint">Look at the "Compute static signals" step of the indexing pipeline.</p>
     </div>
@@ -378,9 +378,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="search-doc-partition-tradeoff">
       <p class="stem">Document-partitioning avoids term hot-spots but forces what cost onto every query?</p>
-      <button class="opt">Scattering the query to nearly every shard instead of just a few</button>
-      <button class="opt">Storing each document's text three separate times</button>
-      <button class="opt">Recomputing the lexicon from scratch on each request</button>
+      <button class="opt">Scattering every query to nearly all shards</button>
+      <button class="opt">Storing each document's text three times over</button>
+      <button class="opt">Rebuilding the lexicon from scratch per request</button>
       <p class="fb">Spreading docs evenly avoids one shard owning a colossal posting list, but a query can no longer be routed to just the shards holding its terms — it must scatter to (almost) all of them.</p>
       <p class="hint">Look at the term-vs-document partition comparison table.</p>
     </div>
@@ -452,7 +452,7 @@
       <p class="stem">Why do hedged/backup requests help p99 latency specifically, more than average latency?</p>
       <button class="opt">They reduce the total number of shards that must be queried</button>
       <button class="opt">They make the BM25 scoring function itself run faster</button>
-      <button class="opt">They route around the rare slow outlier shard that would otherwise define the tail</button>
+      <button class="opt">They route around the rare slow shard that sets the tail</button>
       <p class="fb">p99 is set by rare slow stragglers; re-issuing to a replica when one shard lags lets the fast reply win, cutting off exactly the outliers that drive the tail.</p>
       <p class="hint">Look at "Tame the tail (slowest-shard problem)" in Deep Dive 4.</p>
     </div>
@@ -525,8 +525,8 @@
     <div class="q" data-type="intuition" data-correct="b" data-concept="search-query-privacy-why">
       <p class="stem">Why are search queries treated as especially sensitive personal data, distinct from typical clickstream logs?</p>
       <button class="opt">Queries are always encrypted twice, so they need separate handling</button>
-      <button class="opt">A raw query itself can reveal health, legal, or identity details about the person who typed it</button>
-      <button class="opt">Search engines are legally required to delete queries within one second</button>
+      <button class="opt">A raw query can reveal health, legal or identity details</button>
+      <button class="opt">Search engines must legally delete queries within one second</button>
       <p class="fb">The query text is the sensitive payload — what someone searches for can expose private facts about them, unlike an anonymous page-view event.</p>
       <p class="hint">Look at the Privacy section's "Queries" sentence.</p>
     </div>
@@ -585,8 +585,8 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="search-cost-driver-why">
       <p class="stem">Why do fan-out CPU and re-ranking dominate cost rather than storage?</p>
-      <button class="opt">Every query pays a compute cost across many shards plus a GPU re-rank, while storage is a one-time, amortized cost per document</button>
-      <button class="opt">Storage is free at any scale for a search engine</button>
+      <button class="opt">Each query pays CPU on many shards plus GPU; storage is one-off</button>
+      <button class="opt">Storage is completely free at any scale for a search engine</button>
       <button class="opt">GPUs are cheaper per hour than storing text on disk</button>
       <p class="fb">Compute is paid per query at huge QPS (fan-out + re-ranking), while storage cost grows only with corpus size and is far smaller in the monthly total.</p>
       <p class="hint">Look at the Cost of Running table's line items and the "Dominant drivers" sentence.</p>
@@ -619,24 +619,24 @@
     <div class="q" data-type="intuition" data-correct="b" data-concept="search-zipfian-caching-final">
       <p class="stem">Why does caching help search latency so much specifically, more than it would for a system with uniformly random query traffic?</p>
       <button class="opt">Caching always halves latency regardless of traffic shape</button>
-      <button class="opt">Zipfian traffic means a small set of queries repeats constantly, so caching that head absorbs most of the load</button>
-      <button class="opt">Caching only works when queries are alphabetically sorted</button>
+      <button class="opt">Zipfian traffic repeats a small head, which caching absorbs</button>
+      <button class="opt">Caching only works when queries arrive alphabetically sorted</button>
       <p class="fb">A uniform workload has no "head" to cache; Zipfian traffic concentrates volume on a small repeated set, so a cache captures a large fraction of total QPS.</p>
       <p class="hint">Revisit "Cache the Zipfian head" in Deep Dive 4.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="search-scatter-gather-cost-final">
       <p class="stem">If you removed scatter-gather and instead queried shards one at a time sequentially, what would break?</p>
-      <button class="opt">Nothing — total work done is identical either way</button>
-      <button class="opt">The index would no longer fit in memory</button>
-      <button class="opt">Latency would become the sum of all shard times instead of the max, blowing the 200 ms budget</button>
+      <button class="opt">Nothing — the total work done is identical either way</button>
+      <button class="opt">The whole index would no longer fit in memory</button>
+      <button class="opt">Latency becomes the sum of shard times, not the max</button>
       <p class="fb">Parallel fan-out means total latency tracks the slowest single shard; sequential querying would add up thousands of shard latencies instead.</p>
       <p class="hint">Think about what "scatter" (parallel dispatch) buys you versus one-at-a-time requests.</p>
     </div>
     <div class="q" data-correct="a" data-concept="search-multistage-final">
       <p class="stem">Which best describes why ranking is split into a cheap and an expensive stage?</p>
-      <button class="opt">Cheap scoring gives fast recall at scale; the expensive model then only runs once on a small merged candidate set</button>
-      <button class="opt">The expensive model is run on every document in the corpus for every query</button>
-      <button class="opt">Cheap scoring replaces the need for any relevance signal entirely</button>
+      <button class="opt">Cheap scoring gives recall; the costly model sees only a few</button>
+      <button class="opt">The expensive model runs on every document for every query</button>
+      <button class="opt">Cheap scoring replaces the need for any relevance signal</button>
       <p class="fb">You cannot afford rich signals over billions of postings, so cheap BM25 narrows the field before the costly reranker runs on a few thousand candidates.</p>
       <p class="hint">Revisit the staff-level signal box after Deep Dive 3.</p>
     </div>

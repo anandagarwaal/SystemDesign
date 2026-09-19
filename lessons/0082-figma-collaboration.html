@@ -159,9 +159,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="figma-cheaper-tension-why">
       <p class="stem">Why does the mission callout say the collaboration tension is resolved "more cheaply" here than in Google Docs?</p>
-      <button class="opt">Figma users edit far less frequently than Google Docs users do</button>
+      <button class="opt">Figma users edit far less often than Google Docs users do</button>
       <button class="opt">Figma documents never need to converge across multiple editors</button>
-      <button class="opt">A canvas is structured object+property data, not a linear character sequence, so simple last-writer-wins per property is enough — no OT or text CRDT needed</button>
+      <button class="opt">Objects with properties allow per-property LWW, no OT or CRDT</button>
       <p class="fb">Because the data model isn't a sequence where order carries meaning, conflicts can be resolved property-by-property with a much simpler mechanism than text editors require.</p>
       <p class="hint">Reread the paragraph right after the NFR table.</p>
     </div>
@@ -195,9 +195,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="a" data-concept="figma-in-memory-doc-why">
       <p class="stem">Why does holding a document's object map in memory on one server make sense here?</p>
-      <button class="opt">One document's concurrent editors fit easily in one process, so in-memory state lets edits apply and broadcast fast, with the change log providing durability</button>
-      <button class="opt">Postgres cannot store a tree of objects with typed properties at all</button>
-      <button class="opt">In-memory storage is required because WebSockets cannot connect to a database directly</button>
+      <button class="opt">One doc's editors fit one process, so edits apply fast; the log is durable</button>
+      <button class="opt">Postgres can't store a tree of objects with typed properties at all</button>
+      <button class="opt">In-memory storage is needed because WebSockets can't reach a database</button>
       <p class="fb">Per-document concurrency is small even though total connections and object counts are large, so one process comfortably holds one document's live state.</p>
       <p class="hint">Reread the pushback box right after the capacity estimation.</p>
     </div>
@@ -247,13 +247,22 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="figma-channel-split-recall">
       <p class="stem">Why are sync and presence deliberately separate WebSocket channels?</p>
-      <button class="opt">Browsers only allow one WebSocket connection per document at a time</button>
-      <button class="opt">Edits must be durable and converge; cursors are high-frequency and disposable, so mixing them risks drowning real edits</button>
-      <button class="opt">Presence data requires a stronger encryption scheme than durable edits do</button>
+      <button class="opt">Browsers allow only one WebSocket per document at a time</button>
+      <button class="opt">Edits must persist and converge; cursors are high-rate and disposable</button>
+      <button class="opt">Presence data needs stronger encryption than the durable edits do</button>
       <p class="fb">Durable, order-sensitive edits and throwaway, high-frequency cursor updates have fundamentally different guarantees, so they get separate channels.</p>
       <p class="hint">Reread the pushback box right after the data model table.</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="d" data-concept="figma-separate-presence">
+        <p class="stem">Why separate the presence channel from the durable sync channel?</p>
+        <button class="opt">Presence needs stronger consistency than document edits</button>
+        <button class="opt">Presence data is larger, so it needs its own connection</button>
+        <button class="opt">Sync must use UDP, while presence must always use TCP</button>
+        <button class="opt">Cursors are throwaway; edits must converge and persist</button>
+        <p class="fb">Different durability: losing a cursor frame is fine; losing an edit is not. Don't pay persistence costs for 60 Hz cursor updates.</p>
+        <p class="hint">What happens if one cursor position is dropped vs one edit?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-4" hidden>
@@ -309,10 +318,10 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="c" data-concept="figma-single-owner-why">
       <p class="stem">Why does routing each document to exactly one sync server avoid the need for distributed consensus on the hot path?</p>
-      <button class="opt">A single server is cheaper to run than a distributed cluster of equal capacity</button>
-      <button class="opt">Distributed consensus is impossible to implement correctly for any collaborative system</button>
-      <button class="opt">One authoritative process gives a trivial total order of changes, since every edit funnels through the same place</button>
-      <button class="opt">Single-server ownership removes the need for any durable change log at all</button>
+      <button class="opt">A single server is cheaper to run than an equal-capacity cluster</button>
+      <button class="opt">Distributed consensus can't be built correctly for collaboration</button>
+      <button class="opt">Every edit funnels through one process, giving a trivial total order</button>
+      <button class="opt">Single-server ownership removes the need for any durable change log</button>
       <p class="fb">With one owning process per document, there's no need to coordinate ordering across multiple writers — the single server's arrival order is the total order.</p>
       <p class="hint">Reread the pushback box right after the HLD section.</p>
     </div>
@@ -415,18 +424,18 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="figma-lww-safety-recall">
       <p class="stem">Why is a lost property value under LWW "visually fine" while a lost character in text is corruption?</p>
-      <button class="opt">Because canvas properties are independent values, but characters in a sequence carry positional meaning that a loss disrupts</button>
-      <button class="opt">Because LWW never actually drops any value, it merges both writes together</button>
-      <button class="opt">Because Figma always retries a losing write until it eventually succeeds</button>
+      <button class="opt">Properties are independent; characters have positional meaning</button>
+      <button class="opt">LWW never drops a value; it merges both writes together</button>
+      <button class="opt">Figma retries a losing write until it eventually succeeds</button>
       <p class="fb">The data model is what makes the cheap strategy safe: an object's property is a standalone register, while a character's meaning depends on its position among neighbors.</p>
       <p class="hint">Reread Deep Dive 1's comparison table and the paragraph above it.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="figma-edge-cases-why">
       <p class="stem">Why do delete-vs-edit and reparent cycles need explicit server-side handling instead of falling out of LWW automatically?</p>
-      <button class="opt">LWW registers can't be applied to any property that references another object id</button>
-      <button class="opt">These are structural invariants on the whole tree, not per-property conflicts, so LWW's per-property register model has no natural answer for them</button>
+      <button class="opt">LWW can't apply to any property referencing another object id</button>
+      <button class="opt">They're whole-tree invariants, which per-property LWW can't resolve</button>
       <button class="opt">The change log physically cannot store a delete operation</button>
-      <button class="opt">Reparent operations are always rejected regardless of whether they'd create a cycle</button>
+      <button class="opt">Reparents are always rejected, whether or not they'd form a cycle</button>
       <p class="fb">LWW resolves conflicts on independent property values, but "is this object deleted" and "would this reparent create a cycle" require seeing the whole tree, which only the server can validate.</p>
       <p class="hint">Reread the "Justified pick" box in Deep Dive 1.</p>
     </div>
@@ -495,24 +504,24 @@
     <p class="pq">“How do you protect files from malicious plugins?”</p>
     <p><b>Staff answer:</b> Sandboxed plugin runtime, permission prompts, network allowlists, review, and server-side validation of every change regardless of source.</p>
   </div>
-  <p class=”transition”><span class=”lbl”>Say to move on →</span> “Then 10× and cost.”</p>
+  <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
 
-  <div class=”gate”>
-    <span class=”gate-lbl”>Check before continuing</span>
-    <div class=”q” data-type=”intuition” data-correct=”b” data-concept=”figma-presence-channel-why”>
-      <p class=”stem”>Why must cursors and presence never touch the durable change log?</p>
-      <button class=”opt”>Because cursor updates are not editable data, so persisting them would waste storage space</button>
-      <button class=”opt”>Because high-frequency cursor traffic would drown and bloat the real edits in the log and risk losing critical changes</button>
-      <button class=”opt”>Because WebSocket connections cannot reliably transmit cursor data over persistence channels</button>
-      <p class=”fb”>Presence is fleeting and high-volume; logging it would create write amplification and make the durability log unreliable for the actual edits.</p>
-      <p class=”hint”>Reread Deep Dive 3.</p>
+  <div class="gate">
+    <span class="gate-lbl">Check before continuing</span>
+    <div class="q" data-type="intuition" data-correct="b" data-concept="figma-presence-channel-why">
+      <p class="stem">Why must cursors and presence never touch the durable change log?</p>
+      <button class="opt">Cursor updates aren't editable data, so storing them wastes space</button>
+      <button class="opt">High-rate cursor traffic would drown and bloat the real edits</button>
+      <button class="opt">WebSockets can't reliably carry cursor data on persistent channels</button>
+      <p class="fb">Presence is fleeting and high-volume; logging it would create write amplification and make the durability log unreliable for the actual edits.</p>
+      <p class="hint">Reread Deep Dive 3.</p>
     </div>
   </div>
   </section>
 
-  <section class=”chunk” id=”chunk-final” hidden>
-  <p class=”chunk-label”>7 of 7 — comprehensive check</p>
-  <div class=”phase” id=”phase-7”><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
+  <section class="chunk" id="chunk-final" hidden>
+  <p class="chunk-label">7 of 7 — comprehensive check</p>
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = 10× concurrent connections and open documents, plus larger files.</p>
   <table>
@@ -554,11 +563,11 @@
 
   <div class="gate">
     <span class="gate-lbl">Comprehensive check</span>
-    <div class="q" data-correct="c" data-concept="figma-lww-safety-final">
+    <div class="q" data-correct="a" data-concept="figma-lww-safety-final">
       <p class="stem">Why is a lost property value under LWW "visually fine" while a lost character in text is corruption?</p>
-      <button class="opt">Because canvas properties are independent values, but characters in a sequence carry positional meaning that a loss disrupts</button>
-      <button class="opt">Because LWW never actually drops any value, it merges both writes together</button>
-      <button class="opt">Because Figma always retries a losing write until it eventually succeeds</button>
+      <button class="opt">Properties are independent; characters carry positional meaning</button>
+      <button class="opt">LWW never actually drops a value; it merges both writes together</button>
+      <button class="opt">Figma retries a losing write until it eventually succeeds anyway</button>
       <p class="fb">The data model is what makes the cheap strategy safe: an object's property is a standalone register, while a character's meaning depends on its position among neighbors.</p>
       <p class="hint">Reread Deep Dive 1.</p>
     </div>
@@ -591,10 +600,10 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="figma-whole-lesson-why">
       <p class="stem">If the sync server crashed and had to reload a document from the change log, what stops the object map from being corrupted if two writers send conflicting property updates in close succession?</p>
-      <button class="opt">The single authoritative server (or its replacement after failover) reestablishes a total order of all changes, so even if two writers sent conflicting updates, the log knows which arrived first</button>
-      <button class="opt">LWW immediately rejects the second write before the server even records it</button>
-      <button class="opt">The change log automatically merges conflicting properties without needing a server to decide</button>
-      <button class="opt">Snapshots include a checksum that prevents any corrupted property from being loaded</button>
+      <button class="opt">The one authoritative server (or its successor) re-orders all changes</button>
+      <button class="opt">LWW rejects the second write before the server even records it</button>
+      <button class="opt">The change log merges conflicting properties without any server</button>
+      <button class="opt">Snapshots carry a checksum that blocks corrupted properties loading</button>
       <p class="fb">Per-property LWW's correctness depends on a single server establishing arrival order once — the log preserves that order, so replay from a dump always converges to the same state.</p>
       <p class="hint">Think about why a central server's per-doc ownership eliminates the need for distributed consensus.</p>
     </div>

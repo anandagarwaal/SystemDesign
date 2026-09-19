@@ -77,6 +77,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -100,6 +114,9 @@
     <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Data flow, component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
+
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 8</p>
 
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
@@ -133,7 +150,31 @@
   developed below.</p>
 
   <p class="transition"><span class="lbl">Say to move on →</span> “At-least-once delivery and isolating slow endpoints. Let me size events and fan-out.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="webhook-at-least-once">
+        <p class="stem">What delivery guarantee does a webhook system promise, and what does it push onto consumers?</p>
+        <button class="opt">At-least-once; consumers must dedupe repeated events</button>
+        <button class="opt">Exactly-once; consumers never see a duplicate event</button>
+        <button class="opt">At-most-once; consumers must poll to fill in gaps</button>
+        <button class="opt">Best-effort; consumers must accept silent data loss</button>
+        <p class="fb">Never silently drop, so retries happen, so duplicates happen → consumer idempotency.</p>
+        <p class="hint">Reread the first NFR row.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="webhook-reliability-vs-isolation">
+        <p class="stem">Why do 'retry hard' and 'isolate tenants' pull against each other?</p>
+        <button class="opt">Retries need strong consistency, which isolation cannot provide</button>
+        <button class="opt">Isolation requires encrypting each tenant's events separately</button>
+        <button class="opt">Retrying a dead endpoint burns worker capacity others need</button>
+        <button class="opt">Tenants share one signing secret, so retries leak their data</button>
+        <p class="fb">Every retry to a dead endpoint occupies a worker. Unbounded, one customer's outage becomes everyone's latency.</p>
+        <p class="hint">Where does the capacity for a retry come from?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>Capacity Estimation</h2>
   <p>Estimate only numbers that change the design.</p>
@@ -154,7 +195,31 @@
     <p><b>Staff answer:</b> Each delivery is an HTTP call to a customer server that may take seconds or time out. Worker concurrency, not queue throughput, is the constraint.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “~10k events/s becomes ~30k deliveries/s to slow external servers. Let me define entities.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="webhook-slow-endpoint-math">
+        <p class="stem">Queues handle millions/sec, so why is 30k deliveries/sec hard?</p>
+        <button class="opt">Each delivery writes 1 MB of logs, overwhelming the disks</button>
+        <button class="opt">Each delivery is an HTTP call that can hold a worker for 30 s</button>
+        <button class="opt">Each delivery must be encrypted with a fresh RSA key pair</button>
+        <button class="opt">Each delivery needs a global lock to preserve event order</button>
+        <p class="fb">Concurrency = rate × duration. 30k/s × even 1 s avg = 30k in flight; slow endpoints multiply it.</p>
+        <p class="hint">Little's law: in-flight = throughput × latency. Plug in a 30 s endpoint.</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="webhook-logs-dominate">
+        <p class="stem">What's the storage implication of delivery logs?</p>
+        <button class="opt">They're tiny, so they live in the same hot Postgres as endpoints</button>
+        <button class="opt">They're needed forever, so they must go to strongly-consistent DB</button>
+        <button class="opt">They're optional, so the system simply never writes them at all</button>
+        <button class="opt">They dwarf live data — use cheap append-only storage with a TTL</button>
+        <p class="fb">30k/s × 1 KB × retries ≈ TB/month. Append-only, TTL'd, separate from hot state.</p>
+        <p class="hint">Reread the 'Delivery logs' row.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>Core Entities &amp; API</h2>
   <p><b>Endpoint</b> — a customer's registered URL, secret, and subscribed event types.
@@ -191,7 +256,31 @@
     <p><b>Staff answer:</b> Customers debug integrations from the delivery log, and replaying failed events needs the event plus attempt history.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Endpoint, Event and Delivery attempts are the contract. Now accept vs deliver.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="webhook-delivery-id-hash">
+        <p class="stem">Why is <code>delivery_id = hash(event_id, endpoint_id)</code> instead of a random UUID?</p>
+        <button class="opt">Re-running fan-out produces the same id, so duplicates collapse</button>
+        <button class="opt">Hashes are shorter than UUIDs, which saves a lot of storage</button>
+        <button class="opt">It lets the customer guess delivery ids to fetch their logs</button>
+        <button class="opt">Random ids would leak the order in which events were created</button>
+        <p class="fb">Deterministic ids make fan-out and replays idempotent: a conditional create on an existing id is a no-op.</p>
+        <p class="hint">If the dispatcher crashes mid fan-out and reruns, what id does each delivery get?</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="webhook-entities">
+        <p class="stem">What's the difference between an Event and a Delivery?</p>
+        <button class="opt">An Event is external; a Delivery is created by the customer</button>
+        <button class="opt">An Event is stored in Redis; a Delivery is stored in Postgres</button>
+        <button class="opt">One event, produced once; one delivery per (event, endpoint)</button>
+        <button class="opt">They're the same record, just with different status fields</button>
+        <p class="fb">Event = what happened. Delivery = one attempt stream to one endpoint — the unit of work and the log row.</p>
+        <p class="hint">Reread the Core Entities list.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>Data Flow</h2>
   <p>A webhook system is a fan-out delivery pipeline, so it's worth tracing one event end to end:</p>
@@ -251,7 +340,31 @@
     <p><b>Staff answer:</b> The business change and the webhook event commit together, so an accepted event is never lost if the service crashes before publishing.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: reliable async delivery, slow endpoints, signing and SSRF, idempotency and ordering.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="webhook-outbox-why">
+        <p class="stem">Why write events through a transactional outbox rather than publishing to Kafka after the DB commit?</p>
+        <button class="opt">Kafka can't store events larger than a few kilobytes in size</button>
+        <button class="opt">The outbox makes webhook delivery exactly-once end to end</button>
+        <button class="opt">Publishing to Kafka directly would double the egress costs</button>
+        <button class="opt">A crash between commit and publish would silently lose the event</button>
+        <p class="fb">Two separate writes (DB, Kafka) can't be atomic. Outbox row commits with the business change; a relay publishes it later.</p>
+        <p class="hint">What happens if the process dies right after the DB commit but before the Kafka send?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="webhook-split-accept-deliver">
+        <p class="stem">Why split 'accept event' from 'deliver event'?</p>
+        <button class="opt">Accepting is expensive and delivering is cheap, so they differ</button>
+        <button class="opt">A customer outage then can't slow or lose events at ingest time</button>
+        <button class="opt">Customers require that events are accepted on a different host</button>
+        <button class="opt">Splitting them makes it possible to guarantee global ordering</button>
+        <p class="fb">Ingest stays fast and durable regardless of how slow the outside world is; the elastic worker tier absorbs it.</p>
+        <p class="hint">If delivery were inline, what would a 30 s customer endpoint do to the producing service?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>Deep Dives</h2>
 
@@ -357,7 +470,49 @@
     <p><b>Staff answer:</b> Partition work by endpoint with per-endpoint concurrency limits and circuit breakers; failing endpoints go to delayed retry queues, so they never block healthy ones.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness next.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="webhook-lease-ack">
+        <p class="stem">A worker POSTs successfully, then crashes before ACKing. What happens?</p>
+        <button class="opt">The lease expires, the delivery is retried — a duplicate arrives</button>
+        <button class="opt">The event is lost, because the worker never recorded success</button>
+        <button class="opt">The queue detects the 2xx and marks it done automatically</button>
+        <button class="opt">The customer is billed twice and must request a refund</button>
+        <p class="fb">No ACK → lease expires → redelivery. That's inherent to at-least-once; the idempotency key makes it harmless.</p>
+        <p class="hint">Reread the lease + ACK steps.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="webhook-jitter">
+        <p class="stem">A popular receiver recovers after a 1 h outage with 500k queued retries. Why does jitter matter?</p>
+        <button class="opt">Jitter encrypts retries so the receiver can tell them apart</button>
+        <button class="opt">Jitter makes the DLQ smaller by dropping older retries early</button>
+        <button class="opt">Without it, retries fire in lockstep and knock it over again</button>
+        <button class="opt">Without it, retries are sent to the wrong endpoint by mistake</button>
+        <p class="fb">Synchronized backoff schedules create thundering herds. Randomizing spreads load so the recovering endpoint can cope.</p>
+        <p class="hint">If 500k retries all waited exactly 10 min, when do they all arrive?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="webhook-ssrf-dns">
+        <p class="stem">Why isn't checking the URL string (e.g. rejecting '169.254…') enough to stop SSRF?</p>
+        <button class="opt">Customers can only register URLs that already use HTTPS</button>
+        <button class="opt">SSRF only works over IPv6, and strings are always IPv4</button>
+        <button class="opt">The egress proxy re-encodes URLs, so strings are never seen</button>
+        <button class="opt">A public hostname can resolve — or rebind — to an internal IP</button>
+        <p class="fb">evil.com can resolve to 10.0.0.5, now or later. Resolve, validate the IP, pin it for the connection, disable redirects.</p>
+        <p class="hint">What does DNS do with a hostname the attacker controls?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="webhook-hmac-timestamp">
+        <p class="stem">Why include a timestamp inside the HMAC signature?</p>
+        <button class="opt">It lets the receiver sort events into the right order</button>
+        <button class="opt">It stops an attacker replaying a captured valid request later</button>
+        <button class="opt">It makes the HMAC harder to brute-force by adding length</button>
+        <button class="opt">It lets us rotate secrets without telling the customer</button>
+        <p class="fb">A signature alone proves origin, not freshness. A signed timestamp + tolerance window defeats replay.</p>
+        <p class="hint">An attacker records one genuine signed POST. What can they do with it if nothing is time-bound?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>Observability</h2>
   <table>
@@ -409,7 +564,31 @@
     <p><b>Staff answer:</b> Validate URLs at registration and resolve DNS at send time, block private and metadata IP ranges, send through an egress proxy, and never follow redirects to internal addresses.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="webhook-thin-events">
+        <p class="stem">Why are 'thin' events (ids only, receiver fetches details) safer for sensitive data?</p>
+        <button class="opt">PII never leaves in a payload to a URL we don't control</button>
+        <button class="opt">Thin events are faster to sign, so replay attacks are harder</button>
+        <button class="opt">Thin events can be delivered in order, unlike fat ones</button>
+        <button class="opt">Receivers can't fetch details, so no PII is ever exposed</button>
+        <p class="fb">The details are fetched via our authenticated API, with authz, instead of being pushed to wherever the URL points.</p>
+        <p class="hint">Where does the PII travel in each design, and who checks access?</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="webhook-platform-failure">
+        <p class="stem">Success rate drops across many unrelated endpoints at once. What does that suggest?</p>
+        <button class="opt">Those customers coordinated a planned maintenance window</button>
+        <button class="opt">The per-endpoint circuit breakers are all set too tight</button>
+        <button class="opt">The problem is likely ours — egress, DNS, or the proxies</button>
+        <button class="opt">The signing secrets for those customers all expired today</button>
+        <p class="fb">Independent endpoints don't fail together. Correlated failure points to shared infra on our side — page.</p>
+        <p class="hint">Reread the 'Platform-wide failure signal' monitoring row.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>Scaling 10× Without Changing the Architecture</h2>
   <p>10× = ~100k events/s, ~300k deliveries/s.</p>
@@ -446,39 +625,69 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A webhook system splits accepting events from delivering them. Events are recorded via a transactional outbox and fanned out to subscribed endpoints as delivery tasks on queues partitioned by endpoint. Async I/O workers POST HMAC-signed payloads with timeouts, per-endpoint concurrency limits and circuit breakers, so slow endpoints can't block others. Failures retry with exponential backoff into a DLQ, and customers can inspect and replay deliveries. Delivery is at-least-once, so events carry ids for consumer dedup. At 10× we add partitions and workers.</p></div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="webhook-ordering-redesign">
+        <p class="stem">Why would guaranteeing strict per-endpoint ordering for everyone force a redesign?</p>
+        <button class="opt">Ordering requires a global clock, which no cloud offers</button>
+        <button class="opt">Ordering doubles the signing cost for every payload sent</button>
+        <button class="opt">Ordering prevents the use of a dead-letter queue at all</button>
+        <button class="opt">One stuck event blocks all later ones — serial lanes, no parallelism</button>
+        <p class="fb">Order + retries = head-of-line blocking per endpoint and no concurrent deliveries — throughput and isolation collapse.</p>
+        <p class="hint">If event #5 keeps failing, what happens to #6..#1000 under strict ordering?</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="b">
-      <p class="stem">1. Why deliver webhooks asynchronously from a durable queue?</p>
-      <button class="opt">It lets us promise true exactly-once network calls</button>
-      <button class="opt">A slow customer can't block ingest or lose events</button>
-      <button class="opt">It removes the need to ever retry a failed POST job</button>
-      <p class="fb">Async decouples ingest from delivery: events survive crashes and one slow endpoint can't stall producers.</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-correct="b" data-concept="webhook-async-queue-final">
+        <p class="stem">Why deliver webhooks asynchronously from a durable queue?</p>
+        <button class="opt">It lets us promise true exactly-once network calls</button>
+        <button class="opt">A slow customer can't block ingest or lose events</button>
+        <button class="opt">It removes the need to ever retry a failed POST job</button>
+        <p class="fb">Async decouples ingest from delivery: events survive crashes and one slow endpoint can't stall producers.</p>
+        <p class="hint">Reread Deep Dive 1.</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="webhook-isolation-final">
+        <p class="stem">What stops one failing endpoint from starving every other customer?</p>
+        <button class="opt">A single global FIFO queue shared by all endpoints</button>
+        <button class="opt">Raising the visibility timeout on the shared queue</button>
+        <button class="opt">Partition by endpoint plus a per-endpoint concurrency cap</button>
+        <p class="fb">Per-endpoint partitions and concurrency caps confine a slow tenant to its own lane — no head-of-line blocking.</p>
+        <p class="hint">Reread Deep Dive 2.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="webhook-untrusted-url-final">
+        <p class="stem">Why must a registered webhook URL be treated as untrusted input?</p>
+        <button class="opt">It can point at internal hosts, making delivery an SSRF</button>
+        <button class="opt">It can change the HMAC secret used for the signature</button>
+        <button class="opt">It can force the queue to process deliveries out of order</button>
+        <p class="fb">Outbound POSTs go to attacker-chosen URLs; resolve and allow-list the IP so it can't hit internal hosts.</p>
+        <p class="hint">Reread Deep Dive 3.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="webhook-idempotency-final">
+        <p class="stem">At-least-once delivery can POST an event twice. What makes that safe?</p>
+        <button class="opt">Signing each request body with an HMAC secret value</button>
+        <button class="opt">A stable idempotency key the consumer uses to dedupe</button>
+        <button class="opt">Strict global ordering enforced across all endpoints</button>
+        <p class="fb">An idempotency key (the event_id) lets the receiver treat a repeat delivery as a harmless no-op.</p>
+        <p class="hint">Reread Deep Dive 4.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="webhook-transfer-email">
+        <p class="stem">You're designing outbound email sending to customers' SMTP servers. Which webhook idea transfers most directly?</p>
+        <button class="opt">HMAC-signing each email body with a per-customer shared secret</button>
+        <button class="opt">Per-destination queues and caps so one slow host starves no one</button>
+        <button class="opt">A transactional outbox so each email is delivered exactly once</button>
+        <button class="opt">Pull-based polling where recipients fetch mail with a cursor</button>
+        <p class="fb">Same shape: many slow external receivers you don't control → isolate per destination with caps, breakers, backoff.</p>
+        <p class="hint">Which webhook problem came from 'slow receivers we don't control'?</p>
+      </div>
     </div>
-    <div class="q" data-correct="c">
-      <p class="stem">2. What stops one failing endpoint from starving every other customer?</p>
-      <button class="opt">A single global FIFO queue shared by all endpoints</button>
-      <button class="opt">Raising the visibility timeout on the shared queue</button>
-      <button class="opt">Partition by endpoint plus a per-endpoint concurrency cap</button>
-      <p class="fb">Per-endpoint partitions and concurrency caps confine a slow tenant to its own lane — no head-of-line blocking.</p>
-    </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. Why must a registered webhook URL be treated as untrusted input?</p>
-      <button class="opt">It can point at internal hosts, making delivery an SSRF</button>
-      <button class="opt">It can change the HMAC secret used for the signature</button>
-      <button class="opt">It can force the queue to process deliveries out of order</button>
-      <p class="fb">Outbound POSTs go to attacker-chosen URLs; resolve and allow-list the IP so it can't hit internal hosts.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. At-least-once delivery can POST an event twice. What makes that safe?</p>
-      <button class="opt">Signing each request body with an HMAC secret value</button>
-      <button class="opt">A stable idempotency key the consumer uses to dedupe</button>
-      <button class="opt">Strict global ordering enforced across all endpoints</button>
-      <p class="fb">An idempotency key (the event_id) lets the receiver treat a repeat delivery as a harmless no-op.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this topic. Try:
@@ -505,21 +714,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

@@ -194,7 +194,16 @@
       <p class="fb">Naive Dijkstra needs ~100k cores at peak; contraction hierarchies bring that to ~100 cores — roughly a 1,000× reduction by moving the expensive work offline.</p>
       <p class="hint">Compare the core counts in the "Routing compute" row of the capacity table.</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="a" data-concept="maps-three-problems">
+        <p class="stem">The capacity punchline splits Maps into three problems. Why does each get its own subsystem?</p>
+        <button class="opt">Tiles are bandwidth, routing is precomputation, traffic is streaming</button>
+        <button class="opt">Tiles, routing and traffic all need the same database, so split load</button>
+        <button class="opt">Each problem belongs to a different team, so they build separately</button>
+        <button class="opt">Tiles and traffic are small, so only routing needs its own servers</button>
+        <p class="fb">Different bottlenecks → different tools: CDN for bytes, in-RAM contracted graph for routing, stream processing for probes.</p>
+        <p class="hint">What is the limiting resource for each: bytes, CPU, or event rate?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-3" hidden>
@@ -241,9 +250,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-type="intuition" data-correct="a" data-concept="maps-live-edge-costs-separate">
       <p class="stem">Why does the data model keep live_edge_costs as a separate structure from the road graph topology?</p>
-      <button class="opt">The fast-changing metric (traffic) is kept apart from the slow-changing topology so updates stay cheap</button>
-      <button class="opt">Live edge costs are only used for billing and never touch the routing path</button>
-      <button class="opt">Topology and edge costs must be stored in different programming languages</button>
+      <button class="opt">Fast-changing traffic stays apart from slow topology, so updates are cheap</button>
+      <button class="opt">Live edge costs are only used for billing and never touch routing</button>
+      <button class="opt">Topology and edge costs must be written in different languages</button>
       <p class="fb">Road topology changes with map releases (days/weeks); edge costs change every few minutes. Separating them means a traffic update never triggers an expensive topology rebuild.</p>
       <p class="hint">Reread the Data Model intro paragraph — what does it call "the data-model expression of the CRP idea"?</p>
     </div>
@@ -372,9 +381,9 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="a" data-concept="maps-crp-vs-ch">
       <p class="stem">What does Customizable Route Planning (CRP) add on top of plain Contraction Hierarchies?</p>
-      <button class="opt">A partition into cells so only a fast customization step, not a full rebuild, handles weight changes</button>
-      <button class="opt">A second copy of the entire graph stored in a separate data center for redundancy</button>
-      <button class="opt">A requirement that every query use A* instead of bidirectional Dijkstra</button>
+      <button class="opt">Cells, so a quick customization — not a full rebuild — absorbs new weights</button>
+      <button class="opt">A second copy of the whole graph, stored in another datacenter</button>
+      <button class="opt">A rule that every query must use A* instead of bidirectional Dijkstra</button>
       <p class="fb">CRP partitions the graph into cells once; when live traffic changes weights, only a fast customization step recomputes boundary costs, avoiding a full CH rebuild.</p>
       <p class="hint">Reread "The catch — and why live traffic complicates CH" paragraph.</p>
     </div>
@@ -431,7 +440,16 @@
       <p class="fb">A 1-D index sorted by latitude alone can't narrow by longitude too, so a nearby-places query devolves into scanning most of the table — hence geohash/S2/quadtree encodings that fold 2-D into one sortable key.</p>
       <p class="hint">Reread the opening of Deep Dive 4 — what does it say a B-tree on latitude alone can't do?</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="c" data-concept="maps-eta-future-edges">
+        <p class="stem">Why is 'sum of current edge speeds' a naive ETA for a 2-hour drive?</p>
+        <button class="opt">Current speeds are measured in miles, but ETAs use kilometres</button>
+        <button class="opt">Current speeds are too noisy to add up without smoothing</button>
+        <button class="opt">You'll reach far segments later, when traffic there will differ</button>
+        <button class="opt">Edge speeds can't be summed because the graph is contracted</button>
+        <p class="fb">Traffic changes during the trip. Predict each segment's speed at your arrival time using historical curves.</p>
+        <p class="hint">When will you actually drive the segment that's 90 minutes away?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-8" hidden>
@@ -496,7 +514,16 @@
       <p class="fb">Probes carry rotating tokens (no account id), trim origin/destination segments, and are aggregated per road segment with k-anonymity thresholds before raw points are discarded.</p>
       <p class="hint">Reread the Privacy section's "Probe design" and "Aggregation thresholds" sentences.</p>
     </div>
-  </div>
+        <div class="q" data-type="intuition" data-correct="d" data-concept="maps-nodes-settled">
+        <p class="stem">Why track 'nodes settled per query' as a routing health metric?</p>
+        <button class="opt">It measures how many users are navigating at once</button>
+        <button class="opt">It tells you how much CDN egress each route costs</button>
+        <button class="opt">It counts how many roads were closed in the map release</button>
+        <button class="opt">A jump means preprocessing regressed and queries do more work</button>
+        <p class="fb">Contraction hierarchies keep settled nodes ~1k. A map release that breaks preprocessing shows up here before latency explodes.</p>
+        <p class="hint">What makes CH queries fast, and what would a bad release do to it?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-9" hidden>
@@ -537,6 +564,27 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Maps splits into three systems. Tiles form a versioned pyramid of immutable vector tiles served from a CDN. Place search uses a geospatial index with text ranking. Routing uses in-memory road graphs preprocessed with contraction hierarchies or customizable route planning, so continent-scale queries finish in milliseconds. GPS probes stream through map-matching into per-segment speed aggregates that update edge weights for live ETAs. At 10× we add CDN capacity, routing replicas and probe partitions.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="maps-routing-cheap">
+        <p class="stem">Routing is 'the hard part', yet it's cheap to run. Why?</p>
+        <button class="opt">Routing queries are rare compared to search queries</button>
+        <button class="opt">Routes are cached forever, so each is computed once</button>
+        <button class="opt">Precomputation moved most of the work offline</button>
+        <button class="opt">Routing runs on users' phones, so servers do nothing</button>
+        <p class="fb">Heavy preprocessing makes each online query fast; tile delivery (~75%) is the real bill.</p>
+        <p class="hint">Where did the expensive work of routing happen?</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="maps-probe-sampling">
+        <p class="stem">How does the probe pipeline stay linear in coverage rather than users?</p>
+        <button class="opt">Sample probes in areas that are already densely covered</button>
+        <button class="opt">Drop probes from users who are not navigating</button>
+        <button class="opt">Store probes only for highways, not local roads</button>
+        <button class="opt">Aggregate probes on the phone before uploading</button>
+        <p class="fb">Extra probes on a busy road add little information; sampling keeps cost tied to road coverage.</p>
+        <p class="hint">Reread 'First bottleneck'.</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>

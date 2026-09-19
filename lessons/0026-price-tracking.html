@@ -156,9 +156,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="price-tracking-1h-nfr-why-polling">
         <p class="stem">Why does a "~1 hour" alert latency target point the design toward polling rather than real-time streaming?</p>
-        <button class="opt">Streaming systems are always more expensive than polling regardless of the SLA</button>
-        <button class="opt">An hour of slack is wide enough that a periodic poll cadence can meet it without paying for a continuous push connection to every retailer</button>
-        <button class="opt">Retailers refuse to allow any form of streaming under any circumstances</button>
+        <button class="opt">Streaming is always more expensive than polling, whatever the SLA</button>
+        <button class="opt">An hour of slack lets periodic polls meet it without push connections</button>
+        <button class="opt">Retailers refuse to allow any form of streaming, in every case</button>
         <p class="fb">Real-time streaming is worth its cost when the SLA is sub-second. An hour-wide budget is comfortably met by periodic checks, so polling is the simpler, cheaper fit for this NFR.</p>
         <p class="hint">Compare what "real-time" architecture buys you versus what a 1-hour SLA actually requires.</p>
       </div>
@@ -199,9 +199,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="price-tracking-adaptive-cadence-why">
         <p class="stem">Why does adaptive cadence (hot products checked often, long tail rarely) beat a uniform polling interval for every product?</p>
-        <button class="opt">Most products rarely change price, so spending equal polling budget on all of them wastes capacity that could catch changes on volatile products sooner</button>
-        <button class="opt">Retailers charge less money for checking popular products than obscure ones</button>
-        <button class="opt">A uniform interval is technically impossible to implement in a scheduler</button>
+        <button class="opt">Most prices rarely change; spend polls where changes actually happen</button>
+        <button class="opt">Retailers charge less for checking popular products than obscure ones</button>
+        <button class="opt">A uniform interval is technically impossible to build in a scheduler</button>
         <p class="fb">Polling budget is finite and rate-limited; concentrating it on products likely to change (and checking stable long-tail items rarely) gets more useful signal per request.</p>
         <p class="hint">If most products barely change price, is polling all of them at the same rate a good use of a limited request budget?</p>
       </div>
@@ -250,17 +250,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="b" data-concept="price-tracking-only-changes-stored">
         <p class="stem">Why does the price-history store only write a point on a price change, not on every check?</p>
-        <button class="opt">Cassandra physically cannot accept writes more often than once per hour</button>
-        <button class="opt">Most checks see no change, so storing every check would bloat the series roughly 10× for no informational gain</button>
-        <button class="opt">Storing unchanged prices would violate the retailer's terms of service</button>
+        <button class="opt">Cassandra can't accept writes more often than once per hour</button>
+        <button class="opt">Most checks see no change; storing them bloats the series ~10×</button>
+        <button class="opt">Storing unchanged prices would violate the retailer's terms</button>
         <p class="fb">A price series only needs to record when the value actually moves; recording every no-op check multiplies storage without adding information.</p>
         <p class="hint">Reread the Data Model intro — what does it say cuts the series ~10x?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="price-tracking-composite-index-why">
         <p class="stem">Why must the tracker index include both product_id and target_price_cents, rather than just product_id?</p>
         <button class="opt">Postgres requires at least two columns in every index by default</button>
-        <button class="opt">target_price_cents alone would need to scan every product to find matches</button>
-        <button class="opt">A price drop needs to find only the trackers on that product whose threshold the new price has crossed, which requires filtering on both fields together</button>
+        <button class="opt">target_price alone would need to scan every product to find matches</button>
+        <button class="opt">A drop must find this product's trackers whose threshold it crossed</button>
         <p class="fb">product_id narrows to the right product; target_price_cents then lets the query seek directly to the crossed thresholds. Either column alone can't do both jobs.</p>
         <p class="hint">What two facts does the range query in the next chunk need to know simultaneously?</p>
       </div>
@@ -334,15 +334,15 @@
         <p class="stem">In the data flow, what triggers the range query against trackers?</p>
         <button class="opt">A user opening the price-history chart for that product</button>
         <button class="opt">The scheduler enqueueing the next check job for the product</button>
-        <button class="opt">A worker detecting that the newly fetched price dropped from the last known price</button>
+        <button class="opt">A worker seeing the new price drop below the last known one</button>
         <p class="fb">Only a drop can newly satisfy a "target ≥ price" tracker, so the match query fires specifically on detected price drops, not on every check.</p>
         <p class="hint">Reread step 3 of the data flow list.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="price-tracking-pipeline-isolation-why">
         <p class="stem">Why does separating the pipeline from the API service protect the user-facing app during a retailer outage?</p>
-        <button class="opt">If fetch workers back up or fail against one retailer, that backlog stays in the pipeline's queue and workers, never touching the API service's request path</button>
-        <button class="opt">The API service and pipeline share no code, so a bug in one cannot exist in the other</button>
-        <button class="opt">Retailer outages only affect price accuracy, never system availability</button>
+        <button class="opt">A retailer backlog stays in the pipeline, off the API request path</button>
+        <button class="opt">The API and pipeline share no code, so a bug can't exist in both</button>
+        <button class="opt">Retailer outages only affect price accuracy, never availability</button>
         <p class="fb">Because the pipeline and API service are separate deployables connected only by shared data stores (not synchronous calls), a struggling pipeline doesn't slow down or crash the user-facing CRUD and chart reads.</p>
         <p class="hint">If fetch workers pile up retrying a blocked retailer, does that queue backlog reach the API service directly?</p>
       </div>
@@ -456,24 +456,24 @@
       <div class="q" data-correct="b" data-concept="price-tracking-idempotency-key">
         <p class="stem">What guarantees a matched price drop doesn't alert the same user twice under at-least-once delivery?</p>
         <button class="opt">The queue provider guarantees exactly-once delivery by default</button>
-        <button class="opt">A deterministic idempotency key per crossing is checked before sending, and repeats are dropped</button>
-        <button class="opt">Only one fetch worker is ever allowed to run at a time</button>
+        <button class="opt">A per-crossing idempotency key is checked, so repeats drop</button>
+        <button class="opt">Only one fetch worker is ever allowed to run at any one time</button>
         <p class="fb">At-least-once transport plus a dedup key on send gives effectively-once behavior without needing the queue itself to be exactly-once.</p>
         <p class="hint">Reread the "Idempotency key" bullet in Deep Dive 3.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="price-tracking-why-not-stream-b">
         <p class="stem">Why is alternative B (real-time stream matching) not worth its complexity here, even though it matches in milliseconds?</p>
-        <button class="opt">Prices are only observed every 30 minutes to 12 hours by polling, so sub-second matching latency is wasted on data that's already stale by that much</button>
-        <button class="opt">Stream processors cannot maintain state keyed by product under any workload</button>
-        <button class="opt">Millisecond matching would violate the 1-hour alert NFR by being too fast</button>
+        <button class="opt">Prices are only polled every 30 min–12 h, so ms matching is wasted</button>
+        <button class="opt">Stream processors can't keep state keyed by product in any workload</button>
+        <button class="opt">Millisecond matching would violate the 1-hour NFR by being too fast</button>
         <p class="fb">The bottleneck is how often you observe a new price, not how fast you can react to one once observed. Speeding up matching from milliseconds doesn't help when the input itself only refreshes hourly or less.</p>
         <p class="hint">What's the actual bottleneck in the pipeline: matching speed, or how often a new price is even seen?</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="price-tracking-only-drop-check-why">
         <p class="stem">Why does the design skip the range query entirely when the new price is greater than or equal to the old price?</p>
-        <button class="opt">Postgres cannot execute a range query on an increasing value</button>
-        <button class="opt">Rising prices are not stored in the price history at all</button>
-        <button class="opt">No tracker with targetPrice ≥ newPrice can become newly satisfied by a price that went up or stayed flat, so the query would find nothing new</button>
+        <button class="opt">Postgres cannot run a range query on an increasing value</button>
+        <button class="opt">Rising prices aren't stored in the price history at all</button>
+        <button class="opt">A flat or rising price can't newly satisfy any tracker</button>
         <p class="fb">A tracker only fires when the price crosses down through its threshold. If the price didn't drop, no previously-unsatisfied tracker just became satisfied, so running the query would be pure waste.</p>
         <p class="hint">Can a rising price newly satisfy a "target ≥ price" condition that wasn't already true?</p>
       </div>
@@ -538,17 +538,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="price-tracking-alert-minimization">
         <p class="stem">Why do alert events carry a tracker_id rather than the user's email or phone number directly?</p>
-        <button class="opt">Data minimization: the notifier resolves contact details only at send time, limiting where PII is exposed and stored in transit</button>
-        <button class="opt">The match worker does not have permission to read the trackers table at all</button>
-        <button class="opt">Email and phone numbers cannot be serialized into a queue message</button>
+        <button class="opt">Minimization: contact details are resolved only at send time</button>
+        <button class="opt">The match worker isn't permitted to read the trackers table</button>
+        <button class="opt">Emails and phone numbers can't be serialized into a message</button>
         <p class="fb">Keeping contact details out of intermediate events limits their blast radius — only the notifier, at the last step, ever resolves and touches them.</p>
         <p class="hint">Reread "Minimization" in the Privacy section.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="price-tracking-data-quality-why">
         <p class="stem">Why does the Observability section track "implausible changes (&gt; 90% drop)" as a specific signal, rather than trusting every scraped price?</p>
-        <button class="opt">Retailers always mark implausible prices with a special HTML tag the scraper can detect</button>
-        <button class="opt">A parsing bug or a manipulated page could report a false huge drop, which would fire thousands of false alerts before anyone noticed</button>
-        <button class="opt">A 90% drop is mathematically impossible for any real product</button>
+        <button class="opt">Retailers mark implausible prices with a tag the scraper can detect</button>
+        <button class="opt">A parse bug or rigged page could fire thousands of false alerts</button>
+        <button class="opt">A 90% price drop is mathematically impossible for any real product</button>
         <p class="fb">Scraped data is untrusted input from an external, uncontrolled source. A single parser bug reading "$1.00" instead of "$100" would trigger a mass of incorrect alerts, so sanity-checking extreme changes catches that class of failure before it reaches users.</p>
         <p class="hint">What happens downstream if a scraper misreads a price and the system treats it as ground truth?</p>
       </div>
@@ -599,17 +599,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="price-tracking-10x-bottleneck">
         <p class="stem">At 10×, what is named as the first bottleneck — not our own infrastructure?</p>
-        <button class="opt">Retailer-side rate limits, addressed with smarter cadence and official feeds</button>
-        <button class="opt">Postgres running out of available disk space entirely</button>
-        <button class="opt">The notification queue's inability to add more partitions</button>
+        <button class="opt">Retailer rate limits — smarter cadence and official feeds</button>
+        <button class="opt">Postgres running entirely out of available disk space</button>
+        <button class="opt">The notification queue being unable to add partitions</button>
         <p class="fb">The external constraint (how fast retailers let you poll) hits before internal infrastructure does — the fix is cadence and feed strategy, not more servers.</p>
         <p class="hint">Reread "First bottleneck" in the Scaling 10× section.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="price-tracking-redesign-trigger-why">
         <p class="stem">Why would retailers offering push/webhook feeds at scale force a genuine architecture change, rather than just letting you drop some fetch workers?</p>
-        <button class="opt">Webhooks are incompatible with Postgres and would require dropping the tracker store entirely</button>
-        <button class="opt">Push feeds would make the price-history store unnecessary</button>
-        <button class="opt">The whole pipeline is built around scheduled polling; a push model inverts the control flow to event-driven ingestion, which is architecture B, not a tuning knob on architecture A</button>
+        <button class="opt">Webhooks are incompatible with Postgres, so the tracker store goes</button>
+        <button class="opt">Push feeds would make the price-history store unnecessary to keep</button>
+        <button class="opt">Push inverts polling into event-driven ingestion: a new architecture</button>
         <p class="fb">Scaling knobs (more workers, more partitions) all assume the polling model stays intact. A shift to push changes who initiates the data flow, which is a structurally different pipeline (the streaming alternative), not a bigger version of the same one.</p>
         <p class="hint">Does adding more fetch workers make sense in a world where retailers push updates to you instead of you asking them?</p>
       </div>
@@ -656,9 +656,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="price-tracking-final-why-invert">
         <p class="stem">Why is "inverting the match" described as the single highest-leverage move in this whole interview?</p>
-        <button class="opt">It removes the need for a price-history store entirely</button>
-        <button class="opt">It changes the match cost from growing with the number of trackers to growing with the number of matches, which is what keeps the common case (zero matches) nearly free at any scale</button>
-        <button class="opt">It allows the system to skip authentication on the tracker endpoints</button>
+        <button class="opt">It removes the need for any price-history store at all</button>
+        <button class="opt">Cost scales with matches, not trackers — zero matches is free</button>
+        <button class="opt">It lets the system skip authentication on tracker endpoints</button>
         <p class="fb">Without inversion, every price change costs O(trackers on that product) even when nothing matches. With the range-query index, an unmatched change costs a fast, empty lookup — the whole system's cost profile changes.</p>
         <p class="hint">Compare what a price change costs under "scan every tracker" versus "range query the index," specifically in the common zero-match case.</p>
       </div>

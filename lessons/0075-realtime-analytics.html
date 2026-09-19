@@ -77,6 +77,20 @@
   footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
   .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
   @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+
+  /* ---- Gated chunks ---- */
+  .chunk{margin:2.6rem 0; padding-top:.2rem;}
+  .chunk[hidden]{display:none;}
+  .chunk-label{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--muted); margin:0 0 .3rem;}
+  .gate{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.2rem 0 0;}
+  .gate .gate-lbl{font-family:-apple-system,sans-serif; font-size:.7rem; font-weight:700; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 .6rem; display:block;}
+  .q[data-type="intuition"] .stem::before{content:"Why / intuition — "; color:var(--staff); font-weight:700;}
+  .opt:disabled{cursor:default;}
+  .hint{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--accent); font-style:italic;}
+  .hint.show{display:block;}
+  .locked-note{font-size:.85rem; color:var(--muted); font-style:italic; margin:1.5rem 0;}
 </style>
 </head>
 <body>
@@ -101,6 +115,9 @@
     <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin scope and the few NFRs that will drive every later decision.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Only the numbers that change a decision — say the implication out loud.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the contract and the storage shape before drawing boxes.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Data flow, component diagram, HLD</td><td>A simple end-to-end design that satisfies every functional requirement.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Go deep where the system breaks; compare alternatives and justify the pick.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Show you can operate, secure and protect it — the staff-level differentiator.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow 10× without re-architecting, and know what it costs.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap the key decisions, tradeoffs and what you would do next.</td></tr></table>
     <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives, and give one-line answers in phases 6–7 unless the interviewer probes.</p>
   </div>
+
+  <section class="chunk" id="chunk-1">
+    <p class="chunk-label">1 of 8</p>
 
   <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin scope and the few NFRs that will drive every later decision.</span></div>
   <div class="asks">
@@ -139,7 +156,31 @@
   </div>
 
   <p class="transition"><span class="lbl">Say to move on →</span> “Enormous writes, instant reads and freshness against cost. Let me size events and storage.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="b" data-concept="rta-instinct">
+        <p class="stem">What single instinct resolves the freshness / accuracy / distinct-count tensions?</p>
+        <button class="opt">Query raw events on demand and cache the most popular results</button>
+        <button class="opt">Do work once on write, approximate where tolerable, keep raw truth</button>
+        <button class="opt">Use one strongly consistent SQL database for every event stream</button>
+        <button class="opt">Drop events under load so the dashboards always stay responsive</button>
+        <p class="fb">Pre-aggregate on write, approximate uniques, keep the immutable raw lake for recompute.</p>
+        <p class="hint">Reread 'The tension to name'.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="rta-not-money">
+        <p class="stem">Why is it acceptable here to be ~2% off on unique users, when the ad click aggregator couldn't be?</p>
+        <button class="opt">Analytics events are encrypted, so small errors can't be seen</button>
+        <button class="opt">Unique users are always overcounted, so errors cancel out</button>
+        <button class="opt">No one is billed from these numbers — they guide decisions</button>
+        <button class="opt">Regulators don't audit analytics, only ad billing systems</button>
+        <p class="fb">Tolerance comes from the product: a DAU chart can be 2% off; an invoice cannot.</p>
+        <p class="hint">Who pays money based on each system's numbers?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-2" hidden>
+    <p class="chunk-label">2 of 8</p>
   <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Only the numbers that change a decision — say the implication out loud.</span></div>
   <h2>3 · Capacity Estimation</h2>
   <p>Only the numbers that change a decision. (Estimates are my own back-of-envelope, not vendor figures.)</p>
@@ -160,7 +201,31 @@
     <p><b>Staff answer:</b> A million inserts per second and scans over billions of rows per query won't work in a row store. Columnar OLAP compresses and scans only the needed columns.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “~1M events/s peak and tens of billions per day: partitioned ingest and columnar storage. Let me define entities.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="rta-exact-distinct-cost">
+        <p class="stem">Why is exact COUNT(DISTINCT user) per slice 'memory-murderous'?</p>
+        <button class="opt">Each bucket must keep the full set of ids — hundreds of MB per slice</button>
+        <button class="opt">Distinct counts require sorting all events by timestamp first</button>
+        <button class="opt">User ids are strings, and strings can't be counted exactly</button>
+        <button class="opt">Distinct counts can only be computed on a single CPU core</button>
+        <p class="fb">Exact distinct needs the set itself. Hundreds of millions of ids × every (event, dims, window) bucket explodes. HLL is ~12 KB.</p>
+        <p class="hint">To know if a user is new, what must you remember?</p>
+      </div>
+      <div class="q" data-correct="d" data-concept="rta-rollups-small">
+        <p class="stem">Why do rollups fit in hot OLAP when raw events don't?</p>
+        <button class="opt">Rollups are compressed with gzip while raw events are not</button>
+        <button class="opt">Rollups are deleted after one day, while raw is kept forever</button>
+        <button class="opt">Rollups are stored in Redis, which is larger than any disk</button>
+        <button class="opt">Collapsing events into dims × time buckets shrinks TB to GB</button>
+        <p class="fb">Aggregation discards per-event detail; the number of (event, dims, bucket) cells is tiny vs. the event count.</p>
+        <p class="hint">Reread the 'Cooked rollups' row.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-3" hidden>
+    <p class="chunk-label">3 of 8</p>
   <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the contract and the storage shape before drawing boxes.</span></div>
   <h2>4 · Core Entities &amp; API</h2>
   <p><b>Entities:</b> <code>Event</code> (eventId, userId, deviceId, name, timestamp, properties{}, projectId),
@@ -197,7 +262,31 @@
     <p><b>Staff answer:</b> SDKs retry batches on flaky networks; the eventId deduplicates at ingest so counts aren't inflated.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Events with properties and rollups with HLL sketches. Now the pipeline from SDK to dashboard.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="rta-fast-202">
+        <p class="stem">Why does the collector return 202 as soon as events are in Kafka, not after aggregation?</p>
+        <button class="opt">Aggregation results are always wrong for the first few seconds</button>
+        <button class="opt">Ingest must never block on slow downstream work; durability is enough</button>
+        <button class="opt">HTTP forbids returning 200 for requests that contain batches</button>
+        <button class="opt">Kafka needs the ack to be sent before it will replicate data</button>
+        <p class="fb">Once durably logged, the event can't be lost; everything else is replayable downstream.</p>
+        <p class="hint">What's the minimum needed to guarantee the event won't be lost?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="rta-sdk-batching">
+        <p class="stem">Why do SDKs buffer on-device and send gzipped batches?</p>
+        <button class="opt">Servers accept only one request per device per minute</button>
+        <button class="opt">Batching lets the SDK compute HyperLogLog sketches locally</button>
+        <button class="opt">Buffering survives offline; batching cuts per-request cost</button>
+        <button class="opt">Kafka requires gzip for every message it will store</button>
+        <p class="fb">Offline-tolerant buffer = no loss; batching amortizes request overhead across many events.</p>
+        <p class="hint">What happens to an event emitted in a subway tunnel?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-4" hidden>
+    <p class="chunk-label">4 of 8</p>
   <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">A simple end-to-end design that satisfies every functional requirement.</span></div>
   <h2>6 · Data Flow</h2>
   <p>Follow one event from a tap to a dashboard tile:</p>
@@ -249,7 +338,31 @@
     <p><b>Staff answer:</b> It absorbs bursts, decouples ingest from processing, and lets us replay when rollup logic changes.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Deep dives: ingestion, lambda vs kappa, columnar OLAP and rollups with approximate uniques.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-correct="a" data-concept="rta-speed-vs-batch">
+        <p class="stem">In this design, what does each of the two paths out of Kafka do?</p>
+        <button class="opt">Flink gives seconds-fresh rollups; Spark recomputes authoritative ones</button>
+        <button class="opt">Flink archives raw events; Spark serves all dashboard queries</button>
+        <button class="opt">Flink dedups events; Spark computes the HyperLogLog sketches</button>
+        <button class="opt">Flink writes to Postgres; Spark writes to the columnar store</button>
+        <p class="fb">Speed layer for freshness, batch layer (over the lake) for correctness — batch overwrites drift.</p>
+        <p class="hint">Reread the HLD's last paragraph.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="rta-why-log-replay">
+        <p class="stem">You find a bug that double-counted signups for the last 2 days. Why does the Kafka log + lake save you?</p>
+        <button class="opt">Kafka automatically detects and removes double-counted events</button>
+        <button class="opt">Raw events are kept, so you fix the code and replay to recompute</button>
+        <button class="opt">The OLAP store keeps old versions of each rollup to roll back</button>
+        <button class="opt">The SDKs resend the last two days of events on request</button>
+        <p class="fb">Rollups are derived; the immutable raw stream is truth. Fix the logic, replay, overwrite.</p>
+        <p class="hint">What's the source of truth — the rollups or the raw events?</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-5" hidden>
+    <p class="chunk-label">5 of 8</p>
   <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
   <h2>9 · Deep Dives</h2>
 
@@ -338,7 +451,49 @@
     <p><b>Staff answer:</b> Kappa with a replayable log for most metrics: one streaming codebase produces rollups, and reprocessing replays the log. Add batch only for analyses that need full raw scans.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Production readiness, including user privacy.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="rta-watermark">
+        <p class="stem">A phone reconnects and sends an event from 3 hours ago. What happens?</p>
+        <button class="opt">It is dropped forever, since its window already closed</button>
+        <button class="opt">Flink reopens that window and holds it open for a day</button>
+        <button class="opt">The collector rejects it with a 400 because it is too old</button>
+        <button class="opt">Past the lateness bound, the batch layer repairs that window</button>
+        <p class="fb">Watermarks + bounded allowed-lateness finalize windows promptly; anything later is fixed by recomputation from the lake.</p>
+        <p class="hint">Reread 'Late events' in Deep Dive 2.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="b" data-concept="rta-columnar-picture">
+        <p class="stem">Query: 'count purchases per day for 30 days'. A 1 KB row has 40 columns. Why does columnar read far less?</p>
+        <button class="opt">Columnar stores keep rows sorted by user, so fewer rows are read</button>
+        <button class="opt">It reads only the 2–3 columns needed, skipping the other ~37</button>
+        <button class="opt">Columnar stores cache every query result permanently in memory</button>
+        <button class="opt">Row stores must decrypt every row, which columnar skips</button>
+        <p class="fb">Row store reads whole 1 KB rows; columnar reads contiguous event_name + timestamp columns (and they compress 5–10×).</p>
+        <p class="hint">How many of the 40 columns does this query actually touch?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="rta-hll-merge">
+        <p class="stem">Why is HLL's *mergeability* the property that makes it fit rollups?</p>
+        <button class="opt">Minute sketches union into any range's uniques without raw data</button>
+        <button class="opt">Merged sketches become exact once enough minutes are combined</button>
+        <button class="opt">Merging lets HLL count revenue as well as unique users</button>
+        <button class="opt">Merging lets you list which users were counted in the set</button>
+        <p class="fb">Uniques aren't additive (Monday 100 + Tuesday 100 ≠ 200 uniques). HLL union gives correct uniques across any range.</p>
+        <p class="hint">Can you add Monday's DAU to Tuesday's DAU to get two-day uniques?</p>
+      </div>
+      <div class="q" data-correct="c" data-concept="rta-kappa-default">
+        <p class="stem">Which architecture does the lesson lead with, and why?</p>
+        <button class="opt">Lambda, because two codebases are always more accurate</button>
+        <button class="opt">Batch-only, because analytics never needs fresh data</button>
+        <button class="opt">Kappa — one pipeline, replay the log to backfill</button>
+        <button class="opt">Warehouse-only, because it needs no streaming at all</button>
+        <p class="fb">Kappa for operational simplicity; add batch reconciliation only where ledger-grade accuracy is needed.</p>
+        <p class="hint">Reread 'Pick' in Deep Dive 2.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-6" hidden>
+    <p class="chunk-label">6 of 8</p>
   <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Show you can operate, secure and protect it — the staff-level differentiator.</span></div>
   <h2>11 · Observability</h2>
   <table>
@@ -389,7 +544,31 @@
     <p><b>Staff answer:</b> Keep user id mappings separate, delete or pseudonymize by rewriting affected partitions on a schedule, and exclude deleted users from future rollups.</p>
   </div>
   <p class="transition"><span class="lbl">Say to move on →</span> “Then 10× and cost.”</p>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="d" data-concept="rta-lineage">
+        <p class="stem">Why count records at each stage (collector = Kafka = lake ≈ rollups) per hour?</p>
+        <button class="opt">To bill each project for how many stages its events went through</button>
+        <button class="opt">To decide which stage should be scaled out next quarter</button>
+        <button class="opt">To check the HyperLogLog error stays under 2%, hourly</button>
+        <button class="opt">Silent loss between stages shows only if counts differ</button>
+        <p class="fb">Each stage can drop data without erroring. Reconciling counts is the only way to prove 'no silent loss'.</p>
+        <p class="hint">How would you know if Flink silently dropped 1% of events?</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="rta-write-key">
+        <p class="stem">The SDK's write key is embedded in public apps. What limits the damage if it's extracted?</p>
+        <button class="opt">It's encrypted in the app binary, so extraction is impossible</button>
+        <button class="opt">It's write-only to one project, with quotas and schema checks</button>
+        <button class="opt">It expires every 5 minutes, so stolen copies stop working</button>
+        <button class="opt">It grants read access only to aggregated rollups</button>
+        <p class="fb">Assume public keys leak. Scope them: write-only, one project, rate-limited, validated.</p>
+        <p class="hint">Reread the SDK → collector row in Auth.</p>
+      </div>
+    </div>
+  </section>
 
+  <section class="chunk" id="chunk-7" hidden>
+    <p class="chunk-label">7 of 8</p>
   <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow 10× without re-architecting, and know what it costs.</span></div>
   <h2>16 · Scaling 10× Without Changing the Architecture</h2>
   <p>10× = ~10M events/s peak, ~1T events/day.</p>
@@ -426,43 +605,73 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>18 · Closing Summary (60 seconds)</h2>
   <div class="summary"><p>Real-time analytics is high-throughput ingest feeding cheap, fresh reads. SDKs batch events with ids, and stateless collectors authenticate, deduplicate and append them to Kafka. Flink computes per-minute rollups with mergeable HyperLogLog sketches for unique users, while raw events land in a lake and a columnar OLAP store for ad hoc queries. Dashboards hit rollups first and raw columns only when needed, and the replayable log handles reprocessing. At 10× we add collectors, partitions and OLAP nodes with tiered storage.</p></div>
+    <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="rta-cost-driver">
+        <p class="stem">What dominates cost, and what's the lever?</p>
+        <button class="opt">Kafka; replace it with direct writes to the OLAP store</button>
+        <button class="opt">The lake; move all raw events to deep archive on day one</button>
+        <button class="opt">Raw kept hot in OLAP; shorten it, serve ranges from rollups</button>
+        <button class="opt">Collectors; replace them all with serverless functions</button>
+        <p class="fb">90 days of raw in ClickHouse is the big line. Rollups answer long ranges cheaply.</p>
+        <p class="hint">Which store holds the most bytes on expensive SSD?</p>
+      </div>
+    </div>
+  </section>
 
-  <h2>Check yourself — retrieval practice</h2>
-  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
-  <div class="quiz" id="quiz">
-    <div class="q" data-correct="c">
-      <p class="stem">1. Why is at-least-once + dedup preferred over exactly-once on the ingest path here?</p>
-      <button class="opt">Exactly-once delivery is technically impossible across any real network link at all</button>
-      <button class="opt">Columnar storage engines reject events that arrive more than once per minute window</button>
-      <button class="opt">Events are cheap, so accepting fast and deduping by eventId beats slowing ingest down</button>
-      <button class="opt">Kafka partitions can only guarantee ordering when producers send each event one time</button>
-      <p class="fb">Events aren't billable, so the simpler at-least-once path plus eventId dedup keeps ingest fast without inflating counts.</p>
+  <section class="chunk" id="chunk-final" hidden>
+    <p class="chunk-label">Final check</p>
+    <h2>Everything from this lesson</h2>
+    <p style="font-size:.9rem; color:var(--muted);">Answer from memory. These questions seed your spaced-review schedule — they come back on future session starts per the forgetting curve.</p>
+    <div class="gate">
+      <span class="gate-lbl">Comprehensive check</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="rta-at-least-once-final">
+        <p class="stem">Why is at-least-once + dedup preferred over exactly-once on the ingest path here?</p>
+        <button class="opt">Exactly-once delivery is technically impossible across any real network link at all</button>
+        <button class="opt">Columnar storage engines reject events that arrive more than once per minute window</button>
+        <button class="opt">Events are cheap, so accepting fast and deduping by eventId beats slowing ingest down</button>
+        <button class="opt">Kafka partitions can only guarantee ordering when producers send each event one time</button>
+        <p class="fb">Events aren't billable, so the simpler at-least-once path plus eventId dedup keeps ingest fast without inflating counts.</p>
+        <p class="hint">Reread Deep Dive 1.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="rta-hll-final">
+        <p class="stem">Why store a HyperLogLog sketch instead of exact distinct user-id sets?</p>
+        <button class="opt">Sketches return perfectly exact unique counts while using slightly less disk space</button>
+        <button class="opt">Sketches are tiny and mergeable, so range uniques union without rescanning raw</button>
+        <button class="opt">Sketches let the database skip the streaming layer and read directly from object</button>
+        <button class="opt">Sketches encrypt user identifiers so distinct counts never expose any real userid</button>
+        <p class="fb">HLL trades ~2% error for kilobyte-sized, mergeable sketches — union per-minute sketches to get range uniques cheaply.</p>
+        <p class="hint">Reread Deep Dive 4.</p>
+      </div>
+      <div class="q" data-correct="a" data-concept="rta-columnar-final">
+        <p class="stem">What makes columnar OLAP beat a row store for dashboard aggregates?</p>
+        <button class="opt">It reads only the columns a query needs and compresses like-typed data heavily</button>
+        <button class="opt">It keeps every single raw event permanently cached inside fast main memory pages</button>
+        <button class="opt">It replays the whole Kafka commit log on demand for each incoming user query</button>
+        <button class="opt">It updates individual rows in place far faster than any normal index would allow</button>
+        <p class="fb">Columnar stores read only needed columns and compress them well, so wide scans and GROUP BY are dramatically cheaper.</p>
+        <p class="hint">Reread Deep Dive 3.</p>
+      </div>
+      <div class="q" data-correct="b" data-concept="rta-lambda-batch-final">
+        <p class="stem">In the lambda model, what job does the batch layer do for the speed layer?</p>
+        <button class="opt">It is the single only component allowed to write any rollups into the OLAP store</button>
+        <button class="opt">It recomputes from the immutable lake to correct drift and repair very late events</button>
+        <button class="opt">It performs the windowed streaming aggregation that Flink itself cannot ever handle</button>
+        <button class="opt">It serves every dashboard query directly so the columnar store stays totally idle</button>
+        <p class="fb">The speed layer gives freshness; the batch layer re-aggregates the immutable raw lake for authoritative, drift-free numbers.</p>
+        <p class="hint">Reread Deep Dive 2.</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="rta-transfer-billing">
+        <p class="stem">You reuse this pipeline to bill customers per API call. What must change first?</p>
+        <button class="opt">Counts become money: exact, deduped, reconciled, no HLL</button>
+        <button class="opt">Nothing; HLL is accurate enough for invoices at ~2% error</button>
+        <button class="opt">Drop the raw lake, since billing only needs the rollups</button>
+        <button class="opt">Switch the collector to return a 200 instead of 202</button>
+        <p class="fb">The whole design leaned on 'events aren't money'. Billing removes that assumption.</p>
+        <p class="hint">Which assumption did the staff signal box say this design depends on?</p>
+      </div>
     </div>
-    <div class="q" data-correct="b">
-      <p class="stem">2. Why store a HyperLogLog sketch instead of exact distinct user-id sets?</p>
-      <button class="opt">Sketches return perfectly exact unique counts while using slightly less disk space</button>
-      <button class="opt">Sketches are tiny and mergeable, so range uniques union without rescanning raw</button>
-      <button class="opt">Sketches let the database skip the streaming layer and read directly from object</button>
-      <button class="opt">Sketches encrypt user identifiers so distinct counts never expose any real userid</button>
-      <p class="fb">HLL trades ~2% error for kilobyte-sized, mergeable sketches — union per-minute sketches to get range uniques cheaply.</p>
-    </div>
-    <div class="q" data-correct="a">
-      <p class="stem">3. What makes columnar OLAP beat a row store for dashboard aggregates?</p>
-      <button class="opt">It reads only the columns a query needs and compresses like-typed data heavily</button>
-      <button class="opt">It keeps every single raw event permanently cached inside fast main memory pages</button>
-      <button class="opt">It replays the whole Kafka commit log on demand for each incoming user query</button>
-      <button class="opt">It updates individual rows in place far faster than any normal index would allow</button>
-      <p class="fb">Columnar stores read only needed columns and compress them well, so wide scans and GROUP BY are dramatically cheaper.</p>
-    </div>
-    <div class="q" data-correct="b">
-      <p class="stem">4. In the lambda model, what job does the batch layer do for the speed layer?</p>
-      <button class="opt">It is the single only component allowed to write any rollups into the OLAP store</button>
-      <button class="opt">It recomputes from the immutable lake to correct drift and repair very late events</button>
-      <button class="opt">It performs the windowed streaming aggregation that Flink itself cannot ever handle</button>
-      <button class="opt">It serves every dashboard query directly so the columnar store stays totally idle</button>
-      <p class="fb">The speed layer gives freshness; the batch layer re-aggregates the immutable raw lake for authoritative, drift-free numbers.</p>
-    </div>
-  </div>
+  </section>
 
   <div class="ask">
     <strong>Ask me anything.</strong> I'm your teacher for this design — push on the hard parts. Try:
@@ -493,21 +702,6 @@
   </footer>
 
 </div>
-<script>
-  document.querySelectorAll('.q').forEach(function(q){
-    var correct = q.dataset.correct;
-    var opts = q.querySelectorAll('.opt');
-    var fb = q.querySelector('.fb');
-    opts.forEach(function(opt, i){
-      opt.addEventListener('click', function(){
-        var letter = ['a','b','c','d'][i];
-        opts.forEach(function(o){ o.disabled = true; });
-        if(letter === correct){ opt.classList.add('correct'); }
-        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
-        fb.classList.add('show');
-      });
-    });
-  });
-</script>
+<script src="../reference/mastery.js"></script>
 </body>
 </html>

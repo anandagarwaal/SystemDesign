@@ -203,8 +203,8 @@
     <div class="q" data-type="intuition" data-correct="c" data-concept="qa-forum-why-corpus-size-forces-search-index">
       <p class="stem">Why does the tens-of-TB corpus size push toward a dedicated search index instead of a database scan?</p>
       <button class="opt">Tens of TB is too large for any database to store at all</button>
-      <button class="opt">Relational databases cannot store text fields larger than a few KB</button>
-      <button class="opt">A LIKE-based scan over that much text is slow and ignores relevance ranking</button>
+      <button class="opt">Relational databases can't store text fields over a few KB</button>
+      <button class="opt">A LIKE scan over that much text is slow and ignores relevance</button>
       <p class="fb">Size alone isn't the blocker; the primary store holds it fine. The problem is that keyword relevance search needs an inverted index, which a transactional scan can't provide efficiently.</p>
       <p class="hint">Ask what a full scan gets you versus what an inverted index gets you, independent of raw storage size.</p>
     </div>
@@ -270,7 +270,7 @@
     <div class="q" data-type="intuition" data-correct="b" data-concept="qa-forum-why-derived-fields-not-in-primary-write-path">
       <p class="stem">Score, hot ranking and reputation are all described as "derived" and kept out of the main write path. What would break if they were written synchronously on every vote instead?</p>
       <button class="opt">Nothing changes, since these fields are rarely read by anyone</button>
-      <button class="opt">Every vote would need to update multiple systems before returning, slowing writes and coupling their availability to the vote path</button>
+      <button class="opt">Each vote would wait on several systems and share their outages</button>
       <button class="opt">The vote table would lose its uniqueness constraint entirely</button>
       <p class="fb">Making score, ranking, and reputation synchronous ties the vote's latency and success to three extra systems. Deriving them asynchronously from an event keeps the write path fast and lets each consumer fail independently.</p>
       <p class="hint">Think about what a synchronous write to four different stores does to p99 latency and to failure isolation.</p>
@@ -328,9 +328,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="qa-forum-why-one-vote-event-not-four-writes">
       <p class="stem">The write path emits one vote event consumed by three subsystems, rather than the Vote Service writing to all three directly. What would break if the Vote Service wrote to counter, ranker, and reputation store directly and synchronously?</p>
-      <button class="opt">Nothing, this is equivalent and just a style preference</button>
-      <button class="opt">The vote row would no longer be idempotent per user per target</button>
-      <button class="opt">A vote's success would depend on all three downstream systems being up, and adding a fourth consumer later would require changing the Vote Service itself</button>
+      <button class="opt">Nothing — it's equivalent, just a style preference</button>
+      <button class="opt">Vote rows would stop being idempotent per user/target</button>
+      <button class="opt">Votes would need every consumer up; new ones need edits</button>
       <p class="fb">Event-driven fan-out decouples the vote write from its consumers: any one consumer's outage doesn't block voting, and new consumers subscribe without touching the Vote Service.</p>
       <p class="hint">Compare "one write, one event, N independent consumers" against "one write that must succeed against N systems."</p>
     </div>
@@ -418,17 +418,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="c" data-concept="qa-forum-vote-counter-fix">
       <p class="stem">What is the practical fix for the hot-counter problem on a viral post?</p>
-      <button class="opt">Reject votes on any post once it exceeds a fixed vote-count threshold</button>
-      <button class="opt">Store every vote as a new row and recompute the sum on every page read</button>
-      <button class="opt">Accumulate votes in a fast in-memory counter and flush aggregates asynchronously to durable storage</button>
+      <button class="opt">Reject votes once a post exceeds a fixed vote threshold</button>
+      <button class="opt">Store each vote as a row and re-sum it on every read</button>
+      <button class="opt">Count in memory and flush aggregates asynchronously</button>
       <p class="fb">Redis INCR absorbs the write rate atomically; the running total flushes to the durable store periodically, and the displayed count is served from Redis.</p>
       <p class="hint">Reread the paragraph starting "The practical answer combines both."</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="qa-forum-why-hot-score-precomputed-not-readtime">
       <p class="stem">The hot-ranking formula's time term increases monotonically. Why does that specific property let the system avoid re-sorting the whole corpus on every read?</p>
-      <button class="opt">A post's hot score is fully determined by its own (score, createdAt) at write/vote time, so it can be computed once and stored rather than recomputed relative to every other post on each read</button>
-      <button class="opt">Monotonic functions are always faster for a CPU to evaluate than non-monotonic ones</button>
-      <button class="opt">It has no real effect; the corpus is re-sorted on every read regardless</button>
+      <button class="opt">Each post's score depends only on itself, so compute it once and store</button>
+      <button class="opt">Monotonic functions are faster for a CPU to evaluate than others</button>
+      <button class="opt">It has no real effect; the corpus is re-sorted on every read anyway</button>
       <p class="fb">Because the score only depends on the post's own two fields and time, it can be precomputed and placed into a sorted set once, instead of requiring a global comparison across all posts at read time.</p>
       <p class="hint">Ask what information you need to compute one post's hot score, versus what you'd need to fully re-rank the corpus.</p>
     </div>
@@ -509,9 +509,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="qa-forum-why-votes-hidden-but-content-public">
       <p class="stem">Content is public by design, but individual votes are never shown publicly. What would break if individual votes were public?</p>
-      <button class="opt">The vote counter would become slower to update in Redis</button>
-      <button class="opt">The materialized path for comments would no longer work correctly</button>
-      <button class="opt">Users could face social retaliation for downvoting, and it would make targeted harassment or vote-ring detection easier for bad actors to evade</button>
+      <button class="opt">The vote counter would update more slowly in Redis</button>
+      <button class="opt">The materialized comment path would stop working right</button>
+      <button class="opt">Downvoters face retaliation; vote rings evade detection</button>
       <p class="fb">Hiding individual votes protects users from retaliation for expressing disagreement, while aggregate counts still give the community signal it needs.</p>
       <p class="hint">Ask what a person could do to another person if they could see exactly who downvoted them.</p>
     </div>
@@ -569,9 +569,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="qa-forum-why-personalized-feeds-force-redesign">
       <p class="stem">Why would fully personalized home feeds force an architecture change, rather than just needing more Redis capacity?</p>
-      <button class="opt">Shared ranked lists work because everyone in a community sees the same order; personalization needs a distinct ranking per user, which is a fundamentally different computation, not a bigger version of the same one</button>
-      <button class="opt">Personalized feeds require no ranking logic at all, only a database index</button>
-      <button class="opt">Redis cannot store more than one sorted set per community under any circumstances</button>
+      <button class="opt">Shared lists fit shared order; per-user ranking is a different job</button>
+      <button class="opt">Personalized feeds need no ranking logic, only a database index</button>
+      <button class="opt">Redis can't store more than one sorted set per community at all</button>
       <p class="fb">Shared sorted sets amortize one ranking computation across every reader of a community. Per-user feeds multiply that computation by the user count, which is a different problem shape, not just more scale.</p>
       <p class="hint">Ask: does adding more cache nodes help if every single user now needs their own distinct ranked list?</p>
     </div>
@@ -595,10 +595,10 @@
     </div>
     <div class="q" data-correct="b" data-concept="qa-forum-final-hot-counter-fix">
       <p class="stem">What breaks when a front-page post takes thousands of votes per second, and what fixes it?</p>
-      <button class="opt">The search index falls behind; fixed by faster CDC polling intervals</button>
-      <button class="opt">A single counter row becomes a serialized write-contention hotspot; fixed by async, batched aggregation</button>
-      <button class="opt">The comment tree grows unbounded; fixed by a depth-capped adjacency list</button>
-      <button class="opt">The cache evicts the post too often; fixed by disabling the TTL</button>
+      <button class="opt">Search lags behind; fixed by faster CDC polling</button>
+      <button class="opt">One counter row serializes writes; fix with async batching</button>
+      <button class="opt">The comment tree grows unbounded; cap its depth</button>
+      <button class="opt">The cache evicts the post too often; disable the TTL</button>
       <p class="fb">Naive count = count + 1 serializes on one hot row. Accumulate in Redis and flush aggregates to the durable store asynchronously.</p>
       <p class="hint">Reread Deep Dive 2 — Vote counting at scale.</p>
     </div>
@@ -622,17 +622,17 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="qa-forum-final-why-event-driven-vote-fanout">
       <p class="stem">The design fans a single vote event out to the counter, the ranker, and the reputation worker. What is the deeper reason this beats writing to all three synchronously?</p>
-      <button class="opt">Synchronous writes are always technically impossible across three data stores</button>
-      <button class="opt">It has no real benefit; it's only done for code style reasons</button>
-      <button class="opt">It decouples the vote's success from the availability of any one downstream consumer, and lets new consumers subscribe without changing the write path</button>
+      <button class="opt">Synchronous writes across three stores are technically impossible</button>
+      <button class="opt">It has no real benefit; it's done purely for code style reasons</button>
+      <button class="opt">Votes don't depend on any consumer, and new ones just subscribe</button>
       <p class="fb">Event-driven fan-out is the connective idea across DD1–DD3: one write, one event, independent consumers that can fail, scale, or evolve separately.</p>
       <p class="hint">Reread the staff-level signal box after Deep Dive 3.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="qa-forum-final-why-b-served-stackoverflow">
       <p class="stem">Approach B (a few big SQL servers with aggressive caching) is noted as Stack Overflow's real architecture for years. Why does that work at their scale despite lacking the event pipeline of Approach A?</p>
-      <button class="opt">Vertical scaling and caching are sufficient until vote contention and feed-ranking demands outgrow a single powerful machine, so a simpler design is correct until that point</button>
-      <button class="opt">Stack Overflow has fewer users than any Reddit-scale platform ever has</button>
-      <button class="opt">SQL Server is inherently faster than every distributed database at any scale</button>
+      <button class="opt">Scale-up plus caching suffices until contention outgrows one box</button>
+      <button class="opt">Stack Overflow has fewer users than any Reddit-scale platform ever</button>
+      <button class="opt">SQL Server is inherently faster than any distributed database</button>
       <p class="fb">This is the simple-by-default staff signal: don't reach for the complex event-driven design until the specific bottlenecks it solves (hot-row contention, per-second re-ranking) actually appear.</p>
       <p class="hint">Reread the line under the Alternative Approaches table: "simple-by-default until vote contention and feed ranking justify the event pipeline."</p>
     </div>

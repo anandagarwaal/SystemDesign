@@ -185,16 +185,16 @@
       <div class="q" data-correct="b" data-concept="metrics-monitoring-cardinality-definition">
         <p class="stem">What defines a unique "series" in this system?</p>
         <button class="opt">The raw byte size of one data point on the wire</button>
-        <button class="opt">A metric name combined with one specific tag-value combination</button>
+        <button class="opt">A metric name plus one specific tag-value combination</button>
         <button class="opt">The scrape interval configured for a given host</button>
         <p class="fb">A series is metric name × every tag-value combination; each unique combination needs its own index entry and chunk stream.</p>
         <p class="hint">Reread the "Cardinality" bullet in the capacity box.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="metrics-monitoring-cardinality-vs-qps">
         <p class="stem">Why is cardinality "the number that breaks systems," rather than raw ingest QPS?</p>
-        <button class="opt">Each unique tag combination costs its own index entry and chunk, so cardinality growth is unbounded, unlike a fixed points/sec rate</button>
-        <button class="opt">QPS is always lower than cardinality, so cardinality is mathematically bigger by definition</button>
-        <button class="opt">Cardinality only matters for query latency, never for ingest or storage cost</button>
+        <button class="opt">Each tag combo costs its own index entry and chunk, without bound</button>
+        <button class="opt">QPS is always lower than cardinality, so it's bigger by definition</button>
+        <button class="opt">Cardinality only affects query latency, never ingest or storage</button>
         <p class="fb">Ingest QPS scales predictably with host count, but one unbounded tag (like a user_id) can multiply series count without limit, exploding index and memory cost.</p>
         <p class="hint">Think about what happens to the index if one tag has millions of distinct values, versus what happens if you just add more hosts.</p>
       </div>
@@ -248,9 +248,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="metrics-monitoring-time-block-pruning">
         <p class="stem">What would break if data were not organized into immutable time blocks with per-block label indexes?</p>
-        <button class="opt">Nothing — time blocks only affect how backups are taken, not queries</button>
-        <button class="opt">A query would have to scan every block regardless of time range, since there'd be no cheap way to prune by time first</button>
-        <button class="opt">Alert rules would stop being able to reference a threshold value</button>
+        <button class="opt">Nothing — time blocks only change how backups are taken</button>
+        <button class="opt">Queries would scan every block, with no cheap time pruning</button>
+        <button class="opt">Alert rules could no longer reference a threshold value</button>
         <p class="fb">Time blocks let the query planner prune by time range before even touching labels — without them, every query degenerates into a full scan.</p>
         <p class="hint">Reread how blocks let a query "prune by time first, then by labels."</p>
       </div>
@@ -327,9 +327,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="metrics-monitoring-partition-by-series">
         <p class="stem">Why partition Kafka and storage by series rather than by metric name?</p>
-        <button class="opt">Partitioning by series spreads hot series evenly and keeps one series' points co-located for efficient reads and compaction</button>
-        <button class="opt">Metric names are not allowed to appear as partition keys in Kafka's design</button>
-        <button class="opt">Partitioning by series removes the need for any object storage tier</button>
+        <button class="opt">It spreads hot series and keeps each series' points co-located</button>
+        <button class="opt">Kafka's design forbids metric names as partition keys</button>
+        <button class="opt">It removes the need for any object storage tier at all</button>
         <p class="fb">Partitioning by metric name would concentrate all traffic for a popular metric on one partition; hashing by full series spreads load and keeps each series' data together for local compaction and range reads.</p>
         <p class="hint">Compare "partition by metric name" against "partition by series hash" for a metric with millions of tag combinations.</p>
       </div>
@@ -378,9 +378,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="metrics-monitoring-cardinality-bomb-mechanism">
         <p class="stem">Why does one high-cardinality tag like user_id specifically increase write amplification, not just storage size?</p>
-        <button class="opt">User IDs are longer strings than other tag values, so they take more disk bytes per sample</button>
-        <button class="opt">The query service must decrypt user_id tags before every read, slowing writes indirectly</button>
-        <button class="opt">Each new series needs its own index entry and posting list, so compaction has more index updates and larger lists to merge</button>
+        <button class="opt">User ids are longer strings, so each sample takes more disk bytes</button>
+        <button class="opt">The query service must decrypt user_id tags, slowing writes</button>
+        <button class="opt">Every new series adds index entries and postings to compact</button>
         <p class="fb">Cardinality explosion multiplies the number of distinct series, and each series carries its own index entry and posting list — compaction work scales with series count, not just byte volume.</p>
         <p class="hint">Reread the sentence about "write amplification" right after "cardinality bomb."</p>
       </div>
@@ -435,9 +435,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="metrics-monitoring-pull-vs-push-tradeoff">
         <p class="stem">Why might a platform run both push and pull collection instead of picking just one?</p>
-        <button class="opt">Push and pull are functionally identical, so mixing them has no real benefit</button>
-        <button class="opt">Pull suits long-lived services with implicit health checks, while push suits ephemeral jobs that pull can't reach</button>
-        <button class="opt">Running both models is required by the TSDB's on-disk format</button>
+        <button class="opt">Push and pull are functionally identical, so mixing gains nothing</button>
+        <button class="opt">Pull fits long-lived services; push fits jobs pull can't reach</button>
+        <button class="opt">Running both is required by the TSDB's on-disk storage format</button>
         <p class="fb">Pull needs a stable target to scrape and gives free liveness signal; short-lived batch jobs can't be scraped reliably, so a push gateway covers that gap.</p>
         <p class="hint">Reread the pull-vs-push table's Cons column for each side.</p>
       </div>
@@ -503,17 +503,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="b" data-concept="metrics-monitoring-dead-mans-switch">
         <p class="stem">What does the "dead man's switch" alert detect?</p>
-        <button class="opt">A single query that scans too many raw samples</button>
-        <button class="opt">The alerting pipeline itself silently going down or stalling</button>
-        <button class="opt">A tenant exceeding its per-second sample-rate limit</button>
+        <button class="opt">A single query scanning too many raw samples</button>
+        <button class="opt">The alerting pipeline itself silently stalling</button>
+        <button class="opt">A tenant exceeding its sample-rate limit</button>
         <p class="fb">A Watchdog alert must fire continuously; if it stops reaching the external service, that absence itself pages, catching the case where the alerting system can't alert on itself.</p>
         <p class="hint">Reread the "Alerting pipeline alive" row in the Monitoring table.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="metrics-monitoring-cardinality-privacy-link">
         <p class="stem">Why does banning user IDs as label values serve both privacy and cardinality goals at once?</p>
-        <button class="opt">User IDs compress worse than other strings, hurting only storage cost</button>
-        <button class="opt">Privacy and cardinality are unrelated; the overlap here is coincidental</button>
-        <button class="opt">A user ID is both personally identifying and unbounded, so it is exactly the kind of tag that explodes series count</button>
+        <button class="opt">User ids compress worse than other strings, hurting only storage</button>
+        <button class="opt">Privacy and cardinality are unrelated; the overlap is a coincidence</button>
+        <button class="opt">A user id is both identifying and unbounded — explodes series</button>
         <p class="fb">An unbounded per-user tag is precisely a cardinality bomb and precisely PII, so the same ingest-time label allow-list defends both concerns.</p>
         <p class="hint">Compare the Privacy section's rule against the earlier cardinality-bomb deep dive — what kind of tag was called out both times?</p>
       </div>
@@ -573,9 +573,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="metrics-monitoring-dominant-cost-driver">
         <p class="stem">Why does cost track active series rather than raw sample rate?</p>
-        <button class="opt">Each active series holds memory and index structures in the hot tier regardless of how often it's sampled, so series count drives the dominant cost</button>
-        <button class="opt">Sample rate has no effect on cost because ingest is free at any volume</button>
-        <button class="opt">Object storage charges are billed per sample written, not per series</button>
+        <button class="opt">Each active series holds hot memory and index, however often sampled</button>
+        <button class="opt">Sample rate has no effect on cost, since ingest is free at any volume</button>
+        <button class="opt">Object storage bills per sample written, never per series stored</button>
         <p class="fb">The hot tier keeps a resident index/chunk per active series; adding samples to existing series is cheap, but new series each add fixed overhead — hence cost follows cardinality.</p>
         <p class="hint">Reread the "Dominant driver" sentence in Cost of Running.</p>
       </div>
@@ -614,17 +614,17 @@
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="metrics-monitoring-remove-kafka-buffer">
         <p class="stem">What would you expect to happen if the Kafka buffer were removed and ingesters wrote straight to the TSDB?</p>
-        <button class="opt">Nothing would change; Kafka was purely decorative in this design</button>
-        <button class="opt">A burst or a TSDB hiccup would directly drop or block writes, since nothing absorbs the spike or allows replay</button>
-        <button class="opt">Query latency would improve because there are fewer hops to read through</button>
+        <button class="opt">Nothing — Kafka was purely decorative in this design</button>
+        <button class="opt">A burst or TSDB hiccup would drop writes, with no replay</button>
+        <button class="opt">Query latency improves, since there are fewer hops to read</button>
         <p class="fb">Kafka exists specifically to decouple bursty, unreliable-timing ingest from the storage tier; without it a slow TSDB or a spike propagates straight into write failures.</p>
         <p class="hint">Reread the Kafka pushback box and the "Fan out" step in the data flow.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="metrics-monitoring-alert-evaluator-design-final">
         <p class="stem">Why must the alert evaluator use rolling window state instead of recomputing each rule from scratch every cycle?</p>
-        <button class="opt">Rolling state is only needed to save disk space, not for latency</button>
-        <button class="opt">Recomputing from scratch would violate the retention tiering policy</button>
-        <button class="opt">A full recompute against long history each cycle cannot finish inside the sub-minute alert-latency budget at this data volume</button>
+        <button class="opt">Rolling state only exists to save disk space, not for latency</button>
+        <button class="opt">Recomputing from scratch would violate the retention tiering</button>
+        <button class="opt">Full recompute over long history can't fit the sub-minute budget</button>
         <p class="fb">With billions of series and a sub-minute fire requirement, only incremental evaluation over a small recent window and rolling state can keep each cycle bounded.</p>
         <p class="hint">Reread deep dive 4 on the alerting pipeline.</p>
       </div>

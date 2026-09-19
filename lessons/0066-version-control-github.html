@@ -152,9 +152,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="github-vcs-availability-over-consistency">
       <p class="stem">Why does the lesson pick availability over strong consistency for clones, given durability is still non-negotiable for pushes?</p>
-      <button class="opt">Clones and pushes are the same operation so the tradeoff never actually applies</button>
-      <button class="opt">Strong consistency is impossible to implement for any git operation ever</button>
-      <button class="opt">A clone reading a few-second-stale replica is invisible to the user, but downtime blocks real work</button>
+      <button class="opt">Clones and pushes are the same operation, so no tradeoff applies</button>
+      <button class="opt">Strong consistency is impossible for any git operation, ever</button>
+      <button class="opt">A slightly stale clone is invisible; downtime blocks real work</button>
       <p class="fb">Durability protects the one thing that can never be lost (committed history); availability keeps reads flowing even with minor replica lag, since staleness there is harmless.</p>
       <p class="hint">Compare what happens if a clone reads slightly stale data versus what happens if the whole read path goes down.</p>
     </div>
@@ -194,9 +194,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="github-vcs-why-not-s3">
       <p class="stem">Why doesn't storing git objects directly in S3 work well for active repos?</p>
-      <button class="opt">S3 cannot durably store binary data of any kind</button>
-      <button class="opt">Git pushes and clones need fast random access and local filesystem semantics that object storage is too slow for</button>
-      <button class="opt">S3 charges more per gigabyte than local SSD storage does</button>
+      <button class="opt">S3 cannot durably store binary data of any kind at all</button>
+      <button class="opt">Git needs fast random access and filesystem semantics</button>
+      <button class="opt">S3 charges more per gigabyte than local SSD storage</button>
       <p class="fb">Git operations hit packfiles, bitmaps, and local disk constantly; object storage latency makes that painful, though it's fine for cold repos or LFS.</p>
       <p class="hint">Reread the interviewer pushback right after the capacity estimation box.</p>
     </div>
@@ -260,9 +260,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="github-vcs-metadata-split-why">
       <p class="stem">Why keep PR metadata in relational MySQL instead of storing it inside the git repository itself?</p>
-      <button class="opt">PRs need transactions, foreign keys, and rich queries that a content-addressed object store isn't built for</button>
-      <button class="opt">Relational databases are faster than disk at streaming large binary packfiles</button>
-      <button class="opt">Git refuses to let any metadata about a repository exist outside of it</button>
+      <button class="opt">PRs need transactions, foreign keys and rich queries</button>
+      <button class="opt">Relational DBs stream big packfiles faster than disk</button>
+      <button class="opt">Git forbids any repository metadata living outside it</button>
       <p class="fb">Relational data is queried constantly and needs consistency guarantees (approval counts); git objects are optimized for immutable content, not query-heavy relational access.</p>
       <p class="hint">Think about what kind of queries "open PRs assigned to me" requires versus what a content-addressed store is good at.</p>
     </div>
@@ -327,9 +327,9 @@
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="github-vcs-stateless-frontend-why">
       <p class="stem">What would break if the git frontend tier stored repos locally instead of staying stateless and proxying?</p>
-      <button class="opt">Nothing would change since frontends never touch repository data anyway</button>
-      <button class="opt">Clones would become faster because there would be no network hop to storage</button>
-      <button class="opt">You could no longer route a repo's traffic to any frontend; frontends and repo location would be coupled, breaking horizontal scaling and failover</button>
+      <button class="opt">Nothing changes, since frontends never touch repository data</button>
+      <button class="opt">Clones get faster, since there's no network hop to storage</button>
+      <button class="opt">Frontends would be tied to repo location, breaking scale-out</button>
       <p class="fb">A stateless frontend can authenticate and route any request to any repo's storage nodes. Pinning repos to frontends would recreate the coupling the router exists to avoid.</p>
       <p class="hint">Think about what "stateless" buys you when you need to add or remove frontend capacity.</p>
     </div>
@@ -407,25 +407,25 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="c" data-concept="github-vcs-trigram-index">
       <p class="stem">Why does code search use a trigram index instead of plain word tokens?</p>
-      <button class="opt">Trigrams reduce the total petabytes of git data stored on disk</button>
-      <button class="opt">Trigrams remove the need to filter search results by repository ACLs</button>
-      <button class="opt">Trigrams let substring and regex queries become posting-list intersections instead of a filesystem scan</button>
+      <button class="opt">Trigrams reduce the petabytes of git data stored on disk</button>
+      <button class="opt">Trigrams remove the need to filter results by repo ACLs</button>
+      <button class="opt">Trigrams turn substring and regex search into intersections</button>
       <p class="fb">Word tokens miss queries like `handleRequest(`; indexing every 3-character sequence turns regex search into set intersections, then verifies candidates.</p>
       <p class="hint">Reread deep dive 3, the bullet about the "code-specific twist."</p>
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="github-vcs-quorum-replication-why">
       <p class="stem">Why does a push wait for a quorum of replicas before acknowledging, instead of acking as soon as the primary writes it?</p>
-      <button class="opt">Quorums make the push run faster because fewer nodes need to respond</button>
-      <button class="opt">Acking after only the primary writes risks losing the commit forever if that single node fails before it replicates</button>
-      <button class="opt">Git refuses to fast-forward a ref unless at least three nodes exist</button>
+      <button class="opt">Quorums make pushes faster, since fewer nodes must respond</button>
+      <button class="opt">Acking on the primary alone risks losing the commit forever</button>
+      <button class="opt">Git won't fast-forward a ref unless three nodes exist</button>
       <p class="fb">Durability is the cardinal NFR: "never lose a commit." A quorum ack means the data survives a single node failure, since it already exists on multiple nodes.</p>
       <p class="hint">Connect this back to the durability NFR from Phase 1 — what happens if the primary dies right after acking a lone write?</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="github-vcs-async-webhooks-why">
       <p class="stem">What would break if webhook delivery happened synchronously inside the push instead of through a queue?</p>
-      <button class="opt">Push latency would be coupled to how fast the slowest third-party webhook endpoint responds</button>
+      <button class="opt">Push latency would hinge on the slowest third-party endpoint</button>
       <button class="opt">The git object store would lose its content-addressing property</button>
-      <button class="opt">Code search would stop being eventually consistent</button>
+      <button class="opt">Code search would stop being eventually consistent altogether</button>
       <p class="fb">A slow or down CI endpoint would stall every push that triggers it. Async fan-out keeps push latency independent of downstream consumers.</p>
       <p class="hint">Reread deep dive 5's opening sentence about coupling.</p>
     </div>
@@ -492,17 +492,17 @@
     <span class="gate-lbl">Check before continuing</span>
     <div class="q" data-correct="b" data-concept="github-vcs-authz-model">
       <p class="stem">How is a developer's push over SSH authorized once their key identifies them?</p>
-      <button class="opt">Every authenticated SSH key gets full write access to every repository</button>
-      <button class="opt">Against their repo role plus branch protection rules like required reviews and status checks</button>
+      <button class="opt">Every authenticated SSH key gets write access to every repository</button>
+      <button class="opt">Their repo role plus branch protection like required reviews</button>
       <button class="opt">By checking the commit message for an authorization keyword</button>
       <p class="fb">AuthN (SSH key → user) is separate from authZ (repo role + branch protection rules evaluated on push).</p>
       <p class="hint">Check the Authentication &amp; Authorization table's first row.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="c" data-concept="github-vcs-leaked-secrets-mitigation-why">
       <p class="stem">Why does push protection (blocking a push containing a secret) matter more than scanning after the fact?</p>
-      <button class="opt">Scanning after the fact is technically impossible for git repositories</button>
+      <button class="opt">Scanning after the fact is technically impossible for git repos</button>
       <button class="opt">Push protection is cheaper to run than post-merge scanning jobs</button>
-      <button class="opt">Once a secret lands in an immutable, content-addressed commit, it persists in history even if later removed, so blocking beats cleanup</button>
+      <button class="opt">A committed secret persists in immutable history; block it first</button>
       <p class="fb">Git objects are immutable; a leaked secret in history requires rewriting history to fully remove. Blocking the push before the object exists avoids that problem entirely.</p>
       <p class="hint">Tie this back to the immutability property covered in the deep dives — what does that imply about removing something already committed?</p>
     </div>
@@ -559,8 +559,8 @@
     <div class="q" data-type="intuition" data-correct="b" data-concept="github-vcs-dominant-cost-why">
       <p class="stem">Why does replicated git storage and clone egress dominate the cost model rather than the collaboration database?</p>
       <button class="opt">MySQL licensing costs more per row than any storage medium</button>
-      <button class="opt">Every repo is stored 3× for durability and streamed repeatedly by CI, so bytes-at-rest times replicas plus bytes-in-flight dwarf small relational rows</button>
-      <button class="opt">Collaboration data is not actually stored anywhere in production</button>
+      <button class="opt">3× replicated repos, cloned endlessly by CI, dwarf small rows</button>
+      <button class="opt">Collaboration data isn't actually stored anywhere in production</button>
       <p class="fb">PRs/ACLs are small relational rows; git data is petabytes, tripled by replication, and re-transferred on every CI clone — that's where the dollars go.</p>
       <p class="hint">Compare the size of a PR row to the size of a repo replicated three times and cloned thousands of times a day.</p>
     </div>
@@ -572,6 +572,18 @@
   <div class="phase" id="phase-wrap"><span class="phase-num">Wrap-up · 58–60 min</span><span class="phase-name">Close strong</span><span class="phase-goal">Recap decisions and tradeoffs in 60 seconds; name what you would do next.</span></div>
   <h2>Closing Summary (60 seconds)</h2>
   <div class="summary"><p>A code host joins a git server and a collaboration app. Repositories are sharded to stateful storage nodes, each with a primary and replicas, and a push is acknowledged only after a quorum commits objects and refs. A stateless frontend tier authenticates and routes git smart-protocol traffic. Pull requests, reviews and permissions live in a relational database. Code search uses a dedicated index updated asynchronously from pushes, and webhooks deliver events to CI through a durable queue. At 10× we add storage nodes and tier cold repos.</p></div>
+      <div class="gate">
+      <span class="gate-lbl">Check before continuing</span>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="github-quorum-push">
+        <p class="stem">Why acknowledge a push only after a quorum of replicas commits objects and refs?</p>
+        <button class="opt">It lets the frontend tier stay stateless during a push</button>
+        <button class="opt">It makes pull requests load faster for reviewers</button>
+        <button class="opt">A single node failing then can't lose an acknowledged push</button>
+        <button class="opt">It lets each replica hold a different version of the repo</button>
+        <p class="fb">Acked = durable. Quorum commit survives a node loss without losing code a developer thinks is pushed.</p>
+        <p class="hint">What happens to an acked push if it lived on only one disk that then died?</p>
+      </div>
+    </div>
   </section>
 
   <section class="chunk" id="chunk-final" hidden>
@@ -618,19 +630,19 @@
     </div>
     <div class="q" data-type="intuition" data-correct="b" data-concept="github-vcs-final-repo-not-a-row">
       <p class="stem">What breaks in this design if you modeled a repository as "a row in a database" instead of a sharded, replicated blob store?</p>
-      <button class="opt">Nothing breaks; rows and repositories are interchangeable storage units</button>
-      <button class="opt">You'd lose the ability to shard by repo, replicate via append/fast-forward, and scale reads across replicas the way this design does</button>
-      <button class="opt">Pull requests would stop working entirely since they depend on rows</button>
-      <button class="opt">The trigram index would need to be rebuilt from scratch every day</button>
+      <button class="opt">Nothing; rows and repositories are interchangeable storage units</button>
+      <button class="opt">You'd lose per-repo sharding, append replication and read scaling</button>
+      <button class="opt">Pull requests would stop working entirely, since they need rows</button>
+      <button class="opt">The trigram index would need rebuilding from scratch every day</button>
       <p class="fb">The staff-level framing treats a repo as a stateful, content-addressed blob store you shard and replicate yourself — that's what makes append-only replication and read scaling cheap.</p>
       <p class="hint">Reread the staff-level signal box in the High-Level Design chunk.</p>
     </div>
     <div class="q" data-type="intuition" data-correct="a" data-concept="github-vcs-final-quorum-vs-primary-only">
       <p class="stem">What would happen to the durability guarantee if pushes acked right after the primary wrote, skipping the quorum wait?</p>
-      <button class="opt">A primary node failure right after the ack could permanently lose a commit the user believes is saved</button>
-      <button class="opt">Nothing changes because replicas always catch up eventually regardless of timing</button>
-      <button class="opt">Clone latency would increase because replicas would need to re-request objects</button>
-      <button class="opt">Code search freshness would degrade since indexing depends on quorum acks</button>
+      <button class="opt">A primary failure just after the ack could lose a 'saved' commit</button>
+      <button class="opt">Nothing — replicas always catch up eventually, whatever the timing</button>
+      <button class="opt">Clone latency rises, since replicas must re-request the objects</button>
+      <button class="opt">Code search freshness degrades, since indexing needs quorum acks</button>
       <p class="fb">Quorum acknowledgment exists precisely so an acked push survives a single node loss — skipping it reopens the "never lose a commit" NFR to failure.</p>
       <p class="hint">Trace what happens to an acked-but-unreplicated commit if the primary dies one second later.</p>
     </div>

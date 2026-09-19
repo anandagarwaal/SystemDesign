@@ -14,6 +14,10 @@
 - Every lesson should include a "what would move this to staff-level" callout.
 
 ## Teaching approach
+- **Math Academy Way (2026-09-19 conversion).** Every lesson is gated chunks with an intuition question
+  per gate and a `chunk-final` comprehensive check; answers feed an SM-2-lite forgetting-curve
+  schedule. Chat sessions follow `CLAUDE.md` (review first, diagnose prerequisites, small chunks,
+  cumulative section quiz, ledger in `learning-records/review-schedule.md`).
 - Small lessons, one win each. Retrieval practice + spacing + interleaving.
 - Quizzes: keep all answer options equal length (no formatting tells).
 - Carry the Tufte-ish HTML aesthetic across lessons (serif, wide margins,
@@ -95,7 +99,7 @@ estimates. Consider a later pass to add freshly-fetched source citations.
 - [x] 0122 Idempotency & Delivery Semantics (at-least/at-most/exactly-once, idempotency keys, dedup)
 - Reference/practice artifacts added under reference/:
   - [x] capacity-cheatsheet.html (closes the RESOURCES.md "Gaps" item: latency numbers, QPS math, nines)
-  - [x] drill.html (interleaved retrieval practice — auto-extracted 359 quiz Qs from 94 lessons; randomized engine)
+  - [x] drill.html → superseded by review.html (see "Math Academy conversion" below); drill.html now redirects
   - [x] mock-interview.html (35-min timer + delivery-framework checklist + 24 random case-study prompt cards w/ deep-dive triggers)
   - [x] decision-guides.html (datastore selector, SQL-vs-NoSQL table, messaging selector, patterns×case-study matrix)
 - index.html: added Practice & Reference links row; wired 0120/0121 into Phase 1, 0122 into Phase 3;
@@ -104,7 +108,23 @@ estimates. Consider a later pass to add freshly-fetched source citations.
   backplane, L4/L7, delivery semantics).
 - Link integrity re-verified: 0 broken internal links.
 - (NOTE: 0120-0122 via subagents; reference/practice pages authored directly by lead agent.
-   drill.html embeds quiz JSON; regenerate it if lesson quizzes change — extraction script in transcript.)
+   The old embedded-JSON drill is gone; the question bank is now generated — see below.)
+
+## Math Academy conversion (2026-09-19)
+- All 124 gated lessons pass `tools/audit_lessons.py` (0 issues): gate per chunk, intuition question per
+  gate, hidden chunks, `chunk-final`, unique concept ids, no option-length tells (>30% spread).
+- `reference/mastery.js`: chunk gating, SM-2-lite (early correct reviews don't stretch intervals),
+  shuffled options, commit-first free-text answers on intuition questions (`sd-answers-v1`),
+  lesson completion (`sd-progress-v1`), reread-without-gates for finished lessons.
+- `reference/review.html`: today's forgetting-curve review, cumulative section exams (85% pass,
+  sections = index.html headings), weak spots, interleaved drill, and a copyable report for the chat
+  teacher (includes the learner's own words on missed intuition questions).
+- `reference/question-bank.js`: generated — rerun `python3 tools/build_question_bank.py` after any
+  question edit (2,152 questions; ~half intuition).
+- Diagnostic 0000 feeds the schedule and produces a chat report. index.html shows a due-count banner.
+- Known residual: the correct option is still the uniquely-longest ~51% of the time (chance ≈31%),
+  within the 30% spread. Commit-first neutralizes it for intuition questions; tightening recall
+  options is optional follow-up.
 
 ## Status (2026-06-16): CURRICULUM COMPLETE (core) + EXPANSION IN PROGRESS
 All 39 lessons authored: framework + 7 core concepts + key-tech tour + common patterns

@@ -154,9 +154,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="job-scheduler-durability-vs-timeliness-why">
         <p class="stem">Why is "reliability vs. timeliness" called the central tension, rather than the two being independent?</p>
-        <button class="opt">They are unrelated; timeliness depends only on network speed and reliability only on disk speed</button>
-        <button class="opt">Firing jobs faster always makes them more reliable, so there is no actual tradeoff</button>
-        <button class="opt">Keeping jobs purely in memory would fire faster but lose them on a crash, so durability forces a slower durable store in the loop</button>
+        <button class="opt">They're unrelated: timeliness is network-bound, reliability disk-bound</button>
+        <button class="opt">Firing faster always makes jobs more reliable, so there's no tradeoff</button>
+        <button class="opt">In-memory fires faster but loses jobs; durability adds a slower store</button>
         <p class="fb">The fastest possible design (in-memory only) fails durability; the design has to trade some speed for a durable store plus poller.</p>
         <p class="hint">Reread the sentence right after the NFR table about "firing fast tempts you."</p>
       </div>
@@ -188,17 +188,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="a" data-concept="job-scheduler-capacity-bottleneck">
         <p class="stem">What does the capacity estimation say is actually the bottleneck at 10k jobs/sec?</p>
-        <button class="opt">The query pattern (scanning vs. indexed lookup), not the raw volume</button>
-        <button class="opt">The queue's maximum sustainable message throughput</button>
+        <button class="opt">The query pattern — scan vs. indexed lookup</button>
+        <button class="opt">The queue's maximum sustainable throughput</button>
         <button class="opt">Network bandwidth between pollers and workers</button>
         <p class="fb">10k/s is trivial for a queue; it's fatal only for a design that scans the whole job table every tick.</p>
         <p class="hint">Reread the bolded "The load math that matters" sentence.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="b" data-concept="job-scheduler-lease-duration-why">
         <p class="stem">Why does "execution duration: seconds to minutes" directly inform the lease/visibility timeout setting?</p>
-        <button class="opt">Longer executions always require a shorter lease to force faster failure detection</button>
-        <button class="opt">If the lease is shorter than a job's actual runtime, a still-healthy job looks abandoned and gets re-run unnecessarily</button>
-        <button class="opt">Execution duration has no bearing on the lease; leases are set purely by NFR timeliness targets</button>
+        <button class="opt">Longer executions need shorter leases so failures are caught faster</button>
+        <button class="opt">A lease shorter than the runtime makes a healthy job look abandoned</button>
+        <button class="opt">Duration doesn't matter; leases are set purely by timeliness targets</button>
         <p class="fb">The lease has to outlast the expected work, or a slow-but-healthy job gets duplicated by another worker before it finishes.</p>
         <p class="hint">Reread the "Design implication" column for the execution duration row.</p>
       </div>
@@ -251,9 +251,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="job-scheduler-job-execution-split-why">
         <p class="stem">Why does splitting Job from Execution matter for a recurring job specifically?</p>
-        <button class="opt">A recurring job produces many execution attempts over time; recording each separately avoids overwriting history on the job row itself</button>
+        <button class="opt">A recurring job has many runs; separate records keep each one's history</button>
         <button class="opt">Postgres cannot store more than one status value in a single row</button>
-        <button class="opt">Only one-off jobs need an execution record; recurring jobs are tracked purely by their cron expression</button>
+        <button class="opt">Only one-off jobs need execution records; cron jobs need none</button>
         <p class="fb">If status lived only on the job row, each new run would clobber the record of the previous one — Execution exists precisely to keep per-attempt history.</p>
         <p class="hint">Reread the pushback box: "A recurring job has many runs."</p>
       </div>
@@ -315,17 +315,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="b" data-concept="job-scheduler-hld-components">
         <p class="stem">Which component is described as doing only "cheap index reads and atomic claims"?</p>
-        <button class="opt">The worker pool that executes job handlers</button>
-        <button class="opt">The poller / scheduler</button>
-        <button class="opt">The API service that accepts new jobs</button>
+        <button class="opt">The worker pool running handlers</button>
+        <button class="opt">The poller / scheduler service</button>
+        <button class="opt">The API accepting new jobs</button>
         <p class="fb">The poller sweeps the next_run_at index and claims rows; the expensive work happens in workers.</p>
         <p class="hint">Reread the diagram caption right below the component diagram.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="job-scheduler-poller-worker-decouple-why">
         <p class="stem">Why does decoupling the poller from workers via a queue matter for scaling and failure isolation?</p>
-        <button class="opt">It removes the need for any durable storage of job state at all</button>
-        <button class="opt">It guarantees jobs fire at exactly their scheduled time with zero delay</button>
-        <button class="opt">Each side can scale and fail independently: a slow handler backs up the queue, not the poller's index reads</button>
+        <button class="opt">It removes the need for any durable storage of job state</button>
+        <button class="opt">It guarantees jobs fire at exactly their time, zero delay</button>
+        <button class="opt">Each side scales and fails alone; slow handlers back up the queue</button>
         <p class="fb">Without the queue, a stuck worker would block the poller's cheap, latency-sensitive due-job sweep.</p>
         <p class="hint">Reread the last sentence of the "Flow" paragraph.</p>
       </div>
@@ -442,9 +442,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="job-scheduler-what-if-no-lease-why">
         <p class="stem">What would happen to at-least-once delivery if the lease/visibility-timeout mechanism were removed?</p>
-        <button class="opt">Nothing would change; ACKs alone are sufficient to guarantee retries on crash</button>
-        <button class="opt">Jobs would fire earlier than scheduled since no timeout would block them</button>
-        <button class="opt">A crashed worker's job would never become visible again, silently dropping it into at-most-once behavior</button>
+        <button class="opt">Nothing changes; ACKs alone guarantee retries after a crash</button>
+        <button class="opt">Jobs would fire early, since no timeout would hold them back</button>
+        <button class="opt">A crashed worker's job never reappears — silently at-most-once</button>
         <p class="fb">The lease is what makes a claimed-but-unACKed job reappear after a crash; without it, a dead worker's job is lost forever.</p>
         <p class="hint">Reread Deep Dive 2: what specifically happens "if the worker crashes"?</p>
       </div>
@@ -508,17 +508,17 @@
       <span class="gate-lbl">Check before continuing</span>
       <div class="q" data-correct="c" data-concept="job-scheduler-security-amplifier">
         <p class="stem">Why is a job scheduler a specific risk as an "attack amplifier"?</p>
-        <button class="opt">Schedulers always run with root-level infrastructure credentials by default</button>
-        <button class="opt">Scheduled jobs cannot be rate-limited by design, unlike normal API traffic</button>
-        <button class="opt">A tenant could schedule millions of jobs that all call the same victim URL, weaponizing the scheduler's own scale</button>
+        <button class="opt">Schedulers always run with root infrastructure credentials by default</button>
+        <button class="opt">Scheduled jobs can't be rate-limited by design, unlike API traffic</button>
+        <button class="opt">A tenant can schedule millions of jobs aimed at one victim URL</button>
         <p class="fb">The mitigation (verified domains, per-tenant fire-rate limits, proxy egress limits) directly targets this abuse pattern.</p>
         <p class="hint">Reread the first row of the Security table.</p>
       </div>
       <div class="q" data-type="intuition" data-correct="a" data-concept="job-scheduler-tenant-identity-why">
         <p class="stem">Why must a job run with the tenant's delegated identity rather than the scheduler's own privileges?</p>
-        <button class="opt">Running with the scheduler's own broad privileges would let any tenant's job escalate beyond what that tenant is allowed to touch</button>
-        <button class="opt">Tenant identities are required only for billing purposes, not for security</button>
-        <button class="opt">The scheduler has no privileges of its own, so this distinction has no practical effect</button>
+        <button class="opt">The scheduler's broad privileges would let a tenant's job escalate</button>
+        <button class="opt">Tenant identities matter only for billing, never for security</button>
+        <button class="opt">The scheduler holds no privileges, so the distinction is moot</button>
         <p class="fb">If jobs inherited the scheduler's own broad credentials, a single tenant's job could access resources far beyond its own scope, a privilege-escalation risk.</p>
         <p class="hint">Reread the AuthZ column for "Worker → job handler" in the Authentication &amp; Authorization table.</p>
       </div>
@@ -576,9 +576,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="job-scheduler-cost-driver-why">
         <p class="stem">Why do worker nodes dominate cost even though they are described as "I/O-bound HTTP calls" rather than heavy compute?</p>
-        <button class="opt">I/O-bound workloads always cost more per node than CPU-bound workloads at the same instance size</button>
-        <button class="opt">Workers are actually the cheapest line item; the job DB dominates cost instead</button>
-        <button class="opt">Worker time is spent waiting on tenant handlers, so more concurrent in-flight calls (not more CPU) is the actual lever to cut cost</button>
+        <button class="opt">I/O-bound workloads always cost more per node than CPU-bound ones</button>
+        <button class="opt">Workers are the cheapest line; the job DB dominates cost instead</button>
+        <button class="opt">Workers mostly wait, so more in-flight calls per node is the lever</button>
         <p class="fb">The dominant driver is named explicitly: worker time waiting on tenant handlers, fixed by async non-blocking workers rather than bigger machines.</p>
         <p class="hint">Reread the "Dominant drivers" and "Levers" sentences right after the cost table.</p>
       </div>
@@ -625,9 +625,9 @@
       </div>
       <div class="q" data-type="intuition" data-correct="c" data-concept="job-scheduler-final-what-if-no-queue">
         <p class="stem">If the execution queue between poller and workers were removed and workers polled the Job DB directly, what would break first?</p>
-        <button class="opt">Nothing; the DB's partial index already makes direct polling by workers just as cheap</button>
-        <button class="opt">Idempotency keys would no longer be possible to compute for any job</button>
-        <button class="opt">The poller's fast index-scan job would compete with workers' slow handler calls against the same DB, coupling their failure and scaling behavior</button>
+        <button class="opt">Nothing — the partial index makes direct worker polling just as cheap</button>
+        <button class="opt">Idempotency keys could no longer be computed for any of the jobs</button>
+        <button class="opt">Fast index scans and slow handlers would contend on one database</button>
         <p class="fb">The queue is precisely what lets the cheap, latency-sensitive poller and the slow, elastic worker tier scale and fail independently.</p>
         <p class="hint">Recall the HLD chunk's staff-signal box: "Decouple the poller (decides) from workers (execute) via a durable queue."</p>
       </div>
