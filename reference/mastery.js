@@ -82,10 +82,10 @@
   // The learner's own-words answers to intuition questions, kept so the
   // review report can show the teacher *how* they were thinking on a miss.
   var ANSWERS_KEY = 'sd-answers-v1';
-  function saveAnswer(conceptId, text, correct){
+  function saveAnswer(conceptId, text, correct, self){
     try {
       var all = JSON.parse(localStorage.getItem(ANSWERS_KEY) || '{}');
-      all[conceptId] = { text: text.slice(0, 600), correct: !!correct, when: Date.now() };
+      all[conceptId] = { text: text.slice(0, 600), correct: !!correct, self: self || null, when: Date.now() };
       var ids = Object.keys(all).sort(function(a, b){ return all[b].when - all[a].when; });
       ids.slice(300).forEach(function(id){ delete all[id]; }); // keep the most recent 300
       localStorage.setItem(ANSWERS_KEY, JSON.stringify(all));
@@ -124,6 +124,58 @@
     });
   }
 
+  // ---- Self-grading the written answer -------------------------------
+  // The multiple choice only proves you can recognize the right idea. The
+  // written answer is where you find out whether you could produce it, so it
+  // gets graded against the model answer, and the grade — not the click —
+  // decides when the concept comes back.
+  function rubricPoints(modelAnswerHtml, fbHtml){
+    var pts = [];
+    var model = (modelAnswerHtml || '').trim();
+    if (model) pts.push(model);
+    var fb = (fbHtml || '').replace(/<[^>]+>/g, function(t){ return t; }).trim();
+    // Split the feedback into its clauses: each one is a point the answer should make.
+    fb.split(/(?:\.\s+|;\s+|\s+—\s+)/).forEach(function(part){
+      part = part.trim().replace(/[.;]$/, '');
+      if (part.length > 25 && pts.length < 3) pts.push(part);
+    });
+    return pts;
+  }
+
+  var GRADES = [
+    { key: 'hit', label: 'Hit — I said the mechanism', note: 'Counts as correct only if you also picked the right option first try.' },
+    { key: 'partial', label: 'Partial — right idea, missed a point', note: 'Comes back tomorrow.' },
+    { key: 'miss', label: 'Miss — I could not produce it', note: 'Comes back tomorrow.' }
+  ];
+
+  function selfGrade(container, beforeEl, written, modelAnswerHtml, fbHtml, onGrade){
+    var pts = rubricPoints(modelAnswerHtml, fbHtml);
+    var box = document.createElement('div');
+    box.className = 'sd-grade';
+    box.innerHTML = '<p class="sd-grade-h">Grade your own answer</p>' +
+      '<p class="sd-grade-sub">You wrote:</p><blockquote class="sd-grade-mine"></blockquote>' +
+      '<p class="sd-grade-sub">A full answer says:</p><ul class="sd-grade-rubric">' +
+      pts.map(function(p){ return '<li>' + p + '</li>'; }).join('') + '</ul>' +
+      '<div class="sd-grade-btns">' + GRADES.map(function(g){
+        return '<button type="button" class="sd-grade-btn" data-g="' + g.key + '">' + g.label + '</button>';
+      }).join('') + '</div>' +
+      '<span class="sd-commit-note">Be strict: recognizing the answer is not the same as having produced it.</span>';
+    container.insertBefore(box, beforeEl || null);
+    box.querySelector('.sd-grade-mine').textContent = written;
+    Array.prototype.forEach.call(box.querySelectorAll('.sd-grade-btn'), function(b){
+      b.addEventListener('click', function(){
+        var g = b.dataset.g;
+        Array.prototype.forEach.call(box.querySelectorAll('.sd-grade-btn'), function(o){
+          o.disabled = true; o.classList.toggle('picked', o === b);
+        });
+        var note = GRADES.filter(function(x){ return x.key === g; })[0].note;
+        box.querySelector('.sd-commit-note').textContent = note;
+        onGrade(g);
+      });
+    });
+    return box;
+  }
+
   function injectStyle(){
     if (document.getElementById('sd-mastery-style')) return;
     var st = document.createElement('style');
@@ -135,14 +187,27 @@
       '.sd-commit-btn{margin-top:.4rem;font-family:-apple-system,sans-serif;font-size:.82rem;font-weight:600;padding:.4rem .8rem;border-radius:6px;' +
       'border:1px solid #1f4d3f;background:#1f4d3f;color:#fff;cursor:pointer}' +
       '.sd-commit-btn:disabled{opacity:.45;cursor:default}' +
-      '.sd-commit-note{display:block;font-family:-apple-system,sans-serif;font-size:.75rem;color:#6b6356;margin-top:.3rem}';
+      '.sd-commit-note{display:block;font-family:-apple-system,sans-serif;font-size:.75rem;color:#6b6356;margin-top:.3rem}' +
+      '.sd-grade{margin:.8rem 0 .2rem;padding:.8rem 1rem;border:1px solid #e3ddd0;border-left:3px solid #1f4d3f;border-radius:6px;background:#fffefb;' +
+      'font-family:-apple-system,BlinkMacSystemFont,sans-serif}' +
+      '.sd-grade-h{margin:0 0 .5rem;font-size:.72rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#1f4d3f}' +
+      '.sd-grade-sub{margin:.5rem 0 .2rem;font-size:.78rem;color:#6b6356}' +
+      '.sd-grade-mine{margin:0;padding:.4rem .7rem;border-left:2px solid #e3ddd0;font-size:.88rem;color:#1a1a1a;font-style:italic}' +
+      '.sd-grade-rubric{margin:.2rem 0 .6rem;padding-left:1.1rem;font-size:.88rem}' +
+      '.sd-grade-rubric li{margin:.2rem 0}' +
+      '.sd-grade-btns{display:flex;flex-wrap:wrap;gap:.4rem;margin:.5rem 0 .2rem}' +
+      '.sd-grade-btn{font:inherit;font-size:.82rem;padding:.4rem .7rem;border:1px solid #e3ddd0;border-radius:6px;background:#fbf9f4;cursor:pointer}' +
+      '.sd-grade-btn:hover{border-color:#7a2e1d}' +
+      '.sd-grade-btn:disabled{opacity:.45;cursor:default}' +
+      '.sd-grade-btn.picked{background:#e7f0ec;border-color:#1f4d3f;color:#1f4d3f;font-weight:600;opacity:1}';
     document.head.appendChild(st);
   }
 
   global.SDMastery = { review: review, due: due, weak: weak, status: status, loadAll: loadAll,
                        loadProgress: loadProgress, markLessonDone: markLessonDone,
                        saveAnswer: saveAnswer, loadAnswers: loadAnswers,
-                       commitFirst: commitFirst, injectStyle: injectStyle, shuffle: shuffleInPlace };
+                       commitFirst: commitFirst, selfGrade: selfGrade, injectStyle: injectStyle,
+                       shuffle: shuffleInPlace };
 
   // ---- Chunk gating ----------------------------------------------------
   // Wires up <section class="chunk" id="chunk-N"> blocks so chunk N+1 stays
@@ -207,18 +272,25 @@
         opts.forEach(function(opt){
           opt.addEventListener('click', function(){
             var letter = opt.dataset.letter;
-            if (written !== null && !q.dataset.saved){
-              SDMastery.saveAnswer(conceptId, written, letter === correct && !q.dataset.missed);
-              q.dataset.saved = '1';
-            }
             if (letter === correct){
               opts.forEach(function(o){ o.disabled = true; o.classList.remove('wrong'); });
               opt.classList.add('correct');
               if (fb) fb.classList.add('show');
               if (hint) hint.classList.remove('show');
-              SDMastery.review(conceptId, q.dataset.missed ? 0 : 1);
-              solved.add(q);
-              if (solved.size === questions.length) reveal(idx, true);
+              var firstTry = !q.dataset.missed;
+              if (written !== null){
+                // Written answer: the self-grade decides, not the click.
+                selfGrade(q, fb, written, opt.innerHTML, fb ? fb.innerHTML : '', function(g){
+                  SDMastery.saveAnswer(conceptId, written, firstTry, g);
+                  SDMastery.review(conceptId, (g === 'hit' && firstTry) ? 1 : 0);
+                  solved.add(q);
+                  if (solved.size === questions.length) reveal(idx, true);
+                });
+              } else {
+                SDMastery.review(conceptId, firstTry ? 1 : 0);
+                solved.add(q);
+                if (solved.size === questions.length) reveal(idx, true);
+              }
             } else {
               opt.classList.add('wrong');
               q.dataset.missed = '1';

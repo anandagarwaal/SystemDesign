@@ -114,7 +114,9 @@ estimates. Consider a later pass to add freshly-fetched source citations.
 - All 124 gated lessons pass `tools/audit_lessons.py` (0 issues): gate per chunk, intuition question per
   gate, hidden chunks, `chunk-final`, unique concept ids, no option-length tells (>30% spread).
 - `reference/mastery.js`: chunk gating, SM-2-lite (early correct reviews don't stretch intervals),
-  shuffled options, commit-first free-text answers on intuition questions (`sd-answers-v1`),
+  shuffled options, commit-first free-text answers on intuition questions, self-grading of that
+  answer against a generated rubric (hit + first-try correct = known; else back tomorrow, and the
+  chunk stays locked until graded) (`sd-answers-v1`),
   lesson completion (`sd-progress-v1`), reread-without-gates for finished lessons.
 - `reference/review.html`: today's forgetting-curve review, cumulative section exams (85% pass,
   sections = index.html headings), weak spots, interleaved drill, and a copyable report for the chat

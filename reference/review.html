@@ -70,7 +70,8 @@
     <b>first answer counts</b> and options are shuffled, so you have to recall the idea, not the letter.
     About half the questions are <b>intuition</b> questions ("why", "what breaks if", "picture it"). On those you
     <b>write your answer in your own words first</b>; the options unlock only after you commit. If you only remember the
-    steps, those are the ones you'll miss, and what you wrote goes into the report so your teacher can find the gap.
+    steps, those are the ones you'll miss. You then <b>grade your own answer</b> against the model answer: only <i>hit</i> plus a
+    first-try correct option counts as known, and anything less comes back tomorrow. What you wrote and how you graded it go into the report.
   </div>
 
   <div class="tabs" id="tabs">
@@ -247,7 +248,7 @@
         var answers = SDMastery.loadAnswers();
         missed.slice(0, 25).forEach(function(m){
           lines.push('- [' + (m.intuition ? 'intuition' : 'recall') + '] ' + m.lesson + ': ' + m.stem);
-          if (answers[m.id] && !answers[m.id].correct) lines.push('    my own words: "' + answers[m.id].text.replace(/\s+/g, ' ') + '"');
+          if (answers[m.id]) lines.push('    my own words (' + (answers[m.id].self || 'ungraded') + '): "' + answers[m.id].text.replace(/\s+/g, ' ') + '"');
         });
       }
     }
@@ -298,11 +299,22 @@
     Array.prototype.forEach.call(opts, function(b){
       b.onclick = function(){
         var right = +b.dataset.i === q.correct;
-        if (written !== null) SDMastery.saveAnswer(q.id, written, right);
         Array.prototype.forEach.call(opts, function(o){ o.disabled = true; if (+o.dataset.i === q.correct) o.classList.add('correct'); });
         if (!right) b.classList.add('wrong');
-        SDMastery.review(q.id, right ? 1 : 0);
-        session.results.push({ q: q, right: right });
+        if (written !== null){
+          // The written answer is the real test here; the self-grade scores it.
+          next.classList.remove('show');
+          SDMastery.selfGrade(stage.querySelector('.card'), next, written, q.opts[q.correct], q.fb, function(g){
+            var scored = right && g === 'hit';
+            SDMastery.saveAnswer(q.id, written, right, g);
+            SDMastery.review(q.id, scored ? 1 : 0);
+            session.results.push({ q: q, right: scored, self: g });
+            next.classList.add('show'); next.focus();
+          });
+        } else {
+          SDMastery.review(q.id, right ? 1 : 0);
+          session.results.push({ q: q, right: right });
+        }
         fb.innerHTML = (right ? '' : '<b>Not quite.</b> ') + q.fb +
           (right ? '' : (q.hint ? '<br><i>' + q.hint + '</i>' : '')) +
           '<a class="back" href="../lessons/' + q.lesson + '">↗ ' + lessonTitle(q.lesson) + '</a>';

@@ -35,11 +35,17 @@ curve. Concretely, every lesson MUST:
 - **Options are shuffled on every visit.** Never write "both of the above", "option A", or
   anything that depends on position. Author `data-correct` against the order in the HTML;
   the engine tracks each option's original letter.
-- **Intuition questions are commit-first.** The options stay hidden until the learner writes
-  at least six words in their own words. So an intuition stem must be answerable *without*
-  seeing options: ask "why", "what breaks if", or "picture X — what happens", never
-  "which of these…". What they write is saved (`sd-answers-v1`) and shown to the teacher in
-  the review report when they miss the question.
+- **Intuition questions are commit-first, then self-graded.** The options stay hidden until the
+  learner writes at least six words in their own words. So an intuition stem must be answerable
+  *without* seeing options: ask "why", "what breaks if", or "picture X — what happens", never
+  "which of these…". After they pick an option, the engine shows their text next to the model
+  answer and a rubric, and they grade themselves hit / partial / miss. **Only `hit` plus a
+  first-try correct option counts as known**; anything else reschedules for tomorrow, and the
+  chunk does not unlock until they have graded. What they wrote and how they graded it are saved
+  (`sd-answers-v1`) and go into the review report.
+- **The rubric is generated from what you write**, so write it well: the correct option is shown
+  as the model answer, and `.fb` is split into up to two more "a full answer says" bullets.
+  Keep `.fb` to crisp, separable clauses (mechanism first), not one long sentence.
 - **Length tells defeat the point.** Keep options within ~30% of each other in length, and
   don't make the correct one systematically the longest or most qualified. Precise-sounding
   distractors are fine; obviously absurd ones make the question free.
