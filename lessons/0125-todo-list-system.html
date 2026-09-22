@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 125 — Design a To-Do List System</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 125 · Phase 4 — Case Study · Easy</p>
+  <h1>Design a To-Do List System</h1>
+  <p class="sub">A high-latency-tolerant CRUD system that teaches consistency under concurrent edits and mobile-first optimizations.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> To-do lists seem trivial until you ask "what happens when I edit on my phone, then my laptop, in the subway with no connectivity?" The staff move is recognizing that this is really a <em>conflict-free replicated data type</em> (CRDT) problem hidden in a simple feature, plus designing for <em>offline-first</em> clients. You trade latency for consistency and learn when eventual consistency is actually the right call. The same patterns apply to collaborative documents, shared spreadsheets, and real-time editing.
+  </div>
+
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin whether offline edits matter and how to handle conflicts.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Concurrent users, list size, and sync frequency.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the list schema and CRDT properties before designing sync.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>Offline-first client, sync protocol, and conflict resolution.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>CRDT vs. OT, merge strategies, and mobile constraints.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Real-time sync, conflict metrics, and user data protection.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow concurrent syncs without re-architecting.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap architecture and tradeoffs.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–3, give 10 minutes to the CRDT deep dive, and sketch auth and mobile considerations concisely.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin whether offline edits matter and how to handle conflicts.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>"Do users work offline and expect their edits to sync later?"</b> — Offline support changes the entire architecture. You now need eventual consistency and conflict-free merges, not real-time locks.</li><li><b>"Can two users edit the same list concurrently, and how should conflicts resolve?"</b> — Last-write-wins loses data. Operational transformation or CRDTs preserve both edits.</li><li><b>"Is it multi-device, or single-device per user?"</b> — Multi-device raises sync complexity and requires a server-side merge strategy.</li></ul>
+  </div>
+  <h2>Functional Requirements</h2>
+  <table>
+    <tr><th>#</th><th>Requirement</th><th>Note</th></tr>
+    <tr><td>1</td><td>Users can create, read, update, and delete to-do items</td><td>Core CRUD; offline support changes implementation</td></tr>
+    <tr><td>2</td><td>Items are grouped into lists; lists are owned by a user or team</td><td>Multi-level hierarchy and ownership model</td></tr>
+    <tr><td>3</td><td>List state is synced across user's devices when online</td><td>Multi-device, eventual consistency</td></tr>
+    <tr><td>4</td><td>Concurrent edits are merged without data loss</td><td>Requires CRDT or OT; last-write-wins is forbidden</td></tr>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>Property</th><th>Target</th><th>Why it drives design</th></tr>
+    <tr><td>Offline support</td><td>Users can create/edit lists without network</td><td>Client must be offline-first; sync is eventual</td></tr>
+    <tr><td>Latency</td><td>UI updates &lt; 100ms locally; sync &lt; 5 sec once online</td><td>Local writes are instant; network sync is async</td></tr>
+    <tr><td>Consistency</td><td>Eventual consistency; no data loss on conflicts</td><td>CRDT or OT is mandatory; trade immediacy for safety</td></tr>
+    <tr><td>Availability</td><td>99.9%, AP over CP</td><td>Offline-first means unavailable remote doesn't block local work</td></tr>
+  </table>
+
+  <p class="transition"><span class="lbl">Say to move on →</span> "The system is offline-first with eventual consistency. Let me estimate sync frequency and list size."</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Concurrent users, list size, and sync frequency.</span></div>
+  <h2>Capacity Estimation</h2>
+
+  <h3>User and list scale</h3>
+  <p>100M DAU. Average user has 5 lists, ~50 items/list. Total items: 100M × 5 × 50 = <strong>25B items</strong>. <b>Implication:</b> database must partition by user and list; no global queries.</p>
+
+  <h3>Concurrent writes per user</h3>
+  <p>A user typically has 1–3 devices syncing. Peak: ~10 concurrent items being edited (phone + laptop). At 100M DAU, concurrent users online: ~10M. Peak WPS (write operations): 10M users × 10 items × 1 update/sec ≈ <strong>~100M writes/sec server-side</strong> — but heavily partitioned by user. <b>Implication:</b> no global lock; partition by user_id for parallelism.</p>
+
+  <h3>Sync traffic</h3>
+  <p>Average user syncs 5 times/day; each sync is ~1 KB (delta). 100M × 5 × 1 KB = <strong>500 GB/day</strong> bandwidth. <b>Implication:</b> delta encoding is essential; send only diffs, not full state.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"Why not just use timestamps for conflict resolution?"</p>
+    <p><b>Staff answer:</b> Timestamp-based last-write-wins loses data. If Alice adds "buy milk" at 10:01 and Bob adds "call mom" at 10:01 on the same list, one edit is silently overwritten. CRDTs or OT preserve both.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "With offline support and 100M users, I'll design the list schema to support eventual consistency."</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the list schema and CRDT properties before designing sync.</span></div>
+  <h2>Core Entities &amp; API</h2>
+  <p>Three entities: <strong>List</strong> (metadata), <strong>Item</strong> (to-do entry), <strong>SyncState</strong> (vector clock or version for conflict detection). Each item is immutable once created; mutations are represented as separate "edits" with timestamps.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th><th>Returns</th></tr>
+    <tr><td><code>GET /v1/lists/{list_id}</code></td><td>Fetch list with all items</td><td><code>200</code> + list + items + version</td></tr>
+    <tr><td><code>POST /v1/lists</code></td><td>Create a new list</td><td><code>201</code> + list ID</td></tr>
+    <tr><td><code>POST /v1/lists/{list_id}/items</code></td><td>Add item to list</td><td><code>201</code> + item ID</td></tr>
+    <tr><td><code>PATCH /v1/lists/{list_id}/items/{item_id}</code></td><td>Update item (toggle done, edit text)</td><td><code>200</code> + updated item</td></tr>
+    <tr><td><code>DELETE /v1/lists/{list_id}/items/{item_id}</code></td><td>Remove item</td><td><code>204</code></td></tr>
+    <tr><td><code>POST /v1/sync</code></td><td>Bidirectional sync; submit local edits, fetch server state</td><td><code>200</code> + merged state + conflicts (if any)</td></tr>
+  </table>
+
+  <h2>Data Model</h2>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>lists</b> (id, owner_id, title, created_at, updated_at, version_vector)</td><td>Postgres per user partition</td><td>PK <code>id</code> · FK <code>owner_id</code></td><td>Point read by owner_id; all lists for user</td></tr>
+    <tr><td><b>items</b> (id, list_id, text, done, created_at, deleted_at, lamport_ts, replica_id)</td><td>Postgres; immutable inserts only</td><td>PK <code>id</code> · FK <code>list_id</code></td><td>Range query: all items in list; soft-delete via <code>deleted_at</code></td></tr>
+    <tr><td><b>edits</b> (id, item_id, op_type, old_val, new_val, ts, device_id, vector_clock)</td><td>Append-only log in Postgres or EventStore</td><td>PK <code>id</code>; PK <code>(item_id, ts)</code></td><td>Rebuild item state from edit history; conflict detection</td></tr>
+    <tr><td><b>Client state</b></td><td>IndexedDB (browser) / SQLite (mobile)</td><td>Full copy of user's lists + items; vector clock</td><td>Offline reads/writes; diffs computed on sync</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"Why store edits separately instead of just the current item state?"</p>
+    <p><b>Staff answer:</b> Edits are the source of truth for conflict resolution. If two users edit the same item, we reconstruct the state from the edit log and merge using CRDT rules. Storing only the final state loses the edit history needed for merging.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "The schema supports immutable edits and vector clocks. Now I'll design the offline-first client and sync protocol."</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">Offline-first client, sync protocol, and conflict resolution.</span></div>
+  <h2>Component Diagram</h2>
+  <pre class="diagram">
+ [User]
+   |
+   +---> [Mobile App / Web Client]
+          |
+          +---> [Local storage] (IndexedDB / SQLite)
+          |       ^ Offline edits written here
+          |
+          +---> [Sync Engine] (on network)
+                  |
+                  +---> POST /v1/sync → [API Server]
+                                |
+                                +---> Fetch user's lists
+                                +---> Merge edits (CRDT)
+                                +---> Return conflicts (if any)
+                                |
+                                v
+                        [Postgres per-user partition]
+                                |
+                                +---> [Edits log]
+                                +---> [Items state]
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">Offline-first: local writes are instant. Sync is bidirectional: client sends edits, server merges and returns authoritative state.</p>
+
+  <h2>High-Level Design</h2>
+  <p>The client is offline-first: all reads and writes hit local storage instantly. A sync engine runs in the background, computes diffs against the last-known server state, and pushes them to the server. On sync, the server merges using a CRDT rule (e.g., last-write-wins per field, with tie-breaking by device ID). The server returns the merged state and any conflicts the client flags for manual resolution.</p>
+  <table>
+    <tr><th>Flow</th><th>Path</th><th>Stores touched</th></tr>
+    <tr><td><b>Offline write</b></td><td>User → local storage (instant) → mark "unsynced"</td><td>IndexedDB/SQLite</td></tr>
+    <tr><td><b>Sync</b> (periodic or manual)</td><td>Client → POST /sync {edits, vector_clock} → Server merges → returns merged state</td><td>Postgres + edit log</td></tr>
+    <tr><td><b>Conflict</b></td><td>Server detects (same item edited twice) → returns both versions → client flags for user</td><td>User chooses or merges manually</td></tr>
+  </table>
+  <p>Sync protocol: the client sends a list of edits with a <strong>vector clock</strong> (version per device). The server merges edits using CRDT rules, returns the authoritative state, and updates the client's vector clock. On the next sync, the client only sends new edits, not the full state.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"What if sync fails mid-way?"</p>
+    <p><b>Staff answer:</b> Syncs are idempotent via the vector clock. If the client sends edits with clock v=5 and the network drops, the next sync sends the same edits (or newer ones starting from v=5). The server detects duplicates and reapplies them safely.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "The design is offline-first with eventual consistency. The hard parts are CRDTs and handling multi-device conflicts."</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">CRDT vs. OT, merge strategies, and mobile constraints.</span></div>
+  <h2>Deep Dives</h2>
+
+  <h3>Deep Dive 1 — Conflict-Free Replicated Data Types (CRDTs)</h3>
+  <p>A CRDT ensures that any two replicas with the same edits converge to the same state, without coordination. For to-do lists, use a <strong>CRDT list with tombstones</strong>:</p>
+  <div class="box">
+    <b>Simple CRDT rule: last-write-wins per field.</b>
+    <ul>
+      <li>Each edit has a timestamp <code>(device_id, lamport_clock)</code></li>
+      <li>When merging two edits on the same item, the one with the higher timestamp wins</li>
+      <li>If timestamps tie, the device_id breaks ties (e.g., alphabetically)</li>
+      <li>Deletions are soft (set <code>deleted_at</code>); removed items stay in the log for conflict detection</li>
+      <li>Concurrent additions always merge; additions never conflict</li>
+    </ul>
+  </div>
+  <p>For to-do lists, this is sufficient: item text and done-state are small; last-write-wins is intuitive. For collaborative text editing, use a more sophisticated CRDT (Yjs, Automerge) that preserves character-level edits.</p>
+
+  <h3>Deep Dive 2 — Vector clocks and causality tracking</h3>
+  <p>A <strong>vector clock</strong> is a per-device counter that tracks the order of edits. Client 1 increments its clock to v1=[2, 0] (2 edits from device 1, 0 from device 2). On sync, the server learns v1, merges, and returns v2=[2, 3] (server has seen 2 from device 1, 3 total edits). This prevents replaying the same edit twice.</p>
+
+  <h3>Deep Dive 3 — Offline edits with server conflicts</h3>
+  <p>Suppose Alice edits item 5 offline (change text), then syncs. Meanwhile, Bob deletes item 5 and syncs. When Alice's sync arrives, the server must decide: preserve Alice's edit or honor Bob's deletion? <b>Rule:</b> a delete always wins (tombstone semantics). Alice's edit is stored but the item remains logically deleted. If Alice asks "why did my edit vanish?", show her that Bob deleted it concurrently.</p>
+
+  <h3>Deep Dive 4 — Bandwidth optimization: delta sync</h3>
+  <p>Syncing the full state every time is expensive. Instead, send only <strong>diffs</strong>:</p>
+  <table>
+    <tr><th>Approach</th><th>Bandwidth</th><th>Complexity</th></tr>
+    <tr><td>Full state on every sync</td><td>~1 KB per sync (all items)</td><td>Simple</td></tr>
+    <tr><td>Delta sync (only edits since last sync)</td><td>~100 bytes per sync (just diffs)</td><td>Requires version tracking</td></tr>
+    <tr><td>Incremental CRDT (send only operations)</td><td>~50 bytes per edit; cumulative for all users</td><td>Complex: OT or CRDT ops</td></tr>
+  </table>
+  <p><b>Pick delta sync:</b> send edits since last vector clock. This is simpler than full OT and efficient for to-do lists.</p>
+
+  <h3>Deep Dive 5 — Mobile constraints: battery and data</h3>
+  <p>Mobile clients are constrained. Sync strategy: <b>coalesce writes</b> (wait 5 seconds after last edit before syncing), <b>batch edits</b> (upload 10 at once), and <b>compress</b> (gzip diffs to ~20% size). WiFi-only sync option for users with metered plans.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    A senior engineer designs offline-first and thinks about eventual consistency. A staff engineer recognizes that this is a <em>CRDT problem</em>, not a CRUD problem, in the first two minutes. They sketch vector clocks and tombstone deletions without prompting, identify the bandwidth optimization opportunity (delta sync), and call out the mobile battery/data constraints. They know the difference between CRDTs and Operational Transformation and can justify the pick based on the problem.
+  </div>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. CRDT + delta sync</b> (chosen)</td><td>Offline-first, eventual consistency, vector clocks, tombstones</td><td>Offline support; no data loss on conflicts; low bandwidth</td><td>Conflict UI complexity; users see concurrent edits</td><td>Default — mobile, offline, multi-device</td></tr>
+    <tr><td><b>B. Last-write-wins + full sync</b></td><td>Simple merge: newer timestamp wins; send full state</td><td>Simplest implementation; fast sync</td><td>Data loss on concurrent edits; no offline support</td><td>Single-device, online-only, low conflict rate</td></tr>
+    <tr><td><b>C. Operational Transformation (OT)</b></td><td>Transform concurrent ops to preserve intent; real-time collaboration</td><td>Real-time feedback; no conflicts; character-level merging</td><td>Complex implementation; requires central server for tie-breaking</td><td>Google Docs style; real-time co-editing of rich text</td></tr>
+  </table>
+  <p><b>Pick A:</b> to-do lists are mostly offline and benefit from eventual consistency. OT is overkill and synchronous. B loses data.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"What if a user has 10,000 items in one list and syncs every second?"</p>
+    <p><b>Staff answer:</b> Delta sync solves this: send only edits, not the full state. If there are 5 edits per second, that's ~500 bytes each, not 10 MB. Also, consider splitting large lists into sub-lists by date or status for better UX and sync performance.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "With CRDT and eventual consistency in place, let me cover monitoring and data protection."</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Real-time sync, conflict metrics, and user data protection.</span></div>
+  <h2>Observability</h2>
+  <table>
+    <tr><th>Signal</th><th>What to emit</th></tr>
+    <tr><td>Metrics</td><td>Sync count (per second), conflict rate, offline users, avg sync latency, bandwidth per user</td></tr>
+    <tr><td>Logs</td><td>Structured: user_id, sync_size, num_edits, conflicts detected, merge time. Redact item content</td></tr>
+    <tr><td>Traces</td><td>Critical path: receive edits → CRDT merge → persist → return merged state. Tail sampling on conflicts</td></tr>
+  </table>
+
+  <h2>Monitoring</h2>
+  <table>
+    <tr><th>SLO / Alert</th><th>Target / Threshold</th><th>Action</th></tr>
+    <tr><td>Sync latency p99</td><td>&lt; 2 seconds online, instant offline</td><td>Page on server latency; check merge performance</td></tr>
+    <tr><td>Conflict rate</td><td>&lt; 1% of syncs</td><td>Ticket; analyze conflict patterns</td></tr>
+    <tr><td>Data loss</td><td>0 items lost to merge bugs</td><td>Page immediately; validate CRDT logic</td></tr>
+    <tr><td>Storage per user</td><td>&lt; 10 MB for 1k items</td><td>Ticket; analyze bloat (orphaned edits)</td></tr>
+  </table>
+
+  <h2>Authentication &amp; Authorization</h2>
+  <p>Sync endpoint requires OAuth token; validate user ownership of each list. Token can be refreshed offline (cache). Shared lists: implement role-based access (owner, editor, viewer). When syncing shared lists, merge edits from all users; ownership doesn't affect conflict resolution.</p>
+
+  <h2>Security &amp; Privacy</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>Unauthorized access</td><td>Authenticate sync requests; verify list ownership</td></tr>
+    <tr><td>Item tampering</td><td>Edits are immutable; CRDT detects out-of-order replays</td></tr>
+    <tr><td>Data exposure in transit</td><td>TLS for all sync; local storage encrypted on mobile</td></tr>
+    <tr><td>PII in logs</td><td>Redact item text; log only edit metadata (timestamp, device)</td></tr>
+  </table>
+
+  <p class="transition"><span class="lbl">Say to move on →</span> "With offline support and CRDT in place, scaling is straightforward: partition by user."</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow concurrent syncs without re-architecting.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <table>
+    <tr><th>Component</th><th>Today (10M concurrent users)</th><th>At 10× (100M concurrent)</th><th>Knob turned</th></tr>
+    <tr><td>API servers (sync)</td><td>100 instances</td><td>1000 instances</td><td>Horizontal scale behind LB</td></tr>
+    <tr><td>Postgres (per-user partition)</td><td>10 shards (10M users each)</td><td>100 shards (1M users each)</td><td>Add shard ranges; rebalance</td></tr>
+    <tr><td>Cache (last sync state)</td><td>Redis, 100 GB</td><td>Redis cluster, 1 TB</td><td>Horizontal scaling via sharding</td></tr>
+    <tr><td>Edits log archival</td><td>Postgres + S3</td><td>Partition to cold store faster</td><td>Archive after 30 days instead of 90</td></tr>
+  </table>
+  <p>First bottleneck: Postgres write throughput (~100k WPS per shard). Solution: shard by user_id so no inter-user coordination. At 1B items (1k items × 1M users per shard), a single Postgres shard handles it.</p>
+
+  <h2>Cost of Running</h2>
+  <table>
+    <tr><th>Line item</th><th>Volume</th><th>Unit cost</th><th>Monthly cost</th></tr>
+    <tr><td>API servers (sync)</td><td>1000 instances, 1 vCPU</td><td>$30/vCPU-month</td><td>~$30,000</td></tr>
+    <tr><td>Postgres shards</td><td>100 shards, 4 vCPU each + storage</td><td>$30/vCPU + $0.15/GB</td><td>~$15,000 + $5,000</td></tr>
+    <tr><td>Redis cluster</td><td>1 TB cache</td><td>$8/GB-month</td><td>~$8,000</td></tr>
+    <tr><td>Bandwidth (sync data)</td><td>500 GB/day average</td><td>$0.05/GB</td><td>~$750</td></tr>
+    <tr><td>S3 archival</td><td>100 TB cold store</td><td>$1/TB-month</td><td>~$100</td></tr>
+    <tr><td>Total</td><td></td><td></td><td>~$58,850/month</td></tr>
+  </table>
+  <p>Dominant cost: API servers and Postgres. Unit cost: ~$0.0006 per user per month. To reduce: compress sync data (20% overhead), use spot instances for API tier, and archive edits more aggressively.</p>
+
+  <h2>2 · Closing Summary (60 seconds)</h2>
+  <div class="summary">
+    <p>The to-do system is offline-first with eventual consistency: clients write to local storage instantly, sync bidirectionally with the server, and use CRDTs (vector clocks + tombstones) to merge conflicts without data loss. Delta sync and bandwidth optimization keep mobile data usage low. Multi-device support is natural: sync treats all devices as equal replicas. The first architectural change at 10× is increased Postgres shard count. The design trades latency for correctness: concurrent edits are detected and surfaced to the user, never silently lost.</p>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="a">
+      <p class="stem">1. Why use CRDTs instead of simple last-write-wins for merge?</p>
+      <button class="opt">CRDTs preserve all concurrent edits without coordination or data loss</button>
+      <button class="opt">CRDTs are faster than checking timestamps</button>
+      <button class="opt">CRDTs automatically resolve conflicts for the user</button>
+      <button class="opt">CRDTs eliminate the need for a central server</button>
+      <p class="fb">Last-write-wins silently overwrites concurrent edits. CRDTs ensure convergence: any two replicas with the same edits end up in the same state. They don't hide conflicts, but they don't lose data either.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. What is the primary benefit of delta sync over full-state sync?</p>
+      <button class="opt">Delta sync is more secure than full state</button>
+      <button class="opt">Delta sync works without a server</button>
+      <button class="opt">Delta sync reduces bandwidth by sending only edits since last sync</button>
+      <button class="opt">Delta sync eliminates all conflicts automatically</button>
+      <p class="fb">If a user has 10k items and syncs daily, sending the full state is wasteful. Delta sync sends only the edits (maybe 20 bytes each), reducing bandwidth by ~100x. Full state is simpler but expensive at scale.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">3. A user edits item A offline, then deletes the same item online before syncing. After sync, what should happen?</p>
+      <button class="opt">The offline edit is restored; deletions are undone</button>
+      <button class="opt">The deletion wins; the offline edit is stored but item stays deleted</button>
+      <button class="opt">Both edits appear; the user must manually resolve</button>
+      <button class="opt">The system prevents this by locking the item</button>
+      <p class="fb">Deletion is a strong operation; it always wins via tombstone semantics. The offline edit is recorded in the log but the item remains logically deleted. This avoids resurrections.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. How do vector clocks prevent duplicate syncs?</p>
+      <button class="opt">Vector clocks are cryptographic signatures that cannot be forged</button>
+      <button class="opt">Vector clocks are timestamps from the server, so devices synchronize</button>
+      <button class="opt">Vector clocks prevent concurrent edits entirely</button>
+      <button class="opt">Vector clocks track per-device edit counts; the server detects replays</button>
+      <p class="fb">A vector clock is a tuple like [device1: 5, device2: 3]. If a sync arrives with the same clock twice, the server recognizes it as a duplicate and avoids reapplying. New edits increment the clock.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> How would you handle a user with 100k items in one list? What about real-time collaboration (multiple users editing concurrently)? How would you migrate from last-write-wins to CRDT without losing data?
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://crdt.tech/">CRDTs and eventual consistency</a>. Essential reading on conflict-free replicated data types, with practical examples and tradeoffs.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] Offline-first architectures and CRDT strategies for mobile and web applications.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0124-invoice-generation-system.html">← Lesson 124</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → Lesson 126</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

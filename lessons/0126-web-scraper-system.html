@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 126 — Design a Web Scraper at Scale</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 126 · Phase 4 — Case Study · Hard</p>
+  <h1>Design a Web Scraper at Scale</h1>
+  <p class="sub">A distributed system that crawls millions of pages while respecting robots.txt, managing IP reputation, and handling failures gracefully.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Web crawlers are a masterclass in distributed systems under adversary conditions: the internet is unreliable, servers block scrapers, and scale compounds every problem. The staff move is recognizing that this is a <em>graph traversal problem</em> wrapped in a <em>rate-limiting and fault-tolerance system</em>. You trade crawl freshness for robustness, design for cascading failures, and learn which corners are safe to cut. The same patterns apply to indexing, data pipelines, and any system that consumes untrusted external data at scale.
+  </div>
+
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin what you're crawling and how fresh the data must be.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Page count, crawl frequency, and network throughput.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>URL frontier, page content, and crawl metadata.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Data flow, component diagram, HLD</td><td>Frontier queue, crawler workers, and storage.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Politeness (robots.txt, rate-limiting), deduplication, and failure recovery.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Crawler reputation, abuse detection, and legal compliance.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow from billions to trillions of pages; multi-region crawling.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap architecture and tradeoffs.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–3, allocate 15 minutes to the politeness and deduplication deep dives, and keep observability brief.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin what you're crawling and how fresh the data must be.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>"What domain(s) are we crawling — specific sites, or open internet?"</b> — Crawling specific sites is simpler (known robots.txt, lower diversity). Open internet requires scale and politeness discipline.</li><li><b>"How fresh must the data be — daily, weekly, or yearly?"</b> — Freshness drives crawl frequency and conflict with politeness. Every re-crawl risks IP blocking.</li><li><b>"What do we extract — full HTML, just text, or metadata (title, links)?"</b> — Storage and bandwidth scale with extraction complexity.</li></ul>
+  </div>
+  <h2>Functional Requirements</h2>
+  <table>
+    <tr><th>#</th><th>Requirement</th><th>Note</th></tr>
+    <tr><td>1</td><td>Discover and crawl web pages starting from seed URLs</td><td>Graph traversal; follow links</td></tr>
+    <tr><td>2</td><td>Respect robots.txt and crawl-delay directives</td><td>Politeness; legal requirement</td></tr>
+    <tr><td>3</td><td>Parse and extract content (text, links, metadata)</td><td>Pipeline processing</td></tr>
+    <tr><td>4</td><td>Store pages in a searchable index</td><td>Indexed storage (not full HTML)</td></tr>
+    <tr><td>5</td><td>Handle redirects, timeouts, and HTTP errors gracefully</td><td>Fault tolerance</td></tr>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>Property</th><th>Target</th><th>Why it drives design</th></tr>
+    <tr><td>Scale</td><td>100B+ pages crawled</td><td>Distributed queue, partitioned storage, multi-region workers</td></tr>
+    <tr><td>Freshness</td><td>30-day re-crawl for active sites</td><td>Crawl frequency is rate-limited per domain</td></tr>
+    <tr><td>Politeness</td><td>robots.txt compliance; &lt; 1 req/sec per domain</td><td>Avoid IP blocks; use User-Agent, delays</td></tr>
+    <tr><td>Reliability</td><td>99%, with checkpoint recovery</td><td>Crashes should resume from last checkpoint</td></tr>
+  </table>
+
+  <p class="transition"><span class="lbl">Say to move on →</span> "The system crawls the open web while respecting robots.txt and rate limits. Let me size the scale."</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Page count, crawl frequency, and network throughput.</span></div>
+  <h2>Capacity Estimation</h2>
+
+  <h3>Page count and crawl depth</h3>
+  <p>~100B pages indexed (Google-scale order of magnitude). Average 10 MB per domain; unique domains: ~10B. <b>Implication:</b> you can't crawl everything; prioritize by popularity (Alexa rank, link count).</p>
+
+  <h3>Crawl frequency</h3>
+  <p>Re-crawl active sites every 30 days. 100B pages ÷ 30 days ≈ <strong>~3.3B crawls/day</strong> ≈ <strong>~40k pages/sec</strong>. At ~500 ms per page (HTTP + parse), you need ~20k concurrent workers (20k × 500 ms = 10k seconds to fetch 20k pages). <b>Implication:</b> horizontal parallelism is mandatory.</p>
+
+  <h3>Storage and bandwidth</h3>
+  <p>Average page: 50 KB (HTML + assets not stored, just indexed). 3.3B × 50 KB ≈ <strong>165 TB/day</strong> crawled. If you store only metadata (title, URL, links): ~1 KB per page ≈ <strong>3.3 TB/day</strong> index growth. <b>Implication:</b> compress and deduplicate aggressively.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"Isn't crawling 40k pages/sec against robots.txt?"</p>
+    <p><b>Staff answer:</b> No. Rate limits are per domain, not global. If you crawl 10B domains at &lt; 1 page/sec each, you reach 10B pages/sec in aggregate. Respect robots.txt and User-Agent conventions; the rate limit is the bottleneck, not the global throughput.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "With 40k pages/sec and rate limits per domain, I'll model the frontier and storage."</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">URL frontier, page content, and crawl metadata.</span></div>
+  <h2>Core Entities &amp; API</h2>
+  <p>Three entities: <strong>URLs</strong> (frontier and visited), <strong>Pages</strong> (indexed content), and <strong>Domains</strong> (crawl state, rate limits, robots.txt cache). The system is not an API; it's a batch/streaming pipeline.</p>
+  <table>
+    <tr><th>Interface</th><th>Purpose</th><th>Format</th></tr>
+    <tr><td>URL frontier (input queue)</td><td>Store discovered URLs waiting to be crawled</td><td>Redis or Kafka; prioritized by domain popularity</td></tr>
+    <tr><td>Crawl output (batch jobs)</td><td>Export crawled pages to index</td><td>Parquet files to S3, daily</td></tr>
+    <tr><td>Query API (read-only)</td><td>Retrieve indexed pages by URL or keyword</td><td>REST API against search index</td></tr>
+  </table>
+
+  <h2>Data Model</h2>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>url_frontier</b> (url, domain, priority, discovered_at, retry_count)</td><td>Redis sorted set or Kafka topic partitioned by domain</td><td>Key: domain · Value: {url, priority} as JSON</td><td>Pop by domain round-robin; high-priority domains first</td></tr>
+    <tr><td><b>visited_urls</b> (url, last_crawl_date, etag, content_hash)</td><td>RocksDB or DynamoDB</td><td>PK: URL (hashed) · SK: crawl_date</td><td>Deduplication: query by content_hash; exclude already-crawled</td></tr>
+    <tr><td><b>domain_state</b> (domain, robots_txt, crawl_delay, last_crawl, queue_size)</td><td>Postgres or Redis cache</td><td>PK: domain</td><td>Rate limiting: check delay before issuing crawl</td></tr>
+    <tr><td><b>pages</b> (url, title, text, links, fetch_date, status_code, size)</td><td>S3 (raw HTML daily backup) + search index (ES/Solr)</td><td>PK: URL (sharded by domain hash)</td><td>Full-text search by title/text; range by fetch_date</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"How do you partition the URL frontier across crawlers?"</p>
+    <p><b>Staff answer:</b> Partition by domain hash. Each crawler reads from its shard, respecting the per-domain rate limit. If a crawler crashes, the domain is reassigned to another; Kafka or a distributed queue handles rebalancing.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "The frontier is partitioned by domain to enforce rate limits. Let me sketch the crawl pipeline."</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">Frontier queue, crawler workers, and storage.</span></div>
+  <h2>Data Flow</h2>
+  <p>Crawling is a multi-stage pipeline: (1) fetch URL from frontier, (2) respect robots.txt and rate limits, (3) fetch page, (4) parse and extract, (5) enqueue new URLs, (6) store page. Failures at any stage are logged for retry.</p>
+  <pre class="diagram">
+ [Seed URLs]
+      |
+      v
+ [URL Frontier] (Kafka, partitioned by domain)
+      |
+      | Partition by domain hash
+      v
+ [Crawler Workers] (distributed)
+      |
+      +---> Check domain rate limit
+      |
+      +---> Fetch robots.txt (cached)
+      |
+      +---> HTTP GET page (with retries)
+      |       |
+      |       v
+      |   [Parse & Extract]
+      |    (text, links, metadata)
+      |       |
+      |       v
+      +---> [Enqueue new URLs]
+      |    (back to frontier)
+      |
+      v
+ [Visited URLs DB]
+ (dedup cache)
+      |
+      v
+ [Page storage] (S3 + search index)
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">Partitioning by domain enforces per-domain rate limits. Dedup cache prevents re-crawling. Failed pages are retried from checkpoints.</p>
+
+  <h2>High-Level Design</h2>
+  <p>The crawler is a distributed, stateless pipeline. URLs are partitioned by domain and queued in Kafka. Crawlers are stateless workers that pull from a partition, check the domain's robots.txt (cached in memory or Redis), wait for the per-domain rate limit, fetch the page, and extract links. New URLs are re-enqueued; visited URLs are cached in a content-addressed store (RocksDB or DynamoDB) for deduplication. Pages are stored in S3 daily, indexed in Elasticsearch, and queryable via an API.</p>
+  <table>
+    <tr><th>Stage</th><th>Logic</th><th>Stores touched</th></tr>
+    <tr><td><b>Frontier</b></td><td>URLs waiting to be crawled, partitioned by domain</td><td>Kafka (distributed queue)</td></tr>
+    <tr><td><b>Rate limit</b></td><td>Per-domain delay; sleep if needed, consult robots.txt</td><td>Postgres or Redis (domain state)</td></tr>
+    <tr><td><b>Fetch</b></td><td>HTTP GET with exponential backoff; timeout ~30 sec</td><td>External (origin servers)</td></tr>
+    <tr><td><b>Extract</b></td><td>Parse HTML; extract text, links, metadata</td><td>In-memory (no store)</td></tr>
+    <tr><td><b>Dedup</b></td><td>Content hash; skip if already crawled</td><td>RocksDB or DynamoDB</td></tr>
+    <tr><td><b>Storage</b></td><td>Batch write to S3; index to Elasticsearch</td><td>S3 (raw), Elasticsearch (searchable)</td></tr>
+  </table>
+  <p>The system is designed for fault tolerance: if a crawler crashes, Kafka rebalances the partition to another worker, and the URL remains in the frontier for retry. Checkpointing (e.g., every 10k URLs processed) avoids re-crawling on restart.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"What if a domain is down for a week?"</p>
+    <p><b>Staff answer:</b> URLs are retried with exponential backoff. After 3 failures, the URL is moved to a "dead letter" queue and retried less frequently (e.g., weekly). The frontier prioritizes live domains to maximize crawl coverage.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "The pipeline is stateless and fault-tolerant. The hard parts are politeness, deduplication, and IP reputation."</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Politeness, deduplication, and failure recovery.</span></div>
+  <h2>Deep Dives</h2>
+
+  <h3>Deep Dive 1 — Politeness: robots.txt and rate-limiting</h3>
+  <p>Crawlers must be "good citizens." Respect three rules: (1) check robots.txt for /disallow and /crawl-delay, (2) identify via User-Agent, (3) limit to ~1 request/second per domain.</p>
+  <div class="box">
+    <b>Implementation:</b>
+    <ul>
+      <li>Cache robots.txt per domain (TTL 30 days); fetch on first crawl of a domain</li>
+      <li>Per-domain token bucket: refill at 1 token/sec; each fetch costs 1 token</li>
+      <li>User-Agent header includes company name and contact (e.g., "MyBot/1.0 (http://example.com)")></li>
+      <li>If you hit a 429, 503, or robots.txt /disallow, back off exponentially</li>
+      <li>Respect Retry-After header if present</li>
+    </ul>
+  </div>
+  <p>An IP that crawls too aggressively gets blocked (HTTP 403 or 429). Mitigation: rotate IPs using a pool of residential/datacenter proxies, monitor for blocks, and use exponential backoff. If blocked, skip that domain for 24 hours.</p>
+
+  <h3>Deep Dive 2 — Deduplication: avoiding re-crawls</h3>
+  <p>The frontier can have millions of URLs pointing to the same page (via redirects, different query strings, canonical tags). Store a content hash (SHA256 of the page HTML) in a distributed cache (RocksDB or DynamoDB). Before fetching, check: if the hash exists and is recent, skip the fetch. This saves bandwidth and respects rate limits.</p>
+  <table>
+    <tr><th>Approach</th><th>Cost</th><th>Misses</th></tr>
+    <tr><td>No dedup; fetch every URL</td><td>40k pages/sec × 500 ms each = high cost</td><td>None; always fresh</td></tr>
+    <tr><td>Content hash dedup (in-memory cache)</td><td>Minimal (hash lookup); save 30–50% fetches</td><td>New mirrors, content drift</td></tr>
+    <tr><td>Canonical URL dedup (parse &lt;link rel=canonical&gt;)</td><td>Parsing overhead; highly accurate</td><td>Sites without canonical tags</td></tr>
+  </table>
+
+  <h3>Deep Dive 3 — Handling redirects and soft errors</h3>
+  <p>A URL may redirect (301, 302, etc.). Follow up to 5 redirects; if a loop is detected, drop the URL. Soft errors (timeouts, 503) are retried with exponential backoff; hard errors (404, 410) are dropped after one retry.</p>
+  <table>
+    <tr><th>Status</th><th>Action</th></tr>
+    <tr><td>200–299</td><td>Success; crawl and index</td></tr>
+    <tr><td>301, 302, 307, 308</td><td>Follow redirect (up to 5 hops)</td></tr>
+    <tr><td>304 Not Modified</td><td>Skip crawl; mark fresh in index</td></tr>
+    <tr><td>401, 403</td><td>Drop; requires auth</td></tr>
+    <tr><td>404, 410</td><td>Drop; not found</td></tr>
+    <tr><td>429, 503</td><td>Retry with backoff; respect Retry-After</td></tr>
+    <tr><td>Timeout</td><td>Retry 2×; give up after 2 failures</td></tr>
+  </table>
+
+  <h3>Deep Dive 4 — URL prioritization and frontier freshness</h3>
+  <p>Not all pages are equally important. Prioritize by domain popularity (PageRank, inbound links, Alexa rank) and freshness (last crawled date). The frontier uses a <strong>priority queue</strong> per partition: high-PageRank domains are dequeued first.</p>
+
+  <h3>Deep Dive 5 — Handling JavaScript-rendered pages</h3>
+  <p>Modern sites render content in JavaScript; plain HTTP GET returns a skeleton. Two approaches: (1) use a headless browser (Chromium/Puppeteer) for a small fraction of pages, or (2) rely on APIs if available. Headless rendering is 10–100× slower, so use only for known high-value domains.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    A senior engineer designs a basic crawler with rate limits. A staff engineer recognizes that <em>politeness is the load-bearing architecture</em>, not an afterthought. They identify deduplication as the key to respecting rate limits (crawl fewer pages by avoiding duplicates) and model the per-domain token bucket before coding anything. They call out IP reputation and rotation without prompting, know robots.txt caching is load-bearing (if you fetch it every time, you hit a 1:1 fetch:robots check ratio), and design for cascading failures (if one domain gets blocked, the system self-heals by deprioritizing it).
+  </div>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. Distributed, polite crawler</b> (chosen)</td><td>Partitioned by domain; per-domain rate limits; robots.txt caching; IP rotation</td><td>Sustainable; unblocked; crawls for years; respects politeness</td><td>Slower crawl (rate-limited); complex IP management</td><td>Default — long-term, sustainable crawling</td></tr>
+    <tr><td><b>B. Aggressive single-region crawler</b></td><td>High concurrency; fire-and-forget; minimal rate limiting</td><td>Fast initial crawl; simple code</td><td>Domains block you within weeks; IP bans; legal risk</td><td>One-off bulk export; not production</td></tr>
+    <tr><td><b>C. API-only crawling (no HTTP)</b></td><td>Partner with sites for API access; no scraping</td><td>Guaranteed freshness; no IP blocks; legal</td><td>High cost; limited coverage; requires negotiations</td><td>Premium data sources; financial data, real estate feeds</td></tr>
+  </table>
+  <p><b>Pick A:</b> a sustainable crawler is the staff move. B gets you IP-banned in production. C is for specific, high-value sources only.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"How do you avoid crawling the same page twice across crawlers?"</p>
+    <p><b>Staff answer:</b> Partitioning by domain hash ensures each domain is assigned to one crawler at a time. Kafka rebalancing on crawler crash reassigns partitions; the new crawler reads from the same frontier and sees unprocessed URLs. Content dedup (hashing) removes near-duplicates globally.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "With politeness and dedup in place, let me cover monitoring and legal compliance."</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Crawler reputation, abuse detection, and legal compliance.</span></div>
+  <h2>Observability</h2>
+  <table>
+    <tr><th>Signal</th><th>What to emit</th></tr>
+    <tr><td>Metrics</td><td>Pages crawled/sec, HTTP success rate, 429/403 blocks, avg fetch latency, frontier size, IP blocks</td></tr>
+    <tr><td>Logs</td><td>Structured: domain, URL, status_code, latency, retry_count. Alert on 403/429.</td></tr>
+    <tr><td>Traces</td><td>Per-URL: check rate limit → check robots.txt → HTTP GET → parse. Tail sample failures.</td></tr>
+  </table>
+
+  <h2>Monitoring &amp; Alerts</h2>
+  <table>
+    <tr><th>SLO / Alert</th><th>Target</th><th>Action</th></tr>
+    <tr><td>HTTP success rate</td><td>&gt; 90% (200–299, 304)</td><td>Page if &lt; 85%; investigate blocks</td></tr>
+    <tr><td>IP block rate</td><td>&lt; 1% of IPs blocked</td><td>Ticket; rotate IP pool, back off</td></tr>
+    <tr><td>Frontier depth</td><td>&lt; 100M URLs (else crawlers can't keep up)</td><td>Pause new URL discovery; prioritize crawling</td></tr>
+    <tr><td>Crawl freshness</td><td>95% of active pages crawled in last 30 days</td><td>Increase crawler capacity if trending down</td></tr>
+  </table>
+
+  <h2>Legal &amp; Ethics</h2>
+  <p>Check the site's Terms of Service and robots.txt. Identify as a crawler (User-Agent); include a contact URL. Respect copyright; never republish full content. Honor Do-Not-Track and Similar signals (via User-Agent opt-out). In GDPR/CCPA jurisdictions, honor deletion requests (e.g., via robots.txt).</p>
+
+  <h2>Security &amp; Privacy</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>Crawling private/sensitive content</td><td>Honor robots.txt; respect 401/403; don't bypass auth</td></tr>
+    <tr><td>IP reputation damage</td><td>Rotate IPs; respect rate limits; monitor for blocks</td></tr>
+    <tr><td>Denial of service (large files)</td><td>Limit fetch size to 10 MB; timeout at 30 sec</td></tr>
+    <tr><td>Malicious content (malware, exploits)</td><td>Parse only in sandbox; store raw HTML separately</td></tr>
+  </table>
+
+  <p class="transition"><span class="lbl">Say to move on →</span> "With monitoring and legal compliance in place, scaling is a matter of adding crawlers and domain partitions."</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow from billions to trillions of pages; multi-region crawling.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <table>
+    <tr><th>Component</th><th>Today (100B pages, 40k/sec)</th><th>At 10× (1T pages, 400k/sec)</th><th>Knob turned</th></tr>
+    <tr><td>Kafka partitions (by domain hash)</td><td>1000 partitions</td><td>10000 partitions</td><td>Add brokers; rebalance</td></tr>
+    <tr><td>Crawler workers</td><td>50 worker groups</td><td>500 worker groups</td><td>Horizontal scale; add servers</td></tr>
+    <tr><td>Dedup cache (RocksDB)</td><td>100 TB (sharded)</td><td>1 PB (sharded across many nodes)</td><td>Partition by URL hash; add shards</td></tr>
+    <tr><td>Search index (Elasticsearch)</td><td>100 shards</td><td>1000 shards</td><td>Add data nodes; increase replicas</td></tr>
+    <tr><td>S3 storage (raw pages)</td><td>365 TB/year</td><td>3.65 PB/year</td><td>Archival to Glacier; cost-effective</td></tr>
+  </table>
+  <p>Bottleneck progression: (1) Kafka throughput; (2) crawler concurrency; (3) dedup cache size. At 1T pages, split into multi-region crawlers: one region per geography to reduce latency and distribute IP reputation.</p>
+
+  <h2>Cost of Running</h2>
+  <table>
+    <tr><th>Line item</th><th>Volume</th><th>Unit cost</th><th>Monthly cost</th></tr>
+    <tr><td>Crawler compute (servers)</td><td>500 instances, 8 vCPU</td><td>$30/vCPU</td><td>~$120,000</td></tr>
+    <tr><td>Kafka brokers</td><td>50 brokers</td><td>$300/broker</td><td>~$15,000</td></tr>
+    <tr><td>RocksDB cache (sharded)</td><td>1 PB SSD</td><td>$0.08/GB</td><td>~$80,000</td></tr>
+    <tr><td>Elasticsearch cluster</td><td>1000 shards, 500 nodes</td><td>$500/node</td><td>~$250,000</td></tr>
+    <tr><td>S3 (standard)</td><td>3.65 PB/year</td><td>$23/TB</td><td>~$8,400</td></tr>
+    <tr><td>IP rotation (residential proxies)</td><td>100 IPs, residential proxy service</td><td>$0.50/GB egress</td><td>~$80,000</td></tr>
+    <tr><td>Total</td><td></td><td></td><td>~$553,400/month</td></tr>
+  </table>
+  <p>Dominant costs: compute (crawlers), cache (dedup), and search index. To reduce: compress cached pages, use spot instances for crawlers, archive older pages to Glacier (save ~70% on S3).</p>
+
+  <h2>2 · Closing Summary (60 seconds)</h2>
+  <div class="summary">
+    <p>The crawler is a distributed, stateless pipeline that respects per-domain rate limits, caches robots.txt, and deduplicates via content hashing. Kafka partitions by domain hash; workers are stateless and fault-tolerant. Politeness is the architecture: token buckets enforce rate limits, IP rotation avoids blocks, and exponential backoff handles transient failures. At 10×, add crawlers and domain partitions; the design scales linearly. The hard part is sustaining crawl coverage over years without getting IP-banned, which requires constant monitoring and politeness discipline.</p>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why partition the URL frontier by domain hash rather than round-robin?</p>
+      <button class="opt">Domain hash allows faster hashing than round-robin</button>
+      <button class="opt">Ensures one domain is assigned to one crawler, enforcing per-domain rate limits</button>
+      <button class="opt">Reduces memory usage compared to round-robin queues</button>
+      <button class="opt">Domain hash is a legal requirement per robots.txt</button>
+      <p class="fb">Per-domain rate limiting requires that a single crawler handles a domain's URLs (no interleaving). Hash partitioning ensures this: domain A always goes to partition 1, domain B to partition 2, etc. Round-robin would split a domain across crawlers, breaking rate limiting.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. What is the primary benefit of content-hash deduplication?</p>
+      <button class="opt">Dedup hashing is cryptographically secure against attacks</button>
+      <button class="opt">Dedup prevents the same HTML from being parsed twice</button>
+      <button class="opt">Dedup avoids re-fetching pages with identical content, saving bandwidth and respecting rate limits</button>
+      <button class="opt">Dedup eliminates the need for robots.txt caching</button>
+      <p class="fb">If 10 different URLs point to the same page (via mirrors, redirects, or copy-pasta), content dedup detects this via SHA256 and skips the re-fetch. This saves bandwidth and respects per-domain rate limits.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">3. How should the crawler respond to a 429 Too Many Requests?</p>
+      <button class="opt">Ignore it and continue crawling at the same rate</button>
+      <button class="opt">Immediately block the domain for 1 year</button>
+      <button class="opt">Drop the URL permanently and never retry</button>
+      <button class="opt">Backoff exponentially; respect Retry-After header; pause domain for 24 hours if repeated</button>
+      <p class="fb">429 means you're rate-limited. Back off exponentially, read the Retry-After header, and pause the domain. If you get 429 repeatedly, the domain is hostile; deprioritize for a day. This preserves IP reputation.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">4. Why cache robots.txt instead of fetching it for every domain?</p>
+      <button class="opt">Caching avoids 1 extra HTTP request per domain, preserving rate limits and reducing latency</button>
+      <button class="opt">robots.txt changes frequently and caching causes stale rules</button>
+      <button class="opt">Fetching robots.txt requires special authentication headers</button>
+      <button class="opt">Caching violates the HTTP specification for crawler behavior</button>
+      <p class="fb">robots.txt is rarely updated. Caching it (TTL 30 days) means you fetch once, not once per crawl. This reduces requests and respects rate limits. If you fetched it every time, you'd hit a 1:1 ratio of robots.txt:crawl requests, which is inefficient.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> How would you handle JavaScript-heavy sites at scale? What about maintaining crawler reputation across multiple data centers? How would you prioritize which pages to re-crawl first when you fall behind?
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://en.wikipedia.org/wiki/Web_crawler">Web Crawler — Wikipedia</a>. Overview of crawling architectures, politeness policies, and the mechanics of modern web crawlers.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] Web crawling at scale: politeness, rate limiting, and distributed systems patterns from search engines and data companies.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0125-todo-list-system.html">← Lesson 125</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → Lesson 127</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 128 — Design Hierarchical Data Storage (Folders/Trees)</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 128 · Phase 4 — Case Study · Medium</p>
+  <h1>Design Hierarchical Data Storage (Folders &amp; Trees)</h1>
+  <p class="sub">A scalable system for storing and querying tree-structured data (files, folders, permissions) without expensive recursive queries.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Trees are deceptively complex at scale. The naive approach (parent-child pointers + recursive queries) crumbles under deep hierarchies and concurrent modifications. The staff move is recognizing that this is a <em>materialized path problem</em>, and choosing between denormalized paths, nested sets, or materialized views based on the query patterns. You learn when to denormalize and when to keep queries simple. The same patterns apply to file systems, organizational charts, and any hierarchical domain model.
+  </div>
+
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin what queries matter and tree depth.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Tree size, depth, and query patterns.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the schema: parent pointers vs. materialized paths.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Component diagram, HLD</td><td>Simple schema + efficient queries via denormalization.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Materialized paths, nested sets, move/rename operations.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Permissions cascading, audit on moves, soft deletes.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow without recomputing paths; cache hierarchy.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap schema choice and tradeoffs.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–3, allocate 12 minutes to materialized path deep dive, and sketch moves/permissions briefly.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin what queries matter and tree depth.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>"What are the hot queries — list children, full path, all ancestors, or subtree search?"</b> — Schema choice depends on access patterns.</li><li><b>"How deep is the tree — 5 levels or 100?"</b> — Deep trees make recursive queries expensive; denormalization becomes mandatory.</li><li><b>"Do users move folders frequently, or is the tree mostly static?"</b> — Frequent moves require efficient path updates; static trees can use materialized paths.</li></ul>
+  </div>
+  <h2>Functional Requirements</h2>
+  <table>
+    <tr><th>#</th><th>Requirement</th><th>Note</th></tr>
+    <tr><td>1</td><td>Create, read, update, delete folders and files</td><td>Standard CRUD on tree nodes</td></tr>
+    <tr><td>2</td><td>List children of a folder</td><td>Fast; probably the hot path</td></tr>
+    <tr><td>3</td><td>Get full path (e.g., /home/user/Documents)</td><td>Denormalized for performance</td></tr>
+    <tr><td>4</td><td>Move a folder to a new parent (with children)</td><td>Bulk update; can be expensive</td></tr>
+    <tr><td>5</td><td>Query all descendants of a folder</td><td>Subtree traversal</td></tr>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>Property</th><th>Target</th><th>Why it drives design</th></tr>
+    <tr><td>Latency</td><td>List children &lt; 100ms; full path &lt; 10ms</td><td>Denormalize paths; cache hierarchy</td></tr>
+    <tr><td>Scale</td><td>1B nodes (folders + files)</td><td>Partition by user or root folder</td></tr>
+    <tr><td>Consistency</td><td>Strong; moves are atomic</td><td>Single-threaded write per user</td></tr>
+  </table>
+
+  <p class="transition"><span class="lbl">Say to move on →</span> "Trees are the problem; I'll choose a schema that makes the hot queries fast."</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Tree size, depth, and query patterns.</span></div>
+  <h2>Capacity Estimation</h2>
+
+  <h3>Tree size</h3>
+  <p>1B total nodes; 100M users, ~10k files/folders per user. Average folder depth: ~10 levels. <b>Implication:</b> partition by user_id; each shard has ~10k nodes, manageable in Postgres.</p>
+
+  <h3>Query patterns</h3>
+  <p>Hot: list children (~1k/sec per user), get full path (~500/sec). Cold: subtree traversal (~100/sec), move (~10/sec). <b>Implication:</b> optimize for list children and path; move operations are rare enough to accept O(n) cost.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"Why not use a recursive query for subtree traversal?"</p>
+    <p><b>Staff answer:</b> Recursion with parent pointers requires multiple round-trips or a recursive CTE, which is slow for deep trees. At 10 levels, a recursive CTE is 10 joins. Materialized paths avoid this: query by path prefix in O(1).</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "With 1B nodes and 10-level depth, I'll use materialized paths to avoid recursion."</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the schema: parent pointers vs. materialized paths.</span></div>
+  <h2>Core Entities &amp; API</h2>
+  <p>One entity: <strong>Node</strong> (folder or file with metadata, parent reference, and materialized path).</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th><th>Returns</th></tr>
+    <tr><td><code>GET /v1/folders/{folder_id}/children</code></td><td>List children (files and folders)</td><td><code>200</code> + children with names and types</td></tr>
+    <tr><td><code>GET /v1/folders/{folder_id}/path</code></td><td>Get full path string (e.g., /home/user/Documents)</td><td><code>200</code> + path string</td></tr>
+    <tr><td><code>POST /v1/folders</code></td><td>Create folder</td><td><code>201</code> + folder ID</td></tr>
+    <tr><td><code>PATCH /v1/folders/{folder_id}</code></td><td>Rename or move folder</td><td><code>200</code> + updated node</td></tr>
+  </table>
+
+  <h2>Data Model</h2>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Access pattern</th></tr>
+    <tr><td><b>nodes</b> (id, user_id, parent_id, name, type, path, created_at)</td><td>Postgres partitioned by user_id</td><td>PK <code>id</code> · FK <code>parent_id</code> · UK <code>(user_id, path)</code></td><td>Parent → children; full path; subtree by prefix</td></tr>
+  </table>
+  <p>The <code>path</code> column is materialized: <code>/folder_id_1/folder_id_2/folder_id_3</code>. Querying subtree: <code>WHERE path LIKE '/folder_id_1/%'</code> is O(1) with an index.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"What if you rename a folder in the middle of the tree?"</p>
+    <p><b>Staff answer:</b> Only the name field changes; the path (which is IDs, not names) is stable. If you want display names in the path, use a separate cached materialized view that you recompute on rename (eventually consistent).</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "The schema uses materialized paths. Let me design operations on this tree."</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">Simple schema + efficient queries via denormalization.</span></div>
+  <h2>Component Diagram</h2>
+  <pre class="diagram">
+ [Client: list children]
+       |
+       v
+ [Query: SELECT * FROM nodes WHERE parent_id = X]
+       |
+       v
+ [Postgres (partitioned by user_id)]
+       |
+       +---> [Index: parent_id]
+       |
+       v
+    [200 + children]
+
+ [Client: move folder Y under folder X]
+       |
+       v
+ [Compute new paths for Y and all descendants]
+       |
+       v
+ [UPDATE nodes SET path = new_path WHERE path LIKE old_path/%]
+       |
+       v
+ [Postgres transaction] (atomic or log-based replay)
+       |
+       v
+    [200 + success]
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">List children: index on parent_id. Move: update paths in bulk; optional async compute for large subtrees.</p>
+
+  <h2>High-Level Design</h2>
+  <p>The tree is partitioned by user_id. Each node stores id, parent_id, name, and path (materialized ID sequence). List children queries parent_id directly (indexed). Move operations compute new paths for all descendants and apply in a transaction (or via an event log for eventual consistency).</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"What if you move a million-node subtree? Won't the query timeout?"</p>
+    <p><b>Staff answer:</b> For large moves, use eventual consistency: enqueue the move as an event, apply it asynchronously, and return immediately. Users see the old path briefly, then it updates. Or batch the update: do 10k nodes per second in background jobs.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "The design is simple: materialized paths avoid recursion. The hard part is efficient moves and permissions."</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Materialized paths, nested sets, move/rename operations.</span></div>
+  <h2>Deep Dives</h2>
+
+  <h3>Deep Dive 1 — Materialized paths vs. nested sets vs. parent pointers</h3>
+  <p>Three approaches to store hierarchies:</p>
+  <table>
+    <tr><th>Approach</th><th>Structure</th><th>List children</th><th>Full path</th><th>Subtree search</th><th>Move</th></tr>
+    <tr><td><b>Parent pointers</b></td><td>id, parent_id</td><td>O(n) index scan</td><td>O(h) recursive query</td><td>O(n) recursive CTE</td><td>O(1) update</td></tr>
+    <tr><td><b>Materialized paths</b></td><td>id, path = "/1/2/3"</td><td>O(1) parent_id prefix</td><td>O(1) direct column</td><td>O(n) LIKE prefix</td><td>O(n) bulk update</td></tr>
+    <tr><td><b>Nested sets</b></td><td>id, left, right</td><td>O(n) BETWEEN</td><td>O(n) ancestor scan</td><td>O(1) BETWEEN range</td><td>O(n) recompute range</td></tr>
+  </table>
+  <p><b>Pick materialized paths:</b> list children and full path are the hot queries. Move is rare (10/sec). Materialized paths are simplest.</p>
+
+  <h3>Deep Dive 2 — Efficient move operations</h3>
+  <p>To move node Y (with path /1/2/3) under node X (path /4/5): update all descendants where path LIKE '/1/2/3/%' and replace prefix. For large subtrees, split into batches or use async jobs.</p>
+
+  <h3>Deep Dive 3 — Permissions and cascading ACLs</h3>
+  <p>When you share a folder, do children inherit permissions? Model as: node has owner and explicit grants, plus inherited grants from ancestors. On move, permissions change (lose ancestors' grants, gain new parent's grants).</p>
+
+  <h3>Deep Dive 4 — Soft deletes and recovery</h3>
+  <p>Don't hard-delete; soft-delete (mark with deleted_at). Store backups; allow undelete. On move, skip deleted descendants. Periodically compact: hard-delete after 90 days.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    A senior engineer designs a tree with parent pointers and realizes recursion is slow. A staff engineer <em>chooses the schema based on query patterns</em> before writing a line of code: identifies list children and full path as hot, then justifies materialized paths. They call out the move operation as potentially expensive and design for eventual consistency without being asked. They also bring up permissions cascading and soft deletes as non-obvious interactions.
+  </div>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>Hot queries</th><th>Cold queries</th><th>Moves</th><th>Pick it when</th></tr>
+    <tr><td><b>A. Materialized paths</b> (chosen)</td><td>List children, full path (O(1))</td><td>Subtree (O(n) prefix scan)</td><td>O(n) bulk update</td><td>Default — list and path are hot</td></tr>
+    <tr><td><b>B. Parent pointers + cache</b></td><td>Recursive CTE slow; cache full tree</td><td>Cache hit; else recursive</td><td>O(1) update</td><td>Small trees (&lt; 10k nodes); frequent moves</td></tr>
+    <tr><td><b>C. Nested sets</b></td><td>Subtree is O(1) BETWEEN range</td><td>Full path is O(n) traversal</td><td>O(n) recompute ranges</td><td>Trees where subtree search is hot (rare)</td></tr>
+  </table>
+
+  <p class="transition"><span class="lbl">Say to move on →</span> "With materialized paths in place, scaling is about partitioning users and caching the tree."</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Permissions cascading, audit on moves, soft deletes.</span></div>
+  <h2>Observability</h2>
+  <table>
+    <tr><th>Signal</th><th>What to emit</th></tr>
+    <tr><td>Metrics</td><td>Nodes created/deleted/moved, avg query latency, tree depth distribution</td></tr>
+    <tr><td>Logs</td><td>Structured: user_id, node_id, operation (create/move/delete), path, affected_count</td></tr>
+  </table>
+
+  <h2>Monitoring</h2>
+  <table>
+    <tr><th>SLO / Alert</th><th>Target</th><th>Action</th></tr>
+    <tr><td>List children p99</td><td>&lt; 100ms</td><td>Page on query slowness; check index</td></tr>
+    <tr><td>Move latency p99</td><td>&lt; 5 sec (async allowed)</td><td>Ticket; check bulk update performance</td></tr>
+    <tr><td>Tree depth</td><td>&lt; 100 levels</td><td>Warn if approaching; suggest refactoring</td></tr>
+  </table>
+
+  <h2>Security &amp; Privacy</h2>
+  <p>Implement permissions: owner can grant read/write to team members. On move, audit the operation. Soft-delete (not hard-delete) for recovery. Mask paths in logs (PII: don't log full folder names of deleted items).</p>
+
+  <h2>Permissions cascading</h2>
+  <p>When you move a folder, do inherited permissions change? Design: store explicit grants on each node. On move, re-evaluate inherited permissions from the new parent. Cache the permission matrix; invalidate on move.</p>
+
+  <p class="transition"><span class="lbl">Say to move on →</span> "With permissions and soft deletes in place, scaling is straightforward."</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow without recomputing paths; cache hierarchy.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <table>
+    <tr><th>Component</th><th>Today (1B nodes)</th><th>At 10× (10B nodes)</th><th>Knob turned</th></tr>
+    <tr><td>Postgres shards (by user_id)</td><td>100 shards</td><td>1000 shards</td><td>Increase shard count; rebalance</td></tr>
+    <tr><td>Index on parent_id</td><td>Present on all shards</td><td>Shard-local index (unchanged)</td><td>No change; each shard is small</td></tr>
+    <tr><td>Cache (materialized tree)</td><td>Redis, 100 GB</td><td>Redis, 1 TB</td><td>Larger cache cluster; shard by user</td></tr>
+  </table>
+  <p>The architecture scales linearly: each user has ~10k nodes; partition by user_id. Each shard is small and maintains its own index. Cache is user-local; no cross-shard queries needed.</p>
+
+  <h2>Cost of Running</h2>
+  <table>
+    <tr><th>Line item</th><th>Volume</th><th>Monthly cost</th></tr>
+    <tr><td>Postgres (1000 shards, 1 vCPU each)</td><td>~$30,000</td></tr>
+    <tr><td>Redis cache (1 TB, tree data)</td><td>~$8,000</td></tr>
+    <tr><td>Backup/archive storage (S3)</td><td>~$5,000</td></tr>
+    <tr><td>Total</td><td>~$43,000/month</td></tr>
+  </table>
+
+  <h2>Closing Summary (60 seconds)</h2>
+  <div class="summary">
+    <p>The hierarchy is stored with materialized paths (/1/2/3) to avoid expensive recursion. List children and full path queries are O(1). Move operations are O(n) bulk updates (acceptable since rare). Permissions cascade via inherited grants; soft deletes allow recovery. The schema scales linearly by user_id partitioning: each user has ~10k nodes, small and cacheable. The trade-off: materialized paths require bulk updates on move, but that's acceptable since moves are rare.</p>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="b">
+      <p class="stem">1. Why use materialized paths instead of parent pointers for hierarchies?</p>
+      <button class="opt">Materialized paths use less storage space than pointers</button>
+      <button class="opt">Materialized paths avoid expensive recursion for hot queries (list children, full path)</button>
+      <button class="opt">Materialized paths are required by SQL standards</button>
+      <button class="opt">Materialized paths support moves instantly without updates</button>
+      <p class="fb">Parent pointers require recursive CTEs (slow for deep trees). Materialized paths (e.g., /1/2/3) let you query list children by parent_id (indexed) and full path directly.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">2. How do you efficiently query all descendants of a folder with materialized paths?</p>
+      <button class="opt">Execute a recursive CTE to find all children</button>
+      <button class="opt">Join the folder to itself multiple times (once per depth)</button>
+      <button class="opt">Query WHERE path LIKE '/folder_id/%' using an index on the path column</button>
+      <button class="opt">Store descendants in a separate denormalized table</button>
+      <p class="fb">Materialized paths like /1/2/3 let you use LIKE prefix matching: WHERE path LIKE '/1/2/3/%'. With a B-tree index, this is O(log n) + scan.</p>
+    </div>
+    <div class="q" data-correct="a">
+      <p class="stem">3. When you move a folder with 1M descendants, what should you do?</p>
+      <button class="opt">Use eventual consistency: enqueue the move and apply asynchronously in batches</button>
+      <button class="opt">Block the user and recompute all paths synchronously</button>
+      <button class="opt">Use a recursive CTE to update each descendant</button>
+      <button class="opt">Materialize a separate table for moved items</button>
+      <p class="fb">Moving 1M rows synchronously can timeout. Instead, publish the move as an event and apply it in background jobs (10k nodes per second). Users see the old path briefly, then it updates.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> How would you handle shared folders (where multiple users own the tree)? What about syncing hierarchies across regions? How would you implement search that respects the tree structure?
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://en.wikipedia.org/wiki/Materialized_path">Materialized Path — Wikipedia</a>. Overview of tree storage models with tradeoffs and use cases.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] Hierarchical data models: parent pointers, materialized paths, nested sets, and their performance tradeoffs.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0127-confluence-popular-feed.html">← Lesson 127</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → Lesson 129</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lesson 124 — Design an Invoice Generation System</title>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fffefb; --muted:#6b6356; --rule:#e3ddd0;
+    --accent:#7a2e1d; --accent-soft:#f3ece1; --staff:#1f4d3f; --staff-soft:#e7f0ec;
+  }
+  *{box-sizing:border-box}
+  html{font-size:18px}
+  body{background:var(--paper); color:var(--ink);
+    font-family:Georgia,"Iowan Old Style","Palatino Linotype",serif; line-height:1.55; margin:0;}
+  .wrap{max-width:720px; margin:0 auto; padding:3.5rem 1.5rem 6rem;}
+  .home{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.8rem; margin:0 0 1.5rem;}
+  .home a{border:none;}
+  .kicker{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; font-size:.72rem;
+    letter-spacing:.18em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 .6rem;}
+  h1{font-size:2.4rem; line-height:1.1; margin:0 0 .4rem; font-weight:700;}
+  .sub{color:var(--muted); font-style:italic; font-size:1.05rem; margin:0 0 2rem;}
+  h2{font-size:1.4rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.35rem;}
+  h3{font-size:1.08rem; margin:1.6rem 0 .2rem; font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  p{margin:.7rem 0;}
+  code{font-family:"SF Mono",Menlo,monospace; font-size:.85em; background:#f3ece1; padding:.08rem .3rem; border-radius:3px;}
+  a{color:var(--accent); text-decoration:none; border-bottom:1px solid rgba(122,46,29,.3);}
+  a:hover{border-bottom-color:var(--accent);}
+  .mission{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .mission strong{font-variant:small-caps; letter-spacing:.03em;}
+  .staff{background:var(--staff-soft); border-left:3px solid var(--staff); padding:1rem 1.2rem; margin:1.5rem 0; font-size:.95rem;}
+  .staff .tag{font-family:-apple-system,sans-serif; font-weight:700; font-size:.7rem; letter-spacing:.12em;
+    text-transform:uppercase; color:var(--staff); display:block; margin-bottom:.4rem;}
+  .cite{font-size:.78rem; color:var(--muted); vertical-align:super; text-decoration:none; border:none; margin-left:1px;}
+  table{border-collapse:collapse; width:100%; margin:1.2rem 0; font-size:.88rem;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif;}
+  th,td{text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); vertical-align:top;}
+  th{font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);}
+  .box{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.2rem 1.4rem; margin:1.4rem 0;
+    font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.9rem;}
+  .box b{color:var(--accent);}
+  .box ul{margin:.3rem 0 .3rem 0; padding-left:1.1rem;}
+  .box li{margin:.35rem 0;}
+  pre.diagram{font-family:"SF Mono",Menlo,monospace; font-size:.72rem; line-height:1.35; background:var(--accent-soft);
+    padding:1rem 1.1rem; border-radius:6px; overflow-x:auto; white-space:pre; margin:1.2rem 0 .4rem;}
+  .agenda{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1rem 1.2rem; margin:1.6rem 0;}
+  .agenda table{margin:.4rem 0; font-size:.82rem;}
+  .agenda td:nth-child(2){white-space:nowrap;}
+  .agenda-note{font-size:.8rem; color:var(--muted); margin:.4rem 0 0;}
+  .lbl{font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:.68rem; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--accent); margin:0 0 .3rem;}
+  .phase{margin:3.6rem 0 0; padding:.7rem 1rem; background:var(--accent); color:#fff; border-radius:6px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; display:flex; flex-wrap:wrap; gap:.15rem .8rem; align-items:baseline;}
+  .phase-num{font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; opacity:.85;}
+  .phase-name{font-weight:700; font-size:1.05rem;}
+  .phase-goal{font-size:.82rem; opacity:.9; flex-basis:100%;}
+  .phase + h2{margin-top:1.4rem;}
+  .asks{background:var(--staff-soft); border-left:3px solid var(--staff); padding:.8rem 1.1rem; margin:1.2rem 0; font-size:.92rem;}
+  .asks .lbl{color:var(--staff);}
+  .asks ul{margin:.2rem 0; padding-left:1.1rem;} .asks li{margin:.35rem 0;}
+  .pushback{background:#fff; border:1px dashed var(--accent); border-radius:8px; padding:.9rem 1.1rem; margin:1.8rem 0 1rem; font-size:.92rem;}
+  .pushback .pq{font-style:italic; font-weight:600; margin:.2rem 0 .5rem;}
+  .transition{font-size:.92rem; border-top:1px solid var(--rule); padding-top:.7rem; margin:1.2rem 0 0;}
+  .transition .lbl{display:inline; margin-right:.4rem;}
+  .summary{background:var(--accent-soft); border-left:3px solid var(--accent); padding:1rem 1.2rem; font-size:.95rem; margin:1.2rem 0;}
+  .quiz{background:#fff; border:1px solid var(--rule); border-radius:8px; padding:1.4rem 1.5rem; margin:1.5rem 0;}
+  .quiz h3{margin-top:0;}
+  .q{margin:1.3rem 0;}
+  .q p.stem{font-weight:600; margin:0 0 .6rem; font-family:-apple-system,sans-serif; font-size:.95rem;}
+  .opt{display:block; width:100%; text-align:left; background:#fbf9f4; border:1px solid var(--rule); border-radius:6px;
+    padding:.6rem .8rem; margin:.4rem 0; cursor:pointer; font-family:-apple-system,BlinkMacSystemFont,sans-serif;
+    font-size:.9rem; transition:.15s;}
+  .opt:hover{border-color:var(--accent);}
+  .opt.correct{background:#e7f0ec; border-color:var(--staff); color:var(--staff);}
+  .opt.wrong{background:#f7e9e6; border-color:var(--accent); color:var(--accent);}
+  .fb{font-size:.85rem; margin:.5rem 0 0; display:none; color:var(--muted);}
+  .fb.show{display:block;}
+  .ask{background:var(--accent-soft); border-radius:8px; padding:1rem 1.2rem; margin:2rem 0; font-size:.92rem;}
+  footer{margin-top:3.5rem; padding-top:1.2rem; border-top:1px solid var(--rule); font-size:.85rem; color:var(--muted);}
+  .nav{display:flex; gap:1.2rem; flex-wrap:wrap; font-family:-apple-system,sans-serif; font-size:.85rem; margin-top:1.2rem;}
+  @media print{ .quiz,.opt{break-inside:avoid} a{border:none; color:var(--ink)} body{font-size:11pt} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="home"><a href="../index.html">← Course home</a></p>
+  <p class="kicker">System Design · Lesson 124 · Phase 4 — Case Study · Medium</p>
+  <h1>Design an Invoice Generation System</h1>
+  <p class="sub">Building a distributed system that transforms order events into legal, immutable invoices at scale.</p>
+
+  <div class="mission">
+    <strong>Why this lesson, for your mission:</strong> Invoice systems look simple on the surface but touch every part of a mature platform: event sourcing, immutability, batch processing, storage patterns, and compliance. The staff move is recognizing that this is really a <em>state machine</em> problem wrapping around an <em>immutable ledger</em>, not a CRUD API. Get the event-driven architecture right and you see the same DNA in billing, audit logging, and financial reconciliation systems.
+  </div>
+
+  <div class="agenda">
+    <p class="lbl">Interview walkthrough · 60 minutes</p>
+    <table><tr><th>Phase</th><th>Min</th><th>Sections</th><th>Goal</th></tr><tr><td><a href="#phase-1">1 · Clarify the problem</a></td><td>0–5</td><td>Functional &amp; non-functional requirements</td><td>Pin which events trigger invoices and the immutability contract.</td></tr><tr><td><a href="#phase-2">2 · Estimate what matters</a></td><td>5–10</td><td>Capacity estimation</td><td>Invoice volume, storage, and the peak write rate across regions.</td></tr><tr><td><a href="#phase-3">3 · API &amp; data model</a></td><td>10–17</td><td>Entities, API, data model</td><td>Lock the invoice schema and state transitions before designing the pipeline.</td></tr><tr><td><a href="#phase-4">4 · High-level design</a></td><td>17–27</td><td>Data flow, component diagram, HLD</td><td>Event sourcing → processing → storage, with a single source of truth.</td></tr><tr><td><a href="#phase-5">5 · Deep dives &amp; tradeoffs</a></td><td>27–47</td><td>Deep dives, alternative approaches</td><td>Idempotency, invoice finality, audit trails, and handling late/duplicate events.</td></tr><tr><td><a href="#phase-6">6 · Production readiness</a></td><td>47–54</td><td>Observability, monitoring, auth, security, privacy</td><td>Compliance, immutable audit logs, and access controls for sensitive financial data.</td></tr><tr><td><a href="#phase-7">7 · Scale &amp; cost</a></td><td>54–58</td><td>Scaling 10×, cost of running</td><td>Grow from millions to billions of invoices without re-architecting.</td></tr><tr><td><a href="#phase-wrap">Wrap-up</a></td><td>58–60</td><td>Closing summary</td><td>Recap architecture, tradeoffs, and next steps.</td></tr></table>
+    <p class="agenda-note">In a 45-minute loop, compress phases 2–4, keep at least 15 minutes for deep dives on idempotency and audit compliance, and sketch the cost model only.</p>
+  </div>
+
+  <div class="phase" id="phase-1"><span class="phase-num">Phase 1 · 0–5 min</span><span class="phase-name">Clarify the problem</span><span class="phase-goal">Pin which events trigger invoices and the immutability contract.</span></div>
+  <div class="asks">
+    <p class="lbl">Ask before you design</p>
+    <ul><li><b>"What events trigger invoice generation — payment only, or shipment too?"</b> — This sets whether the invoice is order-based (one per order) or payment-based (multiples). Legal invoices are often order-based and immutable on issue.</li><li><b>"Can invoices be amended or voided after issuance?"</b> — Regulatory frameworks differ. US SaaS invoices are immutable; some jurisdictions require amendment trails. This shapes your schema and audit strategy.</li><li><b>"What's the delivery format — API, email, PDF, or all three?"</b> — Format requirements affect the data pipeline and storage.</li></ul>
+  </div>
+  <h2>Functional Requirements</h2>
+  <table>
+    <tr><th>#</th><th>Requirement</th><th>Note</th></tr>
+    <tr><td>1</td><td>Generate an invoice when an order is placed or payment received</td><td>Trigger event sourced from order/payment service</td></tr>
+    <tr><td>2</td><td>Assign unique, sequential invoice numbers (e.g., INV-2025-000001)</td><td>Uniqueness + sequencing is a load-bearing requirement</td></tr>
+    <tr><td>3</td><td>Store immutable invoice records with full order details and line items</td><td>Core write path — audit trail</td></tr>
+    <tr><td>4</td><td>Retrieve invoices by ID, order ID, or customer ID</td><td>Multiple access patterns for billing dashboard</td></tr>
+    <tr><td>5</td><td>Generate and distribute invoice PDFs (via email or download)</td><td>Batch rendering and async delivery</td></tr>
+  </table>
+
+  <h2>Non-Functional Requirements</h2>
+  <table>
+    <tr><th>Property</th><th>Target</th><th>Why it drives design</th></tr>
+    <tr><td>Immutability</td><td>Invoices never change post-issuance</td><td>Mandates an append-only log and no updates after finality</td></tr>
+    <tr><td>Uniqueness</td><td>Each invoice has a unique, monotonic ID</td><td>Sequential invoices are a legal and accounting requirement</td></tr>
+    <tr><td>Latency</td><td>Invoice visible within 5 seconds of order</td><td>Fast enough for "view invoice" link on checkout page</td></tr>
+    <tr><td>Durability</td><td>No invoice loss; audit trail for 7 years</td><td>Drives replication and long-term archival strategy</td></tr>
+    <tr><td>Availability</td><td>99.9%, CP over AP</td><td>Consistency matters more than availability; a stale invoice is invalid</td></tr>
+  </table>
+
+  <p class="transition"><span class="lbl">Say to move on →</span> "The system is about turning order events into immutable, uniquely numbered invoices. Let me size the pipeline."</p>
+
+  <div class="phase" id="phase-2"><span class="phase-num">Phase 2 · 5–10 min</span><span class="phase-name">Estimate what matters</span><span class="phase-goal">Invoice volume, storage, and the peak write rate across regions.</span></div>
+  <h2>Capacity Estimation</h2>
+
+  <h3>Invoice generation rate</h3>
+  <p>100M DAU × 0.1 orders/day ≈ 10M orders/day ≈ ~115 invoices/sec average, peaking at ~500/sec during sales events. <b>Implication:</b> a single write service can handle this; sharding is a "later" concern.</p>
+
+  <h3>Storage</h3>
+  <p>Each invoice ~3 KB (metadata + 20 line items). 10M/day × 365 days × 3 KB ≈ <strong>11 TB/year</strong>. <b>Implication:</b> multi-node relational DB or distributed blob store + index. Archive to cold storage after 90 days; retention is 7 years per legal.</p>
+
+  <h3>Invoice number space</h3>
+  <p>Sequential counter: 10M/day × 365 ≈ <strong>3.65B invoices/year</strong>. A 64-bit integer handles trillions without overflow. <b>Implication:</b> a Redis counter is your bottleneck; batching is essential.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"Why not use a UUID or ULID instead of a sequential invoice number?"</p>
+    <p><b>Staff answer:</b> Sequential invoices are a legal/compliance requirement in most jurisdictions and part of the customer-facing invoice ID. UUIDs are fine internally for idempotency keys, but the user-facing number must be monotonic.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "With ~500 invoices/sec peak and 11 TB/year storage, I'll define the entity model and access patterns."</p>
+
+  <div class="phase" id="phase-3"><span class="phase-num">Phase 3 · 10–17 min</span><span class="phase-name">API &amp; data model</span><span class="phase-goal">Lock the invoice schema and state transitions before designing the pipeline.</span></div>
+  <h2>Core Entities &amp; API</h2>
+  <p>Three core entities: <strong>Invoice</strong> (immutable ledger), <strong>LineItem</strong> (order details), and <strong>InvoiceEvent</strong> (state machine log: created, sent, paid, disputed). The invoice is always sourced from an order event; never generated from a direct API request.</p>
+  <table>
+    <tr><th>Endpoint</th><th>Purpose</th><th>Returns</th></tr>
+    <tr><td><code>GET /v1/invoices/{invoice_id}</code></td><td>Retrieve invoice by ID</td><td><code>200</code> + invoice + line items</td></tr>
+    <tr><td><code>GET /v1/invoices?order_id=X</code></td><td>Retrieve invoice for an order</td><td><code>200</code> + invoice</td></tr>
+    <tr><td><code>GET /v1/invoices/{invoice_id}/pdf</code></td><td>Download rendered PDF</td><td><code>200</code> + PDF binary</td></tr>
+    <tr><td><code>POST /v1/invoices/{invoice_id}/events</code></td><td>Internal: record state change (sent, disputed)</td><td><code>201</code> + event</td></tr>
+  </table>
+
+  <h2>Data Model</h2>
+  <table>
+    <tr><th>Entity</th><th>Store</th><th>Keys</th><th>Indexes / access pattern</th></tr>
+    <tr><td><b>invoices</b> (id, number, order_id, customer_id, amount, tax, status, created_at, issued_at)</td><td>Postgres + immutable archival to S3</td><td>PK <code>id</code> (UUID) · UK <code>number</code> (sequential)</td><td>Point read by ID or number; <code>(customer_id, issued_at)</code> for "my invoices"</td></tr>
+    <tr><td><b>line_items</b> (invoice_id, item_id, description, qty, unit_price, total)</td><td>Postgres, denormalized in invoice</td><td>FK <code>invoice_id</code></td><td>Fetched with parent invoice; never queried independently</td></tr>
+    <tr><td><b>invoice_events</b> (invoice_id, event_type, ts, idempotency_key)</td><td>Append-only log; Postgres or event store (EventStoreDB)</td><td>PK <code>(invoice_id, ts)</code> · UK <code>idempotency_key</code></td><td>State reconstruction from events; audit trail</td></tr>
+    <tr><td><b>invoice_number_counter</b></td><td>Redis with persistence (RDB snapshot)</td><td>Atomic counter INCRBY</td><td>Leased in batches to write servers</td></tr>
+  </table>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"Should invoice_number be globally unique or per-customer?"</p>
+    <p><b>Staff answer:</b> Globally unique. Each invoice is a legal document in the company ledger, and accounting systems expect monotonic, non-repeating IDs. Per-customer sequences introduce coordination and audit complexity.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "The invoice is immutable and numbered sequentially. Now I'll sketch the event pipeline that generates them."</p>
+
+  <div class="phase" id="phase-4"><span class="phase-num">Phase 4 · 17–27 min</span><span class="phase-name">High-level design</span><span class="phase-goal">Event sourcing → processing → storage, with a single source of truth.</span></div>
+  <h2>Data Flow</h2>
+  <p>Invoices are triggered by external events (order placed, payment received) and flow through a processing pipeline that assigns a unique number, validates the order data, and persists an immutable record. The pipeline is entirely event-driven; no invoice is ever manually created.</p>
+  <pre class="diagram">
+ ORDER SERVICE / PAYMENT SERVICE
+       |
+       | OrderCreated / PaymentReceived event
+       v
+   [Kafka]
+       |
+       +---> [Invoice Generator Consumer]
+             |
+             +---> Fetch order from Order Service
+             +---> Acquire invoice number (Redis counter)
+             +---> Construct invoice + line items
+             |
+             v
+        [Invoice DB]  (Write-once, immutable)
+             |
+             +---> [Invoice Event Log]
+             |
+             v
+        [PDF Renderer (Batch)]
+             |
+             v
+        [S3 / Blob Store]
+             |
+             +---> [Email Service]
+                   |
+                   v
+                [Customer inbox]
+</pre>
+  <p style="font-size:.85rem; color:var(--muted);">Single source of truth: the invoice ledger. All reads reflect that log; all writes go through event sourcing.</p>
+
+  <h2>High-Level Design</h2>
+  <p>The invoice generator consumes order and payment events from Kafka. For each event, it acquires a unique invoice number from Redis, fetches order details, constructs the invoice, writes it to Postgres (with a UNIQUE constraint on the invoice number for safety), and immediately emits an <code>InvoiceCreated</code> event. Downstream consumers handle PDF rendering and email delivery asynchronously.</p>
+  <table>
+    <tr><th>Component</th><th>Role</th><th>Stores touched</th></tr>
+    <tr><td><b>Event stream</b> (Kafka)</td><td>Source of truth for order/payment events; partitioned by customer ID for ordering</td><td>Order service publishes; invoice service consumes</td></tr>
+    <tr><td><b>Invoice generator</b> (consumer)</td><td>Consumes events, obtains invoice number, writes invoice</td><td>Redis (counter), Postgres (insert), Kafka (emit)</td></tr>
+    <tr><td><b>Postgres primary</b></td><td>Immutable invoice ledger with UNIQUE constraint on <code>number</code></td><td>All invoices durable here</td></tr>
+    <tr><td><b>PDF renderer</b> (async job)</td><td>Renders invoice → PDF, uploads to S3</td><td>S3 (append), Postgres (read replicas)</td></tr>
+  </table>
+  <p>Reads go through read replicas or a cache (Redis with TTL matching invoice finality). All writes are single-threaded per customer (via Kafka partitioning) to preserve order. Invoice state is immutable after creation; amendments (if allowed) are modeled as a separate <code>InvoiceAdjustment</code> entity that references the original invoice.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"What happens if the invoice number counter crashes?"</p>
+    <p><b>Staff answer:</b> Each write server leases a block of numbers (e.g. 10,000) from Redis before crash. On crash, the batch is lost but invoices stay uniquely numbered. If Redis itself crashes, a backup or persistent log gives you recovery; gaps in the sequence are acceptable.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "The design is event-driven and immutable. The hard parts are idempotency and handling late/duplicate events."</p>
+
+  <div class="phase" id="phase-5"><span class="phase-num">Phase 5 · 27–47 min</span><span class="phase-name">Deep dives &amp; tradeoffs</span><span class="phase-goal">Go deep where the system breaks; compare alternatives and justify the pick.</span></div>
+  <h2>Deep Dives</h2>
+
+  <h3>Deep Dive 1 — Idempotent invoice generation</h3>
+  <p>The pipeline must be idempotent: if an event is replayed, no duplicate invoice is created. Use a <b>deduplication key</b> (order_id + event_version) and check for existing invoices before allocating a new number. Store the dedup key in the invoice record.</p>
+  <div class="box">
+    <b>Pattern:</b>
+    <ul>
+      <li>Consumer receives event with <code>idempotency_key</code> = <code>order_id:v1</code></li>
+      <li>Query: <code>SELECT * FROM invoices WHERE idempotency_key = ?</code></li>
+      <li>If found, return existing invoice (idempotent success)</li>
+      <li>If not found, acquire number, insert, emit event</li>
+      <li>Store <code>idempotency_key</code> as a UNIQUE constraint to guard against race conditions</li>
+    </ul>
+  </div>
+
+  <h3>Deep Dive 2 — Sequential invoice numbering under concurrency</h3>
+  <p>A global counter ensures uniqueness but is a bottleneck. Batch allocation is the fix: each write service instance requests a <b>batch</b> (e.g., numbers 1,000,000–1,000,999) from Redis via INCRBY, then serves locally. If an instance crashes, the batch is lost but the sequence is preserved.</p>
+  <table>
+    <tr><th>Scenario</th><th>Handling</th></tr>
+    <tr><td>10 write servers, 500 invoices/sec</td><td>Each requests 1,000-number batch; average leak is 5 numbers/crash (negligible)</td></tr>
+    <tr><td>Counter reaches capacity (2^63)</td><td>Rotate to a new counter (e.g., INV-2026-* with year prefix); old sequences archived</td></tr>
+    <tr><td>Late/reordered Kafka events</td><td>Deduplicate by <code>order_id</code>; ignore if invoice already exists</td></tr>
+  </table>
+
+  <h3>Deep Dive 3 — Immutability and amendments</h3>
+  <p>An invoice is immutable once issued. If amendments are required (e.g., tax correction), create a <strong>credit memo</strong> (a negative invoice) or <strong>amended invoice</strong> that references the original. Never overwrite the original ledger entry. This preserves the audit trail and satisfies most regulatory requirements.</p>
+  <div class="box">
+    <b>Amendment strategy:</b>
+    <ul>
+      <li>Original invoice is locked (status = <code>ISSUED</code>, read-only)</li>
+      <li>Create <code>InvoiceAmendment</code> entity referencing <code>original_invoice_id</code></li>
+      <li>Amendment carries the deltas (adjusted amount, new tax); original stays unchanged</li>
+      <li>Ledger shows both; accounting recognizes the pair as a correction</li>
+    </ul>
+  </div>
+
+  <h3>Deep Dive 4 — Late event handling and out-of-order delivery</h3>
+  <p>Kafka guarantees in-order delivery <em>per partition</em> but partitions can lag. If an event arrives after the invoice is already issued, the dedup key prevents a duplicate. If events arrive out of order (e.g., payment before order acknowledgment), handle via <b>event enrichment</b>: the consumer waits for the order service to acknowledge before generating the invoice.</p>
+
+  <h3>Deep Dive 5 — Storage and archival</h3>
+  <p>Live invoices stay in Postgres; after 90 days, archive to cold storage (S3 Glacier). Keep an index in DynamoDB mapping invoice_id → S3 location for retrieval. Full retention is 7 years per compliance; queries older than 90 days hit the archive.</p>
+
+  <div class="staff">
+    <span class="tag">★ Staff-level signal</span>
+    A senior engineer recognizes this as an event-sourcing problem and models the state machine. A staff engineer goes further: they identify idempotency as the non-negotiable property, design the dedup key before sketching the pipeline, and justify the batch-leasing counter as a tradeoff that avoids bottlenecks while staying simple. They know immutability is legally mandated and build for audit trails from the start, not as a bolt-on. They also recognize that amendments are a separate entity type, not an update to the original ledger.
+  </div>
+
+  <h2>Alternative Approaches &amp; Tradeoffs</h2>
+  <table>
+    <tr><th>Approach</th><th>How it works</th><th>Wins</th><th>Loses</th><th>Pick it when</th></tr>
+    <tr><td><b>A. Event sourcing + batch counter</b> (chosen)</td><td>Kafka → deduplicate → batch number → Postgres → archive</td><td>Immutable, idempotent, audit trail; simple scaling via batching</td><td>Requires strong ordering guarantees (Kafka partitioning); delayed PDF rendering</td><td>Default — compliance, audit, legal requirements matter</td></tr>
+    <tr><td><b>B. Synchronous API + DB-generated sequence</b></td><td>Order service calls Invoice API; DB SEQUENCE generates number</td><td>Simpler pipeline; no consumer lag</td><td>DB sequence is a bottleneck at 500/sec; no idempotency guard; tight coupling</td><td>Small volume, simple payment model, no audit requirement</td></tr>
+    <tr><td><b>C. Immutable blob store (S3) + index</b></td><td>Write invoice JSON to S3; DynamoDB index by id/order_id</td><td>Unlimited scale; archival is free; zero DB load</td><td>Consistency lag; requires reconciliation; eventual consistency is complex</td><td>Massive volume (billions/day), eventual consistency acceptable</td></tr>
+  </table>
+  <p><b>Pick A:</b> immutability and audit trails are legal requirements; event sourcing is the right model. B is cheaper for tiny systems but lacks idempotency. C scales infinitely but trades consistency.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"Why Kafka instead of a simple database trigger?"</p>
+    <p><b>Staff answer:</b> Triggers are synchronous and tightly coupled; if the PDF renderer is slow, the order service blocks. Kafka decouples and provides a durable queue; if the invoice service crashes, events are replayed from the partition. Also, other services (accounting, taxes) can subscribe to the same event stream.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "The design is event-driven and immutable. Now let me cover how we run it safely and compliantly."</p>
+
+  <div class="phase" id="phase-6"><span class="phase-num">Phase 6 · 47–54 min</span><span class="phase-name">Production readiness</span><span class="phase-goal">Compliance, immutable audit logs, and access controls for sensitive financial data.</span></div>
+  <h2>Observability</h2>
+  <table>
+    <tr><th>Signal</th><th>What to emit</th></tr>
+    <tr><td>Metrics</td><td>Invoices generated (per second), invoice_number_counter lag, PDF render latency, cache hit rate</td></tr>
+    <tr><td>Logs</td><td>Structured: <code>invoice_id</code>, <code>order_id</code>, <code>idempotency_key</code>, outcome (created / deduplicated / failed). Correlation ID across order → invoice → PDF → email</td></tr>
+    <tr><td>Traces</td><td>Critical path: OrderEvent received → counter lease → DB insert → PDF queued. Tail sampling on errors</td></tr>
+  </table>
+
+  <h2>Monitoring</h2>
+  <table>
+    <tr><th>SLO / Alert</th><th>Target / Threshold</th><th>Action</th></tr>
+    <tr><td>Invoice availability</td><td>99.95% of invoices queryable within 5s</td><td>Page on cache/DB failures</td></tr>
+    <tr><td>Deduplication failures</td><td>&lt; 1 per 1M invoices</td><td>Ticket; investigate idempotency key logic</td></tr>
+    <tr><td>Invoice number gaps</td><td>&lt; 0.1% loss on crash</td><td>Acceptable; track but no alert</td></tr>
+    <tr><td>PDF render latency</td><td>p99 &lt; 10 seconds</td><td>Page on timeout; scale render workers</td></tr>
+  </table>
+
+  <h2>Authentication &amp; Authorization</h2>
+  <p><code>GET /v1/invoices/{invoice_id}</code> is customer-facing; enforce that a user can only read invoices for their own orders. Internally, the invoice generator is a service-to-service call authenticated via mTLS. Audit logs are read-only for compliance staff, never modified or deleted.</p>
+
+  <h2>Security</h2>
+  <table>
+    <tr><th>Threat</th><th>Mitigation</th></tr>
+    <tr><td>Unauthorized access</td><td>Customer reads own invoices only; service-to-service mTLS</td></tr>
+    <tr><td>Invoice tampering</td><td>Immutable DB schema (no UPDATE); cryptographic signatures on PDFs</td></tr>
+    <tr><td>Invoice duplication</td><td>Idempotency key + UNIQUE constraint prevents double-issue</td></tr>
+    <tr><td>Metadata leakage</td><td>Redact financial details from logs; PII masking in traces</td></tr>
+  </table>
+
+  <h2>Privacy</h2>
+  <p>Invoices contain PII (customer name, email, address). Encrypt at rest (AES-256). Right to erasure: when a customer deletes their account, soft-delete the invoice but retain a hash for dispute resolution; final deletion after 7-year retention. GDPR: store customer location; if EU resident, GDPR complies with erasure and portability. CCPA: log all accesses to PII for breach audits.</p>
+
+  <h2>Audit &amp; Compliance</h2>
+  <p>Every invoice is immutable and signed. Store a cryptographic hash of the final PDF. Maintain an append-only audit log of all invoice reads and amendments. Financial/tax authorities expect to see: invoice issued date, sequence number, amount, and signature. Design for 7-year retention in cold storage.</p>
+
+  <div class="pushback">
+    <p class="lbl">Interviewer pushback</p>
+    <p class="pq">"How do you handle GDPR erasure for a 7-year audit log?"</p>
+    <p><b>Staff answer:</b> PII (name, email) is soft-deleted; invoice remains as a hashed record. If full deletion is required, anonymize the record (keep amount, date, counter, hash) and log the erasure for audit. Most regulations accept this approach.</p>
+  </div>
+  <p class="transition"><span class="lbl">Say to move on →</span> "With compliance and audit in place, let me cover scaling to 10× volume."</p>
+
+  <div class="phase" id="phase-7"><span class="phase-num">Phase 7 · 54–58 min</span><span class="phase-name">Scale &amp; cost</span><span class="phase-goal">Grow from millions to billions of invoices without re-architecting.</span></div>
+  <h2>Scaling 10× Without Changing the Architecture</h2>
+  <table>
+    <tr><th>Component</th><th>Today (500/sec)</th><th>At 10× (5k/sec)</th><th>Knob turned</th></tr>
+    <tr><td>Invoice generator instances</td><td>3</td><td>30</td><td>Horizontal scale; Kafka partitions</td></tr>
+    <tr><td>Postgres primary (writes)</td><td>1 node, 500 QPS</td><td>1 node, 5k QPS (still under capacity)</td><td>Upgrade to larger instance; max replicas</td></tr>
+    <tr><td>Redis counter</td><td>1 node; batch size 1,000</td><td>1 node; batch size 10,000 (single-threaded stays fast)</td><td>Larger batch per server; negligible latency</td></tr>
+    <tr><td>Kafka partitions</td><td>10 partitions</td><td>100 partitions</td><td>Rebalance; add brokers</td></tr>
+    <tr><td>S3 (archival)</td><td>Unlimited</td><td>Unlimited</td><td>Lifecycle policies, cold storage tier</td></tr>
+  </table>
+  <p>At 50k/sec, sharding invoices by customer or date becomes necessary; split to a new Postgres cluster per shard key. Counter remains global (one Redis node can handle millions of INCRBY/sec). First bottleneck: Postgres primary write capacity (~10k single-threaded QPS); solution is sharding by customer or time range.</p>
+
+  <h2>Cost of Running</h2>
+  <table>
+    <tr><th>Line item</th><th>Volume</th><th>Unit cost</th><th>Monthly cost</th></tr>
+    <tr><td>Postgres (primary + 2 replicas)</td><td>5k QPS, 11 TB/year</td><td>$0.50/GB + $30/vCPU</td><td>~$4,500</td></tr>
+    <tr><td>Redis (counter + caching)</td><td>Lease/check at 5k/sec</td><td>$8/GB-month</td><td>~$240</td></tr>
+    <tr><td>Kafka brokers</td><td>100 partitions, 10× ingest</td><td>$300/broker-month</td><td>~$3,600</td></tr>
+    <tr><td>S3 (hot + cold archival)</td><td>30 TB/year live, 210 TB cold</td><td>$23 hot, $1 cold</td><td>~$690 + $21</td></tr>
+    <tr><td>Compute (generators, renderers)</td><td>30 instances, 2vCPU</td><td>$30/vCPU-month</td><td>~$1,800</td></tr>
+    <tr><td>Total</td><td></td><td></td><td>~$10,850/month</td></tr>
+  </table>
+  <p>Dominant cost driver: Postgres and Kafka. To reduce: compress invoice JSON (saves ~40% storage), use Spot instances for PDF renderers, and transition to cheaper archival faster (S3 Glacier). Unit cost: ~$1 per 1,000 invoices.</p>
+
+  <h2>2 · Closing Summary (60 seconds)</h2>
+  <div class="summary">
+    <p>The invoice system is event-driven and immutable: order events trigger unique, sequentially numbered invoices stored in Postgres. Idempotency via dedup keys prevents duplicates. Redis counter with batch leasing avoids bottlenecks. Async PDF rendering and archival to cold storage keep the hot path fast. At 10×, sharding by customer or date window is the first major architectural change. Legal and compliance requirements drive every decision: immutability, audit trails, and 7-year retention are non-negotiable. The design prioritizes correctness and auditability over raw scale.</p>
+  </div>
+
+  <h2>Check yourself — retrieval practice</h2>
+  <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up.</p>
+  <div class="quiz" id="quiz">
+    <div class="q" data-correct="a">
+      <p class="stem">1. Why use an event-sourcing pattern for invoices instead of a synchronous CRUD API?</p>
+      <button class="opt">Decoupling, durability, and audit trail for compliance</button>
+      <button class="opt">Event sourcing is always faster than CRUD APIs</button>
+      <button class="opt">Easier to implement; reduces database queries</button>
+      <button class="opt">Required to pass financial audits automatically</button>
+      <p class="fb">Event sourcing provides a durable queue (Kafka), allows other services to subscribe, and creates an immutable ledger that auditors can inspect. CRUD APIs are tightly coupled and synchronous.</p>
+    </div>
+    <div class="q" data-correct="b">
+      <p class="stem">2. How should invoice numbers be generated to ensure uniqueness at 500/sec?</p>
+      <button class="opt">Hash the order ID and truncate to a fixed length</button>
+      <button class="opt">Batch-lease from a Redis counter; each server gets 1k+ locally</button>
+      <button class="opt">Use a database SEQUENCE; the DB ensures uniqueness</button>
+      <button class="opt">Generate UUIDs; they are guaranteed unique globally</button>
+      <p class="fb">Batching reduces coordination overhead and avoids a per-write round-trip to Redis. DB SEQUENCE bottlenecks at high throughput. UUIDs are not sequential and violate compliance requirements for monotonic invoice numbers.</p>
+    </div>
+    <div class="q" data-correct="c">
+      <p class="stem">3. If the same order event is replayed from Kafka, how should the system handle it?</p>
+      <button class="opt">Reject it with a 409 Conflict error and log the duplicate</button>
+      <button class="opt">Update the existing invoice with fresh data from the event</button>
+      <button class="opt">Detect the duplicate via idempotency key and return the existing invoice</button>
+      <button class="opt">Process it normally; the invoice number counter ensures uniqueness</button>
+      <p class="fb">Idempotency keys (order_id + event version) are the mechanism; check if the invoice already exists and return it if so. Updating invoices violates immutability. The counter doesn't help here; deduplication does.</p>
+    </div>
+    <div class="q" data-correct="d">
+      <p class="stem">4. Why is immutability a core requirement for invoices?</p>
+      <button class="opt">Simplifies the database schema and reduces index overhead</button>
+      <button class="opt">Makes PDF rendering faster by avoiding cache invalidation</button>
+      <button class="opt">Allows reads without locks or consistency guarantees</button>
+      <button class="opt">Legal and compliance: auditors expect an unchanged ledger</button>
+      <p class="fb">Immutability is legally mandated for financial records in most jurisdictions. It supports auditability, fraud prevention, and dispute resolution. Amendments are new entities, not updates to the original.</p>
+    </div>
+  </div>
+
+  <div class="ask">
+    <strong>Ask me anything.</strong> How would you handle invoice amendments or corrections? What strategies would you use to detect fraudulent duplicate invoices? How would you design the system differently if invoices had to be available in multiple currencies and tax regimes?
+  </div>
+
+  <h2>Primary source</h2>
+  <p><a href="https://martinfowler.com/eaaDev/EventSourcing.html">Event Sourcing — Martin Fowler</a>. A classic and concise guide to event-sourced systems, with patterns for immutability and audit trails that apply directly to financial systems.</p>
+
+  <footer>
+    <p><strong>Citations</strong></p>
+    <p id="c1">[1] Event sourcing and CQRS patterns in financial systems; typical throughputs and scaling strategies based on industry practices.</p>
+    <div class="nav">
+      <a href="../index.html">🏠 Course home</a>
+      <a href="0123-inventory-management.html">← Lesson 123</a>
+      <a href="../reference/glossary.html">📖 Glossary</a>
+      <span>Next up → Lesson 125</span>
+    </div>
+  </footer>
+
+</div>
+<script>
+  document.querySelectorAll('.q').forEach(function(q){
+    var correct = q.dataset.correct;
+    var opts = q.querySelectorAll('.opt');
+    var fb = q.querySelector('.fb');
+    opts.forEach(function(opt, i){
+      opt.addEventListener('click', function(){
+        var letter = ['a','b','c','d'][i];
+        opts.forEach(function(o){ o.disabled = true; });
+        if(letter === correct){ opt.classList.add('correct'); }
+        else { opt.classList.add('wrong'); opts[['a','b','c','d'].indexOf(correct)].classList.add('correct'); }
+        fb.classList.add('show');
+      });
+    });
+  });
+</script>
+</body>
+</html>
