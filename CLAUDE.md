@@ -18,7 +18,7 @@ The learner's own words on what they need:
 
 1. Read `learning-records/review-schedule.md`: your ledger of what was taught and when each topic is due.
 2. Ask the learner to paste the report from `reference/review.html#report`. Their in-browser schedule
-   (lesson gates, section exams, missed questions) lives in localStorage, which you can't read.
+   (lesson checks, section exams, missed questions) lives in localStorage, which you can't read.
    If they haven't used it yet, say so and continue from the ledger.
 3. Quiz the due topics and the report's missed or weak items **in chat, free-response**. Multiple choice
    already happens in the browser; in chat, make them produce the answer. Order: intuition first
@@ -40,7 +40,7 @@ Keep the review to about 10–15 minutes; the forgetting curve decides what's in
 
 ## 3. The teaching loop (one small idea at a time)
 
-For each chunk (the lesson HTML is already split into gated chunks; follow them or go smaller):
+For each chunk (the lesson HTML is already split into chunks; follow them or go smaller):
 1. **Predict first.** Before explaining, ask what they think happens ("10M viewers poll one score:
    where does the load land?"). A wrong prediction is the best setup for the lesson.
 2. **Teach one idea**: mechanism first, then the name. Use a concrete picture or numbers. For anything
@@ -55,7 +55,9 @@ For each chunk (the lesson HTML is already split into gated chunks; follow them 
    - "I don't know" gets a hint or a smaller sub-question, not the answer. Reveal only after a real attempt.
    - Never move on after a wrong or half-right answer. Re-teach differently (smaller piece, new
      analogy, a picture), then re-test with a *different* question.
-5. Point them to the lesson's in-browser gate for that chunk; it records to their spaced-review schedule.
+5. Point them to the lesson's in-browser check for that chunk; it records to their spaced-review schedule.
+   The lesson itself is not gated — they can read straight through — so it's on you to make them
+   actually answer before moving on.
 
 ## 4. End of a section, cumulative exam
 
@@ -81,15 +83,15 @@ an analogy that worked), add a short file to `learning-records/` (numbered, like
 
 ## Repo mechanics (for editing lessons)
 
-- Lesson format and rules: `lessons/_AUTHORING-GUIDE.md` and `lessons/_TEMPLATE.html`: gated
-  `<section class="chunk">` blocks, a `.gate` after each with at least one `data-type="intuition"` question,
+- Lesson format and rules: `lessons/_AUTHORING-GUIDE.md` and `lessons/_TEMPLATE.html`: visible
+  `<section class="chunk">` blocks, a `.gate` check after each with at least one `data-type="intuition"` question,
   a globally unique `data-concept` id per question, equal-length options, and a `chunk-final` comprehensive check.
-- Shared engine: `reference/mastery.js` (gating plus SM-2-lite schedule, localStorage `sd-mastery-v1`,
+- Shared engine: `reference/mastery.js` (in-lesson checks plus SM-2-lite schedule, localStorage `sd-mastery-v1`,
   completion in `sd-progress-v1`). Practice page: `reference/review.html`.
 - Tools:
-  - `python3 tools/audit_lessons.py`: structural audit (gates, intuition questions, hidden chunks,
+  - `python3 tools/audit_lessons.py`: structural audit (checks, intuition questions, no hidden chunks,
     duplicate concept ids, option-length tells). Run after any lesson edit.
   - `python3 tools/build_question_bank.py`: regenerates `reference/question-bank.js` from every
     lesson. **Run after adding or editing any question**, or the review page goes stale.
   - `python3 tools/convert_lesson.py` / `tools/add_gate.py`: convert an old-style lesson / add
-    questions to a chunk's gate from a small Python spec.
+    questions to a chunk's check from a small Python spec.

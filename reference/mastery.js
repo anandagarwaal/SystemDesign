@@ -1,4 +1,4 @@
-// Shared spaced-repetition + chunk-gating engine for System Design lessons.
+// Shared spaced-repetition + lesson-check engine for System Design lessons.
 // One file, reused by every lesson via <script src="../reference/mastery.js"></script>
 // and by reference/review.html.
 // Storage keys:
@@ -209,12 +209,12 @@
                        commitFirst: commitFirst, selfGrade: selfGrade, injectStyle: injectStyle,
                        shuffle: shuffleInPlace };
 
-  // ---- Chunk gating ----------------------------------------------------
-  // Wires up <section class="chunk" id="chunk-N"> blocks so chunk N+1 stays
-  // hidden until every .q inside chunk N's .gate is answered correctly.
-  // Wrong answers show a hint and leave the question open; no free pass.
-  // Intuition questions (data-type="intuition") are required exactly like
-  // recall questions — no shortcutting past them.
+  // ---- Lesson checks ---------------------------------------------------
+  // Every <section class="chunk"> is visible from the start: the lesson is
+  // there to be read. The .gate after each chunk is retrieval practice, not a
+  // lock — answering feeds the spaced-review schedule, and skipping one only
+  // costs you the practice. Wrong answers still show a hint and stay open, so
+  // a question you do attempt is one you have to actually get right.
   function lessonKey(){
     var m = location.pathname.match(/lessons\/[^\/]+\.html$/);
     return m ? m[0] : null;
@@ -226,30 +226,24 @@
     injectStyle();
     var key = lessonKey();
 
-    function reveal(idx, scroll){
-      var next = chunks[idx + 1];
-      if (next){
-        next.removeAttribute('hidden');
-        if (scroll) next.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        // A chunk with no gate has nothing to pass: open the one after it too.
-        if (!next.querySelector('.gate .q')) reveal(idx + 1, false);
-      } else {
+    // Nothing is hidden; strip any leftover [hidden] from older lesson markup.
+    chunks.forEach(function(chunk){ chunk.removeAttribute('hidden'); });
+
+    var allQuestions = Array.prototype.slice.call(document.querySelectorAll('.gate .q'));
+    var solved = new Set();
+    function noteSolved(q){
+      solved.add(q);
+      if (solved.size === allQuestions.length){
         if (key) markLessonDone(key);
         showComplete();
         document.dispatchEvent(new CustomEvent('sd:lesson-complete'));
       }
     }
 
-    chunks.forEach(function(chunk, idx){
-      if (idx !== 0) chunk.setAttribute('hidden', '');
-    });
-    if (!chunks[0].querySelector('.gate .q')) reveal(0, false);
-
-    chunks.forEach(function(chunk, idx){
+    chunks.forEach(function(chunk){
       var gate = chunk.querySelector('.gate');
       if (!gate) return;
       var questions = Array.prototype.slice.call(gate.querySelectorAll('.q'));
-      var solved = new Set();
 
       questions.forEach(function(q){
         var correct = q.dataset.correct;
@@ -283,13 +277,11 @@
                 selfGrade(q, fb, written, opt.innerHTML, fb ? fb.innerHTML : '', function(g){
                   SDMastery.saveAnswer(conceptId, written, firstTry, g);
                   SDMastery.review(conceptId, (g === 'hit' && firstTry) ? 1 : 0);
-                  solved.add(q);
-                  if (solved.size === questions.length) reveal(idx, true);
+                  noteSolved(q);
                 });
               } else {
                 SDMastery.review(conceptId, firstTry ? 1 : 0);
-                solved.add(q);
-                if (solved.size === questions.length) reveal(idx, true);
+                noteSolved(q);
               }
             } else {
               opt.classList.add('wrong');
@@ -301,20 +293,6 @@
         });
       });
     });
-
-    // Rereading a finished lesson: offer to open every chunk without re-gating.
-    if (key && loadProgress().indexOf(key) !== -1){
-      var bar = document.createElement('p');
-      bar.className = 'locked-note';
-      bar.innerHTML = 'You finished this lesson before. <a href="#" id="sd-unlock">Show every section</a> to reread, ' +
-        'or work through the checks again for retrieval practice.';
-      chunks[0].parentNode.insertBefore(bar, chunks[0]);
-      document.getElementById('sd-unlock').addEventListener('click', function(e){
-        e.preventDefault();
-        chunks.forEach(function(c){ c.removeAttribute('hidden'); });
-        bar.remove();
-      });
-    }
   }
 
   function showComplete(){

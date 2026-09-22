@@ -11,19 +11,19 @@ questions, not just recall), and resurface material later per the forgetting
 curve. Concretely, every lesson MUST:
 1. Break its content into `<section class="chunk" id="chunk-N">` blocks — one
    sub-idea per chunk, small enough to read in under ~2 minutes.
-2. Gate every chunk except the last behind a `.gate` block with 1-2 recall
-   questions AND at least one `data-type="intuition"` question ("why does this
-   work", "what breaks if you removed X", "picture the mechanism — what
-   happens when..."). Never let a chunk unlock on recall alone.
+2. Follow every chunk except the last with a `.gate` block — a check, not a lock —
+   holding 1-2 recall questions AND at least one `data-type="intuition"` question
+   ("why does this work", "what breaks if you removed X", "picture the mechanism — what
+   happens when..."). A chunk whose check is recall-only isn't finished.
 3. Give every question a stable, globally-unique `data-concept="kebab-case-id"`
    — this feeds the spaced-repetition schedule in `reference/mastery.js`.
    Never reuse an id across lessons unless you are deliberately re-testing the
    same concept.
-4. Use `hidden` on every chunk after the first; `reference/mastery.js` reveals
-   the next chunk only once every question in the current gate is answered
-   correctly. Wrong answers show `.hint` and re-arm the question — there is no
-   soft-pass. Do not write your own gating JS; include the shared script:
-   `<script src="../reference/mastery.js"></script>`.
+4. **Do not hide or gate chunks.** The lesson is there to be read top to bottom;
+   the checks punctuate the teaching rather than stand in front of it. A wrong
+   answer still shows `.hint` and re-arms the question, so a question you attempt
+   is one you have to get right. Don't write your own quiz JS; include the shared
+   script: `<script src="../reference/mastery.js"></script>`.
 5. End with a comprehensive final chunk (it must be `id="chunk-final"`) whose
    gate spans every chunk in the lesson, mixing recall and intuition questions.
 6. Never assume an unstated prerequisite. If a lesson depends on a concept not
@@ -40,8 +40,8 @@ curve. Concretely, every lesson MUST:
   *without* seeing options: ask "why", "what breaks if", or "picture X — what happens", never
   "which of these…". After they pick an option, the engine shows their text next to the model
   answer and a rubric, and they grade themselves hit / partial / miss. **Only `hit` plus a
-  first-try correct option counts as known**; anything else reschedules for tomorrow, and the
-  chunk does not unlock until they have graded. What they wrote and how they graded it are saved
+  first-try correct option counts as known**; anything else reschedules for tomorrow.
+  What they wrote and how they graded it are saved
   (`sd-answers-v1`) and go into the review report.
 - **The rubric is generated from what you write**, so write it well: the correct option is shown
   as the model answer, and `.fb` is split into up to two more "a full answer says" bullets.
@@ -53,11 +53,12 @@ curve. Concretely, every lesson MUST:
   `reference/review.html` (today's review, section exams, weak spots, drill).
 
 ### After editing any lesson (required)
-1. `python3 tools/audit_lessons.py`: must report 0 issues (gates, intuition question per
-   gate, hidden chunks, `chunk-final`, unique concept ids, hints, option-length tells).
+1. `python3 tools/audit_lessons.py`: must report 0 issues (a check after every chunk, an
+   intuition question in each, no hidden chunks, `chunk-final`, unique concept ids, hints,
+   option-length tells).
 2. `python3 tools/build_question_bank.py`: regenerates `reference/question-bank.js`.
    Without it the review page still serves the old questions.
-Helpers: `tools/convert_lesson.py` (old single-quiz lesson → gated chunks from a spec),
+Helpers: `tools/convert_lesson.py` (old single-quiz lesson → chunks + checks from a spec),
 `tools/add_gate.py` (append questions to a chunk's gate), `tools/set_options.py`
 (replace a question's options by concept id, e.g. to fix length tells).
 
@@ -80,7 +81,7 @@ Helpers: `tools/convert_lesson.py` (old single-quiz lesson → gated chunks from
 5. **`.staff` callout (required):** at least one green "★ Staff-level signal" box
    explaining what moves this topic from senior to staff — e.g. simple-by-default,
    proactive deep dives, judgement on alternatives, not over-explaining basics.
-6. **Gated quizzes (required):** per the Teaching method section above — a `.gate`
+6. **Chunk checks (required):** per the Teaching method section above — a `.gate`
    after every chunk, `data-correct` is the letter (a/b/c/d) of the right option,
    plus `data-concept` id and at least one `data-type="intuition"` question per
    gate. **Every option within a question must be the same length** (aim equal

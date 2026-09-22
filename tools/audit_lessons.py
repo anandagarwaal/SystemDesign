@@ -1,9 +1,9 @@
 """Structural audit of every lesson against the Math Academy rules in lessons/_AUTHORING-GUIDE.md.
 
 Usage: python3 tools/audit_lessons.py            (exit code 1 if any lesson has problems)
-Checks: shared engine included; gated chunks; every non-final chunk has a gate with at least one
-intuition question; later chunks start hidden; a comprehensive chunk-final; each question has a
-concept id, a valid data-correct, a hint; concept ids are unique course-wide; answer options within a
+Checks: shared engine included; at least two chunks; every non-final chunk has a check with at least
+one intuition question; no chunk is hidden (lessons are not gated); a comprehensive chunk-final; each
+question has a concept id, a valid data-correct, a hint; concept ids are unique course-wide; answer options within a
 question are similar in length (a length tell gives the answer away).
 """
 import collections, glob, os, re, sys
@@ -21,8 +21,8 @@ def audit(path, concepts):
     if chunks[-1][0] != 'chunk-final':
         issues.append('last chunk is not id="chunk-final"')
     for i, (cid, attrs, body) in enumerate(chunks):
-        if i and 'hidden' not in attrs:
-            issues.append(f'{cid} not hidden')
+        if 'hidden' in attrs:
+            issues.append(f'{cid} is hidden (lessons are no longer gated)')
         qs = re.findall(r'<div class="q"([^>]*)>(.*?)\n\s*</div>', body, re.S)
         if not qs:
             issues.append(f'{cid} has no gate questions')
@@ -63,7 +63,7 @@ def main():
     dups = {k: v for k, v in concepts.items() if len(set(v)) > 1 or len(v) > 1}
     for k, v in dups.items():
         print(f'duplicate concept id {k}: {v}')
-    print(f'{len(files) - 1} gated lessons audited, {bad} with issues, {len(dups)} duplicate ids')
+    print(f'{len(files) - 1} lessons audited, {bad} with issues, {len(dups)} duplicate ids')
     sys.exit(1 if bad or dups else 0)
 
 if __name__ == '__main__':

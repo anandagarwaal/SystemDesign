@@ -115,7 +115,7 @@
     <p>In a relational DB, a user profile with addresses, payment methods, and preferences is four tables and a four-way join. In MongoDB it's <b>one document</b> — fetch it with a single key lookup, no join, no N+1.<a href="#c4" class="cite">[4]</a> That locality is the entire performance argument: you trade the relational ability to recombine data arbitrarily for the ability to read a whole aggregate in one I/O. The cost is duplication and the <b>16&nbsp;MB document size limit</b><a href="#c4" class="cite">[4]</a> — embed an unbounded array (every comment on a viral post) and you eventually blow that ceiling, which is exactly why unbounded one-to-many relationships should be referenced, not embedded.</p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="c" data-concept="mongodb-embed-vs-reference">
         <p class="stem">When does embedding beat referencing for related data in MongoDB?</p>
         <button class="opt">When the related data is shared across very many parent documents</button>
@@ -136,7 +136,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-2" hidden>
+  <section class="chunk" id="chunk-2">
     <p class="chunk-label">2 of 6</p>
     <h2>Internals — storage engine &amp; indexes</h2>
 
@@ -145,7 +145,7 @@
     <p>Indexes are <b>B-trees</b>, just like a relational DB.<a href="#c6" class="cite">[6]</a> Without an index a query is a full collection scan; with one, MongoDB walks the tree. The same rules you learned for SQL apply: index the fields you filter and sort on, compound indexes follow the left-prefix rule, and every index you add taxes writes. MongoDB also offers multikey indexes (over array fields), and specialized geospatial and text indexes.<a href="#c6" class="cite">[6]</a> The mental model from the <a href="../lessons/0003-databases-and-indexing.html">databases &amp; indexing lesson</a> transfers directly.</p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-type="intuition" data-correct="b" data-concept="mongodb-document-concurrency-why">
         <p class="stem">Why does document-level concurrency control let WiredTiger handle more concurrent writes than a collection-level lock would?</p>
         <button class="opt">It skips the oplog for local writes, so there's nothing to lock</button>
@@ -165,14 +165,14 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-3" hidden>
+  <section class="chunk" id="chunk-3">
     <p class="chunk-label">3 of 6</p>
     <h2>Replica sets — high availability</h2>
     <p>A <b>replica set</b> is MongoDB's HA unit: a group of <code>mongod</code> processes holding the same data — one <b>primary</b> and one or more <b>secondaries</b>.<a href="#c7" class="cite">[7]</a> All writes go to the primary, which records every change in its <b>oplog</b> (operations log); secondaries tail that oplog and replay it asynchronously to stay in sync.<a href="#c7" class="cite">[7]</a> If the primary becomes unreachable, the remaining members hold an <b>election</b> and a secondary is voted in as the new primary — typically within seconds — giving automatic failover.<a href="#c7" class="cite">[7]</a></p>
     <p>Two interview levers fall out of this. <b>Write concern</b> (<code>w</code>) controls how many members must acknowledge a write before it's confirmed — <code>w:1</code> is fast but can lose a just-written change on failover, <code>w:"majority"</code> is durable but slower.<a href="#c7" class="cite">[7]</a> <b>Read preference</b> lets you read from secondaries to offload the primary, accepting that secondaries may lag (eventual consistency on those reads).<a href="#c7" class="cite">[7]</a> Use an <b>odd</b> number of voting members (three is the canonical minimum) so elections always reach a majority.<a href="#c7" class="cite">[7]</a></p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="a" data-concept="mongodb-oplog-role">
         <p class="stem">What is the oplog's role inside a MongoDB replica set?</p>
         <button class="opt">It records primary writes so secondaries replay them to stay synced</button>
@@ -201,7 +201,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-4" hidden>
+  <section class="chunk" id="chunk-4">
     <p class="chunk-label">4 of 6</p>
     <h2>Scaling — sharding by shard key</h2>
     <p>A replica set scales reads and gives HA, but every write still lands on one primary that must fit on one machine. To scale <b>writes and storage horizontally</b>, MongoDB <b>shards</b>: it partitions a collection across multiple shards (each shard is itself a replica set), routed by a <b>shard key</b>.<a href="#c8" class="cite">[8]</a> A <code>mongos</code> router sends each query to the right shard(s) using config-server metadata.<a href="#c8" class="cite">[8]</a> This is the same partitioning idea from the <a href="../lessons/0005-sharding-and-consistent-hashing.html">sharding lesson</a>, applied inside a managed database.</p>
@@ -228,7 +228,7 @@
     <p>This is the deepest, most interview-relevant point. A bad shard key creates <b>hot shards</b> (one shard takes most traffic while others idle) and <b>jumbo chunks</b> (a chunk that can't be split because too many documents share one key value, so it can't be balanced away).<a href="#c8" class="cite">[8]</a> A good shard key has <b>high cardinality</b>, <b>low frequency</b> (no single value dominates), and <b>non-monotonic</b> change so writes spread instead of always hitting the newest chunk.<a href="#c8" class="cite">[8]</a> The classic mistake — sharding time-series on a raw timestamp — funnels every new write to one shard. The fix is hashing the key, or a compound key that mixes a high-cardinality field in. <b>And it's hard to undo</b>: changing the shard key on a large collection is a heavyweight operation, so this is a decision you justify carefully up front.</p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="b" data-concept="mongodb-timestamp-shard-key-hurts">
         <p class="stem">Why does sharding a collection on a raw timestamp hurt?</p>
         <button class="opt">Timestamps are random so the writes scatter evenly across all of shards</button>
@@ -249,14 +249,14 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-5" hidden>
+  <section class="chunk" id="chunk-5">
     <p class="chunk-label">5 of 6</p>
     <h2>Consistency &amp; transactions</h2>
     <p>For analytics-style queries MongoDB has the <b>aggregation pipeline</b>: documents flow through ordered stages — <code>$match</code> (filter), <code>$group</code> (aggregate), <code>$sort</code>, <code>$lookup</code> (join), <code>$project</code> (reshape) — each transforming the stream.<a href="#c9" class="cite">[9]</a> It's MongoDB's answer to <code>GROUP BY</code> and joins, and it runs server-side so you don't pull raw data to the app.</p>
     <p>And yes, MongoDB has <b>multi-document ACID transactions</b>.<a href="#c10" class="cite">[10]</a> Within one document, updates are always atomic — that's free, and embedding often means you never need a multi-doc transaction.<a href="#c10" class="cite">[10]</a> When you genuinely need atomicity across documents or collections (a transfer touching two accounts), transactions are available across replica sets and sharded clusters.<a href="#c10" class="cite">[10]</a> The staff framing: reach for embedding to make the transaction <em>unnecessary</em> first; use multi-doc transactions as the deliberate exception, since they carry coordination cost.</p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="d" data-concept="mongodb-multidoc-transactions">
         <p class="stem">Which is true of multi-document transactions in MongoDB?</p>
         <button class="opt">They are required for every update because no write is ever atomic</button>
@@ -277,7 +277,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-6" hidden>
+  <section class="chunk" id="chunk-6">
     <p class="chunk-label">6 of 6</p>
     <h2>When to reach for it — and when NOT</h2>
     <div class="box">
@@ -304,7 +304,7 @@
     <p>When MongoDB is the right answer, deliver it in this order: (1) <b>name the data shape</b> — "these entities are read together as an aggregate, so a document model fits." (2) <b>State your embed/reference split</b> and tie it to the 16&nbsp;MB limit and the read path.<a href="#c4" class="cite">[4]</a> (3) <b>Cover HA</b> with a replica set and the write concern you'd choose for the critical path.<a href="#c7" class="cite">[7]</a> (4) <b>Cover scale</b> by stating the shard key and <em>why</em> it avoids hot shards — this is where the depth points live.<a href="#c8" class="cite">[8]</a> (5) Mention the aggregation pipeline for any reporting requirement and transactions for the rare cross-document atomic case.<a href="#c9" class="cite">[9]</a> Don't recite all of it — go deep on the one or two that the requirements actually stress.</p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-type="intuition" data-correct="b" data-concept="mongodb-choose-vs-cassandra-why">
         <p class="stem">Why would you choose Cassandra over MongoDB for a workload needing leaderless multi-region writes?</p>
         <button class="opt">MongoDB cannot run in more than one data center at all</button>
@@ -316,7 +316,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-final" hidden>
+  <section class="chunk" id="chunk-final">
     <p class="chunk-label">Final check — comprehensive check</p>
     <h2>Everything from this lesson</h2>
     <p style="font-size:.9rem; color:var(--muted);">Answer from memory before scrolling back up. These questions also

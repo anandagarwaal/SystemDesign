@@ -90,7 +90,7 @@
     <p>A normal database answers <em>equality</em> queries: "give me the row where <code>id = 42</code>" or "rows where <code>city = 'Pune'</code>". But AI works in <b>embeddings</b> — an embedding model (an LLM, CLIP, sentence-transformer) turns text/image/audio into a fixed-length array of floats, say 1536 dimensions, where <em>semantic closeness becomes geometric closeness</em>.<a href="#c1" class="cite">[1]</a> "king" and "queen" land near each other; a photo of a dog lands near other dogs.</p>
     <p>The query you now want is <b>nearest-neighbor</b>: "given this query vector, return the <em>k</em> stored vectors closest to it" by a similarity metric (cosine similarity or L2 distance). That's the one operation a vector database is built around.<a href="#c2" class="cite">[2]</a> The flow is always the same three steps: embed your corpus → store vectors (with a reference back to the source content) → embed the incoming query with the <em>same model</em> and search for nearest neighbors.<a href="#c1" class="cite">[1]</a></p>
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="b" data-concept="vector-databases-embedding-query">
         <p class="stem">What operation is a vector database built around?</p>
         <button class="opt">Exact-match lookup of a row by its primary key value</button>
@@ -110,7 +110,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-2" hidden>
+  <section class="chunk" id="chunk-2">
     <p class="chunk-label">2 of 5</p>
     <h2>Why brute force dies, and the ANN indexes that save you</h2>
     <p>The exact answer is easy to <em>describe</em>: compute the distance from the query to <em>every</em> stored vector and keep the top <em>k</em>. The cost is <code>O(N·D)</code>. At 100M vectors × 1536 dims that's ~153 billion multiplications <em>per query</em> — on the order of <b>seconds per query</b>, which is unusable.<a href="#c2" class="cite">[2]</a></p>
@@ -143,7 +143,7 @@
       </tbody>
     </table>
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="a" data-concept="vector-databases-brute-force-cost">
         <p class="stem">Why can't a brute-force scan serve similarity search at 100M vectors?</p>
         <button class="opt">It compares the query to every vector at O(N·D) cost, taking seconds</button>
@@ -163,13 +163,13 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-3" hidden>
+  <section class="chunk" id="chunk-3">
     <p class="chunk-label">3 of 5</p>
     <h2>HNSW in detail, and fitting it in RAM</h2>
     <p>Think of a road network. The top layer has a few cities connected by long highways; each layer down adds more towns and shorter roads; layer 0 contains <em>every</em> vector with dense local streets. A search starts at an entry point on the top layer, greedily hops to whichever neighbor is closer to the query, and when it can't get closer it drops a layer and repeats — until it does a fine local search on layer 0.<a href="#c3" class="cite">[3]</a> Two knobs: <code>M</code> (edges per node, set at build time) and <code>ef_search</code> (how many candidates to keep during traversal). <b>Raising <code>ef_search</code> raises recall but raises latency</b> — that's the tradeoff from the previous chunk made concrete.<a href="#c2" class="cite">[2]</a></p>
     <p>100M × 1536 dims × 4 bytes ≈ <b>600 GB</b> of raw floats — too much for one box's memory.<a href="#c2" class="cite">[2]</a> <b>Product Quantization (PQ)</b> (and scalar quantization) compress each vector into a small code by splitting it into chunks and replacing each chunk with a codebook entry, shrinking memory ~10–30× at a small recall cost.<a href="#c1" class="cite">[1]</a> Mention quantization the moment scale enters the conversation — it's the answer to "where does all this live?"<a href="#c2" class="cite">[2]</a></p>
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="b" data-concept="vector-databases-ef-search">
         <p class="stem">What happens when you raise HNSW's <code>ef_search</code> parameter?</p>
         <button class="opt">It shrinks the index memory by compressing every stored vector</button>
@@ -189,7 +189,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-4" hidden>
+  <section class="chunk" id="chunk-4">
     <p class="chunk-label">4 of 5</p>
     <h2>Filtering, and where the vectors actually live</h2>
     <p>Real queries are rarely pure similarity. "Find products like this one <em>that are in stock and under ₹5000</em>" mixes an ANN search with a structured filter. The DB keeps a <b>vector index</b> and a <b>metadata index</b>, and the order you combine them matters:<a href="#c1" class="cite">[1]</a></p>
@@ -211,7 +211,7 @@
       </ul>
     </div>
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="c" data-concept="vector-databases-post-filter-risk">
         <p class="stem">Post-filtering (ANN first, filter after) risks which failure?</p>
         <button class="opt">It encrypts the metadata index before the vectors ever load</button>
@@ -231,7 +231,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-5" hidden>
+  <section class="chunk" id="chunk-5">
     <p class="chunk-label">5 of 5</p>
     <h2>How it shows up in an interview</h2>
     <p>You'll meet vector search inside a bigger system — a RAG chatbot, semantic search, "similar items", or dedup. The expected pipeline for RAG: <code>chunk docs → embed → store in vector DB</code>, then per query <code>embed → ANN top-k → stuff into the LLM prompt as context</code>.<a href="#c3" class="cite">[3]</a> The depth move is <b>two-stage retrieval</b>: cheap HNSW returns ~100 candidates at ~95% recall, then a heavier <b>cross-encoder re-ranker</b> rescores those 100 with full attention and keeps the top 10 for the LLM.<a href="#c3" class="cite">[3]</a> First stage maximizes recall cheaply; second stage maximizes precision on a tiny set.</p>
@@ -242,7 +242,7 @@
       Senior says "use a vector database." Staff says four things in one breath: (1) <b>"brute force is <code>O(N·D)</code> — seconds per query at 100M vectors — so we use an ANN index, HNSW";</b> (2) <b>"<code>ef_search</code> is our recall-vs-latency dial, and quantization is how it fits in RAM";</b> (3) <b>"at our scale this is just <code>pgvector</code> on the Postgres we already run — a dedicated cluster is unjustified complexity";</b> and (4) <b>"the vector DB is a derived index, not the source of truth — the document store is, and we re-embed on model upgrades."</b> Knowing when <em>not</em> to add a vector cluster is the simple-by-default judgement L6/L7 rewards.<a href="#c1" class="cite">[1]</a>
     </div>
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="a" data-concept="vector-databases-two-stage-retrieval">
         <p class="stem">In two-stage retrieval, what does the first stage optimize for?</p>
         <button class="opt">Cheap recall over a wide candidate set, deferring precision to stage two</button>
@@ -263,7 +263,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-final" hidden>
+  <section class="chunk" id="chunk-final">
     <p class="chunk-label">Final check</p>
     <h2>Everything from this lesson</h2>
     <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also seeds the spaced-review schedule — you'll see these again on future session starts per the forgetting curve.</p>

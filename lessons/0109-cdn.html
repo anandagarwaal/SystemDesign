@@ -87,13 +87,13 @@
   </div>
 
   <section class="chunk" id="chunk-1">
-    <p class="chunk-label">1 of 5</p>
+    <p class="chunk-label">1 of 6</p>
     <h2>What it is: a read-through cache for the internet</h2>
     <p>A <b>Content Delivery Network</b> is a globally distributed fleet of caching servers ("edge" servers) placed in data centers close to end users.<a href="#c1" class="cite">[1]</a> When a user requests a file, the CDN serves it from the nearest edge instead of forcing the request to travel all the way back to your <b>origin</b> server.<a href="#c2" class="cite">[2]</a> The wins are direct: lower latency (fewer network hops, shorter physical distance), less load on your origin (the edge absorbs most traffic), and lower bandwidth cost (origin egress is reduced to cache fills).<a href="#c1" class="cite">[1]</a></p>
     <p>The mental model: a CDN is a <b>read-through cache for the internet</b>, sitting between users and your origin, replicated to dozens or hundreds of locations. It pairs naturally with object storage — your origin is often an <a href="../lessons/0045-blob-store-s3.html">S3 bucket (Lesson 45)</a>, and the CDN fans those objects out worldwide. It is one of the standard boxes from the <a href="../lessons/0009-key-technologies-tour.html">key-technologies tour (Lesson 09)</a>.</p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="b" data-concept="cdn-what-is-it">
         <p class="stem">What does a CDN do that reduces load on your origin server?</p>
         <button class="opt">It moves the origin to the geographic center of your users</button>
@@ -113,8 +113,8 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-2" hidden>
-    <p class="chunk-label">2 of 5</p>
+  <section class="chunk" id="chunk-2">
+    <p class="chunk-label">2 of 6</p>
     <h2>How requests reach the nearest edge and content freshness</h2>
 
     <h3>Cache hit, miss, and the origin pull</h3>
@@ -125,6 +125,16 @@
     </ul>
     <p>Your single most important metric is the <b>cache hit ratio</b>: the fraction of requests served from the edge. A high ratio means the CDN is doing its job; a low ratio means you're paying for the CDN <em>and</em> still hammering your origin.</p>
 
+    <h3>Push vs pull CDNs</h3>
+    <table>
+      <thead><tr><th>Model</th><th>How content arrives</th><th>Best for</th></tr></thead>
+      <tbody>
+        <tr><td><b>Pull (lazy)</b></td><td>Edge fetches from origin on the first miss, then caches it<a href="#c2" class="cite">[2]</a></td><td>Large, frequently-updated catalogs; the default and simplest to operate</td></tr>
+        <tr><td><b>Push (eager)</b></td><td>You upload content to the CDN ahead of demand</td><td>Large files / big launches where you can't afford the first-request miss penalty</td></tr>
+      </tbody>
+    </table>
+    <p>Most designs use <b>pull</b> — you point the CDN at your origin and let it fill on demand. Reach for push when a small set of large assets must be warm before a traffic spike (a game patch, a video premiere).</p>
+
     <h3>How requests find the nearest PoP: anycast + DNS routing</h3>
     <p>The routing magic happens before your bytes move. Two mechanisms dominate:</p>
     <ul>
@@ -133,7 +143,7 @@
     </ul>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="c" data-concept="cdn-cache-hit-miss">
         <p class="stem">What triggers an origin pull?</p>
         <button class="opt">Every single request from a user triggers an origin pull</button>
@@ -153,8 +163,8 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-3" hidden>
-    <p class="chunk-label">3 of 5</p>
+  <section class="chunk" id="chunk-3">
+    <p class="chunk-label">3 of 6</p>
     <h2>Cache keys, TTL, and freshness headers</h2>
 
     <h3>Cache keys: what counts as the same object</h3>
@@ -173,7 +183,7 @@
     <p>The pattern to articulate: long TTLs maximize hit ratio but make content stale; short TTLs keep things fresh but increase origin pulls. <b>Revalidation with ETags</b> is the middle ground — it confirms freshness cheaply (a 304 with no body) instead of re-downloading the whole object.<a href="#c5" class="cite">[5]</a></p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="c" data-concept="cdn-cache-key-fragmentation">
         <p class="stem">Why does an over-inclusive cache key wreck your hit ratio?</p>
         <button class="opt">It forces every edge to revalidate objects on each request</button>
@@ -193,8 +203,8 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-4" hidden>
-    <p class="chunk-label">4 of 5</p>
+  <section class="chunk" id="chunk-4">
+    <p class="chunk-label">4 of 6</p>
     <h2>Cache invalidation, versioning, and private content</h2>
 
     <h3>Cache invalidation and purge — the genuinely hard part</h3>
@@ -210,7 +220,7 @@
     <p>For private content you don't want world-readable, use <b>signed URLs / signed cookies</b> (a.k.a. pre-signed URLs): a time-limited, cryptographically signed link that the edge validates before serving — so a paywalled video or a private upload is cacheable yet access-controlled.<a href="#c9" class="cite">[9]</a></p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="a" data-concept="cdn-instant-freshness">
         <p class="stem">Which approach guarantees users get updated content instantly when you change it?</p>
         <button class="opt">Versioned URLs with a content hash: new content, new URL</button>
@@ -230,13 +240,59 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-final" hidden>
-    <p class="chunk-label">5 of 5 — comprehensive check</p>
+  <section class="chunk" id="chunk-5">
+    <p class="chunk-label">5 of 6</p>
+    <h2>Where a CDN pays off, and where it doesn't</h2>
+
+    <p>CDNs shine for <b>static</b>, cacheable content (images, CSS/JS bundles, video segments). Truly <b>dynamic</b>, per-user responses can't be cached the same way, but modern CDNs still help by terminating TLS at the edge, keeping warm connections to origin, and routing over their optimized backbone.<a href="#c1" class="cite">[1]</a></p>
+
+    <table>
+      <thead><tr><th>Pattern</th><th>How the CDN earns its place</th></tr></thead>
+      <tbody>
+        <tr><td><b>Static assets</b></td><td>Images, CSS, JS bundles served from edge with versioned URLs and long TTLs — the bread-and-butter use<a href="#c1" class="cite">[1]</a></td></tr>
+        <tr><td><b>Video streaming</b></td><td><b>HLS/DASH</b> chop video into small segments + a manifest; each segment is a cacheable static file, so the CDN scales millions of viewers off a few origin fills<a href="#c10" class="cite">[10]</a></td></tr>
+        <tr><td><b>DDoS absorption</b></td><td>The distributed edge soaks up volumetric floods far from origin; anycast spreads attack traffic across many PoPs<a href="#c6" class="cite">[6]</a></td></tr>
+      </tbody>
+    </table>
+
+    <table>
+      <thead><tr><th>Reach for a CDN when…</th><th>It buys you little / hurts when…</th></tr></thead>
+      <tbody>
+        <tr><td>Static, cacheable, read-heavy content at global scale<a href="#c1" class="cite">[1]</a></td><td>Highly personalized, per-user dynamic responses with near-zero reuse</td></tr>
+        <tr><td>Latency matters and users are geographically spread</td><td>All your users sit in one region next to your origin already</td></tr>
+        <tr><td>Large media / video segments hit by many viewers<a href="#c10" class="cite">[10]</a></td><td>Strong read-after-write needs — purge is eventually consistent, not instant<a href="#c7" class="cite">[7]</a></td></tr>
+        <tr><td>You want edge DDoS absorption and origin offload<a href="#c6" class="cite">[6]</a></td><td>Rapidly mutating data where staleness is unacceptable and TTLs would be near-zero</td></tr>
+      </tbody>
+    </table>
+
+    <div class="gate">
+      <span class="gate-lbl">Check yourself</span>
+      <div class="q" data-correct="b" data-concept="cdn-pull-vs-push">
+        <p class="stem">When is a push CDN worth the extra operational work over the default pull model?</p>
+        <button class="opt">When the catalog is huge and each object changes several times a day</button>
+        <button class="opt">When a few large files must be warm before a known traffic spike</button>
+        <button class="opt">When the origin sits in one region and users are spread worldwide</button>
+        <p class="fb">Push pre-warms the edges, so nobody eats the first-request miss. Pull fills on demand and is simpler for big, churning catalogs.</p>
+        <p class="hint">Push costs you an upload step. What does it buy on the very first request for an object?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="cdn-why-dynamic-poor-fit">
+        <p class="stem">Why does a per-user dynamic response get almost nothing from edge caching, even though it still travels the same network?</p>
+        <button class="opt">Dynamic responses are too large for an edge PoP to store safely</button>
+        <button class="opt">Dynamic responses skip the edge entirely and go straight to origin</button>
+        <button class="opt">One cache entry serves one user once, so there is no reuse to harvest</button>
+        <p class="fb">Caching pays off through reuse: one origin fill amortized over many hits. A response only ever valid for one user has a reuse count of one. The edge still helps on TLS termination and backbone routing, just not on hit ratio.</p>
+        <p class="hint">What is the actual currency of a cache? Count how many times one stored object gets served.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final">
+    <p class="chunk-label">6 of 6 — comprehensive check</p>
     <h2>Everything from this lesson</h2>
     <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is what makes it stick. These questions also seed spaced review — expect variants back in a future session.</p>
 
     <h3>Video streaming and in the interview</h3>
-    <p>HLS/DASH chop video into small segments (e.g. <code>.ts</code>/<code>.m4s</code>) + a manifest; each segment is a cacheable static file, so the CDN scales millions of viewers off a few origin fills.<a href="#c10" class="cite">[10]</a> This is why a CDN is non-negotiable in a <a href="../lessons/0033-youtube.html">design-YouTube interview (Lesson 33)</a>: you transcode once, segment with HLS/DASH, store segments in object storage, and let the CDN deliver them globally. Origin bandwidth stays flat while viewers scale.</p>
+    <p>Segmenting is why a CDN is non-negotiable in a <a href="../lessons/0033-youtube.html">design-YouTube interview (Lesson 33)</a>: you transcode once, segment with HLS/DASH, store segments in object storage, and let the CDN deliver them globally. Origin bandwidth stays flat while viewers scale.</p>
 
     <p>When you put a CDN on the whiteboard, justify it in one line ("serve static assets and video segments from the edge to cut latency and offload origin"), then be ready for the predictable follow-ups: <em>"How does a request reach the nearest edge?"</em> (anycast and/or DNS routing), <em>"How do you keep content fresh?"</em> (TTL + Cache-Control, ETag revalidation, versioned URLs for instant updates), and <em>"How do you serve private content?"</em> (signed URLs).<a href="#c9" class="cite">[9]</a> Volunteering the origin-shield and cache-key normalization shows hands-on depth.</p>
 

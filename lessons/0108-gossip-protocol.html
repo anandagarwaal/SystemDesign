@@ -87,7 +87,7 @@
   </div>
 
   <section class="chunk" id="chunk-1">
-    <p class="chunk-label">1 of 5</p>
+    <p class="chunk-label">1 of 7</p>
     <h2>What it is</h2>
     <p>A <b>gossip protocol</b> (a.k.a. <b>epidemic protocol</b>) is a way for nodes in a distributed system to spread information the way a rumor — or an infection — spreads through a population: every node, on a fixed period (say once per second), picks a <em>few random peers</em> and exchanges state with them.<a href="#c1" class="cite">[1]</a> No node talks to everyone; no node is in charge. Yet because each "infected" node infects others every round, a fact injected anywhere reaches the entire cluster quickly and reliably, even as nodes join, leave, or crash.</p>
 
@@ -111,7 +111,7 @@
     <p>The key mental shift: gossip does not <em>guarantee</em> that everyone knows something at any instant. It guarantees that, absent permanent partition, everyone <b>eventually converges</b> — and it does so with overwhelming probability in a small, bounded number of rounds. That "eventually, cheaply, with no coordinator" is exactly the trade an AP system wants for its control plane.</p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="b" data-concept="gossip-what-is">
         <p class="stem">What makes gossip-based information spread fast despite each node contacting only a few random peers?</p>
         <button class="opt">A central hub forwards to every peer, so latency is guaranteed</button>
@@ -131,8 +131,8 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-2" hidden>
-    <p class="chunk-label">2 of 5</p>
+  <section class="chunk" id="chunk-2">
+    <p class="chunk-label">2 of 7</p>
     <h2>Three dissemination styles: push, pull, and push-pull</h2>
     <p>When node A contacts a random peer B, the exchange comes in three flavors, and the choice drives how fast a rumor spreads:<a href="#c1" class="cite">[1]</a></p>
     <table>
@@ -157,7 +157,7 @@
     </table>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="c" data-concept="gossip-push-vs-pull">
         <p class="stem">Why does pull finish faster than push in the late stages of dissemination?</p>
         <button class="opt">Pull messages are smaller than push, which frees bandwidth</button>
@@ -177,15 +177,49 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-3" hidden>
-    <p class="chunk-label">3 of 5</p>
+  <section class="chunk" id="chunk-3">
+    <p class="chunk-label">3 of 7</p>
+    <h2>Why it converges in O(log N) rounds</h2>
+    <p>Picture an infection where every infected node infects (roughly) one more each round: the infected count doubles per round, so reaching <code>N</code> nodes takes about <code>log&#8322;(N)</code> rounds.<a href="#c1" class="cite">[1]</a> Even a million nodes converge in roughly twenty rounds. Two properties fall out of this exponential growth and matter enormously at staff level:</p>
+    <div class="box">
+      <b>The two scaling wins</b>
+      <ul>
+        <li><b>Logarithmic latency.</b> Time-to-converge grows as <code>O(log N)</code> in cluster size, so the protocol scales to thousands of nodes without the propagation delay exploding.<a href="#c1" class="cite">[1]</a></li>
+        <li><b>Constant per-node load.</b> Each node contacts a fixed small <em>fanout</em> of peers per round regardless of cluster size, so no node is a hotspot and there is no central server to overload — the load is spread evenly across the whole cluster.<a href="#c1" class="cite">[1]</a></li>
+        <li><b>Fault tolerance for free.</b> Because peers are chosen randomly and redundantly, the loss of any node, or of individual messages, barely dents propagation. There is nothing whose failure stops the protocol.</li>
+      </ul>
+    </div>
+
+    <div class="gate">
+      <span class="gate-lbl">Check yourself</span>
+      <div class="q" data-correct="a" data-concept="gossip-log-n-rounds">
+        <p class="stem">Roughly how many gossip rounds does it take a rumor to reach a million nodes?</p>
+        <button class="opt">About twenty — the informed count doubles every round</button>
+        <button class="opt">About a thousand — the square root of the cluster size</button>
+        <button class="opt">About a million — one round per node that must hear it</button>
+        <p class="fb">Doubling per round means log&#8322;(N) rounds: log&#8322;(10&#8310;) ≈ 20. The cluster can grow enormously and the round count barely moves.</p>
+        <p class="hint">If the number of informed nodes doubles each round, how many doublings reach a million?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="c" data-concept="gossip-why-no-hotspot">
+        <p class="stem">A broadcast from one coordinator also reaches everyone. Why does gossip scale to thousands of nodes where that coordinator does not?</p>
+        <button class="opt">Gossip messages are far smaller, so the network carries more of them</button>
+        <button class="opt">Gossip delivers each update exactly once, so no bandwidth is wasted</button>
+        <button class="opt">Each node talks to a fixed few peers, so no node's load grows with N</button>
+        <p class="fb">The coordinator's outbound work grows linearly with the cluster, so it becomes the bottleneck and the single point of failure. Gossip keeps per-node fanout constant and spreads the same total work across everyone — it actually sends <em>more</em> messages overall, but no one node carries them.</p>
+        <p class="hint">Count the messages one particular node has to send per round in each scheme, as N grows.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-4">
+    <p class="chunk-label">4 of 7</p>
     <h2>Failure detection and phi-accrual</h2>
     <p>Detecting that a peer has <em>died</em> is the hard part, because "I haven't heard from you" is ambiguous — it could mean you crashed, or it could mean the network is slow. Two layers are worth naming in an interview:</p>
     <p><b>Heartbeat counters.</b> Each node keeps a monotonically increasing heartbeat for itself and gossips a vector of <em>(node, heartbeat, version)</em> entries; a peer adopts whichever entry has the higher counter.<a href="#c1" class="cite">[1]</a> If a node's heartbeat stops advancing in the data you receive (directly or relayed), it is a candidate for "failed." This is essentially a version-stamped, last-write-wins merge of membership state, conceptually like the version reconciliation in <a href="0091-dynamodb.html">Dynamo-style stores (Lesson 91)</a>.<a href="#c2" class="cite">[2]</a></p>
     <p><b>Phi-accrual detection.</b> Rather than a hard timeout ("dead if silent for 5 s"), a phi-accrual detector outputs a <em>continuous suspicion level</em> φ computed from the statistical distribution of recent inter-arrival times.<a href="#c3" class="cite">[3]</a> φ rises smoothly as silence grows, and the application picks a threshold to act on. The win: it <b>adapts to network conditions automatically</b> — on a flaky or loaded link it tolerates longer gaps before crying wolf, cutting false positives, which is exactly why Cassandra and Akka adopted it.<a href="#c3" class="cite">[3]</a> The SWIM protocol adds another robustness trick — <em>indirect probing</em>: if A can't reach B directly, it asks <code>k</code> other peers to ping B before declaring it dead, so one bad link doesn't evict a healthy node.<a href="#c4" class="cite">[4]</a></p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="b" data-concept="gossip-phi-accrual-why">
         <p class="stem">What is the main advantage of phi-accrual failure detection over a fixed timeout like "dead if silent for 5 s"?</p>
         <button class="opt">It guarantees zero false positives when a node truly crashes</button>
@@ -205,8 +239,8 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-4" hidden>
-    <p class="chunk-label">4 of 5</p>
+  <section class="chunk" id="chunk-5">
+    <p class="chunk-label">5 of 7</p>
     <h2>Anti-entropy with Merkle trees and the gossip/consensus split</h2>
     <p>Gossiping membership is cheap because the state is small. Reconciling <em>replica data</em> is not — comparing two replicas key-by-key would be enormous. The fix, used by both Dynamo and Cassandra, is <b>anti-entropy via Merkle trees</b>.<a href="#c2" class="cite">[2]</a> A Merkle tree is a hash tree: leaves hash individual key ranges, and each parent hashes its children up to a single root hash.<a href="#c2" class="cite">[2]</a></p>
     <div class="box">
@@ -229,7 +263,7 @@
     </div>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="a" data-concept="gossip-merkle-tree-bandwidth">
         <p class="stem">How do Merkle trees make replica anti-entropy cheap?</p>
         <button class="opt">Matching roots prove equality; differing branches find divergence cheaply</button>
@@ -249,8 +283,73 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-final" hidden>
-    <p class="chunk-label">5 of 5 — comprehensive check</p>
+  <section class="chunk" id="chunk-6">
+    <p class="chunk-label">6 of 7</p>
+    <h2>Trade-offs, and where it shows up in real systems</h2>
+    <p>Gossip is not free lunch — it is a deliberate exchange of <em>strong, instant agreement</em> for <em>scalability and robustness</em>. Name both sides:</p>
+    <table>
+      <thead><tr><th>What you gain</th><th>What you pay</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>No single point of failure, no central coordinator — any node can die and the protocol continues.<a href="#c1" class="cite">[1]</a></td>
+          <td>State is only <b>eventually consistent</b>; at any instant two nodes may hold different views of membership.</td>
+        </tr>
+        <tr>
+          <td>Scales to thousands of nodes — <code>O(log N)</code> convergence, constant per-node cost.<a href="#c1" class="cite">[1]</a></td>
+          <td><b>Redundant messages</b>: the same update is delivered to already-informed peers, wasting some bandwidth.</td>
+        </tr>
+        <tr>
+          <td>Robust to message loss and transient partitions — randomness routes around failures.</td>
+          <td>Detection is probabilistic; tuning fanout/period/threshold trades convergence speed against chatter and false positives.<a href="#c3" class="cite">[3]</a></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table>
+      <thead><tr><th>System</th><th>How it uses gossip</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Cassandra</b></td>
+          <td>Gossip spreads ring membership and node state every second; uses a phi-accrual failure detector and Merkle-tree anti-entropy repair.<a href="#c3" class="cite">[3]</a> See <a href="0090-cassandra.html">Lesson 90</a>.</td>
+        </tr>
+        <tr>
+          <td><b>DynamoDB / Dynamo</b></td>
+          <td>The original gossip + Merkle-tree anti-entropy design for leaderless membership and replica reconciliation.<a href="#c2" class="cite">[2]</a> See <a href="0091-dynamodb.html">Lesson 91</a>.</td>
+        </tr>
+        <tr>
+          <td><b>Consul</b></td>
+          <td>Uses the <b>SWIM</b>-based Serf library for gossip membership and failure detection across agents.<a href="#c4" class="cite">[4]</a></td>
+        </tr>
+        <tr>
+          <td><b>Redis Cluster</b></td>
+          <td>Nodes exchange a binary cluster bus gossip to share slot ownership and mark nodes <code>PFAIL</code>/<code>FAIL</code> by agreement.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="gate">
+      <span class="gate-lbl">Check yourself</span>
+      <div class="q" data-correct="b" data-concept="gossip-redundant-messages">
+        <p class="stem">What is the bandwidth cost you accept in exchange for gossip's robustness?</p>
+        <button class="opt">Every node must hold a full copy of the cluster's replica data</button>
+        <button class="opt">Updates keep being delivered to peers that already have them</button>
+        <button class="opt">Each round requires a quorum acknowledgement before it commits</button>
+        <p class="fb">Random peer selection means the same news lands on informed nodes repeatedly. That redundancy is exactly what makes it survive message loss — you pay bandwidth for it.</p>
+        <p class="hint">Peers are chosen at random, with no record of who already knows. What does that imply late in a round?</p>
+      </div>
+      <div class="q" data-type="intuition" data-correct="a" data-concept="gossip-why-tune-threshold">
+        <p class="stem">Why is there no single "correct" setting for fanout, gossip period, and suspicion threshold?</p>
+        <button class="opt">Each setting trades convergence speed against chatter and false evictions</button>
+        <button class="opt">The values are fixed by the network hardware and cannot be chosen</button>
+        <button class="opt">They only matter while a cluster is starting up and has no state yet</button>
+        <p class="fb">Bigger fanout and shorter periods converge faster but burn bandwidth; a twitchier threshold detects real deaths sooner but evicts healthy nodes on a slow link. The right point depends on cluster size and how costly a false eviction is.</p>
+        <p class="hint">Take each knob to its extreme in both directions and say what goes wrong at each end.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="chunk" id="chunk-final">
+    <p class="chunk-label">7 of 7 — comprehensive check</p>
     <h2>Everything from this lesson</h2>
     <p style="font-size:.9rem; color:var(--muted);">Don't peek at the notes above. Pulling the answer from memory is what makes it stick. These questions also seed spaced review — expect variants back in a future session.</p>
 

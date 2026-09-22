@@ -14,9 +14,10 @@
 - Every lesson should include a "what would move this to staff-level" callout.
 
 ## Teaching approach
-- **Math Academy Way (2026-09-19 conversion).** Every lesson is gated chunks with an intuition question
-  per gate and a `chunk-final` comprehensive check; answers feed an SM-2-lite forgetting-curve
-  schedule. Chat sessions follow `CLAUDE.md` (review first, diagnose prerequisites, small chunks,
+- **Math Academy Way (2026-09-19 conversion; ungated 2026-09-22).** Every lesson is a sequence of
+  chunks, each followed by a check with an intuition question, plus a `chunk-final` comprehensive
+  check. Nothing is hidden — the lesson reads top to bottom, and the checks are retrieval practice
+  that feeds an SM-2-lite forgetting-curve schedule. Chat sessions follow `CLAUDE.md` (review first, diagnose prerequisites, small chunks,
   cumulative section quiz, ledger in `learning-records/review-schedule.md`).
 - Small lessons, one win each. Retrieval practice + spacing + interleaving.
 - Quizzes: keep all answer options equal length (no formatting tells).
@@ -110,14 +111,15 @@ estimates. Consider a later pass to add freshly-fetched source citations.
 - (NOTE: 0120-0122 via subagents; reference/practice pages authored directly by lead agent.
    The old embedded-JSON drill is gone; the question bank is now generated — see below.)
 
-## Math Academy conversion (2026-09-19)
-- All 124 gated lessons pass `tools/audit_lessons.py` (0 issues): gate per chunk, intuition question per
-  gate, hidden chunks, `chunk-final`, unique concept ids, no option-length tells (>30% spread).
-- `reference/mastery.js`: chunk gating, SM-2-lite (early correct reviews don't stretch intervals),
+## Math Academy conversion (2026-09-19; gating removed 2026-09-22)
+- All 124 chunked lessons pass `tools/audit_lessons.py` (0 issues): a check after every chunk, an
+  intuition question in each, `chunk-final`, unique concept ids, no option-length tells (>30% spread).
+- **No gating.** Lessons were hidden chunk by chunk until each check was passed, which made them read
+  as quizzes with some prose attached. Every chunk is now visible from the start; the checks stayed.
+- `reference/mastery.js`: SM-2-lite (early correct reviews don't stretch intervals),
   shuffled options, commit-first free-text answers on intuition questions, self-grading of that
-  answer against a generated rubric (hit + first-try correct = known; else back tomorrow, and the
-  chunk stays locked until graded) (`sd-answers-v1`),
-  lesson completion (`sd-progress-v1`), reread-without-gates for finished lessons.
+  answer against a generated rubric (hit + first-try correct = known; else back tomorrow)
+  (`sd-answers-v1`), lesson completion once every check in the lesson is answered (`sd-progress-v1`).
 - `reference/review.html`: today's forgetting-curve review, cumulative section exams (85% pass,
   sections = index.html headings), weak spots, interleaved drill, and a copyable report for the chat
   teacher (includes the learner's own words on missed intuition questions).

@@ -93,7 +93,7 @@
     <p>The headline numbers AWS markets — several times the throughput of stock MySQL on the same hardware, storage that auto-grows in 10&nbsp;GB chunks up to 128&nbsp;TB, six copies of your data across three Availability Zones — all fall out of that re-architected storage tier.<a href="#c2" class="cite">[2]</a> Aurora is best understood not as "MySQL with better defaults" but as a different answer to the question <em>"where does durability live?"</em></p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="a" data-concept="aurora-wire-compatibility">
         <p class="stem">What actually stays the same when you move an app from Postgres/MySQL to Aurora?</p>
         <button class="opt">The wire protocol and SQL — drivers, ORMs, and queries don't change</button>
@@ -113,7 +113,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-2" hidden>
+  <section class="chunk" id="chunk-2">
     <p class="chunk-label">2 of 6</p>
     <h2>Internals — "the log is the database"</h2>
     <p>This is the section that earns depth. In a traditional database, the engine writes both a <a href="../lessons/0088-postgresql.html">write-ahead/redo log</a> <em>and</em> the actual data pages, and to make a replica it ships full pages (or the binlog) over the network and replays them. That is a lot of writes for one logical change. Aurora's core insight, from the 2017 SIGMOD paper, is that <b>in a replicated, durable system the redo log is the only thing you truly need to send over the network — the data pages can be materialized from the log wherever they're needed.</b><a href="#c1" class="cite">[1]</a></p>
@@ -141,7 +141,7 @@
     <p>In a classic engine, crash recovery means replaying the redo log from the last checkpoint at startup — and the further back the checkpoint, the longer you wait.<a href="#c1" class="cite">[1]</a> Aurora doesn't recover this way. Because the storage tier already applies redo continuously in the background, recovery isn't a foreground replay step the engine must finish before opening — the database can come back and let the distributed storage reconcile pages on demand.<a href="#c1" class="cite">[1]</a> The practical result is recovery measured in seconds rather than minutes, which directly improves your availability NFR.<a href="#c2" class="cite">[2]</a></p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="c" data-concept="aurora-writer-sends-only-redo">
         <p class="stem">What does an Aurora writer actually send to its storage tier?</p>
         <button class="opt">Full data pages mirrored synchronously to one standby node</button>
@@ -177,7 +177,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-3" hidden>
+  <section class="chunk" id="chunk-3">
     <p class="chunk-label">3 of 6</p>
     <h2>Replicas &amp; failover</h2>
     <p>The shared-storage design pays off again here. Because the durable data lives in one storage volume that all instances see, adding a <b>read replica</b> means standing up a compute instance and pointing it at the <em>same</em> volume — there is <b>no re-replication of the dataset</b>.<a href="#c2" class="cite">[2]</a> Aurora supports <b>up to 15 reader replicas</b> per cluster, all reading from the shared storage, with replica lag typically in the low milliseconds because they're reading the same log-backed pages rather than replaying a stream.<a href="#c2" class="cite">[2]</a></p>
@@ -185,7 +185,7 @@
     <p><b>Aurora Serverless v2</b> takes it further by auto-scaling the compute tier up and down in fine-grained capacity units in response to load, so you don't pre-provision a fixed instance size for spiky or unpredictable workloads.<a href="#c3" class="cite">[3]</a></p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="a" data-concept="aurora-replica-no-copy">
         <p class="stem">Why can Aurora add a read replica without copying data?</p>
         <button class="opt">All instances attach to one shared distributed storage volume</button>
@@ -205,7 +205,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-4" hidden>
+  <section class="chunk" id="chunk-4">
     <p class="chunk-label">4 of 6</p>
     <h2>When to reach for it / when NOT</h2>
     <table>
@@ -225,7 +225,7 @@
     </div>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="d" data-concept="aurora-single-writer-ceiling">
         <p class="stem">Where does standard Aurora hit a wall versus Spanner?</p>
         <button class="opt">It cannot survive the failure of an entire availability zone</button>
@@ -246,13 +246,13 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-5" hidden>
+  <section class="chunk" id="chunk-5">
     <p class="chunk-label">5 of 6</p>
     <h2>In the interview</h2>
     <p>When you put Aurora on the whiteboard, justify it in one line ("managed Postgres-compatible, durable across AZs, scales reads to 15 replicas"), then be ready for the predictable follow-ups. <em>"Why is it faster than RDS MySQL?"</em> → the log-is-the-database storage tier ships only redo, far less network I/O.<a href="#c1" class="cite">[1]</a> <em>"How does failover work?"</em> → promote an existing reader on the shared volume, tens of seconds, no data copy.<a href="#c2" class="cite">[2]</a> <em>"How does it scale writes?"</em> → here you must be honest: it doesn't past one writer; you fan out reads, then shard or move to distributed SQL.<a href="#c4" class="cite">[4]</a> Mentioning the 6-copy / 4-of-6 quorum or background page coalescing signals hands-on depth without lecturing on what ACID means.</p>
 
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-type="intuition" data-correct="b" data-concept="aurora-honest-write-scaling-answer">
         <p class="stem">Why should you answer "how does Aurora scale writes?" with an honest "it doesn't, past one writer" instead of describing the read-replica fan-out?</p>
         <button class="opt">Read replicas don't exist in Aurora, so there's nothing else to say</button>
@@ -264,7 +264,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-final" hidden>
+  <section class="chunk" id="chunk-final">
     <p class="chunk-label">6 of 6 — comprehensive check</p>
     <h2>Everything from this lesson</h2>
     <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also

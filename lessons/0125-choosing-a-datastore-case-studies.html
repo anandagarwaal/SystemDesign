@@ -110,7 +110,7 @@
       Senior candidates name-drop outcomes ("we'd use Cassandra, that's what Discord does"). Staff candidates name the ceiling first and let the product fall out of it ("this is an append-heavy per-channel range scan with no cross-row transactions, so a wide-column store keyed by channel fits; Cassandra or ScyllaDB both work"). Same conclusion, completely different signal — because the second one survives the interviewer changing the requirements.
     </div>
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="b" data-concept="dbcase-read-migration-four-facts">
         <p class="stem">When reading a company's migration story, which detail actually transfers to your own design?</p>
         <button class="opt">The name of the database product that they ended up running</button>
@@ -131,7 +131,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-2" hidden>
+  <section class="chunk" id="chunk-2">
     <p class="chunk-label">2 of 6</p>
     <h2>Discord — when the engine is wrong but the category is right</h2>
     <p>Discord stores trillions of messages. By early 2022 that lived on a <b>177-node Cassandra cluster</b>, and the pain wasn't storage capacity — it was operational toil: frequent pages, unpredictable latency, and maintenance work that grew with the data <a href="#c1" class="cite">[1]</a>.</p>
@@ -155,7 +155,7 @@
     <p>Read that list again: <em>none of those are category problems.</em> Not one says "a wide-column store is wrong for chat." They all say "this implementation of a wide-column store costs too much to operate." So the fix was an engine swap, not a redesign — ScyllaDB, same data model, written in C++ with no GC and a shard-per-core architecture. Result: <b>177 nodes → 72 nodes</b>, historical message reads from 40–125&nbsp;ms p99 down to <b>15&nbsp;ms p99</b>, inserts from 5–70&nbsp;ms to a flat 5&nbsp;ms <a href="#c1" class="cite">[1]</a>.</p>
     <p>And the hot-partition problem — the one that <em>was</em> a data-model problem — wasn't fixed by the new engine at all. They fixed it separately with request coalescing in their data service: when many users ask for the same row at once, only one query reaches the database <a href="#c1" class="cite">[1]</a>. Different problem, different layer, different fix.</p>
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="a" data-concept="dbcase-discord-partition-key">
         <p class="stem">Why does Discord partition messages by channel and sort by message id?</p>
         <button class="opt">Reads are "last N in this channel," a sorted scan of one partition</button>
@@ -185,7 +185,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-3" hidden>
+  <section class="chunk" id="chunk-3">
     <p class="chunk-label">3 of 6</p>
     <h2>Uber — when the category is right and the internals decide</h2>
     <p>Uber moved its core data off Postgres and onto MySQL <a href="#c2" class="cite">[2]</a>. That headline gets cited constantly as "Postgres doesn't scale," which is not what happened. Both are relational stores; the category never changed. What changed was which engine's <em>internals</em> matched a write-heavy workload with many secondary indexes.</p>
@@ -211,7 +211,7 @@
       Uber's case is the best illustration of why <a href="0114-database-internals.html">database internals</a> are worth knowing. At senior level you compare products on a feature table. At staff level you can say "this table takes 40 writes per update because of how secondary indexes are stored" — which is a statement an interviewer can check, and which points straight at fixes (fewer indexes, a covering index, a different engine) rather than just a different logo.
     </div>
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="c" data-concept="dbcase-uber-write-amplification">
         <p class="stem">Why did updating one field cost Uber many writes on Postgres?</p>
         <button class="opt">Postgres rewrites the entire table file whenever any row is updated</button>
@@ -240,7 +240,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-4" hidden>
+  <section class="chunk" id="chunk-4">
     <p class="chunk-label">4 of 6</p>
     <h2>Figma and Notion — the fifth question: what can you operate?</h2>
     <p>Two companies, same era, same problem shape: one enormous Postgres instance holding everything, growing past what a single node could serve. Both refused to change category. Both sharded Postgres instead. Their reasoning is the part the four questions don't capture.</p>
@@ -260,7 +260,7 @@
       That last paragraph is the fifth question, and it's the one junior answers never include: <b>what can this team actually operate, and what does the migration cost against the runway we have?</b> A technically superior store your team has never run, adopted under time pressure, during a live migration, is often the higher-risk choice. Saying that out loud in an interview — "distributed SQL would fit the requirements, but I'd shard the store we already know how to run, because the migration risk dominates here" — reads as senior judgement, not as ignorance of CockroachDB. The trap is using it as a blanket excuse; it's an argument about <em>this</em> migration's risk against <em>this</em> deadline, not a permanent veto on learning new things.
     </div>
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="b" data-concept="dbcase-notion-shard-key">
         <p class="stem">Why did Notion shard by workspace ID?</p>
         <button class="opt">Workspace ids sort chronologically, which keeps recent data together</button>
@@ -289,7 +289,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-5" hidden>
+  <section class="chunk" id="chunk-5">
     <p class="chunk-label">5 of 6</p>
     <h2>Stack Overflow — the counterexample that keeps you honest</h2>
     <p>Every case so far involved outgrowing something. This one is the control group. In 2016 Stack Overflow served the entire Q&amp;A network — one of the most-visited sites on the internet — from <b>two SQL Server clusters</b>, each a handful of machines, and on one sampled day ran <b>504,816,843 SQL queries</b> <a href="#c5" class="cite">[5]</a>.</p>
@@ -311,7 +311,7 @@
     </div>
     <p>Worth noting what makes this workload cooperative: it is <b>read-dominated</b> (millions of readers, comparatively few writers), the hot data is small enough to cache well, and there is no fan-out write problem. Change any of those — Discord's write-dominated firehose, say — and the same architecture falls over. The counterexample is not "always scale up"; it's "check whether your workload is this shape before assuming it isn't."</p>
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="a" data-concept="dbcase-so-truth-vs-derived">
         <p class="stem">In Stack Overflow's three-tier setup, what distinguishes SQL Server from Redis and Elasticsearch?</p>
         <button class="opt">It holds the truth; the other two are rebuildable read-optimised views</button>
@@ -341,7 +341,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-6" hidden>
+  <section class="chunk" id="chunk-6">
     <p class="chunk-label">6 of 6</p>
     <h2>All five on one page, and how to use them in an interview</h2>
     <table>
@@ -369,7 +369,7 @@
       Notice what the strong column does: it names the mechanism, cites the case as <em>evidence for the mechanism</em>, and then states the condition under which the analogy holds or fails. That last clause is the whole game — it proves you know why the story applied, which means you'd also notice when it doesn't. Citing a case without its scope is the fastest way to get an interviewer to probe the thing you don't understand.
     </div>
     <div class="gate">
-      <span class="gate-lbl">Check before continuing</span>
+      <span class="gate-lbl">Check yourself</span>
       <div class="q" data-correct="c" data-concept="dbcase-none-are-category-switches">
         <p class="stem">What does every one of the five cases have in common?</p>
         <button class="opt">All five eventually migrated from a relational store onto a NoSQL store</button>
@@ -390,7 +390,7 @@
     </div>
   </section>
 
-  <section class="chunk" id="chunk-final" hidden>
+  <section class="chunk" id="chunk-final">
     <p class="chunk-label">Final check</p>
     <h2>Everything from this lesson</h2>
     <p style="font-size:.9rem; color:var(--muted);">Answer from memory. This block also
